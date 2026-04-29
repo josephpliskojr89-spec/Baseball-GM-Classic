@@ -1,0 +1,346 @@
+// Application entry point and orchestrator.
+window.BBGM_MAIN = (function () {
+  const U = window.BBGM_UI;
+  const D = window.BBGM_DATES;
+  const C = window.BBGM_CONSTANTS;
+
+  let currentTab = 'home';
+  let viewOptions = {};
+
+  function init() {
+    // Register service worker (fail silently)
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./service-worker.js').catch(() => {});
+    }
+
+    // Check for existing save
+    const hasSave = window.BBGM_STATE.hasSave();
+    document.getElementById('btnLoadGame').disabled = !hasSave;
+    if (!hasSave) {
+      document.getElementById('btnLoadGame').classList.add('hidden');
+    }
+
+    // Wire splash buttons
+    document.getElementById('btnNewGame').addEventListener('click', () => {
+      if (hasSave) {
+        U.showModal({
+          title: 'Start a New Game?',
+          body: 'You have an existing save. Starting a new game will erase it.',
+          actions: [
+            { label: 'Cancel', kind: 'secondary', onClick: () => true },
+            { label: 'Erase & New', kind: 'danger', onClick: () => {
+              window.BBGM_STATE.reset();
+              startNewGameFlow();
+            }},
+          ],
+        });
+      } else {
+        startNewGameFlow();
+      }
+    });
+    document.getElementById('btnLoadGame').addEventListener('click', () => {
+      const s = window.BBGM_STATE.load();
+      if (s) startGame(s);
+      else U.showToast('No save found.', 'warning');
+    });
+    document.getElementById('btnImportGame').addEventListener('click', () => {
+      const input = document.getElementById('fileImport');
+      input.value = '';
+      input.onchange = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        window.BBGM_STATE.importFromFile(file).then((s) => {
+          U.showToast('Save imported.', 'success');
+          startGame(s);
+        }).catch((err) => {
+          U.showToast('Import failed: ' + err.message, 'danger');
+        });
+      };
+      input.click();
+    });
+
+    // Wire bottom nav
+    const navBtns = document.querySelectorAll('.nav-btn');
+    navBtns.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        navigate(btn.dataset.tab);
+      });
+    });
+
+    // Wire advance day
+    document.getElementById('btnAdvance').addEventListener('click', () => advanceDay());
+
+    // Modal close on backdrop click
+    document.getElementById('modalRoot').addEventListener('click', (e) => {
+      if (e.target.id === 'modalRoot') U.closeModal();
+    });
+  }
+
+  // ------- New game flow -------
+  function startNewGameFlow() {
+    showProgressForGen();
+    setTimeout(() => {
+      try {
+        const seed = Math.floor(Math.random() * 0xffffffff);
+        const rng = window.BBGM_RNG.makeRng(seed);
+        const league = window.BBGM_LEAGUE_GEN.generate(rng);
+        const players = window.BBGM_PLAYER_GEN.generate(rng, league);
+        const schedule = window.BBGM_SCHEDULE.generate(rng, league, C.START_YEAR);
+
+        const state = {
+          version: '0.1.0',
+          meta: {
+            seed,
+            created: new Date().toISOString(),
+            currentDate: D.fromYMD(C.START_YEAR, 3, 28), // Opening day
+            userTeamId: null, // chosen on team-select screen
+            gamesPlayedByTeam: {},
+          },
+          league: { teams: league.teams, schedule },
+          players,
+          news: [],
+          freeAgents: [],
+          history: { seasons: [] },
+        };
+        window.BBGM_STATE.set(state);
+        U.hideProgress();
+        showTeamSelect();
+      } catch (e) {
+        console.error(e);
+        U.hideProgress();
+        U.showToast('Generation failed: ' + e.message, 'danger');
+      }
+    }, 50);
+  }
+
+  function showProgressForGen() {
+    U.showProgress('Generating league…');
+  }
+
+  function showTeamSelect() {
+    document.getElementById('splash').classList.add('hidden');
+    document.getElementById('app').classList.add('hidden');
+    const screen = document.getElementById('teamSelect');
+    screen.classList.remove('hidden');
+    const list = document.getElementById('teamSelectList');
+    U.clearChildren(list);
+    const state = window.BBGM_STATE.get();
+
+    // Sort teams by league/division
+    const teams = state.league.teams.slice().sort((a, b) => {
+      if (a.league !== b.league) return a.league.localeCompare(b.league);
+      if (a.division !== b.division) return a.division.localeCompare(b.division);
+      return a.name.localeCompare(b.name);
+    });
+
+    let lastGroup = '';
+    for (const t of teams) {
+      const grp = `${t.league} ${t.division}`;
+      if (grp !== lastGroup) {
+        list.appendChild(U.el('div', { class: 'card-title', style: { 'margin-top': '12px' } }, grp));
+        lastGroup = grp;
+      }
+      const btn = U.el('button', {
+        class: 'team-pick',
+        on: { click: () => chooseTeam(t.id) }
+      });
+      btn.appendChild(U.teamCap(t, { size: 'lg' }));
+      const info = U.el('div', { class: 'team-pick-info' });
+      info.appendChild(U.el('div', { class: 'team-pick-name' }, t.name));
+      info.appendChild(U.el('div', { class: 'team-pick-meta' },
+        `${t.market[0].toUpperCase() + t.market.slice(1)} Market • ${t.ownerName} • ${t.competitiveWindow}`));
+      btn.appendChild(info);
+      list.appendChild(btn);
+    }
+
+    document.getElementById('btnRegenerate').onclick = () => {
+      window.BBGM_STATE.reset();
+      startNewGameFlow();
+    };
+  }
+
+  function chooseTeam(teamId) {
+    const state = window.BBGM_STATE.get();
+    state.meta.userTeamId = teamId;
+    window.BBGM_STATE.set(state);
+    document.getElementById('teamSelect').classList.add('hidden');
+    document.getElementById('splash').classList.add('hidden');
+    document.getElementById('app').classList.remove('hidden');
+    currentTab = 'home';
+    refresh();
+    const team = state.league.teams.find((t) => t.id === teamId);
+    U.showToast(`Welcome to the ${team.name}.`, 'success');
+  }
+
+  function startGame(state) {
+    document.getElementById('splash').classList.add('hidden');
+    if (!state.meta.userTeamId) {
+      showTeamSelect();
+    } else {
+      document.getElementById('app').classList.remove('hidden');
+      refresh();
+    }
+  }
+
+  // ------- Navigation -------
+  function navigate(tab, options = {}) {
+    currentTab = tab;
+    viewOptions = options;
+    refresh();
+    // Update nav buttons
+    document.querySelectorAll('.nav-btn').forEach((b) => {
+      b.classList.toggle('active', b.dataset.tab === tab);
+    });
+  }
+
+  function refresh() {
+    const state = window.BBGM_STATE.get();
+    if (!state || !state.meta.userTeamId) return;
+    updateHeader(state);
+    const main = document.getElementById('mainView');
+    const opts = viewOptions || {};
+    viewOptions = {};
+    switch (currentTab) {
+      case 'home': window.BBGM_UI_DASHBOARD.render(main, state); break;
+      case 'team': window.BBGM_UI_TEAM.render(main, state); break;
+      case 'league': window.BBGM_UI_LEAGUE.render(main, state); break;
+      case 'games': window.BBGM_UI_GAMES.render(main, state, opts); break;
+      case 'menu': window.BBGM_UI_MENU.render(main, state); break;
+      default: window.BBGM_UI_DASHBOARD.render(main, state);
+    }
+    // Scroll to top on tab switch
+    main.scrollTop = 0;
+  }
+
+  function updateHeader(state) {
+    const team = state.league.teams.find((t) => t.id === state.meta.userTeamId);
+    document.getElementById('hdrDate').textContent = D.format(state.meta.currentDate);
+    document.getElementById('hdrRecord').textContent =
+      `${team.seasonRecord.w}-${team.seasonRecord.l}`;
+  }
+
+  // ------- Sim controls -------
+  function advanceDay() {
+    const state = window.BBGM_STATE.get();
+    if (!state) return;
+    simDays(1);
+  }
+
+  function simToNextEvent() {
+    simDays(7);
+  }
+
+  function simToEndOfMonth() {
+    const state = window.BBGM_STATE.get();
+    const today = state.meta.currentDate;
+    const month = today.month;
+    let days = 0;
+    let cursor = today;
+    while (cursor.month === month) {
+      cursor = D.addDays(cursor, 1);
+      days++;
+      if (days > 60) break;
+    }
+    simDays(days);
+  }
+
+  function simDays(numDays) {
+    const state = window.BBGM_STATE.get();
+    if (!state) return;
+    if (numDays > 1) U.showProgress(`Simulating ${numDays} days…`);
+    document.getElementById('btnAdvance').disabled = true;
+
+    // Block frequent saves during multi-day sim
+    window.BBGM_STATE.setSaveBlocked(true);
+
+    const simStep = (remaining) => {
+      if (remaining <= 0) finish();
+      else {
+        simOneDay(state);
+        // If it's a season-end event, stop
+        const today = state.meta.currentDate;
+        const seasonEnd = state.league.schedule.seasonEnd;
+        if (D.compare(today, seasonEnd) >= 0) {
+          finish();
+          return;
+        }
+        if (numDays > 5 && remaining % 7 === 0) {
+          // yield to UI
+          setTimeout(() => simStep(remaining - 1), 0);
+        } else {
+          simStep(remaining - 1);
+        }
+      }
+    };
+
+    function finish() {
+      window.BBGM_STATE.setSaveBlocked(false);
+      window.BBGM_STATE.saveNow();
+      U.hideProgress();
+      document.getElementById('btnAdvance').disabled = false;
+      refresh();
+    }
+
+    simStep(numDays);
+  }
+
+  function simOneDay(state) {
+    const today = state.meta.currentDate;
+    const games = state.league.schedule.games.filter((g) => !g.played && D.eq(g.date, today));
+    for (const g of games) {
+      try {
+        window.BBGM_SIM.simulateGame(state, g);
+        // Track games played per team for rotation
+        state.meta.gamesPlayedByTeam[g.homeId] = (state.meta.gamesPlayedByTeam[g.homeId] || 0) + 1;
+        state.meta.gamesPlayedByTeam[g.awayId] = (state.meta.gamesPlayedByTeam[g.awayId] || 0) + 1;
+      } catch (e) {
+        console.error('Game sim failed:', e);
+      }
+    }
+    // Generate news for any noteworthy results
+    generateDailyNews(state, today, games);
+
+    // Advance
+    state.meta.currentDate = D.addDays(today, 1);
+  }
+
+  function generateDailyNews(state, date, games) {
+    if (!state.news) state.news = [];
+    const userTeamId = state.meta.userTeamId;
+
+    for (const g of games) {
+      if (!g.played || !g.result) continue;
+      // Notable: blowout, walkoff, no-hitter
+      const home = state.league.teams.find((t) => t.id === g.homeId);
+      const away = state.league.teams.find((t) => t.id === g.awayId);
+      const margin = Math.abs(g.result.homeRuns - g.result.awayRuns);
+      const involvesUser = g.homeId === userTeamId || g.awayId === userTeamId;
+      if (margin >= 10 && !involvesUser) {
+        const winner = g.result.homeRuns > g.result.awayRuns ? home : away;
+        const loser = g.result.homeRuns > g.result.awayRuns ? away : home;
+        state.news.push({
+          date: { ...date },
+          body: `<strong>${winner.abbr}</strong> beat ${loser.abbr} ${Math.max(g.result.homeRuns, g.result.awayRuns)}-${Math.min(g.result.homeRuns, g.result.awayRuns)} in a rout.`,
+        });
+      }
+      if (g.result.innings && g.result.innings >= 12 && involvesUser) {
+        state.news.push({
+          date: { ...date },
+          body: `Marathon game: ${away.abbr} @ ${home.abbr} went ${g.result.innings} innings.`,
+        });
+      }
+    }
+
+    // Trim news
+    if (state.news.length > 200) state.news = state.news.slice(-200);
+  }
+
+  // Initialize on DOM ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+
+  return { navigate, refresh, advanceDay, simToNextEvent, simToEndOfMonth };
+})();

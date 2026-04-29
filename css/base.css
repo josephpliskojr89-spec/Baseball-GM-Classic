@@ -1,0 +1,119 @@
+:root {
+  /* Color tokens */
+  --bg-base: #0d1117;
+  --bg-elevated: #161b22;
+  --bg-card: #1c2230;
+  --bg-card-hover: #232a3a;
+  --bg-input: #0b0f17;
+  --border-subtle: #2a3142;
+  --border-strong: #3a4358;
+
+  --text-primary: #e6edf3;
+  --text-secondary: #97a3b6;
+  --text-muted: #6b7589;
+  --text-inverse: #0d1117;
+
+  --accent: #c9302c;
+  --accent-hover: #d44440;
+  --accent-soft: rgba(201, 48, 44, 0.15);
+
+  --success: #4caf50;
+  --warning: #f0a23a;
+  --danger: #e25c5c;
+  --info: #5b9bd5;
+
+  --grade-elite: #f1c40f;
+  --grade-plus: #4caf50;
+  --grade-avg: #e6edf3;
+  --grade-below: #f0a23a;
+  --grade-poor: #e25c5c;
+
+  /* Type scale */
+  --fs-xs: 11px;
+  --fs-sm: 13px;
+  --fs-md: 15px;
+  --fs-lg: 17px;
+  --fs-xl: 20px;
+  --fs-2xl: 24px;
+  --fs-3xl: 32px;
+
+  /* Spacing */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 20px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+
+  /* Layout */
+  --bottom-nav-h: 60px;
+  --header-h: 56px;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-top: env(safe-area-inset-top, 0px);
+
+  /* Effects */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-2: 0 4px 12px rgba(0, 0, 0, 0.5);
+
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "SF Pro Display",
+    Roboto, Oxygen, Ubuntu, "Helvetica Neue", Arial, sans-serif;
+  font-size: var(--fs-md);
+  line-height: 1.4;
+}
+
+body {
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+  overflow-x: hidden;
+  overscroll-behavior-y: none;
+}
+
+h1 {
+  font-size: var(--fs-3xl);
+  font-weight: 700;
+  letter-spacing: -0.5px;
+}
+
+h2 {
+  font-size: var(--fs-2xl);
+  font-weight: 700;
+  letter-spacing: -0.3px;
+}
+
+h3 {
+  font-size: var(--fs-lg);
+  font-weight: 600;
+}
+
+h4 {
+  font-size: var(--fs-md);
+  font-weight: 600;
+}
+
+p {
+  color: var(--text-secondary);
+}
+
+.muted {
+  color: var(--text-muted);
+}
+
+.mono {
+  font-variant-numeric: tabular-nums;
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Color tokens for grade emphasis */
+.grade-80, .grade-75 { color: var(--grade-elite); font-weight: 700; }
+.grade-70, .grade-65 { color: var(--grade-plus); font-weight: 600; }
+.grade-60, .grade-55 { color: var(--grade-plus); }
+.grade-50 { color: var(--grade-avg); }
+.grade-45, .grade-40 { color: var(--grade-below); }
+.grade-35, .grade-30, .grade-20 { color: var(--grade-poor); }

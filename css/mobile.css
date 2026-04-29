@@ -1,0 +1,49 @@
+/* Mobile-first refinements */
+@media (max-width: 480px) {
+  :root {
+    --fs-md: 14px;
+    --fs-lg: 16px;
+    --fs-xl: 19px;
+    --fs-2xl: 22px;
+    --fs-3xl: 28px;
+  }
+
+  .standings-row {
+    grid-template-columns: 1fr 30px 30px 44px 50px 50px;
+    padding: 10px var(--sp-3);
+  }
+
+  .stat-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* Tablet+ */
+@media (min-width: 720px) {
+  .stat-grid {
+    grid-template-columns: repeat(6, 1fr);
+  }
+  .ratings-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .team-select-list {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1000px) {
+  .ratings-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+  .team-select-list {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0ms !important;
+    transition-duration: 0ms !important;
+  }
+}

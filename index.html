@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#0d1117">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="BBGM Classic">
+    <meta name="description" content="Baseball GM Classic - Modern framework, classic baseball.">
+    <title>Baseball GM Classic</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='45' fill='%23c9302c'/%3E%3Cpath d='M30 30 Q50 50 70 70 M30 70 Q50 50 70 30' stroke='white' stroke-width='3' fill='none'/%3E%3C/svg%3E">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='45' fill='%23c9302c'/%3E%3Cpath d='M30 30 Q50 50 70 70 M30 70 Q50 50 70 30' stroke='white' stroke-width='3' fill='none'/%3E%3C/svg%3E">
+    <link rel="stylesheet" href="css/reset.css">
+    <link rel="stylesheet" href="css/base.css">
+    <link rel="stylesheet" href="css/layout.css">
+    <link rel="stylesheet" href="css/components.css">
+    <link rel="stylesheet" href="css/mobile.css">
+</head>
+<body>
+    <div id="splash" class="splash">
+        <div class="splash-inner">
+            <div class="splash-logo">⚾</div>
+            <h1>Baseball GM Classic</h1>
+            <p class="tagline">Modern framework, classic baseball.</p>
+            <div class="splash-buttons">
+                <button id="btnNewGame" class="btn-primary">New Game</button>
+                <button id="btnLoadGame" class="btn-secondary">Continue</button>
+                <button id="btnImportGame" class="btn-tertiary">Import Save</button>
+                <input type="file" id="fileImport" accept=".json" hidden>
+            </div>
+            <p class="version">v0.1.0</p>
+        </div>
+    </div>
+
+    <div id="teamSelect" class="screen hidden">
+        <header class="screen-header">
+            <h2>Choose Your Team</h2>
+            <p class="screen-sub">All 30 teams are generated. Pick one to lead.</p>
+        </header>
+        <div id="teamSelectList" class="team-select-list"></div>
+        <div class="bottom-actions">
+            <button id="btnRegenerate" class="btn-secondary">Regenerate League</button>
+        </div>
+    </div>
+
+    <div id="app" class="app hidden">
+        <header class="app-header">
+            <div class="app-header-left">
+                <span id="hdrDate" class="hdr-date">—</span>
+                <span id="hdrRecord" class="hdr-record">0-0</span>
+            </div>
+            <div class="app-header-right">
+                <button id="btnAdvance" class="btn-advance">Advance Day ▶</button>
+            </div>
+        </header>
+
+        <main id="mainView" class="main-view">
+            <!-- Dynamic content -->
+        </main>
+
+        <nav class="bottom-nav">
+            <button class="nav-btn active" data-tab="home">
+                <span class="nav-icon">⌂</span>
+                <span class="nav-label">Home</span>
+            </button>
+            <button class="nav-btn" data-tab="team">
+                <span class="nav-icon">●</span>
+                <span class="nav-label">Team</span>
+            </button>
+            <button class="nav-btn" data-tab="league">
+                <span class="nav-icon">⊞</span>
+                <span class="nav-label">League</span>
+            </button>
+            <button class="nav-btn" data-tab="games">
+                <span class="nav-icon">▦</span>
+                <span class="nav-label">Games</span>
+            </button>
+            <button class="nav-btn" data-tab="menu">
+                <span class="nav-icon">≡</span>
+                <span class="nav-label">Menu</span>
+            </button>
+        </nav>
+    </div>
+
+    <div id="modalRoot" class="modal-root hidden"></div>
+    <div id="toastRoot" class="toast-root"></div>
+    <div id="progressRoot" class="progress-root hidden">
+        <div class="progress-card">
+            <div class="progress-spinner"></div>
+            <div id="progressText" class="progress-text">Working…</div>
+        </div>
+    </div>
+
+    <script src="js/data/constants.js"></script>
+    <script src="js/data/name_pools.js"></script>
+    <script src="js/data/city_pools.js"></script>
+    <script src="js/util/rng.js"></script>
+    <script src="js/util/dates.js"></script>
+    <script src="js/state.js"></script>
+    <script src="js/generation/ballparks.js"></script>
+    <script src="js/generation/league.js"></script>
+    <script src="js/generation/players.js"></script>
+    <script src="js/engine/schedule.js"></script>
+    <script src="js/engine/stats.js"></script>
+    <script src="js/engine/simulation.js"></script>
+    <script src="js/engine/standings.js"></script>
+    <script src="js/ui/common.js"></script>
+    <script src="js/ui/dashboard.js"></script>
+    <script src="js/ui/team.js"></script>
+    <script src="js/ui/league.js"></script>
+    <script src="js/ui/games.js"></script>
+    <script src="js/ui/menu.js"></script>
+    <script src="js/ui/player.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>
