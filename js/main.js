@@ -87,8 +87,29 @@ window.BBGM_MAIN = (function () {
         const players = window.BBGM_PLAYER_GEN.generate(rng, league);
         const schedule = window.BBGM_SCHEDULE.generate(rng, league, C.START_YEAR);
 
+        // Verify the schedule before we hand it to the player.
+        const report = window.BBGM_SCHEDULE.verify(schedule, league);
+        if (report.teamsAt162 !== 30) {
+          console.warn('Schedule verification failed', report);
+          U.hideProgress();
+          U.showToast(`Schedule generation imperfect (${report.teamsAt162}/30 at 162). Regenerating…`, 'warning');
+          // Try one more time with a different seed.
+          const seed2 = Math.floor(Math.random() * 0xffffffff);
+          const rng2 = window.BBGM_RNG.makeRng(seed2);
+          const schedule2 = window.BBGM_SCHEDULE.generate(rng2, league, C.START_YEAR);
+          const report2 = window.BBGM_SCHEDULE.verify(schedule2, league);
+          if (report2.teamsAt162 === 30) {
+            schedule.games = schedule2.games;
+            schedule.openingDay = schedule2.openingDay;
+            schedule.allStarDate = schedule2.allStarDate;
+            schedule.seasonEnd = schedule2.seasonEnd;
+          } else {
+            U.showToast('Schedule still imperfect after retry — proceeding anyway.', 'danger');
+          }
+        }
+
         const state = {
-          version: '0.1.0',
+          version: '0.2.0',
           meta: {
             seed,
             created: new Date().toISOString(),
@@ -174,12 +195,47 @@ window.BBGM_MAIN = (function () {
 
   function startGame(state) {
     document.getElementById('splash').classList.add('hidden');
-    if (!state.meta.userTeamId) {
-      showTeamSelect();
-    } else {
+    // Flag old saves with a known-broken schedule.
+    const broken = saveHasBrokenSchedule(state);
+    if (state.meta.userTeamId) {
       document.getElementById('app').classList.remove('hidden');
       refresh();
+    } else {
+      showTeamSelect();
     }
+    if (broken) {
+      U.showModal({
+        title: 'Old Save Detected',
+        body: 'This save was created before the schedule generator was fixed. ' +
+              'Some teams will play fewer than 162 games this season. ' +
+              'You can keep playing this save (results will be slightly off), ' +
+              'or start a fresh game to use the corrected schedule.',
+        actions: [
+          { label: 'Keep Playing', kind: 'secondary', onClick: () => true },
+          { label: 'Start Fresh', kind: 'danger', onClick: () => {
+            window.BBGM_STATE.reset();
+            location.reload();
+          }},
+        ],
+      });
+    }
+  }
+
+  function saveHasBrokenSchedule(state) {
+    if (!state || !state.league || !state.league.schedule) return false;
+    // Saves prior to v0.2.0 used the buggy generator.
+    if (!state.version || state.version === '0.1.0') {
+      // Verify per-team game count to be sure (a v0.1.0 save MIGHT happen to
+      // have a perfect schedule by luck).
+      const counts = {};
+      for (const t of state.league.teams) counts[t.id] = 0;
+      for (const g of state.league.schedule.games) {
+        counts[g.homeId] = (counts[g.homeId] || 0) + 1;
+        counts[g.awayId] = (counts[g.awayId] || 0) + 1;
+      }
+      for (const id in counts) if (counts[id] !== 162) return true;
+    }
+    return false;
   }
 
   // ------- Navigation -------
