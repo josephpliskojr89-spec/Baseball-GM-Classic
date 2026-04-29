@@ -86,9 +86,26 @@ window.BBGM_MAIN = (function () {
         const league = window.BBGM_LEAGUE_GEN.generate(rng);
         const players = window.BBGM_PLAYER_GEN.generate(rng, league);
 
-        // Generate schedule with hard guarantee. The generator throws if it
-        // can't produce a valid schedule; we never start a save with an
-        // invalid one.
+        // Validate league readiness BEFORE schedule generation. If any team
+        // is malformed (missing rotation, lineup too short, etc.) we fail
+        // fast — never write a save we can't simulate.
+        try {
+          window.BBGM_PLAYER_GEN.validateLeagueReadiness(league, players);
+        } catch (e) {
+          console.error('League readiness validation failed:', e);
+          U.hideProgress();
+          U.showModal({
+            title: 'Team Generation Failed',
+            body: 'One or more generated teams are not ready to play: ' + e.message,
+            actions: [
+              { label: 'Cancel', kind: 'secondary', onClick: () => true },
+              { label: 'Try Again', kind: 'primary', onClick: () => startNewGameFlow() },
+            ],
+          });
+          return;
+        }
+
+        // Generate schedule with hard guarantee. Throws on failure.
         let schedule;
         try {
           schedule = window.BBGM_SCHEDULE.generate(rng, league, C.START_YEAR);
@@ -101,15 +118,13 @@ window.BBGM_MAIN = (function () {
                   'every team. This is rare. Try generating again with a new random seed.',
             actions: [
               { label: 'Cancel', kind: 'secondary', onClick: () => true },
-              { label: 'Try Again', kind: 'primary', onClick: () => {
-                startNewGameFlow();
-              }},
+              { label: 'Try Again', kind: 'primary', onClick: () => startNewGameFlow() },
             ],
           });
           return;
         }
 
-        // Belt-and-suspenders: validate before saving.
+        // Belt-and-suspenders: validate the returned schedule before saving.
         const result = window.BBGM_SCHEDULE.validate(schedule, league);
         if (!result.valid) {
           console.error('Schedule passed generate() but failed validate():', result.issues);
@@ -120,9 +135,7 @@ window.BBGM_MAIN = (function () {
                   'This should not happen. Try again.',
             actions: [
               { label: 'Cancel', kind: 'secondary', onClick: () => true },
-              { label: 'Try Again', kind: 'primary', onClick: () => {
-                startNewGameFlow();
-              }},
+              { label: 'Try Again', kind: 'primary', onClick: () => startNewGameFlow() },
             ],
           });
           return;
@@ -330,22 +343,25 @@ window.BBGM_MAIN = (function () {
     window.BBGM_STATE.setSaveBlocked(true);
 
     const simStep = (remaining) => {
-      if (remaining <= 0) finish();
-      else {
+      if (remaining <= 0) { finish(); return; }
+      try {
         simOneDay(state);
-        // If it's a season-end event, stop
-        const today = state.meta.currentDate;
-        const seasonEnd = state.league.schedule.seasonEnd;
-        if (D.compare(today, seasonEnd) >= 0) {
-          finish();
-          return;
-        }
-        if (numDays > 5 && remaining % 7 === 0) {
-          // yield to UI
-          setTimeout(() => simStep(remaining - 1), 0);
-        } else {
-          simStep(remaining - 1);
-        }
+      } catch (e) {
+        finishWithError(e);
+        return;
+      }
+      // If it's a season-end event, stop
+      const today = state.meta.currentDate;
+      const seasonEnd = state.league.schedule.seasonEnd;
+      if (D.compare(today, seasonEnd) >= 0) {
+        finish();
+        return;
+      }
+      if (numDays > 5 && remaining % 7 === 0) {
+        // yield to UI
+        setTimeout(() => simStep(remaining - 1), 0);
+      } else {
+        simStep(remaining - 1);
       }
     };
 
@@ -355,6 +371,22 @@ window.BBGM_MAIN = (function () {
       U.hideProgress();
       document.getElementById('btnAdvance').disabled = false;
       refresh();
+    }
+
+    function finishWithError(e) {
+      console.error('Sim halted:', e);
+      window.BBGM_STATE.setSaveBlocked(false);
+      window.BBGM_STATE.saveNow();
+      U.hideProgress();
+      document.getElementById('btnAdvance').disabled = false;
+      refresh();
+      U.showModal({
+        title: 'Simulation Error',
+        body: e.message + '\n\nThe sim has been halted. ' +
+              'Open the browser console for details, or run ' +
+              'BBGM_MAIN.validateCurrentSave() to inspect state.',
+        actions: [{ label: 'OK', kind: 'primary', onClick: () => true }],
+      });
     }
 
     simStep(numDays);
@@ -370,7 +402,15 @@ window.BBGM_MAIN = (function () {
         state.meta.gamesPlayedByTeam[g.homeId] = (state.meta.gamesPlayedByTeam[g.homeId] || 0) + 1;
         state.meta.gamesPlayedByTeam[g.awayId] = (state.meta.gamesPlayedByTeam[g.awayId] || 0) + 1;
       } catch (e) {
-        console.error('Game sim failed:', e);
+        // Surface the failure with full context. Don't silently swallow.
+        const home = state.league.teams.find((t) => t.id === g.homeId);
+        const away = state.league.teams.find((t) => t.id === g.awayId);
+        const ctx =
+          `date=${D.format(today, 'iso')}, gameId=${g.gameId}, ` +
+          `${away ? away.abbr : g.awayId}@${home ? home.abbr : g.homeId}`;
+        console.error(`simulateGame failed (${ctx}):`, e);
+        // Halt the sim run rather than continuing through a broken schedule.
+        throw new Error(`simOneDay halted: ${ctx} — ${e.message}`);
       }
     }
     // Generate news for any noteworthy results
@@ -418,5 +458,112 @@ window.BBGM_MAIN = (function () {
     init();
   }
 
-  return { navigate, refresh, advanceDay, simToNextEvent, simToEndOfMonth };
+  // ------- Debug helpers -------
+  // Inspects the current save and returns an object describing schedule and
+  // team readiness. Safe to call from the browser console:
+  //   BBGM_MAIN.validateCurrentSave()
+  function validateCurrentSave() {
+    const state = window.BBGM_STATE.get();
+    if (!state || !state.league) {
+      const r = { ok: false, reason: 'no save loaded' };
+      console.log(r);
+      return r;
+    }
+    const league = state.league;
+    const players = state.players;
+    const report = {
+      version: state.version,
+      currentDate: D.format(state.meta.currentDate, 'iso'),
+      schedule: null,
+      readiness: { ok: true, errors: [] },
+      perTeam: [],
+    };
+
+    // Schedule validation
+    if (league.schedule) {
+      try {
+        report.schedule = window.BBGM_SCHEDULE.validate(league.schedule, league);
+      } catch (e) {
+        report.schedule = { valid: false, error: e.message };
+      }
+    }
+
+    // Per-team scheduled vs record game counts.
+    const scheduledByTeam = {};
+    for (const t of league.teams) scheduledByTeam[t.id] = { scheduled: 0, played: 0 };
+    for (const g of (league.schedule && league.schedule.games) || []) {
+      scheduledByTeam[g.homeId].scheduled++;
+      scheduledByTeam[g.awayId].scheduled++;
+      if (g.played) {
+        scheduledByTeam[g.homeId].played++;
+        scheduledByTeam[g.awayId].played++;
+      }
+    }
+
+    for (const t of league.teams) {
+      const sched = scheduledByTeam[t.id];
+      const recordGames = (t.seasonRecord.w || 0) + (t.seasonRecord.l || 0);
+      const row = {
+        team: t.abbr,
+        teamId: t.id,
+        scheduled: sched.scheduled,
+        played: sched.played,
+        record: recordGames,
+        rosterSize: t.roster ? t.roster.length : 0,
+        rotationSize: t.rotation ? t.rotation.length : 0,
+        bullpenSize: t.bullpen ? t.bullpen.length : 0,
+        closer: t.closer ? (players[t.closer] ? players[t.closer].name : `MISSING(${t.closer})`) : null,
+        lineupRH: t.lineupRH ? t.lineupRH.length : 0,
+        lineupLH: t.lineupLH ? t.lineupLH.length : 0,
+        missingPlayerIds: [],
+      };
+
+      // Verify all referenced player IDs exist.
+      const allIds = []
+        .concat(t.roster || [])
+        .concat(t.rotation || [])
+        .concat(t.bullpen || [])
+        .concat(t.closer ? [t.closer] : [])
+        .concat((t.lineupRH || []).map((s) => s.playerId))
+        .concat((t.lineupLH || []).map((s) => s.playerId));
+      for (const id of allIds) {
+        if (!players[id] && !row.missingPlayerIds.includes(id)) row.missingPlayerIds.push(id);
+      }
+
+      report.perTeam.push(row);
+    }
+
+    // Run readiness validation (catch-throw to populate report.readiness).
+    try {
+      window.BBGM_PLAYER_GEN.validateLeagueReadiness(league, players);
+    } catch (e) {
+      report.readiness.ok = false;
+      report.readiness.errors.push(e.message);
+    }
+
+    console.log('=== BBGM_MAIN.validateCurrentSave() ===');
+    console.log('Version:', report.version, '| Date:', report.currentDate);
+    if (report.schedule) {
+      console.log(`Schedule: ${report.schedule.valid ? 'VALID' : 'INVALID'} ` +
+        `(${report.schedule.totalGames}/2430 games, ${report.schedule.teamsAt162}/30 at 162)`);
+      if (!report.schedule.valid) console.log('  issues:', report.schedule.issues);
+    } else {
+      console.log('Schedule: (none)');
+    }
+    console.log(`Readiness: ${report.readiness.ok ? 'OK' : 'FAIL'}`);
+    for (const e of report.readiness.errors) console.log(`  ${e}`);
+    console.log('Per-team:');
+    for (const row of report.perTeam) {
+      const flag = (row.scheduled === 162 && row.played === row.record && row.missingPlayerIds.length === 0) ? '✓' : '✗';
+      console.log(
+        `  ${flag} ${row.team.padEnd(4)} sched=${row.scheduled} played=${row.played} ` +
+        `record=${row.record} | roster=${row.rosterSize} rot=${row.rotationSize} ` +
+        `bp=${row.bullpenSize} lineupRH=${row.lineupRH} lineupLH=${row.lineupLH}` +
+        (row.missingPlayerIds.length ? ` MISSING_IDS=${row.missingPlayerIds.join(',')}` : '')
+      );
+    }
+    return report;
+  }
+
+  return { navigate, refresh, advanceDay, simToNextEvent, simToEndOfMonth, validateCurrentSave };
 })();

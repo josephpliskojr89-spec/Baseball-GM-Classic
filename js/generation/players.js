@@ -472,25 +472,52 @@ window.BBGM_PLAYER_GEN = (function () {
   }
 
   function buildLineup(hitters, vsHand, team) {
-    // Filter starters - we want one hitter per position (8 slots + DH for AL)
+    // Required positions (8 in NL-style B-league, 9 in AL-style A-league with DH).
     const isDH = team.league === 'A';
-    const positions = isDH ? ['C', '1B', '2B', '3B', 'SS', 'LF', 'CF', 'RF', 'DH'] : ['C', '1B', '2B', '3B', 'SS', 'LF', 'CF', 'RF'];
+    const positions = isDH
+      ? ['C', '1B', '2B', '3B', 'SS', 'LF', 'CF', 'RF', 'DH']
+      : ['C', '1B', '2B', '3B', 'SS', 'LF', 'CF', 'RF'];
 
+    // Greedy assignment by ASCENDING scarcity: fill the position with the
+    // fewest eligible players first so unique-eligible players don't get
+    // stolen for an alternate slot. This was a real bug — without this,
+    // (e.g.) the only SS-eligible player would sometimes get picked for 3B
+    // and SS would end up empty, producing a 7-slot lineup.
     const used = new Set();
-    const lineup = [];
-    for (const pos of positions) {
-      // Find best hitter who can play this position
-      const candidates = hitters.filter((p) => !used.has(p.id) && canPlay(p, pos));
-      if (candidates.length === 0) continue;
-      candidates.sort((a, b) => offensiveValue(b, vsHand) - offensiveValue(a, vsHand));
-      const chosen = candidates[0];
+    const placedByPos = {};
+    const remainingPositions = positions.slice();
+
+    while (remainingPositions.length > 0) {
+      // Compute candidate counts for each remaining position.
+      const counts = remainingPositions.map((pos) => {
+        const cands = hitters.filter((p) => !used.has(p.id) && canPlay(p, pos));
+        return { pos, cands };
+      });
+      counts.sort((a, b) => a.cands.length - b.cands.length);
+
+      const next = counts[0];
+      if (next.cands.length === 0) {
+        throw new Error(
+          `buildLineup(${team.abbr}, vs${vsHand}HP): no eligible hitter for position ${next.pos}. ` +
+          `Roster has ${hitters.length} hitters; positions filled so far: ` +
+          Object.keys(placedByPos).join(', ')
+        );
+      }
+
+      // Pick the best of the eligible players by offensive value.
+      next.cands.sort((a, b) => offensiveValue(b, vsHand) - offensiveValue(a, vsHand));
+      const chosen = next.cands[0];
       used.add(chosen.id);
-      lineup.push({ playerId: chosen.id, position: pos });
+      placedByPos[next.pos] = chosen.id;
+
+      const idx = remainingPositions.indexOf(next.pos);
+      remainingPositions.splice(idx, 1);
     }
-    // Sort lineup by best-OPS-style at top — modern construction
+
+    // Build the lineup in standard order, then sort by offensive value to
+    // produce a "modern" batting order (best hitters at the top).
+    const lineup = positions.map((pos) => ({ playerId: placedByPos[pos], position: pos }));
     lineup.sort((a, b) => {
-      const pa = window.BBGM_STATE && window.BBGM_STATE.getPlayer ? window.BBGM_STATE.getPlayer(a.playerId) : null;
-      // We don't have state yet; use closure: find from hitters
       const ha = hitters.find((p) => p.id === a.playerId);
       const hb = hitters.find((p) => p.id === b.playerId);
       return offensiveValue(hb, vsHand) - offensiveValue(ha, vsHand);
@@ -516,5 +543,79 @@ window.BBGM_PLAYER_GEN = (function () {
     return contact * 1.0 + power * 1.0 + r.discipline * 0.7 + r.speed * 0.3;
   }
 
-  return { generate };
+  // Validate that every team in `league` is fully ready to simulate games.
+  // Throws on the first broken team with a clear, actionable message.
+  // Use after generation, before the save is created.
+  function validateLeagueReadiness(league, players) {
+    if (!league || !Array.isArray(league.teams)) {
+      throw new Error('validateLeagueReadiness: league has no teams array');
+    }
+    for (const team of league.teams) {
+      checkTeamReadiness(team, players);
+    }
+    return { valid: true, teamsChecked: league.teams.length };
+  }
+
+  function checkTeamReadiness(team, players) {
+    const tag = `${team.abbr || team.id} (${team.league || '?'} ${team.division || '?'})`;
+    function fail(msg) {
+      throw new Error(`Team ${tag} not ready: ${msg}`);
+    }
+
+    if (!Array.isArray(team.roster) || team.roster.length !== 26) {
+      fail(`active roster size ${team.roster ? team.roster.length : 0}, expected 26`);
+    }
+
+    // Every roster id must reference a real player.
+    for (const id of team.roster) {
+      if (!players[id]) fail(`roster references unknown player id ${id}`);
+    }
+
+    const roster = team.roster.map((id) => players[id]);
+    const pitchers = roster.filter((p) => p.isPitcher);
+    const hitters = roster.filter((p) => !p.isPitcher);
+    if (pitchers.length < 13) fail(`only ${pitchers.length} pitchers, expected at least 13`);
+    if (hitters.length < 13) fail(`only ${hitters.length} hitters, expected at least 13`);
+
+    // Rotation: must be exactly 5 valid SP-eligible pitchers.
+    if (!Array.isArray(team.rotation) || team.rotation.length < 5) {
+      fail(`rotation size ${team.rotation ? team.rotation.length : 0}, expected at least 5`);
+    }
+    for (const id of team.rotation) {
+      const p = players[id];
+      if (!p) fail(`rotation references unknown player id ${id}`);
+      if (!p.isPitcher) fail(`rotation contains non-pitcher ${p.name} (${id})`);
+    }
+
+    // Bullpen: at least 7 arms, all valid.
+    if (!Array.isArray(team.bullpen) || team.bullpen.length < 7) {
+      fail(`bullpen size ${team.bullpen ? team.bullpen.length : 0}, expected at least 7`);
+    }
+    for (const id of team.bullpen) {
+      const p = players[id];
+      if (!p) fail(`bullpen references unknown player id ${id}`);
+      if (!p.isPitcher) fail(`bullpen contains non-pitcher ${p.name} (${id})`);
+    }
+
+    // Closer: must exist and be a real pitcher.
+    if (!team.closer) fail('no closer assigned');
+    const closer = players[team.closer];
+    if (!closer) fail(`closer references unknown player id ${team.closer}`);
+    if (!closer.isPitcher) fail(`closer ${closer.name} is not a pitcher`);
+
+    // Lineups (vs RHP and vs LHP). Both must have the right number of slots.
+    const expectedLineupLen = team.league === 'A' ? 9 : 8;
+    for (const which of ['lineupRH', 'lineupLH']) {
+      const lineup = team[which];
+      if (!Array.isArray(lineup) || lineup.length < expectedLineupLen) {
+        fail(`${which} length ${lineup ? lineup.length : 0}, expected at least ${expectedLineupLen}`);
+      }
+      for (const spot of lineup) {
+        if (!spot || !spot.playerId) fail(`${which} contains malformed slot ${JSON.stringify(spot)}`);
+        if (!players[spot.playerId]) fail(`${which} references unknown player id ${spot.playerId}`);
+      }
+    }
+  }
+
+  return { generate, validateLeagueReadiness };
 })();

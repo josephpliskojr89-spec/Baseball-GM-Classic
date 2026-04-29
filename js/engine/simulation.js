@@ -31,11 +31,25 @@ window.BBGM_SIM = (function () {
     const homeSP = pickStarter(home, players, state);
     const awaySP = pickStarter(away, players, state);
 
+    // Hard fail loudly rather than silently marking the game played.
+    // Earlier bail-out behaviour silently dropped W/L records, producing
+    // 0-0 teams in late September. Generation-time readiness validation
+    // (BBGM_PLAYER_GEN.validateLeagueReadiness) should prevent this from
+    // ever firing — but keep the throw so any future regression surfaces.
     if (!homeSP || !awaySP || homeLineup.length < 8 || awayLineup.length < 8) {
-      // Fallback: forfeit-ish - count as 0-0
-      game.played = true;
-      game.result = { homeRuns: 0, awayRuns: 0, innings: 9, log: [] };
-      return game.result;
+      const reason = [];
+      if (!homeSP) reason.push(`home (${home.abbr}) has no starting pitcher`);
+      if (!awaySP) reason.push(`away (${away.abbr}) has no starting pitcher`);
+      if (homeLineup.length < 8) reason.push(`home lineup length ${homeLineup.length} < 8`);
+      if (awayLineup.length < 8) reason.push(`away lineup length ${awayLineup.length} < 8`);
+      const err = new Error(
+        `simulateGame: cannot simulate ${away.abbr}@${home.abbr} (${game.gameId}): ${reason.join('; ')}`
+      );
+      err.code = 'SIM_TEAM_NOT_READY';
+      err.gameId = game.gameId;
+      err.homeId = home.id;
+      err.awayId = away.id;
+      throw err;
     }
 
     // Track game state
