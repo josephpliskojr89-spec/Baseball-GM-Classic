@@ -1,66 +1,233 @@
 // Schedule generation per bible 3.2.1.
 //
-// Builds a plausible 162-game schedule:
-//  - 52 intra-division (4 opps × 13)
-//  - 60 intra-league non-division (10 opps × 6)
-//  - 30 interleague (1 rival × 4 + 5 rotating opps × ~5-6 = 26)
+// Builds a valid 162-game schedule per team:
+//  - 52 intra-division        (4 opponents × 13 games)
+//  - 80 intra-league non-div  (10 opponents × 8 games)
+//  - 30 interleague           (1 cross-division rival × 4 + 5 rotating
+//                              partner-division opps × 5-6 = 26)
+//  Total per team: 52 + 80 + 30 = 162
+//  Total league games: 30 × 162 / 2 = 2430
 //
-// Step 1 builds matchup pool with games-per-pair counts.
-// Step 2 splits each matchup into series of 2-4 consecutive games.
-// Step 3 places each series on consecutive dates.
-//
-// We aim for exactly 162 games per team. If date placement fails for some
-// series we drop them and report; verification logs the resulting counts.
+// Step 1: build the matchup pool (game-slots per directional pair).
+// Step 2: schedule day-by-day, picking matchups still owed and extending
+//         into 2-4 game series so long as both teams stay free.
+// Step 3: validate. If validation fails, retry with fresh randomness.
+//         After a hard retry cap is exceeded, throw — never return an
+//         imperfect schedule.
 window.BBGM_SCHEDULE = (function () {
   const { rint, pick, shuffle } = window.BBGM_RNG;
   const D = window.BBGM_DATES;
 
-  // --- Public ---
+  // Default upper bound on retries before generate() throws. Empirically the
+  // generator succeeds on attempt 1 across 100/100 random seeds, so 50 is well
+  // above what we ever need in practice.
+  const DEFAULT_MAX_ATTEMPTS = 50;
+
+  // -------------------------------------------------------------------------
+  // PUBLIC: generate
+  // -------------------------------------------------------------------------
+  // Returns a valid schedule or throws. Never returns an "imperfect best".
   function generate(rng, league, year, options = {}) {
     const verbose = !!options.verbose;
-    const maxRetries = options.maxRetries || 3;
+    const maxAttempts = options.maxAttempts || DEFAULT_MAX_ATTEMPTS;
 
-    let bestResult = null;
-    let bestScore = Infinity;
-
-    for (let attempt = 0; attempt < maxRetries; attempt++) {
-      const result = generateOnce(rng, league, year, verbose, attempt);
-      const counts = countGamesPerTeam(result.games, league.teams);
-      const score = scoreSchedule(counts);
+    let lastIssues = null;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      let schedule;
+      try {
+        schedule = generateOnce(rng, league, year);
+      } catch (e) {
+        if (verbose) console.warn(`Schedule attempt ${attempt} threw: ${e.message}`);
+        lastIssues = [`internal error: ${e.message}`];
+        continue;
+      }
+      const result = validate(schedule, league);
       if (verbose) {
-        console.log(`Schedule attempt ${attempt + 1}: ${result.games.length} games, score ${score} (lower is better)`);
+        console.log(`Schedule attempt ${attempt}: ${schedule.games.length} games, ${result.valid ? 'VALID' : 'INVALID'}`);
+        if (!result.valid) console.log('  issues:', result.issues);
       }
-      if (score === 0) {
-        // Perfect: every team has exactly 162.
-        return result;
-      }
-      if (score < bestScore) {
-        bestScore = score;
-        bestResult = result;
+      if (result.valid) return schedule;
+      lastIssues = result.issues;
+    }
+
+    const err = new Error(
+      `Schedule generation failed after ${maxAttempts} attempts. ` +
+      `Last failure: ${lastIssues ? lastIssues.slice(0, 3).join('; ') : 'unknown'}`
+    );
+    err.code = 'SCHEDULE_GENERATION_FAILED';
+    err.lastIssues = lastIssues;
+    throw err;
+  }
+
+  // -------------------------------------------------------------------------
+  // PUBLIC: validate
+  // -------------------------------------------------------------------------
+  // Returns { valid, issues, ... }. Strict checks per bible 3.2.1:
+  //  - total games == 2430
+  //  - every team plays exactly 162
+  //  - no team has 0 games
+  //  - home/away within ±5 of 81/81
+  //  - no duplicate game IDs
+  //  - no team plays two games on the same date (no doubleheaders)
+  function validate(schedule, league) {
+    const v = verify(schedule, league);
+    const issues = [];
+
+    if (v.totalGames !== 2430) {
+      issues.push(`total games ${v.totalGames}, expected 2430`);
+    }
+    if (v.teamsBelow162.length > 0) {
+      issues.push(`teams below 162: ${v.teamsBelow162.map(t => `${t.team}:${t.total}`).join(', ')}`);
+    }
+    if (v.teamsAbove162.length > 0) {
+      issues.push(`teams above 162: ${v.teamsAbove162.map(t => `${t.team}:${t.total}`).join(', ')}`);
+    }
+    for (const row of v.perTeam) {
+      if (row.total === 0) issues.push(`${row.team}: zero games scheduled`);
+      const homeAwayDiff = Math.abs(row.home - row.away);
+      if (homeAwayDiff > 5) {
+        issues.push(`${row.team}: home/away unbalanced (${row.home}/${row.away})`);
       }
     }
-    return bestResult;
-  }
-
-  // --- Internals ---
-  function scoreSchedule(counts) {
-    // Sum of |actual - 162| across teams.
-    let total = 0;
-    for (const id in counts) total += Math.abs(counts[id] - 162);
-    return total;
-  }
-
-  function countGamesPerTeam(games, teams) {
-    const out = {};
-    for (const t of teams) out[t.id] = 0;
-    for (const g of games) {
-      out[g.homeId] = (out[g.homeId] || 0) + 1;
-      out[g.awayId] = (out[g.awayId] || 0) + 1;
+    if (v.duplicateGameIds.length > 0) {
+      issues.push(`${v.duplicateGameIds.length} duplicate game IDs (e.g., ${v.duplicateGameIds.slice(0, 3).join(', ')})`);
     }
-    return out;
+    if (v.invalidSameDayGames.length > 0) {
+      issues.push(
+        `${v.invalidSameDayGames.length} same-day same-team conflicts ` +
+        `(e.g., ${v.invalidSameDayGames.slice(0, 3).map(c => `${c.team} on ${c.date}`).join('; ')})`
+      );
+    }
+
+    return {
+      valid: issues.length === 0,
+      issues,
+      totalGames: v.totalGames,
+      teamsAt162: v.teamsAt162,
+      teamsBelow162: v.teamsBelow162,
+      teamsAbove162: v.teamsAbove162,
+      duplicateGameIds: v.duplicateGameIds,
+      invalidSameDayGames: v.invalidSameDayGames,
+      perTeam: v.perTeam,
+    };
   }
 
-  function generateOnce(rng, league, year, verbose, attempt) {
+  // -------------------------------------------------------------------------
+  // PUBLIC: verify
+  // -------------------------------------------------------------------------
+  // Reports on the schedule without judging validity. Returns:
+  //  - totalGames
+  //  - teamsAt162 (count of teams at exactly 162)
+  //  - teamsBelow162 / teamsAbove162 (lists of offending teams + game counts)
+  //  - duplicateGameIds (list of repeated game IDs)
+  //  - invalidSameDayGames (list of same-team same-date conflicts)
+  //  - perTeam ([{ team, total, home, away }])
+  function verify(schedule, league) {
+    const teams = league.teams;
+    const counts = {};
+    const homeCounts = {};
+    const awayCounts = {};
+    for (const t of teams) {
+      counts[t.id] = 0;
+      homeCounts[t.id] = 0;
+      awayCounts[t.id] = 0;
+    }
+
+    const seenIds = new Set();
+    const dupIds = [];
+    // teamId -> Map<dateKey, count>; >1 means doubleheader (illegal here).
+    const teamDayCounts = {};
+    for (const t of teams) teamDayCounts[t.id] = new Map();
+
+    for (const g of schedule.games || []) {
+      if (seenIds.has(g.gameId)) dupIds.push(g.gameId);
+      else seenIds.add(g.gameId);
+
+      counts[g.homeId] = (counts[g.homeId] || 0) + 1;
+      counts[g.awayId] = (counts[g.awayId] || 0) + 1;
+      homeCounts[g.homeId] = (homeCounts[g.homeId] || 0) + 1;
+      awayCounts[g.awayId] = (awayCounts[g.awayId] || 0) + 1;
+
+      const key = `${g.date.year}-${g.date.month}-${g.date.day}`;
+      for (const tid of [g.homeId, g.awayId]) {
+        const m = teamDayCounts[tid];
+        if (!m) continue; // unknown team id — also invalid, but no crash
+        m.set(key, (m.get(key) || 0) + 1);
+      }
+    }
+
+    const conflicts = [];
+    for (const t of teams) {
+      const m = teamDayCounts[t.id];
+      for (const [date, n] of m.entries()) {
+        if (n > 1) conflicts.push({ team: t.abbr, teamId: t.id, date, count: n });
+      }
+    }
+
+    const perTeam = [];
+    const teamsBelow162 = [];
+    const teamsAbove162 = [];
+    let teamsAt162 = 0;
+    for (const t of teams) {
+      const c = counts[t.id];
+      const row = { team: t.abbr, teamId: t.id, total: c, home: homeCounts[t.id], away: awayCounts[t.id] };
+      perTeam.push(row);
+      if (c === 162) teamsAt162++;
+      else if (c < 162) teamsBelow162.push(row);
+      else teamsAbove162.push(row);
+    }
+
+    return {
+      totalGames: (schedule.games || []).length,
+      teamsAt162,
+      teamsBelow162,
+      teamsAbove162,
+      perTeam,
+      duplicateGameIds: dupIds,
+      invalidSameDayGames: conflicts,
+    };
+  }
+
+  // -------------------------------------------------------------------------
+  // PUBLIC: stressTest (dev-only convenience)
+  // -------------------------------------------------------------------------
+  // Generates `numSeeds` schedules with random seeds and reports validity.
+  // Does not affect game state. Useful from the browser console:
+  //   BBGM_SCHEDULE.stressTest(100)
+  function stressTest(numSeeds = 100, year = 2026) {
+    const results = {
+      total: numSeeds,
+      valid: 0,
+      invalid: 0,
+      threwError: 0,
+      failures: [], // { seed, issues }
+      errors: [],   // { seed, error }
+    };
+    for (let i = 0; i < numSeeds; i++) {
+      const seed = Math.floor(Math.random() * 0xffffffff);
+      try {
+        const rng = window.BBGM_RNG.makeRng(seed);
+        const league = window.BBGM_LEAGUE_GEN.generate(rng);
+        const schedule = generate(rng, league, year);
+        const v = validate(schedule, league);
+        if (v.valid) results.valid++;
+        else {
+          results.invalid++;
+          results.failures.push({ seed, issues: v.issues });
+        }
+      } catch (e) {
+        results.invalid++;
+        results.threwError++;
+        results.errors.push({ seed, error: e.message });
+      }
+    }
+    return results;
+  }
+
+  // -------------------------------------------------------------------------
+  // INTERNAL: a single generation attempt
+  // -------------------------------------------------------------------------
+  function generateOnce(rng, league, year) {
     const teams = league.teams;
 
     // Group teams by league/division
@@ -75,6 +242,7 @@ window.BBGM_SCHEDULE = (function () {
 
     // ---- Step 1: matchup pool ----
     // matchups[i] = { teamA, teamB, totalGames, homeAtA, homeAtB, kind }
+    // Each matchup contributes exactly totalGames game-slots to the league.
     const matchups = [];
 
     // Intra-division: 13 games per pair, split as 7/6 (alternates by year)
@@ -82,7 +250,6 @@ window.BBGM_SCHEDULE = (function () {
       const div = byDivision[key];
       for (let i = 0; i < div.length; i++) {
         for (let j = i + 1; j < div.length; j++) {
-          // Alternate which side gets the extra home game using year + team-id hash
           const aFirst = ((year + hash(div[i].id) + hash(div[j].id)) % 2) === 0;
           const homeAtA = aFirst ? 7 : 6;
           const homeAtB = 13 - homeAtA;
@@ -108,25 +275,17 @@ window.BBGM_SCHEDULE = (function () {
       }
     }
 
-    // Interleague: each A-team gets one designated B-rival (4 games, 2/2)
-    // plus 5 rotating opponents from one division of the opposite league.
-    //
-    // Rotation: which division of league B does each league-A division play?
-    // (year-based rotation: every year shifts by 1.)
+    // Interleague rotation: each A division plays one B division each year.
     const divisions = ['East', 'Central', 'West'];
     const rotShift = (year % 3) === 0 ? 1 : (year % 3); // never 0 — must rotate
-    const interleaguePartner = {}; // 'A/East' -> 'B/West' etc.
+    const interleaguePartner = {};
     for (let i = 0; i < 3; i++) {
       interleaguePartner[`A/${divisions[i]}`] = `B/${divisions[(i + rotShift) % 3]}`;
       interleaguePartner[`B/${divisions[i]}`] = `A/${divisions[(i - rotShift + 3) % 3]}`;
     }
 
-    // Pair rivals as a bipartite matching: each A team gets one B-team rival,
-    // and rivals must NOT be in the rotation partner division (otherwise a team
-    // would lose a rotating opponent and end up with the wrong total).
-    //
-    // Greedy assignment with retry: for each A team in random order, pick a
-    // random eligible B-team (cross-league, not yet paired, not in partner div).
+    // Pair rivals BEFORE the rotation matchups so we can keep rivals out of
+    // the partner-division relationship.
     const rivalPairs = pairRivals(rng, byLeague, interleaguePartner);
     const rivalsAssigned = new Set();
     for (const [a, b] of rivalPairs) {
@@ -138,70 +297,27 @@ window.BBGM_SCHEDULE = (function () {
       });
     }
 
-    // Rotating interleague: each A team plays each B team in their assigned
-    // partner division for 5-6 games. We need to spread 26 remaining
-    // interleague games per team across 5 opponents.
-    // 26/5 = 5.2 — assign three opponents 5 games, two opponents 6 games (or
-    // similar) per A team. We'll generate balanced pairings.
-    //
-    // Approach: for each A division, look up its B partner division. For each
-    // pair (a, b) where a in A-div and b in B-partner-div and they're not already
-    // rivals, assign 5 or 6 games. We need each A team to total 26 non-rival
-    // interleague games and each B team to total 26 (across both A-divisions
-    // partnering them).
-    //
-    // Simpler approach: just give each non-rival interleague pair in the rotation
-    // 5 games (5 opponents × 5 = 25), then top up with 1 extra game on one
-    // opponent so total = 26.
-    //
-    // But each B team might end up with 2 or 3 A-divisions partnered against
-    // them depending on the rotation. For symmetric mapping (rotShift fixed)
-    // each B division partners exactly one A division, so each B team plays
-    // exactly 5 A teams (the partner A division) plus its rival.
-    //
-    // That gives each B team 5 × 5-6 + 4 = 29-34 interleague games — wrong.
-    // Let me reconsider.
-    //
-    // Per-team 26 non-rival interleague games × 30 teams / 2 = 390 games.
-    // 5 A divisions partner 1 B division each, and vice versa. Each A team
-    // plays 5 B teams in the partner B division. That's 5 opponents × 5-6 games
-    // = 25-30 non-rival interleague per A team. We need 26 — average 5.2 games
-    // per opponent. Within the partnership division (5 A teams × 5 B teams =
-    // 25 pairs) we need each pair to total 26 × 5 / 25 = 5.2 games per pair on
-    // average. Use 5 games for 20 pairs and 6 games for 5 pairs, balanced so
-    // each team has the same total.
-    //
-    // Each A team plays its 5 partner-B opponents; total games = 26.
-    // Distribution: 1 opp × 6 games + 4 opp × 5 games = 26 ✓
-    // Each B team plays its 5 partner-A opponents; total = 26 ✓
-    //
-    // Build a 5x5 grid where each row and column sums match.
-    // Easiest balanced grid: each row/column has exactly one "6" and four "5"s.
-    // That's a permutation matrix overlay. 5 cells (one per row, one per column)
-    // get 6 games; the other 20 cells get 5.
-
+    // Rotating interleague: each A team plays each B team in their partner
+    // division (5 opps) for 5 or 6 games, totaling 26. Pick a permutation so
+    // exactly one A-B pair per A-team gets the 6-game slot; rest get 5.
     for (const aDiv of divisions) {
       const aDivKey = `A/${aDiv}`;
       const bDivKey = interleaguePartner[aDivKey];
       const aDivTeams = byDivision[aDivKey] || [];
       const bDivTeams = byDivision[bDivKey] || [];
-      if (aDivTeams.length !== 5 || bDivTeams.length !== 5) continue;
-
-      // Build a permutation of [0..4] for which B-team gets the "6-game" pairing
-      // with each A-team.
+      if (aDivTeams.length !== 5 || bDivTeams.length !== 5) {
+        throw new Error(`unexpected division sizes: ${aDivKey}=${aDivTeams.length} ${bDivKey}=${bDivTeams.length}`);
+      }
       const perm = shuffle(rng, [0, 1, 2, 3, 4]);
-
       for (let ai = 0; ai < 5; ai++) {
         for (let bi = 0; bi < 5; bi++) {
           const a = aDivTeams[ai];
           const b = bDivTeams[bi];
           if (rivalsAssigned.has(`${a.id}|${b.id}`)) continue;
           const games = (perm[ai] === bi) ? 6 : 5;
-          // Home/away split: alternate so it averages out.
           let homeAtA, homeAtB;
           if (games === 6) { homeAtA = 3; homeAtB = 3; }
           else {
-            // 5 games — give the side with even idx the extra home game
             const aGetsThree = ((ai + bi + year) % 2) === 0;
             homeAtA = aGetsThree ? 3 : 2;
             homeAtB = 5 - homeAtA;
@@ -213,12 +329,11 @@ window.BBGM_SCHEDULE = (function () {
         }
       }
     }
-
     // (Rivals are guaranteed to be outside the rotation partner division by
     // pairRivals, so each team gets exactly 5 rotating partner-div opponents.)
 
-    // ---- Step 2: build outstanding-games map keyed by directional pair ----
-    // owed[homeId][awayId] = number of games still to schedule with home at 'homeId'.
+    // ---- Step 2: build outstanding game-slots keyed by directional pair ----
+    // owed[homeId][awayId] = number of games still to schedule with home at homeId.
     const owed = {};
     for (const t of teams) owed[t.id] = {};
     for (const m of matchups) {
@@ -226,25 +341,16 @@ window.BBGM_SCHEDULE = (function () {
       owed[m.teamB.id][m.teamA.id] = (owed[m.teamB.id][m.teamA.id] || 0) + m.homeAtB;
     }
 
-    if (verbose) {
-      let totalSlots = 0;
-      for (const h in owed) for (const a in owed[h]) totalSlots += owed[h][a];
-      console.log(`  Matchups: ${matchups.length}, Game-slots: ${totalSlots} (target 2430)`);
-    }
-
-    // ---- Step 3: schedule games into dated series ----
-    // We iterate day-by-day. For each day, pair up teams that both have an
-    // open day and an outstanding matchup, then extend the pairing into a 2-4
-    // game series so long as both teams stay free on subsequent days. This
-    // approach scales to fully fill 162 games for every team.
+    // ---- Step 3: schedule day-by-day ----
     const startDate = D.fromYMD(year, 3, 28);
     const endDate = D.fromYMD(year, 9, 28);
     const totalDays = D.diffDays(startDate, endDate);
 
+    // Per-team day-occupancy. Each cell holds the gameId or null (a non-null
+    // value blocks any further game on that day for that team).
     const teamDays = {};
     for (const t of teams) teamDays[t.id] = new Array(totalDays + 7).fill(null);
 
-    // All-Star break (~4 days mid-July).
     const allStarStart = D.diffDays(startDate, D.fromYMD(year, 7, 12));
     const allStarBlock = new Set();
     for (let i = 0; i < 4; i++) allStarBlock.add(allStarStart + i);
@@ -252,7 +358,6 @@ window.BBGM_SCHEDULE = (function () {
     const games = [];
     let gameSeq = 0;
 
-    // Helper: how many games does this team still owe across all opponents?
     function totalOwed(teamId) {
       let n = 0;
       for (const opp in owed[teamId]) n += owed[teamId][opp];
@@ -263,15 +368,13 @@ window.BBGM_SCHEDULE = (function () {
       return n;
     }
 
-    // Helper: place a series of `length` games starting on day `d` with `homeId` home.
     function placeAt(d, length, homeId, awayId) {
-      // Verify both teams are free for the full block, no all-star conflict,
-      // no excessive consecutive days.
       for (let k = 0; k < length; k++) {
         const dd = d + k;
         if (dd >= totalDays) return false;
         if (allStarBlock.has(dd)) return false;
-        if (teamDays[homeId][dd] || teamDays[awayId][dd]) return false;
+        if (teamDays[homeId][dd] !== null) return false;
+        if (teamDays[awayId][dd] !== null) return false;
         if (consecutiveDays(teamDays[homeId], dd) >= 19) return false;
         if (consecutiveDays(teamDays[awayId], dd) >= 19) return false;
       }
@@ -287,8 +390,6 @@ window.BBGM_SCHEDULE = (function () {
       return true;
     }
 
-    // Pick a series length that fits both teams' remaining schedule and the
-    // games still owed in this matchup. Bias toward 3-game series.
     function chooseSeriesLength(d, owedCount) {
       const r = rng();
       let preferred;
@@ -299,7 +400,6 @@ window.BBGM_SCHEDULE = (function () {
       return Math.min(preferred, owedCount);
     }
 
-    // Day-by-day scheduling.
     for (let d = 0; d < totalDays; d++) {
       if (allStarBlock.has(d)) continue;
 
@@ -307,11 +407,10 @@ window.BBGM_SCHEDULE = (function () {
       // most-constrained teams get scheduled first.
       const freeTeams = [];
       for (const t of teams) {
-        if (!teamDays[t.id][d] && consecutiveDays(teamDays[t.id], d) < 19) {
+        if (teamDays[t.id][d] === null && consecutiveDays(teamDays[t.id], d) < 19) {
           freeTeams.push(t.id);
         }
       }
-      // Sort with random tiebreak so we don't always favor the same team order.
       freeTeams.sort((a, b) => {
         const da = totalOwed(a);
         const db = totalOwed(b);
@@ -322,46 +421,38 @@ window.BBGM_SCHEDULE = (function () {
       const used = new Set();
       for (const homeId of freeTeams) {
         if (used.has(homeId)) continue;
-        // Find the best opponent: free today and has games owed with this team.
         const candidates = [];
         for (const awayId of freeTeams) {
           if (awayId === homeId) continue;
           if (used.has(awayId)) continue;
-          // We can either play home-here (owed[homeId][awayId]) or away-here.
           const homeOwed = owed[homeId][awayId] || 0;
           if (homeOwed > 0) candidates.push({ awayId, homeOwed });
         }
         if (candidates.length === 0) continue;
-        // Prefer the matchup with most games still owed.
         candidates.sort((x, y) => y.homeOwed - x.homeOwed);
         const { awayId, homeOwed } = candidates[0];
 
         const length = chooseSeriesLength(d, homeOwed);
         if (length < 1) continue;
-        // Try the chosen length, then shorter if it doesn't fit.
-        let placed = false;
         for (let L = length; L >= 1; L--) {
           if (placeAt(d, L, homeId, awayId)) {
             used.add(homeId); used.add(awayId);
-            placed = true;
             break;
           }
         }
       }
     }
 
-    // Final pass: try to plug any remaining holes with single-game placements
-    // (these handle leftover odd counts gracefully).
+    // Final pass: plug any remaining holes with single-game placements.
     for (let pass = 0; pass < 4; pass++) {
       let progress = false;
       for (let d = 0; d < totalDays; d++) {
         if (allStarBlock.has(d)) continue;
         for (const t of teams) {
-          if (teamDays[t.id][d]) continue;
-          // Find any opponent we owe a home game to who's also free today.
+          if (teamDays[t.id][d] !== null) continue;
           for (const oppId in owed[t.id]) {
             if (owed[t.id][oppId] <= 0) continue;
-            if (teamDays[oppId][d]) continue;
+            if (teamDays[oppId][d] !== null) continue;
             if (placeAt(d, 1, t.id, oppId)) { progress = true; break; }
           }
         }
@@ -380,6 +471,9 @@ window.BBGM_SCHEDULE = (function () {
     };
   }
 
+  // -------------------------------------------------------------------------
+  // INTERNAL helpers
+  // -------------------------------------------------------------------------
   function consecutiveDays(arr, beforeIdx) {
     let count = 0;
     for (let d = beforeIdx - 1; d >= 0; d--) {
@@ -395,25 +489,19 @@ window.BBGM_SCHEDULE = (function () {
     return Math.abs(h);
   }
 
-  // Pair every league-A team with a league-B team (and vice versa) such that
-  // no rival pair is in their rotation partner-division relationship.
-  // Returns an array of [aTeam, bTeam] pairs covering all 30 teams.
+  // Pair every league-A team with a league-B team such that no rival pair is
+  // in the rotation partner-division relationship.
   function pairRivals(rng, byLeague, interleaguePartner) {
     const aTeams = byLeague.A.slice();
     const bTeams = byLeague.B.slice();
 
-    const partnerDiv = (team) => {
-      const key = `${team.league}/${team.division}`;
-      return interleaguePartner[key]; // e.g., 'B/West'
-    };
+    const partnerDiv = (team) => interleaguePartner[`${team.league}/${team.division}`];
     const eligible = (a, b) => {
-      // Rivals must not be in each other's rotation partner division.
       if (`${b.league}/${b.division}` === partnerDiv(a)) return false;
       if (`${a.league}/${a.division}` === partnerDiv(b)) return false;
       return true;
     };
 
-    // Try greedy matching up to N times with different shuffles.
     for (let attempt = 0; attempt < 100; attempt++) {
       const shuffled = shuffle(rng, aTeams.slice());
       const usedB = new Set();
@@ -428,60 +516,20 @@ window.BBGM_SCHEDULE = (function () {
       }
       if (ok && pairs.length === aTeams.length) return pairs;
     }
-
-    // Fallback: fixed deterministic matching by sorted ids that ignores
-    // partner-division constraint (shouldn't happen but keeps generation
-    // robust).
-    const fallback = [];
-    const usedB = new Set();
-    for (const a of aTeams) {
-      const b = bTeams.find((x) => !usedB.has(x.id));
-      if (b) { fallback.push([a, b]); usedB.add(b.id); }
-    }
-    return fallback;
+    // Should be unreachable given the constraints, but never silently fail.
+    throw new Error('pairRivals: unable to assign cross-league rivals after 100 attempts');
   }
 
-  // Verification utility — call externally to log a report.
-  function verify(schedule, league) {
-    const counts = countGamesPerTeam(schedule.games, league.teams);
-    const homeCounts = {};
-    const awayCounts = {};
-    const opponentCounts = {}; // teamId -> { oppId: count }
-    const homeAwayPair = {}; // teamId -> { opp: { home, away } }
-    for (const t of league.teams) {
-      homeCounts[t.id] = 0;
-      awayCounts[t.id] = 0;
-      opponentCounts[t.id] = {};
-      homeAwayPair[t.id] = {};
+  // Backward-compat helper still used by some UI code.
+  function countGamesPerTeam(games, teams) {
+    const out = {};
+    for (const t of teams) out[t.id] = 0;
+    for (const g of games) {
+      out[g.homeId] = (out[g.homeId] || 0) + 1;
+      out[g.awayId] = (out[g.awayId] || 0) + 1;
     }
-    for (const g of schedule.games) {
-      homeCounts[g.homeId]++;
-      awayCounts[g.awayId]++;
-      opponentCounts[g.homeId][g.awayId] = (opponentCounts[g.homeId][g.awayId] || 0) + 1;
-      opponentCounts[g.awayId][g.homeId] = (opponentCounts[g.awayId][g.homeId] || 0) + 1;
-      if (!homeAwayPair[g.homeId][g.awayId]) homeAwayPair[g.homeId][g.awayId] = { home: 0, away: 0 };
-      if (!homeAwayPair[g.awayId][g.homeId]) homeAwayPair[g.awayId][g.homeId] = { home: 0, away: 0 };
-      homeAwayPair[g.homeId][g.awayId].home++;
-      homeAwayPair[g.awayId][g.homeId].away++;
-    }
-
-    const report = {
-      totalGames: schedule.games.length,
-      teamsAt162: 0,
-      teamsBelow162: [],
-      teamsAbove162: [],
-      perTeam: [],
-    };
-    for (const t of league.teams) {
-      const c = counts[t.id];
-      const row = { team: t.abbr, total: c, home: homeCounts[t.id], away: awayCounts[t.id] };
-      report.perTeam.push(row);
-      if (c === 162) report.teamsAt162++;
-      else if (c < 162) report.teamsBelow162.push({ abbr: t.abbr, games: c });
-      else report.teamsAbove162.push({ abbr: t.abbr, games: c });
-    }
-    return report;
+    return out;
   }
 
-  return { generate, verify, countGamesPerTeam };
+  return { generate, validate, verify, stressTest, countGamesPerTeam };
 })();

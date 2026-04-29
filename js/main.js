@@ -85,27 +85,47 @@ window.BBGM_MAIN = (function () {
         const rng = window.BBGM_RNG.makeRng(seed);
         const league = window.BBGM_LEAGUE_GEN.generate(rng);
         const players = window.BBGM_PLAYER_GEN.generate(rng, league);
-        const schedule = window.BBGM_SCHEDULE.generate(rng, league, C.START_YEAR);
 
-        // Verify the schedule before we hand it to the player.
-        const report = window.BBGM_SCHEDULE.verify(schedule, league);
-        if (report.teamsAt162 !== 30) {
-          console.warn('Schedule verification failed', report);
+        // Generate schedule with hard guarantee. The generator throws if it
+        // can't produce a valid schedule; we never start a save with an
+        // invalid one.
+        let schedule;
+        try {
+          schedule = window.BBGM_SCHEDULE.generate(rng, league, C.START_YEAR);
+        } catch (e) {
+          console.error('Schedule generation failed:', e, e.lastIssues || []);
           U.hideProgress();
-          U.showToast(`Schedule generation imperfect (${report.teamsAt162}/30 at 162). Regenerating…`, 'warning');
-          // Try one more time with a different seed.
-          const seed2 = Math.floor(Math.random() * 0xffffffff);
-          const rng2 = window.BBGM_RNG.makeRng(seed2);
-          const schedule2 = window.BBGM_SCHEDULE.generate(rng2, league, C.START_YEAR);
-          const report2 = window.BBGM_SCHEDULE.verify(schedule2, league);
-          if (report2.teamsAt162 === 30) {
-            schedule.games = schedule2.games;
-            schedule.openingDay = schedule2.openingDay;
-            schedule.allStarDate = schedule2.allStarDate;
-            schedule.seasonEnd = schedule2.seasonEnd;
-          } else {
-            U.showToast('Schedule still imperfect after retry — proceeding anyway.', 'danger');
-          }
+          U.showModal({
+            title: 'Schedule Generation Failed',
+            body: 'The schedule generator could not produce a valid 162-game season for ' +
+                  'every team. This is rare. Try generating again with a new random seed.',
+            actions: [
+              { label: 'Cancel', kind: 'secondary', onClick: () => true },
+              { label: 'Try Again', kind: 'primary', onClick: () => {
+                startNewGameFlow();
+              }},
+            ],
+          });
+          return;
+        }
+
+        // Belt-and-suspenders: validate before saving.
+        const result = window.BBGM_SCHEDULE.validate(schedule, league);
+        if (!result.valid) {
+          console.error('Schedule passed generate() but failed validate():', result.issues);
+          U.hideProgress();
+          U.showModal({
+            title: 'Schedule Validation Failed',
+            body: 'The schedule generator returned a schedule that does not pass validation. ' +
+                  'This should not happen. Try again.',
+            actions: [
+              { label: 'Cancel', kind: 'secondary', onClick: () => true },
+              { label: 'Try Again', kind: 'primary', onClick: () => {
+                startNewGameFlow();
+              }},
+            ],
+          });
+          return;
         }
 
         const state = {
