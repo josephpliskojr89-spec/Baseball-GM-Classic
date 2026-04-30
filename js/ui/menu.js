@@ -9,10 +9,15 @@ window.BBGM_UI_MENU = (function () {
     const userTeam = state.league.teams.find((t) => t.id === state.meta.userTeamId);
     const card = U.el('div', { class: 'card' });
     card.appendChild(U.el('div', { class: 'card-title' }, 'Save'));
+    // Build constant is bumped with every release so the user can tell at a
+    // glance which dashboard.js the browser actually loaded. Save version
+    // is the save-schema version and changes only when the schema changes.
+    const BUILD = 'sim-season-1';
     card.appendChild(U.el('div', { class: 'inset-list', style: { 'border': 'none' } }, [
       insetRow('Team', userTeam.name),
       insetRow('Date', window.BBGM_DATES.format(state.meta.currentDate)),
-      insetRow('Version', state.version || 'v0.1.0'),
+      insetRow('Save version', state.version || 'v0.1.0'),
+      insetRow('Build', BUILD),
     ]));
     container.appendChild(card);
 
