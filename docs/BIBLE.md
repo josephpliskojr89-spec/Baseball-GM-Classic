@@ -3479,6 +3479,14 @@ This approach is essential for AI-assisted coding: each phase keeps complexity m
   - Complete-game eligibility gating
   - Quality-weighted bullpen leverage (top setup man works close-game
     high-leverage outs; long man eats blowouts and extra innings)
+- AB-by-AB game log capture (per 8.7.1) — extend `game.result` with a
+  `gameLog` array; one entry per plate appearance with inning, half,
+  batter id, pitcher id, base/out state, result, runner advancement,
+  RBI on the play, score after
+- Game Detail view (per 20.6.4) — modal opened from any completed
+  game across the Games tab, dashboard recent games, team pages, and
+  schedule views; renders header / line score / batting box /
+  pitching box / team totals / AB-by-AB log
 - Daily roster decisions (basic flow)
 - Player detail screen (full implementation)
 - Mobile-friendly roster UI
@@ -3495,11 +3503,17 @@ This approach is essential for AI-assisted coding: each phase keeps complexity m
   - Closers ~25–40 SV
   - Complete games uncommon
   - No stamina tier behaving outside its intended role
+- Every completed game in the schedule (user's and AI's) has a
+  retrievable AB-by-AB log
+- Game Detail view opens from every entry point listed in 20.6.4 and
+  renders correctly on mobile
 
 **Deferred:**
 - Advanced manager tendencies
 - Auto-handle decisions
 - Mid-season trades / FA
+- Season-rollover cleanup of AB-by-AB logs (lands in Phase 15 — see
+  21.16 — because rollover only fires during the offseason flow)
 
 ### 21.5 Phase 4: Injury System (Estimated: 1-2 sessions)
 
@@ -3745,12 +3759,24 @@ This approach is essential for AI-assisted coding: each phase keeps complexity m
 - Notification flow during offseason
 - Spring training mechanics (per 11.8)
 - Opening Day transition
+- Season rollover cleanup
+  - Clear AB-by-AB game logs for every game from the just-completed
+    season (per 8.7.1) — preserve final scores, line scores, team
+    records, player season totals, team season totals, and league
+    history summaries
+  - Verify the Game Detail view's "Detailed log not retained for
+    prior seasons" empty state renders correctly for any historical
+    game after rollover
 
 **End-of-phase test:**
 - Full offseason flows correctly
 - All major events fire at right times
 - User can navigate at preferred pace
 - Transition to new season seamless
+- After rollover, save size returns to baseline (no AB-log carryover
+  from the year being closed out)
+- Historical Game Detail views still render box scores from season
+  totals; AB-log section shows the empty-state note
 
 ### 21.17 Phase 16: Polish and Iteration (Ongoing)
 
