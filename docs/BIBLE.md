@@ -1720,6 +1720,42 @@ After implementation, the injury system is calibrated against these targets:
 
 Calibration happens after engine implementation by simulating multi-season runs and comparing output to targets.
 
+### 10.8 Position-Player Fatigue and Stamina
+
+Position-player fatigue is a Phase 4 system, not a Phase 2 sim/stat concern. Pitcher fatigue (per 7.4) is in the engine already; this section covers the position-player side and is intentionally deferred until injuries land so the two systems can share roll/risk plumbing.
+
+**Mechanics:**
+
+- Starting a game adds fatigue.
+- Bench appearances add less fatigue.
+- Off days and rest days recover fatigue.
+- Catchers accumulate fatigue faster than other position players.
+- Older players recover more slowly.
+- High injury-proneness players become riskier when fatigued.
+- Moderate fatigue applies small performance penalties.
+- High fatigue meaningfully increases injury risk.
+- Very high fatigue should surface a rest recommendation.
+
+**Design intent:**
+
+Fatigue should create natural rest pressure, bench usage, and injury risk without turning the game into daily micromanagement. The user should feel the consequences of riding a starter every day — not be forced to manage a fatigue meter.
+
+**Example UI language:**
+
+> "Vance Shepherd is fatigued. Suggested rest: 1 day."
+
+Surfaced as a soft notification on the dashboard or roster screen — never a blocking modal. Users who ignore it accept the elevated injury risk.
+
+**Phase dependency:**
+
+- **Phase 2:** pitcher fatigue and stat correctness only (already in)
+- **Phase 3:** roster, lineup, bench, rotation, and bullpen controls (the user must be able to bench a fatigued player before fatigue can drive decisions)
+- **Phase 4:** injuries plus position-player fatigue/stamina
+
+**Non-goal:**
+
+Do not create OOTP-style fatigue micromanagement. The game should handle routine fatigue in the background and only surface meaningful rest/injury-risk decisions.
+
 
 
 ## 11. Roster Management
@@ -3258,9 +3294,9 @@ This approach is essential for AI-assisted coding: each phase keeps complexity m
 - Auto-handle decisions
 - Mid-season trades / FA
 
-### 21.5 Phase 4: Injury System (Estimated: 1 session)
+### 21.5 Phase 4: Injury System (Estimated: 1-2 sessions)
 
-**Goal:** Realistic injuries with IL management.
+**Goal:** Realistic injuries with IL management, plus position-player fatigue.
 
 **Build:**
 - Injury rolls during games (per 10.1, 10.2)
@@ -3269,14 +3305,28 @@ This approach is essential for AI-assisted coding: each phase keeps complexity m
 - Career-altering injuries (rare, with ceiling reduction)
 - Injury history tracking
 - IL UI flow (place on IL, activate from IL, rehab assignments)
+- Position-player fatigue/stamina (per 10.8)
+  - Per-game fatigue accumulation (start vs. bench appearance)
+  - Off-day and rest-day recovery
+  - Catcher and age modifiers
+  - Performance penalty at moderate fatigue
+  - Injury-risk multiplier at high fatigue (uses injury-proneness)
+  - Soft "rest recommended" notification at very high fatigue
 
 **End-of-phase test:**
 - Players get injured at realistic rates
 - IL management works correctly
 - Career-altering injuries reduce ceilings appropriately
+- Everyday position players accumulate fatigue across a typical week
+  and recover with off-days
+- Very fatigued players trigger rest-recommendation notifications
+- Fatigue is handled in the background; the user is never forced to
+  micromanage a fatigue meter
 
 **Deferred:**
 - Specific injury type narrative variations (basic types only at first)
+- Pinch-hitter / pinch-runner-only fatigue distinctions (treat any
+  bench appearance as the same low-fatigue event for now)
 
 ### 21.6 Phase 5: Progression System (Estimated: 1-2 sessions)
 
