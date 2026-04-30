@@ -1385,7 +1385,7 @@ The engine supports multiple simulation granularities depending on user request:
 
 **To next event:** Sims forward until reaching the next event (next series for user's team, next decision point, next milestone like trade deadline or All-Star break).
 
-In all cases, the user's own team's games are simulated at full fidelity with full box scores retrievable. Other teams' games simulate to box-score level but don't retain pitch-by-pitch detail (would explode save size).
+In all cases, every simulated game produces a full box score and an AB-by-AB game log. Both the user's own games and other teams' games are retained at this fidelity. Pitch-by-pitch detail is **not** generated — the AB-by-AB log is the lowest granularity (per 20.6.4). The detailed game logs are retained only for the current season and cleared during rollover (per 8.7.1) to bound save size.
 
 ### 7.10 Engine Tuning Process
 
@@ -1564,11 +1564,33 @@ Storage minimization:
 - Round rate stats to 3 decimal places (.275 not .27543)
 - Don't store derived stats (calculate at display time)
 - After 10 years, aggregate older minor-league stat lines to summary form
-- Don't store game-by-game stats — only season totals
+- Don't store per-game player stat lines historically — only season totals
 
-Total stat storage per player per year: roughly 200 bytes. Across 2,250 players × 1 year = ~450KB. After 10 years: ~4.5MB just for current player season-by-season stats. Plus retired player career stats add another 1-2MB depending on length.
+Total season-stat storage per player per year: roughly 200 bytes. Across 2,250 players × 1 year = ~450KB. After 10 years: ~4.5MB just for current player season-by-season stats. Plus retired player career stats add another 1-2MB depending on length.
 
 This is at the edge of mobile localStorage comfort but achievable. If saves get tight, we can compress retired player stats further.
+
+#### 8.7.1 AB-by-AB Game Log Retention
+
+Detailed AB-by-AB game logs (per 20.6.4) are stored **only for the current season** and **cleared during season rollover** to avoid save bloat.
+
+What's preserved across seasons:
+- Final scores
+- Team records (W/L, RS, RA)
+- Player season totals (every counting and rate stat)
+- Team season totals (offense, pitching, fielding once tracked)
+- League history summaries (standings, awards, postseason results, leaders)
+
+What's discarded at season rollover:
+- AB-by-AB game logs
+- Per-game player stat lines (already not retained per the rule above)
+- Per-inning line scores (kept only as long as the parent game's log is kept)
+
+**Storage envelope.** A typical season has ~2,430 games × ~75 PA per game = ~180,000 AB log entries. At a tight ~50 bytes per entry (inning, half, batter ID, pitcher ID, result code, base/out state, score) the total is roughly ~9 MB during the in-season period. This dominates save size while in-season but is reset to zero after rollover. The save's long-running floor (player + team + history) stays in the 5–8 MB range described above.
+
+Live in-season the data lives on each game record (e.g., extending the existing `game.result` with a `gameLog` array). Rollover deletes that field on every game from the year being closed out.
+
+Historical Game Detail views still work after rollover — the box score and team totals are reconstructed from the season-totals data. The AB-by-AB section of the Game Detail view shows a "Detailed log not retained for prior seasons" note when the log has been pruned.
 
 ### 8.8 Stat Display Principles
 
@@ -3214,15 +3236,52 @@ The Team tab is the user's organizational management center. Sub-screens:
 **20.6.1 Today's Games**
 - All league games in progress or scheduled today
 - User team game prominently displayed at top
-- Tap any game for box score / live updates
+- Tap any game for the Game Detail view (20.6.4) once it has a final
 
 **20.6.2 Recent Box Scores**
 - User team's recent games with full box scores
 - Other team's box scores accessible
+- Each row is a tap target that opens the Game Detail view (20.6.4)
 
 **20.6.3 Upcoming Series Preview**
 - Next 3-5 series for user's team
 - Opponent stats, probable starting pitchers, key matchups
+
+**20.6.4 Game Detail View**
+
+Any completed game is a tap target across the app and opens a Game Detail view (modal on mobile, side panel on desktop). The same view is reachable from:
+
+- The Games tab — Today's Games and Recent Box Scores lists
+- The dashboard's Recent Games card
+- Team pages — recent games and schedule lists
+- Team and league schedule views — past games
+- Any other surface that lists a completed game
+
+**Contents (in order, top to bottom):**
+
+1. **Header** — final score, in-game date, both team names with caps, league/division context. Score line shows winning side first or with a clear winner indicator. Walkoff and extra-innings games are flagged.
+2. **Inning summary** — line score (R/H/E per inning per side, plus row totals) when available. If the engine doesn't track per-inning runs at the time, this section gracefully omits.
+3. **Batting box score** — per side, one row per batter who appeared. Columns: position, name, AB, R, H, RBI, BB, K, AVG (current season-to-date). Lineup order preserved. Pinch hitters and pinch runners (when those exist) get their own rows under their substitution point.
+4. **Pitching box score** — per side, one row per pitcher who appeared. Columns: name, IP, H, R, ER, BB, K, HR, ERA (current season-to-date). Decision tags (W/L/SV/HLD/BS) shown next to the appropriate names.
+5. **Team totals** — runs, hits, errors, LOB, double plays turned, plus team batting line (AVG/OBP/SLG for the game).
+6. **AB-by-AB game log** — chronological at-bat list. Each entry shows inning, half, batter, pitcher, base/out state before the play, result (e.g., "K looking", "Single", "GIDP", "Walkoff HR"), runners advanced, RBI on the play, and the score after.
+
+**Pitch-by-pitch logging is out of scope.** The game log is AB-by-AB only. Anything finer-grained (count, pitch type, location) is explicitly deferred indefinitely — the goal is a readable narrative, not a broadcast feed.
+
+**Mobile layout:**
+- Modal sheet that fills most of the viewport
+- Vertical scroll throughout
+- Sections are collapsible: header / line score always visible; box scores and game log can be tapped to expand or collapse to save scroll distance
+- The AB-by-AB log appears last (longest section) and is collapsed by default
+
+**Empty states:**
+- Games that haven't been played yet show a Series Preview view (probable pitchers, recent meetings, season-series record), not the Game Detail view
+- Older games whose AB-by-AB log has been cleared by season rollover (per 8.7) still show the box score and team totals; the AB-by-AB section displays a "Detailed log not retained for prior seasons" note
+
+**Out of scope for this view:**
+- Live in-game updates (games are simulated atomically)
+- Defensive replays / shift visualizations
+- Win probability charts
 
 ### 20.7 Player Detail Screen
 
