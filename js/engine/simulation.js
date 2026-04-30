@@ -646,8 +646,22 @@ window.BBGM_SIM = (function () {
     }
 
     if (!next) {
-      for (const id of team.bullpen) {
-        if (!used.has(id)) { next = players[id]; break; }
+      // Pick the least-used eligible reliever rather than the first in the
+      // bullpen list. Without this rotation the same "setup man" entered
+      // every single game (162 appearances, 340+ IP) because team.bullpen
+      // is statically sorted by quality at generation. Sorting by season
+      // G with a small random tiebreak spreads workload across the entire
+      // bullpen the way real MLB usage does.
+      const year = state.meta.currentDate.year;
+      const eligible = team.bullpen.filter((id) => !used.has(id) && players[id]);
+      if (eligible.length > 0) {
+        eligible.sort((a, b) => {
+          const ga = (players[a].stats[year] && players[a].stats[year].g) || 0;
+          const gb = (players[b].stats[year] && players[b].stats[year].g) || 0;
+          if (ga !== gb) return ga - gb;
+          return Math.random() - 0.5;
+        });
+        next = players[eligible[0]];
       }
     }
     if (!next) return; // no one available - keep going

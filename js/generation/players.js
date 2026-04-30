@@ -394,9 +394,19 @@ window.BBGM_PLAYER_GEN = (function () {
 
   function pitcherRoleAdjust(rng, role, ratingKey, c) {
     if (ratingKey === 'stamina') {
+      // Per bible 5.4: stamina drives whether a pitcher can start, work
+      // multiple innings in relief, or only get an inning. Hard caps for
+      // bullpen roles prevent generation from rolling SP-grade stamina on
+      // a guy who's never going to start.
       if (role === 'SP') c += rnormal(rng, 8, 2);
-      if (role === 'RP') c -= rnormal(rng, 8, 3);
-      if (role === 'CP') c -= rnormal(rng, 12, 3);
+      if (role === 'RP') {
+        c -= rnormal(rng, 8, 3);
+        c = Math.min(c, 55); // RPs cap below the "starter capable" threshold
+      }
+      if (role === 'CP') {
+        c -= rnormal(rng, 12, 3);
+        c = Math.min(c, 50); // closers are emphatically one-inning arms
+      }
     }
     if (ratingKey === 'velocity') {
       if (role === 'CP') c += rnormal(rng, 4, 1.5);
