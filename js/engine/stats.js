@@ -8,17 +8,24 @@ window.BBGM_STATS = (function () {
   }
 
   function emptyHitter() {
-    return { g: 0, ab: 0, pa: 0, h: 0, b2: 0, b3: 0, hr: 0, r: 0, rbi: 0, sb: 0, cs: 0, bb: 0, k: 0, hbp: 0, sf: 0, sh: 0 };
+    return {
+      g: 0, ab: 0, pa: 0, h: 0, b2: 0, b3: 0, hr: 0,
+      r: 0, rbi: 0, sb: 0, cs: 0, bb: 0, k: 0, hbp: 0,
+      sf: 0, sh: 0, gidp: 0,
+    };
   }
 
   function emptyPitcher() {
-    return { g: 0, gs: 0, w: 0, l: 0, sv: 0, hld: 0, bs: 0, cg: 0, sho: 0, ip: 0, ipOuts: 0, h: 0, r: 0, er: 0, hr: 0, bb: 0, k: 0, bf: 0, hbp: 0 };
+    return {
+      g: 0, gs: 0, w: 0, l: 0, sv: 0, hld: 0, bs: 0, cg: 0, sho: 0,
+      ip: 0, ipOuts: 0, h: 0, r: 0, er: 0, hr: 0, bb: 0, k: 0, bf: 0, hbp: 0,
+    };
   }
 
   // Hitter rates
   function avg(s) { return s.ab > 0 ? s.h / s.ab : 0; }
   function obp(s) {
-    const denom = s.ab + s.bb + s.hbp + s.sf;
+    const denom = s.ab + s.bb + s.hbp + (s.sf || 0);
     return denom > 0 ? (s.h + s.bb + s.hbp) / denom : 0;
   }
   function slg(s) {
@@ -90,11 +97,80 @@ window.BBGM_STATS = (function () {
     return total;
   }
 
+  // Internal validation helper used after each simulated game. Verifies the
+  // basic counting-stat invariants. Returns { ok, issues }.
+  function validateGameStats(gameInfo) {
+    const { homeRuns, awayRuns, homeBatterStats, awayBatterStats,
+            homePitcherStats, awayPitcherStats, homeOuts, awayOuts } = gameInfo;
+    const issues = [];
+
+    function sumField(arr, k) {
+      let n = 0;
+      for (const s of arr) n += s[k] || 0;
+      return n;
+    }
+    function checkNonNeg(label, obj) {
+      for (const k in obj) {
+        if (typeof obj[k] === 'number' && obj[k] < 0) {
+          issues.push(`${label}.${k} negative (${obj[k]})`);
+        }
+      }
+    }
+
+    // Sums of player stats per side
+    const homeBatterRuns = sumField(homeBatterStats, 'r');
+    const awayBatterRuns = sumField(awayBatterStats, 'r');
+    const homeBatterHits = sumField(homeBatterStats, 'h');
+    const awayBatterHits = sumField(awayBatterStats, 'h');
+    const homePitcherHits = sumField(homePitcherStats, 'h');
+    const awayPitcherHits = sumField(awayPitcherStats, 'h');
+    const homePitcherRuns = sumField(homePitcherStats, 'r');
+    const awayPitcherRuns = sumField(awayPitcherStats, 'r');
+    const homePitcherOuts = sumField(homePitcherStats, 'ipOuts');
+    const awayPitcherOuts = sumField(awayPitcherStats, 'ipOuts');
+
+    if (homeBatterRuns !== homeRuns) issues.push(`home batter runs ${homeBatterRuns} ≠ team ${homeRuns}`);
+    if (awayBatterRuns !== awayRuns) issues.push(`away batter runs ${awayBatterRuns} ≠ team ${awayRuns}`);
+
+    // Pitcher hits allowed = opponent hits
+    if (homePitcherHits !== awayBatterHits) {
+      issues.push(`home pitcher hits allowed ${homePitcherHits} ≠ away batter hits ${awayBatterHits}`);
+    }
+    if (awayPitcherHits !== homeBatterHits) {
+      issues.push(`away pitcher hits allowed ${awayPitcherHits} ≠ home batter hits ${homeBatterHits}`);
+    }
+
+    // Pitcher runs allowed = opponent runs (responsible-pitcher accounting
+    // makes this hold even with mid-inning changes).
+    if (homePitcherRuns !== awayRuns) {
+      issues.push(`home pitcher runs allowed ${homePitcherRuns} ≠ away team runs ${awayRuns}`);
+    }
+    if (awayPitcherRuns !== homeRuns) {
+      issues.push(`away pitcher runs allowed ${awayPitcherRuns} ≠ home team runs ${homeRuns}`);
+    }
+
+    // Pitcher outs == innings pitched by that team.
+    if (homePitcherOuts !== homeOuts) {
+      issues.push(`home pitcher outs ${homePitcherOuts} ≠ home innings pitched in outs ${homeOuts}`);
+    }
+    if (awayPitcherOuts !== awayOuts) {
+      issues.push(`away pitcher outs ${awayPitcherOuts} ≠ away innings pitched in outs ${awayOuts}`);
+    }
+
+    for (const s of homeBatterStats) checkNonNeg('homeBatter', s);
+    for (const s of awayBatterStats) checkNonNeg('awayBatter', s);
+    for (const s of homePitcherStats) checkNonNeg('homePitcher', s);
+    for (const s of awayPitcherStats) checkNonNeg('awayPitcher', s);
+
+    return { ok: issues.length === 0, issues };
+  }
+
   return {
     ensureSeason, emptyHitter, emptyPitcher,
     avg, obp, slg, ops, tb,
     era, whip, k9, bb9, hr9,
     fmtAvg, fmtIP, addStat,
     teamHittingTotals, teamPitchingTotals,
+    validateGameStats,
   };
 })();

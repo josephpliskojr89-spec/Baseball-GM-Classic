@@ -96,6 +96,18 @@ window.BBGM_SIM = (function () {
     // Compute decisions (W/L/SV)
     assignPitcherDecisions(teamState, gameStats);
 
+    // Hitter games played: every batter who took at least one PA in this
+    // game gets G=1 (exactly once per game). With no in-game substitutions
+    // yet, the lineup batters who hit are the only candidates. Pitchers
+    // don't get G here — pitcher G is handled in assignPitcherDecisions
+    // and is keyed off appearances.
+    for (const pid in gameStats) {
+      const p = players[pid];
+      if (!p || p.isPitcher) continue;
+      const line = gameStats[pid];
+      if ((line.pa || 0) > 0) line.g = 1;
+    }
+
     // Update player season stats
     for (const pid in gameStats) {
       const p = players[pid];
