@@ -205,23 +205,38 @@ window.BBGM_SIM = (function () {
         ps.k++;
         outs++;
       } else if (result.kind === 'OUT') {
-        bs.ab++;
-        outs++;
-        // GIDP chance with runner on first and <2 outs
-        if (bases[0] && outs < 3 && Math.random() < 0.10) {
-          outs++; // double play
+        // Classify the out before charging AB. MLB scoring:
+        //  - SF: flyout + R3 scores + fewer than 2 outs at start of play
+        //        → counts as PA, SF, RBI; NOT counted as AB.
+        //  - GIDP: out + R1 + fewer than 2 outs at start of play
+        //        → counts as AB and GIDP; turns into 2 outs total.
+        //  - Otherwise: a regular out, counts as AB.
+        const outsBefore = outs;
+        let isSF = false;
+        let isGIDP = false;
+        if (bases[0] && outsBefore < 2 && Math.random() < 0.10) {
+          isGIDP = true;
+        } else if (bases[2] && outsBefore < 2 && result.battedBall === 'fly' && Math.random() < 0.55) {
+          isSF = true;
+        }
+
+        if (isSF) {
+          outs++;
+          const r3 = bases[2];
+          bases[2] = null;
+          off.runs++; runsThisInning++; earnedRunsThisInning++;
+          gs(getPlayerById(state, r3)).r++;
+          bs.sf++;
+          bs.rbi++;
+        } else if (isGIDP) {
+          bs.ab++;
+          bs.gidp++;
+          outs += 2;
+          if (outs > 3) outs = 3;
           bases[0] = null;
-          bs.k = bs.k; // not a K
         } else {
-          // SF chance with R3 and <2 outs and fly out
-          if (bases[2] && outs < 3 && result.battedBall === 'fly' && Math.random() < 0.55) {
-            const r3 = bases[2];
-            bases[2] = null;
-            off.runs++; runsThisInning++; earnedRunsThisInning++;
-            gs(getPlayerById(state, r3)).r++;
-            bs.sf++;
-            bs.rbi++;
-          }
+          bs.ab++;
+          outs++;
         }
       } else if (result.kind === '1B') {
         bs.ab++; bs.h++; ps.h++; off.hits++;
