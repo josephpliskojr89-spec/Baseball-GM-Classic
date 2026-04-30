@@ -95,6 +95,15 @@ window.BBGM_UI_DASHBOARD = (function () {
 
   function renderQuickActions(state, team) {
     const card = U.el('div', { class: 'card', style: { padding: '12px' } });
+
+    // Prominent full-width "Simulate Season" button — useful for quickly
+    // generating full-season stats while testing.
+    card.appendChild(U.el('button', {
+      class: 'btn-primary btn-sm',
+      style: { width: '100%', 'margin-bottom': '8px' },
+      on: { click: () => window.BBGM_MAIN.simToSeasonEnd() }
+    }, 'Simulate Season ▶▶'));
+
     const grid = U.el('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap' } });
     grid.appendChild(U.el('button', {
       class: 'btn-secondary btn-sm', style: { flex: '1 1 calc(50% - 4px)' },

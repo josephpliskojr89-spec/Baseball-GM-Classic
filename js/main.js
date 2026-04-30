@@ -333,6 +333,22 @@ window.BBGM_MAIN = (function () {
     simDays(days);
   }
 
+  // Sim through to the end of the regular season. simDays() already halts
+  // once currentDate reaches seasonEnd, so passing the diff (plus a 1-day
+  // buffer) is safe even on the last day of the season.
+  function simToSeasonEnd() {
+    const state = window.BBGM_STATE.get();
+    if (!state) return;
+    const today = state.meta.currentDate;
+    const seasonEnd = state.league.schedule.seasonEnd;
+    if (D.compare(today, seasonEnd) >= 0) {
+      U.showToast('Season is already complete.', 'info');
+      return;
+    }
+    const days = Math.max(1, D.diffDays(today, seasonEnd) + 1);
+    simDays(days);
+  }
+
   function simDays(numDays) {
     const state = window.BBGM_STATE.get();
     if (!state) return;
@@ -565,7 +581,7 @@ window.BBGM_MAIN = (function () {
     return report;
   }
 
-  return { navigate, refresh, advanceDay, simToNextEvent, simToEndOfMonth, validateCurrentSave };
+  return { navigate, refresh, advanceDay, simToNextEvent, simToEndOfMonth, simToSeasonEnd, validateCurrentSave };
 })();
 
 // Dev-only namespace alias. Lets users run `BBGM_DEBUG.validateCurrentSave()`
