@@ -567,3 +567,9 @@ window.BBGM_MAIN = (function () {
 
   return { navigate, refresh, advanceDay, simToNextEvent, simToEndOfMonth, validateCurrentSave };
 })();
+
+// Dev-only namespace alias. Lets users run `BBGM_DEBUG.validateCurrentSave()`
+// from the browser console without having to remember the BBGM_MAIN namespace.
+window.BBGM_DEBUG = {
+  validateCurrentSave: () => window.BBGM_MAIN.validateCurrentSave(),
+};

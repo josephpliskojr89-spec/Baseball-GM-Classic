@@ -52,17 +52,19 @@ window.BBGM_SIM = (function () {
       throw err;
     }
 
-    // Track game state
+    // Track game state. catcher is cached for SB resolution (see findCatcher).
     const teamState = {
       home: {
         team: home, lineup: homeLineup, lineupIdx: 0,
         sp: homeSP, currentP: homeSP, pitchCount: 0, pitchersUsed: [homeSP.id], runs: 0, hits: 0, errors: 0,
         bullpenIdx: 0, parkFactors: home.ballpark.factors,
+        catcher: findCatcher(home, players),
       },
       away: {
         team: away, lineup: awayLineup, lineupIdx: 0,
         sp: awaySP, currentP: awaySP, pitchCount: 0, pitchersUsed: [awaySP.id], runs: 0, hits: 0, errors: 0,
         bullpenIdx: 0, parkFactors: home.ballpark.factors, // Park factors apply to both
+        catcher: findCatcher(away, players),
       },
     };
 
@@ -76,18 +78,21 @@ window.BBGM_SIM = (function () {
       return gameStats[p.id];
     }
 
-    // Half-innings
+    // Half-innings. Track outs the home and away pitching staffs each
+    // recorded so we can validate ipOuts attribution at the end.
     let inning = 1;
     let extras = false;
+    let homeOuts = 0; // outs the home staff recorded against away batters
+    let awayOuts = 0;
     while (inning <= 9 || teamState.home.runs === teamState.away.runs) {
-      // Top half (away batting)
-      simHalfInning(teamState.away, teamState.home, gs, inning, false, state);
+      // Top half (away batting, home pitching)
+      homeOuts += simHalfInning(teamState.away, teamState.home, gs, inning, false, state);
       // If 9+ and home leading, end before bottom half
       if (inning >= 9 && teamState.home.runs > teamState.away.runs && !extras) {
         break;
       }
-      // Bottom half (home batting)
-      simHalfInning(teamState.home, teamState.away, gs, inning, true, state);
+      // Bottom half (home batting, away pitching)
+      awayOuts += simHalfInning(teamState.home, teamState.away, gs, inning, true, state);
       if (inning >= 9 && teamState.home.runs !== teamState.away.runs) break;
       inning++;
       if (inning > 18) break; // safety cap
@@ -98,14 +103,46 @@ window.BBGM_SIM = (function () {
 
     // Hitter games played: every batter who took at least one PA in this
     // game gets G=1 (exactly once per game). With no in-game substitutions
-    // yet, the lineup batters who hit are the only candidates. Pitchers
-    // don't get G here — pitcher G is handled in assignPitcherDecisions
-    // and is keyed off appearances.
+    // yet, the lineup batters who hit are the only candidates. Pitcher G/GS
+    // is set at appearance time inside simHalfInning.
     for (const pid in gameStats) {
       const p = players[pid];
       if (!p || p.isPitcher) continue;
       const line = gameStats[pid];
       if ((line.pa || 0) > 0) line.g = 1;
+    }
+
+    // Per-game invariant validation. Catches accounting bugs immediately
+    // rather than letting them silently pollute season totals. Throws if
+    // any check fails — simOneDay surfaces the throw to the user.
+    const homeBatterStats = [];
+    const awayBatterStats = [];
+    const homePitcherStats = [];
+    const awayPitcherStats = [];
+    for (const pid in gameStats) {
+      const p = players[pid];
+      if (!p) continue;
+      const isHome = p.teamId === home.id;
+      const bucket = p.isPitcher
+        ? (isHome ? homePitcherStats : awayPitcherStats)
+        : (isHome ? homeBatterStats : awayBatterStats);
+      bucket.push(gameStats[pid]);
+    }
+    const validation = S.validateGameStats({
+      homeRuns: teamState.home.runs,
+      awayRuns: teamState.away.runs,
+      homeBatterStats, awayBatterStats,
+      homePitcherStats, awayPitcherStats,
+      homeOuts, awayOuts,
+    });
+    if (!validation.ok) {
+      const err = new Error(
+        `Game stat invariant violation (${away.abbr}@${home.abbr} ${game.gameId}): ${validation.issues.join('; ')}`
+      );
+      err.code = 'GAME_STATS_INVALID';
+      err.gameId = game.gameId;
+      err.issues = validation.issues;
+      throw err;
     }
 
     // Update player season stats
@@ -192,6 +229,11 @@ window.BBGM_SIM = (function () {
       const ps = gs(pitcher);
       bs.pa++;
       ps.bf++;
+
+      // Pitcher appearance is recorded the moment they face a batter so G/GS
+      // can never be overwritten or skipped by the decision logic later.
+      if (!ps.g) ps.g = 1;
+      if (pitcher.id === def.sp.id && !ps.gs) ps.gs = 1;
 
       const newRunner = { playerId: batter.id, responsiblePitcherId: pitcher.id };
 
@@ -308,7 +350,10 @@ window.BBGM_SIM = (function () {
         }
       }
     }
-    // No bulk ipOuts/r/er charge at end of inning — all charged per event.
+    // Defensive: outs should never exceed 3 in a half-inning. If it does
+    // (only via simultaneous events like CS-after-walkoff), the loop guard
+    // above would have already exited. Cap at 3 for safety in any return.
+    return Math.min(outs, 3);
   }
 
   function getPlayerById(state, id) {
@@ -502,19 +547,61 @@ window.BBGM_SIM = (function () {
     return rating - decay;
   }
 
+  // Find the defensive catcher for SB resolution: prefer the catcher in the
+  // active lineup, fall back to the best-armed catcher on the roster, fall
+  // back to neutral 50 if nobody qualifies.
+  function findCatcher(team, players) {
+    const lineup = (team.lineupRH && team.lineupRH.length) ? team.lineupRH : team.lineupLH;
+    if (lineup) {
+      for (const spot of lineup) {
+        if (spot.position === 'C') {
+          const p = players[spot.playerId];
+          if (p) return p;
+        }
+      }
+    }
+    const catchers = (team.roster || [])
+      .map((id) => players[id])
+      .filter((p) => p && p.primaryPosition === 'C');
+    if (catchers.length) {
+      catchers.sort((a, b) => (b.ratings.arm || 50) - (a.ratings.arm || 50));
+      return catchers[0];
+    }
+    return null;
+  }
+
+  function catcherArm(def) {
+    return def.catcher && def.catcher.ratings ? (def.catcher.ratings.arm || 50) : 50;
+  }
+
+  // Pitcher hold modifier: stamina contributes a small generic deterrent.
+  // No new "hold" rating per task scope.
+  function pitcherHoldMod(pitcher) {
+    return ((pitcher.ratings.stamina || 50) - 50) * 0.001;
+  }
+
   function shouldAttemptSB(runner, pitcher, def) {
-    // Tuned to produce ~140 SB attempts per team per 162-game season league-wide.
+    // Faster runners attempt more; stronger-armed catchers deter attempts.
     const speed = runner.ratings.speed || 50;
-    if (speed < 40) return Math.random() < 0.01;
-    if (speed < 50) return Math.random() < 0.045;
-    const baseProb = 0.115 + (speed - 50) * 0.018;
-    return Math.random() < baseProb;
+    const arm = catcherArm(def);
+    const armDeter = (arm - 50) * 0.005;       // ~0.15 swing across the arm grade
+    const holdDeter = pitcherHoldMod(pitcher); // tiny extra for high-stamina pitcher
+
+    if (speed < 40) return Math.random() < clamp(0.01 - armDeter, 0.001, 0.05);
+    if (speed < 50) return Math.random() < clamp(0.045 - armDeter - holdDeter, 0.005, 0.15);
+    const baseProb = 0.115 + (speed - 50) * 0.018 - armDeter - holdDeter;
+    return Math.random() < clamp(baseProb, 0.02, 0.40);
   }
 
   function resolveSB(runner, pitcher, def) {
-    const speed = runner.ratings.speed;
-    const successProb = 0.66 + (speed - 50) * 0.012;
-    return Math.random() < successProb ? 'safe' : 'caught';
+    // Speed boosts success; catcher arm and pitcher hold reduce it.
+    const speed = runner.ratings.speed || 50;
+    const arm = catcherArm(def);
+    const successProb = 0.66
+      + (speed - 50) * 0.012
+      - (arm - 50) * 0.008
+      - pitcherHoldMod(pitcher);
+    return Math.random() < clamp(successProb, 0.20, 0.95) ? 'safe' : 'caught';
   }
 
   function maybeChangePitcher(off, def, inning, outs, runsThisInning, isBottom, state) {
@@ -587,55 +674,48 @@ window.BBGM_SIM = (function () {
   }
 
   function assignPitcherDecisions(teamState, gameStats) {
+    // Pitcher G and GS are set at appearance time inside simHalfInning, so
+    // this function only handles W / L / SV. We award exactly one W and one
+    // L per completed game.
     const home = teamState.home;
     const away = teamState.away;
     const homeWon = home.runs > away.runs;
     const winSide = homeWon ? home : away;
     const lossSide = homeWon ? away : home;
 
-    // Starter usually gets the W if pitched 5+ IP and team had lead they didn't relinquish (simplified: SP gets W or L based on outcome)
     const winSP = winSide.sp;
     const lossSP = lossSide.sp;
     const winSPStats = gameStats[winSP.id];
     const lossSPStats = gameStats[lossSP.id];
 
-    // Did winning starter go 5 IP (15 outs)?
+    // Win: SP keeps it if he went 5+ IP, otherwise it goes to the last
+    // reliever the winning side used (simplified — official MLB rules
+    // consider lead-protection more carefully).
     if (winSPStats && (winSPStats.ipOuts || 0) >= 15) {
-      winSPStats.gs = 1;
-      winSPStats.g = 1;
       winSPStats.w = 1;
       winSide.wp = winSP.id;
     } else if (winSPStats) {
-      winSPStats.gs = 1;
-      winSPStats.g = 1;
-      // Award W to last reliever (simplification)
       const winRelievers = winSide.pitchersUsed.slice(1);
       if (winRelievers.length > 0) {
         const last = winRelievers[winRelievers.length - 1];
         if (gameStats[last]) gameStats[last].w = 1;
         winSide.wp = last;
       } else {
+        // Edge case: SP went <5 IP but no reliever was used. Give the W to
+        // the SP rather than leave the game without a winning pitcher.
         winSPStats.w = 1;
         winSide.wp = winSP.id;
       }
     }
 
+    // Loss: always charged to the SP for now.
     if (lossSPStats) {
-      lossSPStats.gs = 1;
-      lossSPStats.g = 1;
       lossSPStats.l = 1;
       lossSide.lp = lossSP.id;
     }
 
-    // Mark relievers G=1
-    for (const side of [home, away]) {
-      for (let i = 1; i < side.pitchersUsed.length; i++) {
-        const pid = side.pitchersUsed[i];
-        if (gameStats[pid]) gameStats[pid].g = 1;
-      }
-    }
-
-    // Save: winning side's last pitcher if not the SP and team won by 1-3 runs and pitched at least 1 inning
+    // Save: winning side's final pitcher, if he wasn't the SP, kept the lead
+    // by 1-3 runs, and recorded at least 1 IP.
     if (winSide.pitchersUsed.length > 1) {
       const last = winSide.pitchersUsed[winSide.pitchersUsed.length - 1];
       const ls = gameStats[last];
