@@ -157,52 +157,67 @@ window.BBGM_SIM = (function () {
 
   function simHalfInning(off, def, gs, inning, isBottom, state) {
     let outs = 0;
-    let bases = [null, null, null]; // 1B, 2B, 3B
-    let runsThisInning = 0;
-    let earnedRunsThisInning = 0;
+    // Each base position holds a runner object { playerId, responsiblePitcherId }
+    // or null. responsiblePitcherId is the pitcher who put the runner on base
+    // and is who R/ER is charged against if the runner ultimately scores.
+    let bases = [null, null, null];
+
+    // Charge a scored run: R to the runner's batting line, R+ER to the
+    // pitcher who was responsible for putting that runner on base. We assume
+    // all runs are earned until the error system exists.
+    function chargeRun(scoredRunner) {
+      off.runs++;
+      const runnerP = state.players[scoredRunner.playerId];
+      if (runnerP) gs(runnerP).r++;
+      const respP = state.players[scoredRunner.responsiblePitcherId];
+      if (respP) {
+        const rs = gs(respP);
+        rs.r = (rs.r || 0) + 1;
+        rs.er = (rs.er || 0) + 1;
+      }
+    }
 
     while (outs < 3) {
       const batter = off.lineup[off.lineupIdx];
       off.lineupIdx = (off.lineupIdx + 1) % off.lineup.length;
 
       // Check pitcher fatigue / change
-      maybeChangePitcher(off, def, inning, outs, runsThisInning, isBottom, state);
+      maybeChangePitcher(off, def, inning, outs, 0, isBottom, state);
 
       const pitcher = def.currentP;
       const result = resolveAtBat(batter, pitcher, off.parkFactors, def);
       def.pitchCount++;
 
-      // Stats
       const bs = gs(batter);
       const ps = gs(pitcher);
       bs.pa++;
       ps.bf++;
 
+      const newRunner = { playerId: batter.id, responsiblePitcherId: pitcher.id };
+
       if (result.kind === 'BB' || result.kind === 'IBB') {
         bs.bb++;
         ps.bb++;
-        const advance = forceWalk(bases, batter.id);
+        const advance = forceWalk(bases, newRunner);
         bases = advance.bases;
-        for (const r of advance.runs) {
-          off.runs++; runsThisInning++; earnedRunsThisInning++;
-          gs(getPlayerById(state, r)).r++;
+        for (const scored of advance.runs) {
+          chargeRun(scored);
           bs.rbi++;
         }
       } else if (result.kind === 'HBP') {
-        bs.pa = bs.pa; // already counted
         bs.hbp++;
         ps.hbp++;
-        const advance = forceWalk(bases, batter.id);
+        const advance = forceWalk(bases, newRunner);
         bases = advance.bases;
-        for (const r of advance.runs) {
-          off.runs++; runsThisInning++; earnedRunsThisInning++;
-          gs(getPlayerById(state, r)).r++;
+        for (const scored of advance.runs) {
+          chargeRun(scored);
           bs.rbi++;
         }
       } else if (result.kind === 'K') {
         bs.ab++;
         bs.k++;
         ps.k++;
+        ps.ipOuts = (ps.ipOuts || 0) + 1;
         outs++;
       } else if (result.kind === 'OUT') {
         // Classify the out before charging AB. MLB scoring:
@@ -222,117 +237,116 @@ window.BBGM_SIM = (function () {
 
         if (isSF) {
           outs++;
+          ps.ipOuts = (ps.ipOuts || 0) + 1;
           const r3 = bases[2];
           bases[2] = null;
-          off.runs++; runsThisInning++; earnedRunsThisInning++;
-          gs(getPlayerById(state, r3)).r++;
+          chargeRun(r3);
           bs.sf++;
           bs.rbi++;
         } else if (isGIDP) {
           bs.ab++;
           bs.gidp++;
-          outs += 2;
-          if (outs > 3) outs = 3;
+          // Two outs: the batter at home plate and the lead runner. Cap at 3.
+          const additional = Math.min(2, 3 - outs);
+          outs += additional;
+          ps.ipOuts = (ps.ipOuts || 0) + additional;
           bases[0] = null;
         } else {
           bs.ab++;
           outs++;
+          ps.ipOuts = (ps.ipOuts || 0) + 1;
         }
       } else if (result.kind === '1B') {
         bs.ab++; bs.h++; ps.h++; off.hits++;
-        const advance = advanceOnHit(bases, batter, 1);
+        const advance = advanceOnHit(bases, batter, 1, newRunner);
         bases = advance.bases;
-        for (const r of advance.runs) {
-          off.runs++; runsThisInning++; earnedRunsThisInning++;
-          gs(getPlayerById(state, r)).r++;
+        for (const scored of advance.runs) {
+          chargeRun(scored);
           bs.rbi++;
         }
       } else if (result.kind === '2B') {
         bs.ab++; bs.h++; bs.b2++; ps.h++; off.hits++;
-        const advance = advanceOnHit(bases, batter, 2);
+        const advance = advanceOnHit(bases, batter, 2, newRunner);
         bases = advance.bases;
-        for (const r of advance.runs) {
-          off.runs++; runsThisInning++; earnedRunsThisInning++;
-          gs(getPlayerById(state, r)).r++;
+        for (const scored of advance.runs) {
+          chargeRun(scored);
           bs.rbi++;
         }
       } else if (result.kind === '3B') {
         bs.ab++; bs.h++; bs.b3++; ps.h++; off.hits++;
-        const advance = advanceOnHit(bases, batter, 3);
+        const advance = advanceOnHit(bases, batter, 3, newRunner);
         bases = advance.bases;
-        for (const r of advance.runs) {
-          off.runs++; runsThisInning++; earnedRunsThisInning++;
-          gs(getPlayerById(state, r)).r++;
+        for (const scored of advance.runs) {
+          chargeRun(scored);
           bs.rbi++;
         }
       } else if (result.kind === 'HR') {
         bs.ab++; bs.h++; bs.hr++; ps.hr++; ps.h++; off.hits++;
-        // Runners + batter score
         const baserunners = bases.filter((b) => b);
         bases = [null, null, null];
-        for (const r of baserunners) {
-          off.runs++; runsThisInning++; earnedRunsThisInning++;
-          gs(getPlayerById(state, r)).r++;
-        }
-        // Batter run
-        off.runs++; runsThisInning++; earnedRunsThisInning++;
-        bs.r++;
+        for (const scored of baserunners) chargeRun(scored);
+        // Batter scores too — the current pitcher is responsible.
+        chargeRun(newRunner);
         bs.rbi += baserunners.length + 1;
       }
 
-      // Stolen base attempts after PA (if runner on 1B and no HR/walk-base-clear)
+      // Stolen base attempts after PA (only with R1, no R2 ahead).
       if (bases[0] && outs < 3 && !bases[1]) {
-        const runner = getPlayerById(state, bases[0]);
+        const runner = state.players[bases[0].playerId];
         if (shouldAttemptSB(runner, pitcher, def)) {
           const sbResult = resolveSB(runner, pitcher, def);
           if (sbResult === 'safe') {
             bases[1] = bases[0]; bases[0] = null;
             gs(runner).sb++;
           } else {
+            // Caught stealing: out credited to current pitcher on the mound.
             bases[0] = null;
             outs++;
+            ps.ipOuts = (ps.ipOuts || 0) + 1;
             gs(runner).cs++;
           }
         }
       }
     }
-
-    // Pitcher IP
-    const ps = gs(def.currentP);
-    ps.ipOuts = (ps.ipOuts || 0) + 3;
-    ps.r = (ps.r || 0) + runsThisInning;
-    ps.er = (ps.er || 0) + earnedRunsThisInning;
+    // No bulk ipOuts/r/er charge at end of inning — all charged per event.
   }
 
   function getPlayerById(state, id) {
     return state.players[id];
   }
 
-  function forceWalk(bases, batterId) {
+  // Bases now hold runner objects: { playerId, responsiblePitcherId } | null.
+  // forceWalk pushes the new runner to first; only forced runners (and only
+  // R3 when bases are loaded) score. Returns the array of runner objects who
+  // crossed the plate, with their responsible pitcher attached.
+  function forceWalk(bases, newRunner) {
     const runs = [];
-    let bs = bases.slice();
+    const bs = bases.slice();
     if (bs[0] && bs[1] && bs[2]) {
       runs.push(bs[2]);
       bs[2] = bs[1];
       bs[1] = bs[0];
-      bs[0] = batterId;
+      bs[0] = newRunner;
     } else if (bs[0] && bs[1]) {
       bs[2] = bs[1];
       bs[1] = bs[0];
-      bs[0] = batterId;
+      bs[0] = newRunner;
     } else if (bs[0]) {
       bs[1] = bs[0];
-      bs[0] = batterId;
+      bs[0] = newRunner;
     } else {
-      bs[0] = batterId;
+      bs[0] = newRunner;
     }
     return { bases: bs, runs };
   }
 
-  function advanceOnHit(bases, batter, hitType) {
+  // Bases hold runner objects. The new runner (the batter who reached base)
+  // arrives with responsiblePitcherId already set by the caller. Returns the
+  // runners who crossed the plate so the caller can charge their R/ER to
+  // whatever pitcher each runner is responsible-charged against.
+  function advanceOnHit(bases, batter, hitType, newRunner) {
     const runs = [];
-    let bs = bases.slice();
-    const batterId = batter.id;
+    const bs = bases.slice();
     const speed = batter.ratings.speed || 50;
     const speedBonus = Math.random() < (speed - 50) / 200;
 
@@ -340,17 +354,15 @@ window.BBGM_SIM = (function () {
       // Single
       if (bs[2]) { runs.push(bs[2]); bs[2] = null; }
       if (bs[1]) {
-        // Score from 2B usually
         if (Math.random() < 0.65) { runs.push(bs[1]); bs[1] = null; }
         else { bs[2] = bs[1]; bs[1] = null; }
       }
       if (bs[0]) {
-        // 1st to 3rd ~30%
         if (Math.random() < 0.30) { bs[2] = bs[0]; }
         else { bs[1] = bs[0]; }
         bs[0] = null;
       }
-      bs[0] = batterId;
+      bs[0] = newRunner;
     } else if (hitType === 2) {
       // Double
       if (bs[2]) { runs.push(bs[2]); bs[2] = null; }
@@ -360,13 +372,13 @@ window.BBGM_SIM = (function () {
         else { bs[2] = bs[0]; }
         bs[0] = null;
       }
-      bs[1] = batterId;
+      bs[1] = newRunner;
     } else if (hitType === 3) {
       // Triple - all score
       if (bs[2]) { runs.push(bs[2]); bs[2] = null; }
       if (bs[1]) { runs.push(bs[1]); bs[1] = null; }
       if (bs[0]) { runs.push(bs[0]); bs[0] = null; }
-      bs[2] = batterId;
+      bs[2] = newRunner;
     }
     return { bases: bs, runs };
   }
@@ -507,22 +519,26 @@ window.BBGM_SIM = (function () {
 
   function maybeChangePitcher(off, def, inning, outs, runsThisInning, isBottom, state) {
     const pitcher = def.currentP;
-    const pitchCount = def.pitchCount;
+    // def.pitchCount increments by 1 per PA — it tracks batters faced, not
+    // actual pitches. Limits below are expressed in BF.
+    const bf = def.pitchCount;
     const stamina = pitcher.ratings.stamina;
     const isStarter = pitcher.id === def.sp.id;
 
-    // Hard cap by inning
     let pull = false;
     if (isStarter) {
-      // Pull starters around 90-110 pitches depending on stamina, or allow up to 130 for studs
-      const limit = stamina >= 70 ? 110 : stamina >= 50 ? 95 : 75;
-      if (pitchCount >= limit) pull = true;
-      // Or if late inning and team trailing/close: pull for closer
-      if (inning >= 7 && isStarter && pitchCount >= 75) pull = true;
+      // Target ~5.5–7.0 IP per start. SP retires roughly 18–22 batters at
+      // peak; baserunners push BF a bit higher. Pull around 22–28 BF
+      // depending on stamina.
+      const limit = stamina >= 70 ? 30 : stamina >= 50 ? 26 : 22;
+      if (bf >= limit) pull = true;
+      // Late-inning hand-off to the bullpen (pull at the 7th regardless if
+      // the SP has already worked through the order multiple times).
+      if (inning >= 7 && bf >= 24) pull = true;
     } else {
-      // Reliever - usually one inning unless high stamina
-      const limit = stamina >= 60 ? 35 : 22;
-      if (pitchCount >= limit) pull = true;
+      // Reliever — typically 1 inning, multi-inning if stamina supports it.
+      const limit = stamina >= 60 ? 9 : 5;
+      if (bf >= limit) pull = true;
     }
 
     if (!pull) return;
