@@ -1174,15 +1174,146 @@ Stolen base attempts resolved separately (see 7.5).
 
 Score, baserunners, outs, count reset.
 
-### 7.4 Pitcher Fatigue
+### 7.4 Pitcher Stamina and Fatigue
 
-Pitcher ratings degrade through an outing based on stamina and pitch count:
+Pitcher stamina uses the 20–80 scale (per 5.2) and should map to realistic pitcher roles, pitch-count expectations, and fatigue behavior. **Stamina is a soft usage guide, not a fixed innings cap.**
 
-- **High stamina (70+):** Effective ratings hold steady through ~100 pitches, decline mildly after
-- **Average stamina (50):** Effective ratings hold through ~80 pitches, decline moderately after
-- **Low stamina (30-):** Effective ratings hold through ~30 pitches, decline rapidly after
+> **Phase note.** The current sim has a simplified stamina-vs-pitch-count rule. The full tiered model below is scheduled for Phase 3 (per 21.4), where it ships alongside bullpen role assignments — the tier names (LOOGY, swingman, long man) map directly onto the role labels in 7.8. Implementing the engine tiers without role controls would only deliver half the system.
 
-Specific degradation: each pitch beyond the stamina-driven threshold reduces effective velocity, control, and stuff by small increments. By the time a low-stamina pitcher has thrown 50 pitches, his velocity is effectively 5-10 points lower than rated. This is what creates the late-inning offensive surges and what makes bullpen management matter.
+#### 7.4.1 Stamina Tiers
+
+The mapping below is the design contract: a pitcher generated at a given stamina grade should behave like the corresponding role in simulation. "Target" is the typical pitch-count window the engine aims for. "Ceiling" is the upper bound the effective pitch limit (7.4.3) can reach with bonuses applied.
+
+**20–30 — Specialists / LOOGY-type arms**
+- Target: 5–15 pitches
+- Usage: 1–3 batters
+- Hard cap around 20 pitches
+- Almost never face the same hitter twice
+- Rarely exceed 1 inning
+
+**35–40 — Standard one-inning relievers**
+- Target: 15–25 pitches
+- Typical usage: 1 inning
+- Ceiling around 30 pitches
+- Can occasionally go 2 innings if very efficient
+- Should never be used for 3 innings
+
+**45 — Multi-inning relievers / bridge arms**
+- Target: 25–45 pitches
+- Typical usage: 2 innings
+- Ceiling around 50 pitches
+- Can reach 3 innings only if very efficient
+- Should not become pseudo-starters
+
+**50 — Swingmen / long relievers / spot starters**
+- Target: 60–80 pitches
+- Typical usage: 3–5 innings
+- Ceiling around 90 pitches
+- Can make spot starts and reach 5 innings if efficient
+- Roughly the replacement-level starter / swingman baseline
+
+**55–60 — Modern starting pitchers**
+- Target: 85–100 pitches
+- Typical usage: 5–6 innings
+- Ceiling around 105 pitches
+- Can reach 7 innings if efficient and effective
+- Most normal starters live here
+
+**65–70 — Workhorses**
+- Target: 95–110 pitches
+- Typical usage: 6–7 innings
+- Ceiling around 115–120 pitches
+- Can reach 8 innings with strong efficiency
+- Complete games possible but uncommon
+
+**75–80 — Elite workhorses / rare freaks**
+- Target: 105–120 pitches
+- Typical usage: 7–8 innings
+- Ceiling around 125+ pitches
+- Complete games and shutouts more possible, but still require efficiency and effectiveness
+- These players should be rare
+
+#### 7.4.2 Stamina Is Not Innings
+
+Stamina should not directly equal innings.
+
+**Bad model:**
+- Stamina 60 always means 6 innings.
+
+**Correct model:**
+- Stamina 60 usually means 5–6 innings, sometimes 7 if efficient, sometimes less if ineffective.
+
+The same starter facing the same lineup gets pulled at different points depending on how the outing has gone. A 60-stamina pitcher with 65 pitches through 5 efficient innings can earn the 7th. The same pitcher at 95 pitches through 4.2 innings of trouble is gone.
+
+#### 7.4.3 Effective Pitch Limit
+
+Each outing has a dynamic pull threshold rather than a static one:
+
+```
+Effective Pitch Limit
+  = base stamina limit
+  + efficiency bonus
+  - trouble penalty
+```
+
+The base limit comes from the tier table above. Bonus and penalty apply small adjustments — typically ±5 to ±15 pitches — that let a hot pitcher stretch his outing or yank a struggling one early.
+
+**Efficiency bonus examples:**
+- Low pitches per inning
+- Quick innings
+- Low baserunner traffic
+- Shutout or dominant outing
+
+**Trouble penalty examples:**
+- High walks
+- High hits allowed
+- Runs allowed
+- Repeated hard contact (if/when tracked)
+- Visible fatigue signs (declining velocity, etc.)
+
+The effective limit is recomputed continuously through the outing — it isn't locked at first pitch. A 60-stamina starter who works through a clean first three frames might enter the 6th with an effective limit of 110+; the same pitcher who walked four in the first two innings is on a much shorter leash.
+
+#### 7.4.4 Per-Pitch Stuff/Velocity/Control Decay
+
+Beyond the pitch-count limit, the underlying ratings degrade through an outing:
+
+- **High stamina (65+):** effective ratings hold through the target window, then decline mildly past the ceiling
+- **Average stamina (50):** ratings hold through the target window, decline moderately past
+- **Low stamina (35-):** ratings hold for the first few batters, decline rapidly thereafter
+
+Each pitch past the stamina-driven hold threshold reduces effective velocity, control, and stuff by small increments. A low-stamina pitcher pushed to 40 pitches is throwing meaningfully worse than rated. This is what creates late-inning offensive surges and is one of the levers that makes bullpen management matter.
+
+#### 7.4.5 Complete Games
+
+Complete games should be rare and should require all of:
+
+- High stamina (typically 65+, with 75+ much more likely)
+- Low pitch count for the runs absorbed
+- Strong performance (low BB, manageable hits)
+- Close or meaningful game state (a blowout pulls the pitcher early to save bullets)
+- No major fatigue warning (velocity holding, no late-inning trouble)
+
+#### 7.4.6 Bullpen Balance
+
+Starter stamina and pull logic directly control bullpen usage.
+
+- If starters go too deep, the bullpen disappears.
+- If starters are pulled too early, bullpen usage becomes chaotic.
+
+Pitcher stamina tuning must be validated by checking full-season starter IP/start, reliever appearances, saves, and complete-game frequency together — not in isolation. Per-tier behaviour is the contract: a 35-stamina LOOGY pulling multi-inning bridge work is a tuning failure, even if league averages happen to look OK.
+
+#### 7.4.7 Validation Targets
+
+After a full-season simulation, the engine should produce:
+
+- Average starter IP/start in the 5.5–6.5 range
+- True workhorses can exceed 7 IP/start but are rare
+- Relievers receive meaningful appearances (top setup arms ~60–75 G, long men ~30–45 G)
+- Closers record saves at realistic rates (~25–40 per closer)
+- Complete games exist but are uncommon
+- No stamina tier consistently behaves outside its intended role
+
+If any of these conditions fail, stamina ratings or pull thresholds need re-tuning before moving on.
 
 ### 7.5 Stolen Bases and Small Ball
 
@@ -3269,9 +3400,9 @@ This approach is essential for AI-assisted coding: each phase keeps complexity m
 - Manager tendencies (use defaults)
 - Injuries
 
-### 21.4 Phase 3: Roster and Lineup Management (Estimated: 1-2 sessions)
+### 21.4 Phase 3: Roster and Lineup Management (Estimated: 2 sessions)
 
-**Goal:** User can manage their active roster and lineup throughout a season.
+**Goal:** User can manage their active roster and lineup throughout a season, and the engine pitch-count behaviour matches the stamina tier contract in 7.4.
 
 **Build:**
 - 26-man roster management
@@ -3279,6 +3410,16 @@ This approach is essential for AI-assisted coding: each phase keeps complexity m
 - Options and service time tracking
 - Lineup construction (vs RHP / vs LHP)
 - Pitching staff management (rotation, bullpen roles)
+- Bullpen role labels (closer, setup, middle, lefty specialist, long
+  relief, mop-up — per 7.8) wired to user controls
+- Pitcher stamina tier rollout (per 7.4)
+  - Tiered effective pitch limits replacing the simplified
+    stamina-vs-pitch-count rule
+  - Dynamic pull threshold using efficiency bonus and trouble penalty
+  - Per-tier per-pitch decay of stuff / velocity / control
+  - Complete-game eligibility gating
+  - Quality-weighted bullpen leverage (top setup man works close-game
+    high-leverage outs; long man eats blowouts and extra innings)
 - Daily roster decisions (basic flow)
 - Player detail screen (full implementation)
 - Mobile-friendly roster UI
@@ -3288,6 +3429,13 @@ This approach is essential for AI-assisted coding: each phase keeps complexity m
 - Changes persist across days
 - Stats track correctly per player
 - UI works on mobile
+- Pitcher stamina validation targets in 7.4.7 are met:
+  - Avg starter IP/start in 5.5–6.5
+  - Workhorses exceeding 7 IP/start exist but are rare
+  - Top setup arms ~60–75 G, long men ~30–45 G
+  - Closers ~25–40 SV
+  - Complete games uncommon
+  - No stamina tier behaving outside its intended role
 
 **Deferred:**
 - Advanced manager tendencies
