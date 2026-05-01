@@ -30,7 +30,7 @@
                 <button id="btnImportGame" class="btn-tertiary">Import Save</button>
                 <input type="file" id="fileImport" accept=".json" hidden>
             </div>
-            <p class="version">v0.3.1</p>
+            <p class="version">v0.3.3</p>
         </div>
     </div>
 
@@ -93,27 +93,30 @@
         </div>
     </div>
 
-    <script src="js/data/constants.js"></script>
-    <script src="js/data/name_pools.js"></script>
-    <script src="js/data/city_pools.js"></script>
-    <script src="js/data/teams.js"></script>
-    <script src="js/util/rng.js"></script>
-    <script src="js/util/dates.js"></script>
-    <script src="js/state.js"></script>
-    <script src="js/generation/ballparks.js"></script>
-    <script src="js/generation/league.js"></script>
-    <script src="js/generation/players.js"></script>
-    <script src="js/engine/schedule.js"></script>
-    <script src="js/engine/stats.js"></script>
-    <script src="js/engine/simulation.js"></script>
-    <script src="js/engine/standings.js"></script>
-    <script src="js/ui/common.js"></script>
-    <script src="js/ui/dashboard.js"></script>
-    <script src="js/ui/team.js"></script>
-    <script src="js/ui/league.js"></script>
-    <script src="js/ui/games.js"></script>
-    <script src="js/ui/menu.js"></script>
-    <script src="js/ui/player.js"></script>
-    <script src="js/main.js"></script>
+    <!-- Version-stamped script imports. Browsers (and CDNs) cache JS by URL,
+         so changing ?v=... forces a fresh fetch on next load. Bump the
+         BBGM_BUILD value below whenever a JS file changes. -->
+    <script src="js/data/constants.js?v=0.3.3"></script>
+    <script src="js/data/name_pools.js?v=0.3.3"></script>
+    <script src="js/data/city_pools.js?v=0.3.3"></script>
+    <script src="js/data/teams.js?v=0.3.3"></script>
+    <script src="js/util/rng.js?v=0.3.3"></script>
+    <script src="js/util/dates.js?v=0.3.3"></script>
+    <script src="js/state.js?v=0.3.3"></script>
+    <script src="js/generation/ballparks.js?v=0.3.3"></script>
+    <script src="js/generation/league.js?v=0.3.3"></script>
+    <script src="js/generation/players.js?v=0.3.3"></script>
+    <script src="js/engine/schedule.js?v=0.3.3"></script>
+    <script src="js/engine/stats.js?v=0.3.3"></script>
+    <script src="js/engine/simulation.js?v=0.3.3"></script>
+    <script src="js/engine/standings.js?v=0.3.3"></script>
+    <script src="js/ui/common.js?v=0.3.3"></script>
+    <script src="js/ui/dashboard.js?v=0.3.3"></script>
+    <script src="js/ui/team.js?v=0.3.3"></script>
+    <script src="js/ui/league.js?v=0.3.3"></script>
+    <script src="js/ui/games.js?v=0.3.3"></script>
+    <script src="js/ui/menu.js?v=0.3.3"></script>
+    <script src="js/ui/player.js?v=0.3.3"></script>
+    <script src="js/main.js?v=0.3.3"></script>
 </body>
 </html>
