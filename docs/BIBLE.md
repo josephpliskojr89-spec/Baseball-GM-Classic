@@ -455,6 +455,70 @@ Applied at game-time as multipliers to base outcome probabilities. Variety creat
 - **Reputation:** 0-100 score updated by results, big signings, championships. Affects FA willingness.
 - **Historical record:** All-time wins, championships, awards by team employees, retired numbers. Cosmetic depth over long saves.
 
+### 4.7 Intra-League Rivalries (Future System)
+
+> **Status: not implemented.** This section captures the design for a flavor/narrative layer that will be added in a later phase. The current schedule generator and team data model do **not** include rivalries. Adding rivalries should not change schedule logic, team identity, or simulation behavior at the time it ships — it's purely additional metadata for downstream narrative systems to read.
+
+#### 4.7.1 Scope
+
+Rivalries are an **intra-league** flavor layer. Each team has a small set of rivals from within the same league.
+
+- **Intra-league only.** Rivalries cross divisions but never cross leagues. East rivals East, West rivals West.
+- **Examples:** New York vs. Boston (same Northeast), Chicago vs. Detroit (same Eastern Central), Los Angeles vs. San Francisco (same Pacific). Cross-division-but-same-league pairings (e.g., Atlanta vs. New York) are also valid.
+- **No interleague rivalries** at this layer. The schedule's existing one-rival cross-league pairing (per 3.2.1) is a separate scheduling concept that already produces 4 games/year against a designated cross-league opponent and is unrelated to this system.
+
+#### 4.7.2 Non-Goals at Launch
+
+When this system ships, it will explicitly **not**:
+
+- **Affect the schedule.** No forced games, no fixed series counts, no reweighting of intra-league matchups. The schedule remains purely structural — division, intra-league non-division, interleague rotation per 3.2.1.
+- **Affect simulation outcomes.** A rivalry game and a non-rivalry game roll the same engine math.
+- **Affect player ratings, fatigue, injuries, or development.** Rivalries are metadata, not modifiers.
+
+The point: rivalries should add narrative texture without distorting the underlying baseball model.
+
+#### 4.7.3 Data Shape
+
+Rivalries are **team-level metadata**. Concept (not implemented):
+
+```js
+// On each team object:
+rivalries: {
+  primary:   ["bos"],          // most-storied rivalry; small list (1-2)
+  secondary: ["phi"],           // notable but lower-intensity rivals (0-3)
+}
+```
+
+- IDs reference the stable `team.id` values from BBGM_TEAMS.
+- Both arrays may be empty for teams without an established rivalry tradition.
+- Rivalries are **directional** at the data level (each team lists its own rivals), so a one-sided rivalry is expressible. In practice most rivalries will be reciprocal (NYE has BOS as primary; BOS has NYE as primary), but the schema doesn't enforce this.
+
+The data lives in `js/data/teams.js` alongside the rest of the fixed identity. Default rivalries are part of the NABL canon and ship as static data — not generated per save.
+
+#### 4.7.4 Intended Future Uses
+
+When the system lands, these are the surfaces that read rivalry data:
+
+- **Owner goals.** Examples: "Win the season series vs. Boston," "Sweep the Detroit road trip." These feed into owner confidence and the pressure system.
+- **News system.** Rivalry wins/losses generate richer headlines than ordinary results. A walkoff against your primary rival headlines for a day; a series sweep generates a feature story.
+- **Fan interest / immersion.** Rivalry games are surfaced more prominently on the dashboard and Today's Games. Optional: small stadium-attendance flavor when stadium revenue modeling exists.
+- **Standings overlays (optional).** A "vs. rivals" sub-record on the standings page — e.g., "8–5 vs. BOS" — makes the rivalry tangible without adding mechanical weight.
+
+#### 4.7.5 Phase Placement
+
+Implementation depends on systems that don't exist yet (owner goals, news, optional standings overlays). Likely sequencing:
+
+1. **Phase 17+ (post-launch polish).** Add the data shape (4.7.3) to `js/data/teams.js` with the default NABL rivalries. Pure data; no readers yet.
+2. **Phase 17+ news system.** First reader: rivalry-flavored headlines.
+3. **Phase 17+ owner goals.** Second reader: rivalry-themed offseason goals.
+4. **Optional:** rivalry sub-record overlays on the standings UI.
+
+No firm phase number is assigned because this is an enhancement layer that can land any time after the news/owner-goals work is in flight. Adding rivalry data on its own is cheap and harmless even before the readers exist.
+
+#### 4.7.6 Why Metadata-Only Matters
+
+Keeping rivalries as a flavor layer is a deliberate scope cap. Many sims overload "rivalry" with mechanical effects (rating boosts, schedule pressure, momentum modifiers) and end up with rivalry games feeling artificially different from the rest of the season. Baseball GM Classic intentionally separates structure (the schedule, the engine) from narrative (rivalries, news, owner goals). Rivalries make the league feel inhabited; they don't change who wins.
+
 ---
 
 ## 5. Player Data Model
@@ -3811,6 +3875,8 @@ To keep scope contained, several systems are explicitly deferred:
 - Detailed in-game tactical decisions exposed to user
 - Stadium construction / business sim
 - Fan engagement / attendance / TV revenue modeling
+- Intra-league rivalries (per 4.7) — flavor layer, depends on the
+  news and owner-goals systems landing first
 
 These can be added in later iterations once the core game is working.
 
