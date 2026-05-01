@@ -26,10 +26,10 @@ window.BBGM_TEAMS = [
   { id: 'det', city: 'Detroit',      nickname: 'Muscle',    abbr: 'DET', league: 'east', division: 'Central',   primaryColor: '#13294B', secondaryColor: '#E03A3E', market: 'mid'   },
 
   // ----- Eastern League — Southeast Division -----
-  { id: 'mia', city: 'Miami',        nickname: 'Vice',      abbr: 'MIA', league: 'east', division: 'Southeast', primaryColor: '#00B5E2', secondaryColor: '#FF3EA5', market: 'mid'   },
-  { id: 'atl', city: 'Atlanta',      nickname: 'Kings',     abbr: 'ATL', league: 'east', division: 'Southeast', primaryColor: '#13274F', secondaryColor: '#C8102E', market: 'mid'   },
+  { id: 'mia', city: 'Miami',        nickname: 'Sharks',    abbr: 'MIA', league: 'east', division: 'Southeast', primaryColor: '#00B5E2', secondaryColor: '#FF3EA5', market: 'mid'   },
+  { id: 'atl', city: 'Atlanta',      nickname: 'Hammers',   abbr: 'ATL', league: 'east', division: 'Southeast', primaryColor: '#13274F', secondaryColor: '#C8102E', market: 'mid'   },
   { id: 'cha', city: 'Charlotte',    nickname: 'Crown',     abbr: 'CHA', league: 'east', division: 'Southeast', primaryColor: '#007A33', secondaryColor: '#C4A000', market: 'mid'   },
-  { id: 'nsh', city: 'Nashville',    nickname: 'Sound',     abbr: 'NSH', league: 'east', division: 'Southeast', primaryColor: '#041E42', secondaryColor: '#FFB81C', market: 'mid'   },
+  { id: 'nsh', city: 'Nashville',    nickname: 'Smoke',     abbr: 'NSH', league: 'east', division: 'Southeast', primaryColor: '#041E42', secondaryColor: '#FFB81C', market: 'mid'   },
   { id: 'tbr', city: 'Tampa Bay',    nickname: 'Breakers',  abbr: 'TBR', league: 'east', division: 'Southeast', primaryColor: '#002868', secondaryColor: '#A7A9AC', market: 'small' },
 
   // ----- Western League — Pacific Division -----
