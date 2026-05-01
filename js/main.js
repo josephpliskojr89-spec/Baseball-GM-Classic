@@ -142,7 +142,7 @@ window.BBGM_MAIN = (function () {
         }
 
         const state = {
-          version: '0.2.0',
+          version: '0.3.0',
           meta: {
             seed,
             created: new Date().toISOString(),
@@ -228,7 +228,28 @@ window.BBGM_MAIN = (function () {
 
   function startGame(state) {
     document.getElementById('splash').classList.add('hidden');
-    // Flag old saves with a known-broken schedule.
+
+    // Pre-NABL saves used randomly generated team names and the 'A' / 'B'
+    // league naming. Those identities are no longer in the codebase, so
+    // continuing such a save would produce broken renders and bad league
+    // membership. Reject them with a clear message.
+    if (savePreNABL(state)) {
+      U.showModal({
+        title: 'Old Save Not Supported',
+        body: 'This save was created with the old random-team system. The game now uses ' +
+              'the fixed NABL 30-team league, so older saves cannot be continued. ' +
+              'Start a new game to use the NABL teams. Your old save will be erased.',
+        actions: [
+          { label: 'Start New Game', kind: 'danger', onClick: () => {
+            window.BBGM_STATE.reset();
+            location.reload();
+          }},
+        ],
+      });
+      return;
+    }
+
+    // Pre-schedule-fix saves with non-162 game counts.
     const broken = saveHasBrokenSchedule(state);
     if (state.meta.userTeamId) {
       document.getElementById('app').classList.remove('hidden');
@@ -252,6 +273,19 @@ window.BBGM_MAIN = (function () {
         ],
       });
     }
+  }
+
+  // Pre-NABL saves either have version < '0.3.0' or contain teams with the
+  // legacy 'A' / 'B' league values. Either condition flags the save as
+  // unsupported.
+  function savePreNABL(state) {
+    if (!state || !state.league || !Array.isArray(state.league.teams)) return false;
+    const v = state.version || '0.1.0';
+    if (v < '0.3.0') return true;
+    for (const t of state.league.teams) {
+      if (t.league === 'A' || t.league === 'B') return true;
+    }
+    return false;
   }
 
   function saveHasBrokenSchedule(state) {

@@ -230,8 +230,10 @@ window.BBGM_SCHEDULE = (function () {
   function generateOnce(rng, league, year) {
     const teams = league.teams;
 
-    // Group teams by league/division
-    const byLeague = { A: [], B: [] };
+    // Group teams by league/division. Leagues are 'east' and 'west' per
+    // the NABL fixed-team structure. Each league's three divisions are
+    // listed in window.BBGM_DIVISIONS_BY_LEAGUE.
+    const byLeague = { east: [], west: [] };
     for (const t of teams) byLeague[t.league].push(t);
     const byDivision = {};
     for (const t of teams) {
@@ -262,7 +264,7 @@ window.BBGM_SCHEDULE = (function () {
     }
 
     // Intra-league non-division: 8 games per pair (4/4)
-    for (const lg of ['A', 'B']) {
+    for (const lg of ['east', 'west']) {
       const ts = byLeague[lg];
       for (let i = 0; i < ts.length; i++) {
         for (let j = i + 1; j < ts.length; j++) {
@@ -275,13 +277,16 @@ window.BBGM_SCHEDULE = (function () {
       }
     }
 
-    // Interleague rotation: each A division plays one B division each year.
-    const divisions = ['East', 'Central', 'West'];
-    const rotShift = (year % 3) === 0 ? 1 : (year % 3); // never 0 — must rotate
+    // Interleague rotation: each Eastern division plays one Western division
+    // each year. Rotation shifts annually so every East/West pair eventually
+    // meets in this slot.
+    const eastDivs = window.BBGM_DIVISIONS_BY_LEAGUE.east; // Northeast, Central, Southeast
+    const westDivs = window.BBGM_DIVISIONS_BY_LEAGUE.west; // Pacific, Midwest, South
+    const rotShift = (year % 3) === 0 ? 1 : (year % 3);    // never 0 — must rotate
     const interleaguePartner = {};
     for (let i = 0; i < 3; i++) {
-      interleaguePartner[`A/${divisions[i]}`] = `B/${divisions[(i + rotShift) % 3]}`;
-      interleaguePartner[`B/${divisions[i]}`] = `A/${divisions[(i - rotShift + 3) % 3]}`;
+      interleaguePartner[`east/${eastDivs[i]}`] = `west/${westDivs[(i + rotShift) % 3]}`;
+      interleaguePartner[`west/${westDivs[i]}`] = `east/${eastDivs[(i - rotShift + 3) % 3]}`;
     }
 
     // Pair rivals BEFORE the rotation matchups so we can keep rivals out of
@@ -297,11 +302,12 @@ window.BBGM_SCHEDULE = (function () {
       });
     }
 
-    // Rotating interleague: each A team plays each B team in their partner
-    // division (5 opps) for 5 or 6 games, totaling 26. Pick a permutation so
-    // exactly one A-B pair per A-team gets the 6-game slot; rest get 5.
-    for (const aDiv of divisions) {
-      const aDivKey = `A/${aDiv}`;
+    // Rotating interleague: each Eastern team plays each Western team in
+    // their partner division (5 opps) for 5 or 6 games, totaling 26. Pick a
+    // permutation so exactly one E/W pair per Eastern team gets the 6-game
+    // slot; rest get 5.
+    for (const aDiv of eastDivs) {
+      const aDivKey = `east/${aDiv}`;
       const bDivKey = interleaguePartner[aDivKey];
       const aDivTeams = byDivision[aDivKey] || [];
       const bDivTeams = byDivision[bDivKey] || [];
@@ -489,11 +495,11 @@ window.BBGM_SCHEDULE = (function () {
     return Math.abs(h);
   }
 
-  // Pair every league-A team with a league-B team such that no rival pair is
+  // Pair every Eastern team with a Western team such that no rival pair is
   // in the rotation partner-division relationship.
   function pairRivals(rng, byLeague, interleaguePartner) {
-    const aTeams = byLeague.A.slice();
-    const bTeams = byLeague.B.slice();
+    const aTeams = byLeague.east.slice();
+    const bTeams = byLeague.west.slice();
 
     const partnerDiv = (team) => interleaguePartner[`${team.league}/${team.division}`];
     const eligible = (a, b) => {

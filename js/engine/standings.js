@@ -31,8 +31,8 @@ window.BBGM_STANDINGS = (function () {
       groups[key].push(t);
     }
     const result = [];
-    for (const lg of ['A', 'B']) {
-      for (const div of ['East', 'Central', 'West']) {
+    for (const lg of ['east', 'west']) {
+      for (const div of window.BBGM_DIVISIONS_BY_LEAGUE[lg]) {
         const key = `${lg}/${div}`;
         const sorted = sortDivision(groups[key] || []);
         const leader = sorted[0];

@@ -140,9 +140,20 @@ window.BBGM_UI = (function () {
     return `${away.abbr} @ ${home.abbr}`;
   }
 
+  // Display helpers for the NABL east/west naming. Internal values are
+  // lowercase ('east' / 'west') for save stability; UI uses the friendly
+  // names defined in BBGM_LEAGUE_DISPLAY (data/teams.js).
+  function leagueName(league) {
+    return (window.BBGM_LEAGUE_DISPLAY && window.BBGM_LEAGUE_DISPLAY[league]) || league;
+  }
+  function divisionLabel(team) {
+    return `${leagueName(team.league)} ${team.division}`;
+  }
+
   return {
     el, clearChildren, teamCap, posBadge, gradeFor, gradeClass,
     fmtMoney, showToast, showModal, closeModal, ratingDisplay,
     showProgress, hideProgress, teamColorVars, gameLabel,
+    leagueName, divisionLabel,
   };
 })();

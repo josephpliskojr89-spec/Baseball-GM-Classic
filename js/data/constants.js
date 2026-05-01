@@ -3,8 +3,14 @@ window.BBGM_CONSTANTS = {
   VERSION: '0.1.0',
   START_YEAR: 2026,
   TEAMS_PER_LEAGUE: 15,
-  DIVISIONS: ['East', 'Central', 'West'],
-  LEAGUES: ['A', 'B'],
+  // Two leagues, three divisions each. Internal values are lowercase for
+  // save stability; display names live in BBGM_LEAGUE_DISPLAY (teams.js).
+  // Per-league division names live in BBGM_DIVISIONS_BY_LEAGUE.
+  LEAGUES: ['east', 'west'],
+  // Legacy union of all division names — kept for any code that wants to
+  // iterate every division. Per-league correct order is in
+  // BBGM_DIVISIONS_BY_LEAGUE.
+  DIVISIONS_ALL: ['Northeast', 'Central', 'Southeast', 'Pacific', 'Midwest', 'South'],
   GAMES_PER_TEAM: 162,
   ROSTER_ACTIVE: 26,
   ROSTER_40: 40,

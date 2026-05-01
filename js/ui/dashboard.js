@@ -18,7 +18,7 @@ window.BBGM_UI_DASHBOARD = (function () {
     const info = U.el('div');
     info.appendChild(U.el('div', { class: 'team-strip-name' }, team.name));
     info.appendChild(U.el('div', { class: 'team-strip-meta' },
-      `${team.league} ${team.division} • ${team.market[0].toUpperCase() + team.market.slice(1)} Market`));
+      `${U.divisionLabel(team)} • ${team.market[0].toUpperCase() + team.market.slice(1)} Market`));
     strip.appendChild(info);
     const record = `${team.seasonRecord.w}-${team.seasonRecord.l}`;
     strip.appendChild(U.el('div', { class: 'team-strip-record' }, record));

@@ -483,7 +483,7 @@ window.BBGM_PLAYER_GEN = (function () {
 
   function buildLineup(hitters, vsHand, team) {
     // Required positions (8 in NL-style B-league, 9 in AL-style A-league with DH).
-    const isDH = team.league === 'A';
+    const isDH = team.league === 'east';
     const positions = isDH
       ? ['C', '1B', '2B', '3B', 'SS', 'LF', 'CF', 'RF', 'DH']
       : ['C', '1B', '2B', '3B', 'SS', 'LF', 'CF', 'RF'];
@@ -614,7 +614,7 @@ window.BBGM_PLAYER_GEN = (function () {
     if (!closer.isPitcher) fail(`closer ${closer.name} is not a pitcher`);
 
     // Lineups (vs RHP and vs LHP). Both must have the right number of slots.
-    const expectedLineupLen = team.league === 'A' ? 9 : 8;
+    const expectedLineupLen = team.league === 'east' ? 9 : 8;
     for (const which of ['lineupRH', 'lineupLH']) {
       const lineup = team[which];
       if (!Array.isArray(lineup) || lineup.length < expectedLineupLen) {

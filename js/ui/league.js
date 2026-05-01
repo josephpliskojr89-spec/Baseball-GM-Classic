@@ -35,7 +35,7 @@ window.BBGM_UI_LEAGUE = (function () {
     for (const block of standings) {
       const card = U.el('div', { class: 'standings-card' });
       const header = U.el('div', { class: 'standings-header' });
-      header.appendChild(U.el('span', {}, `${block.league} ${block.division}`));
+      header.appendChild(U.el('span', {}, `${U.leagueName(block.league)} League — ${block.division}`));
       card.appendChild(header);
 
       const head = U.el('div', { class: 'standings-row head' });
@@ -144,7 +144,7 @@ window.BBGM_UI_LEAGUE = (function () {
 
     let lastGroup = '';
     for (const t of teams) {
-      const grp = `${t.league} ${t.division}`;
+      const grp = U.divisionLabel(t);
       if (grp !== lastGroup) {
         container.appendChild(U.el('div', { class: 'card-title', style: { 'margin-top': '12px' } }, grp));
         lastGroup = grp;
@@ -168,7 +168,7 @@ window.BBGM_UI_LEAGUE = (function () {
   function showTeamDetail(state, team) {
     const body = U.el('div');
     body.appendChild(U.el('div', { class: 'inset-list' }, [
-      insetRow('League/Division', `${team.league} ${team.division}`),
+      insetRow('League/Division', U.divisionLabel(team)),
       insetRow('Owner Archetype', team.ownerName),
       insetRow('Market', team.market[0].toUpperCase() + team.market.slice(1)),
       insetRow('Payroll Base', U.fmtMoney(team.payrollBase)),
