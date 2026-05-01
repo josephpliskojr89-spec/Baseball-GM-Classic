@@ -1,5 +1,5 @@
 // Baseball GM Classic - Service Worker
-const CACHE_NAME = 'bbgm-classic-v0.3.3';
+const CACHE_NAME = 'bbgm-classic-v0.3.4';
 const ASSETS = [
   './',
   './index.html',

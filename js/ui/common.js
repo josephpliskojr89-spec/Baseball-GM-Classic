@@ -37,15 +37,45 @@ window.BBGM_UI = (function () {
     while (node.firstChild) node.removeChild(node.firstChild);
   }
 
+  // Parse "#RRGGBB" or "RRGGBB" to {r,g,b} (0-255). Returns null on malformed
+  // input so callers can fall back without throwing.
+  function parseHex(hex) {
+    if (typeof hex !== 'string') return null;
+    const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+    if (!m) return null;
+    return {
+      r: parseInt(m[1].slice(0, 2), 16),
+      g: parseInt(m[1].slice(2, 4), 16),
+      b: parseInt(m[1].slice(4, 6), 16),
+    };
+  }
+
+  // Pick a readable text color (white or near-black) for the given background
+  // hex. Uses the BT.601 perceived-luminance formula and a threshold tuned so
+  // mid-cyan / gold / ice-blue caps (Miami, San Francisco, Denver, San Diego)
+  // get dark text while typical dark identities still get white. Returns the
+  // string '#ffffff' as a fallback for malformed inputs so callers preserve
+  // the prior behaviour.
+  function readableTextColor(bgHex) {
+    const c = parseHex(bgHex);
+    if (!c) return '#ffffff';
+    const luma = (0.299 * c.r + 0.587 * c.g + 0.114 * c.b) / 255;
+    // 0.45 threshold: catches the user-flagged light teams (Miami #00B5E2,
+    // SF #F5B300, San Diego #00AEEF, Denver #5DADE2, Phoenix #E25822,
+    // Pittsburgh #FFB81C) while leaving dark reds, blues, blacks on white.
+    return luma > 0.45 ? '#1a1a1a' : '#ffffff';
+  }
+
   function teamCap(team, opts = {}) {
     const size = opts.size === 'lg' ? 'team-cap team-cap-lg' : 'team-cap';
+    const primary = team && team.colors && team.colors.primary;
     const cap = el('div', {
       class: size,
       style: {
-        'background-color': team.colors.primary,
-        'color': '#ffffff',
+        'background-color': primary || '#1c2230',
+        'color': readableTextColor(primary),
       }
-    }, team.abbr);
+    }, team ? team.abbr : '');
     return cap;
   }
 
@@ -166,5 +196,6 @@ window.BBGM_UI = (function () {
     fmtMoney, showToast, showModal, closeModal, ratingDisplay,
     showProgress, hideProgress, teamColorVars, gameLabel,
     leagueName, divisionLabel, compareTeamsByDivision,
+    readableTextColor, parseHex,
   };
 })();
