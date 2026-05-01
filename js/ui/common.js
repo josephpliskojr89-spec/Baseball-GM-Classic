@@ -150,10 +150,21 @@ window.BBGM_UI = (function () {
     return `${leagueName(team.league)} ${team.division}`;
   }
 
+  // Canonical NABL ordering: east before west, then divisions in the order
+  // declared in BBGM_DIVISIONS_BY_LEAGUE. Use this for any team list that
+  // needs to render groups in NABL-standard order rather than alphabetical
+  // (which would shuffle Northeast/Central/Southeast and Pacific/Midwest/
+  // South into the wrong sequence).
+  function compareTeamsByDivision(a, b) {
+    if (a.league !== b.league) return a.league === 'east' ? -1 : 1;
+    const order = (window.BBGM_DIVISIONS_BY_LEAGUE && window.BBGM_DIVISIONS_BY_LEAGUE[a.league]) || [];
+    return order.indexOf(a.division) - order.indexOf(b.division);
+  }
+
   return {
     el, clearChildren, teamCap, posBadge, gradeFor, gradeClass,
     fmtMoney, showToast, showModal, closeModal, ratingDisplay,
     showProgress, hideProgress, teamColorVars, gameLabel,
-    leagueName, divisionLabel,
+    leagueName, divisionLabel, compareTeamsByDivision,
   };
 })();

@@ -180,10 +180,11 @@ window.BBGM_MAIN = (function () {
     U.clearChildren(list);
     const state = window.BBGM_STATE.get();
 
-    // Sort teams by league/division
+    // Sort teams by canonical NABL ordering, then by team name within each
+    // division so the team-select grid follows the bible's structural order.
     const teams = state.league.teams.slice().sort((a, b) => {
-      if (a.league !== b.league) return a.league.localeCompare(b.league);
-      if (a.division !== b.division) return a.division.localeCompare(b.division);
+      const byDiv = U.compareTeamsByDivision(a, b);
+      if (byDiv !== 0) return byDiv;
       return a.name.localeCompare(b.name);
     });
 

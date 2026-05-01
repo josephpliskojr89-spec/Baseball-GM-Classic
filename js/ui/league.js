@@ -136,9 +136,12 @@ window.BBGM_UI_LEAGUE = (function () {
   }
 
   function renderTeams(container, state) {
+    // Group by canonical NABL ordering (east before west, then division
+    // order from BBGM_DIVISIONS_BY_LEAGUE). Within each division, top
+    // standings on top.
     const teams = state.league.teams.slice().sort((a, b) => {
-      if (a.league !== b.league) return a.league.localeCompare(b.league);
-      if (a.division !== b.division) return a.division.localeCompare(b.division);
+      const byDiv = U.compareTeamsByDivision(a, b);
+      if (byDiv !== 0) return byDiv;
       return STAND.winPct(b) - STAND.winPct(a);
     });
 
