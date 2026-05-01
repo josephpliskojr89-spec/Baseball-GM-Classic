@@ -158,7 +158,10 @@
   border-radius: var(--radius-md);
   margin-bottom: var(--sp-4);
   background: linear-gradient(135deg, var(--team-primary, #1c2230), var(--team-secondary, #161b22));
-  color: white;
+  /* Text color is computed by teamColorVars() based on the lighter of the
+     two gradient endpoints so light identities like Denver's ice-blue/white
+     gradient don't render white-on-white. */
+  color: var(--team-text-color, white);
   position: relative;
   overflow: hidden;
 }
@@ -514,7 +517,9 @@
 /* Player profile */
 .player-profile-header {
   background: linear-gradient(135deg, var(--team-primary, #1c2230), var(--team-secondary, #161b22));
-  color: white;
+  /* See note on .team-strip: --team-text-color flips to dark for light
+     identities so white-on-white doesn't happen. */
+  color: var(--team-text-color, white);
   padding: var(--sp-5) var(--sp-4);
   border-radius: var(--radius-md);
   margin-bottom: var(--sp-4);

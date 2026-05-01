@@ -157,10 +157,29 @@ window.BBGM_UI = (function () {
     return el('span', { class: `value ${gradeClass(value)}` }, String(g));
   }
 
+  // CSS custom properties for any surface tinted with a team's identity
+  // colors (team strip, player profile header, etc.). The text-color var is
+  // chosen so the surface stays readable for light identities like DEN's
+  // ice blue → white gradient, where hardcoded white text would vanish.
   function teamColorVars(team) {
+    const primary = team && team.colors && team.colors.primary;
+    const secondary = team && team.colors && team.colors.secondary;
+    // Use the LOWER luminance of the two gradient endpoints. If even the
+    // darker end is still light (e.g. DEN ice-blue → white, MIA cyan →
+    // hot pink), white text fails everywhere on the surface and we flip to
+    // dark text. For mixed gradients (e.g. TOR navy → gold, BOS red →
+    // navy) at least one end is dark enough for white text to read, so we
+    // keep white — flipping to dark would just move the problem.
+    const a = parseHex(primary);
+    const b = parseHex(secondary);
+    const lumaA = a ? (0.299 * a.r + 0.587 * a.g + 0.114 * a.b) / 255 : 0;
+    const lumaB = b ? (0.299 * b.r + 0.587 * b.g + 0.114 * b.b) / 255 : 0;
+    const minLuma = Math.min(lumaA, lumaB);
+    const textColor = minLuma > 0.5 ? '#1a1a1a' : '#ffffff';
     return {
-      '--team-primary': team.colors.primary,
-      '--team-secondary': team.colors.secondary,
+      '--team-primary': primary || '#1c2230',
+      '--team-secondary': secondary || '#161b22',
+      '--team-text-color': textColor,
     };
   }
 
