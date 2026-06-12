@@ -40,6 +40,28 @@ window.BBGM_UI_TEAM = (function () {
     else if (activeTab === 'minors') renderMinors(container, state, team);
   }
 
+  // Inline rating chips for at-a-glance scanning on Lineup / Pitching rows.
+  // `pairs` is an array of [label, value] tuples; each value is graded into
+  // the 20-80 scale and colored by the existing grade-XX classes.
+  function ratingStrip(pairs) {
+    const row = U.el('div', {
+      class: 'player-row-meta',
+      style: { 'margin-top': '2px', display: 'flex', gap: '10px', 'flex-wrap': 'wrap' },
+    });
+    for (const [label, value] of pairs) {
+      const chip = U.el('span');
+      chip.appendChild(U.el('span', {
+        style: { color: 'var(--text-muted)', 'font-size': '10px', 'margin-right': '3px', 'letter-spacing': '0.4px' },
+      }, label));
+      chip.appendChild(U.el('span', {
+        class: U.gradeClass(value),
+        style: { 'font-weight': '700', 'font-variant-numeric': 'tabular-nums' },
+      }, String(U.gradeFor(value))));
+      row.appendChild(chip);
+    }
+    return row;
+  }
+
   // ------- Mutation helpers -------
 
   function commit(state) {
@@ -231,6 +253,16 @@ window.BBGM_UI_TEAM = (function () {
     info.appendChild(U.el('div', { class: 'player-row-name' }, p.name));
     info.appendChild(U.el('div', { class: 'player-row-meta' },
       `${spot.position} • Age ${p.age}` + (s ? ` • ${S.fmtAvg(S.avg(s))}/${S.fmtAvg(S.obp(s))}/${S.fmtAvg(S.slg(s))}` : '')));
+    // Quick-scan ratings: overall hitter score plus L/R-averaged contact and
+    // power so you can compare bats without opening each card.
+    const contact = (p.ratings.contactVsR + p.ratings.contactVsL) / 2;
+    const power = (p.ratings.powerVsR + p.ratings.powerVsL) / 2;
+    info.appendChild(ratingStrip([
+      ['OVR', overallHitter(p)],
+      ['CON', contact],
+      ['POW', power],
+      ['SPD', p.ratings.speed],
+    ]));
     row.appendChild(info);
 
     row.appendChild(arrowButtons(
@@ -337,8 +369,14 @@ window.BBGM_UI_TEAM = (function () {
     info.appendChild(U.el('div', { class: 'player-row-name' }, p.name));
     const desc = s && s.gs
       ? `${s.w || 0}-${s.l || 0} • ${S.era(s).toFixed(2)} ERA • ${S.fmtIP(s.ipOuts || 0)} IP`
-      : `Age ${p.age} • STA ${U.gradeFor(p.ratings.stamina)}`;
+      : `Age ${p.age}`;
     info.appendChild(U.el('div', { class: 'player-row-meta' }, desc));
+    info.appendChild(ratingStrip([
+      ['OVR', overallPitcher(p)],
+      ['VEL', p.ratings.velocity],
+      ['CTL', p.ratings.control],
+      ['STA', p.ratings.stamina],
+    ]));
     row.appendChild(info);
 
     row.appendChild(arrowButtons(
@@ -416,8 +454,14 @@ window.BBGM_UI_TEAM = (function () {
     info.appendChild(U.el('div', { class: 'player-row-name' }, p.name));
     const desc = s && s.g
       ? `${s.g} G • ${S.era(s).toFixed(2)} ERA • ${s.sv || 0} SV ${s.hld || 0} HLD`
-      : `Age ${p.age} • STA ${U.gradeFor(p.ratings.stamina)}`;
+      : `Age ${p.age}`;
     info.appendChild(U.el('div', { class: 'player-row-meta' }, desc));
+    info.appendChild(ratingStrip([
+      ['OVR', overallPitcher(p)],
+      ['STU', p.ratings.stuff],
+      ['VEL', p.ratings.velocity],
+      ['CTL', p.ratings.control],
+    ]));
     row.appendChild(info);
     return row;
   }
