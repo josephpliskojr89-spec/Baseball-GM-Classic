@@ -12,7 +12,7 @@ window.BBGM_UI_MENU = (function () {
     // Build constant is bumped with every release so the user can tell at a
     // glance which dashboard.js the browser actually loaded. Save version
     // is the save-schema version and changes only when the schema changes.
-    const BUILD = 'phase3-rating-strips-1';
+    const BUILD = 'audit-fixes-1';
     card.appendChild(U.el('div', { class: 'inset-list', style: { 'border': 'none' } }, [
       insetRow('Team', userTeam.name),
       insetRow('Date', window.BBGM_DATES.format(state.meta.currentDate)),
@@ -39,8 +39,11 @@ window.BBGM_UI_MENU = (function () {
           const file = e.target.files[0];
           if (!file) return;
           window.BBGM_STATE.importFromFile(file).then(() => {
-            U.showToast('Save imported.', 'success');
-            window.BBGM_MAIN.refresh();
+            // Reload so the imported save goes through the same load-time
+            // gates as a normal Continue (pre-NABL rejection in startGame).
+            // Without this, importing an old-format save here would load
+            // broken state directly.
+            location.reload();
           }).catch((err) => {
             U.showToast('Import failed: ' + err.message, 'danger');
           });

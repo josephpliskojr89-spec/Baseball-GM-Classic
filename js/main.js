@@ -142,7 +142,7 @@ window.BBGM_MAIN = (function () {
         }
 
         const state = {
-          version: '0.3.0',
+          version: '0.4.0',
           meta: {
             seed,
             created: new Date().toISOString(),
@@ -250,58 +250,26 @@ window.BBGM_MAIN = (function () {
       return;
     }
 
-    // Pre-schedule-fix saves with non-162 game counts.
-    const broken = saveHasBrokenSchedule(state);
     if (state.meta.userTeamId) {
       document.getElementById('app').classList.remove('hidden');
       refresh();
     } else {
       showTeamSelect();
     }
-    if (broken) {
-      U.showModal({
-        title: 'Old Save Detected',
-        body: 'This save was created before the schedule generator was fixed. ' +
-              'Some teams will play fewer than 162 games this season. ' +
-              'You can keep playing this save (results will be slightly off), ' +
-              'or start a fresh game to use the corrected schedule.',
-        actions: [
-          { label: 'Keep Playing', kind: 'secondary', onClick: () => true },
-          { label: 'Start Fresh', kind: 'danger', onClick: () => {
-            window.BBGM_STATE.reset();
-            location.reload();
-          }},
-        ],
-      });
-    }
   }
 
   // Pre-NABL saves either have version < '0.3.0' or contain teams with the
   // legacy 'A' / 'B' league values. Either condition flags the save as
-  // unsupported.
+  // unsupported. (This gate supersedes the older broken-schedule check —
+  // every pre-0.3.0 save is rejected here before schedule quality matters.)
+  // NOTE: plain string comparison is fine while versions are 0.x.y with
+  // single-digit components; revisit before any 0.10.x release.
   function savePreNABL(state) {
     if (!state || !state.league || !Array.isArray(state.league.teams)) return false;
     const v = state.version || '0.1.0';
     if (v < '0.3.0') return true;
     for (const t of state.league.teams) {
       if (t.league === 'A' || t.league === 'B') return true;
-    }
-    return false;
-  }
-
-  function saveHasBrokenSchedule(state) {
-    if (!state || !state.league || !state.league.schedule) return false;
-    // Saves prior to v0.2.0 used the buggy generator.
-    if (!state.version || state.version === '0.1.0') {
-      // Verify per-team game count to be sure (a v0.1.0 save MIGHT happen to
-      // have a perfect schedule by luck).
-      const counts = {};
-      for (const t of state.league.teams) counts[t.id] = 0;
-      for (const g of state.league.schedule.games) {
-        counts[g.homeId] = (counts[g.homeId] || 0) + 1;
-        counts[g.awayId] = (counts[g.awayId] || 0) + 1;
-      }
-      for (const id in counts) if (counts[id] !== 162) return true;
     }
     return false;
   }
@@ -448,10 +416,9 @@ window.BBGM_MAIN = (function () {
     const games = state.league.schedule.games.filter((g) => !g.played && D.eq(g.date, today));
     for (const g of games) {
       try {
+        // Rotation bookkeeping (gamesPlayedByTeam) is handled inside
+        // simulateGame — the engine owns it.
         window.BBGM_SIM.simulateGame(state, g);
-        // Track games played per team for rotation
-        state.meta.gamesPlayedByTeam[g.homeId] = (state.meta.gamesPlayedByTeam[g.homeId] || 0) + 1;
-        state.meta.gamesPlayedByTeam[g.awayId] = (state.meta.gamesPlayedByTeam[g.awayId] || 0) + 1;
       } catch (e) {
         // Surface the failure with full context. Don't silently swallow.
         const home = state.league.teams.find((t) => t.id === g.homeId);

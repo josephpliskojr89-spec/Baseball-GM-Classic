@@ -4,14 +4,8 @@
 window.BBGM_SIM = (function () {
   const S = window.BBGM_STATS;
 
-  // Random helpers (use Math.random for in-game variance — seedable RNG used at gen)
+  // Random helper (use Math.random for in-game variance — seedable RNG used at gen)
   function rand() { return Math.random(); }
-  function rnorm(mean = 0, stdev = 1) {
-    let u = 0, v = 0;
-    while (u === 0) u = rand();
-    while (v === 0) v = rand();
-    return mean + stdev * Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
-  }
 
   // Convert 20-80 grade to a scaled multiplier centered at 1.0 for grade 50.
   function grade(r) { return (r - 50) / 25; } // -1.2 to 1.2 typical
@@ -89,7 +83,6 @@ window.BBGM_SIM = (function () {
     // collects one compact entry per plate appearance (bible 20.6.4);
     // lineScore collects runs per half-inning for the box score header.
     let inning = 1;
-    let extras = false;
     let homeOuts = 0; // outs the home staff recorded against away batters
     let awayOuts = 0;
     const gameLog = [];
@@ -100,7 +93,7 @@ window.BBGM_SIM = (function () {
       homeOuts += simHalfInning(teamState.away, teamState.home, gs, inning, false, state, gameLog);
       lineScore.away.push(teamState.away.runs - awayBefore);
       // If 9+ and home leading, end before bottom half
-      if (inning >= 9 && teamState.home.runs > teamState.away.runs && !extras) {
+      if (inning >= 9 && teamState.home.runs > teamState.away.runs) {
         break;
       }
       // Bottom half (home batting, away pitching)
@@ -214,6 +207,14 @@ window.BBGM_SIM = (function () {
       if (gameStats[pid].bs) bsPids.push(pid);
     }
 
+    // Rotation bookkeeping is engine-owned. pickStarter rotates on this
+    // counter; when an earlier version left the increment to the caller, any
+    // path that forgot it made every team silently start its ace in all 162
+    // games — no error, just a quietly broken league.
+    if (!state.meta.gamesPlayedByTeam) state.meta.gamesPlayedByTeam = {};
+    state.meta.gamesPlayedByTeam[home.id] = (state.meta.gamesPlayedByTeam[home.id] || 0) + 1;
+    state.meta.gamesPlayedByTeam[away.id] = (state.meta.gamesPlayedByTeam[away.id] || 0) + 1;
+
     game.played = true;
     game.result = {
       homeRuns: teamState.home.runs,
@@ -260,6 +261,11 @@ window.BBGM_SIM = (function () {
 
   function simHalfInning(off, def, gs, inning, isBottom, state, log) {
     let outs = 0;
+    // Walkoff rule: in the bottom of the 9th or later, the game ends the
+    // moment the home side takes the lead — the inning does NOT play out to
+    // three outs. (All runners scoring on the final play are still counted,
+    // a small simplification vs. official scoring on non-HR walkoffs.)
+    const walkoffLive = isBottom && inning >= 9;
     // Each base position holds a runner object { playerId, responsiblePitcherId }
     // or null. responsiblePitcherId is the pitcher who put the runner on base
     // and is who R/ER is charged against if the runner ultimately scores.
@@ -433,15 +439,14 @@ window.BBGM_SIM = (function () {
           }
         }
       }
+
+      // Walkoff: home side just took the lead in the 9th or later.
+      if (walkoffLive && off.runs > def.runs) break;
     }
     // Defensive: outs should never exceed 3 in a half-inning. If it does
     // (only via simultaneous events like CS-after-walkoff), the loop guard
     // above would have already exited. Cap at 3 for safety in any return.
     return Math.min(outs, 3);
-  }
-
-  function getPlayerById(state, id) {
-    return state.players[id];
   }
 
   // Bases now hold runner objects: { playerId, responsiblePitcherId } | null.
@@ -918,13 +923,15 @@ window.BBGM_SIM = (function () {
       }
     }
 
-    // Save: winning side's final pitcher, if he wasn't the SP, kept the lead
-    // by 1-3 runs, and recorded at least 1 IP.
+    // Save: winning side's final pitcher, if he wasn't the SP, didn't earn
+    // the W himself (MLB rule 9.19 — the winning pitcher cannot also get a
+    // save), kept the lead by 1-3 runs, and recorded at least 1 IP.
     if (winSide.pitchersUsed.length > 1) {
       const last = winSide.pitchersUsed[winSide.pitchersUsed.length - 1];
       const ls = gameStats[last];
       const margin = winSide.runs - lossSide.runs;
-      if (ls && margin >= 1 && margin <= 3 && ls.ipOuts >= 3 && last !== winSP.id) {
+      if (ls && margin >= 1 && margin <= 3 && ls.ipOuts >= 3 &&
+          last !== winSP.id && last !== winSide.wp) {
         ls.sv = 1;
         winSide.savePid = last;
       }
@@ -945,7 +952,10 @@ window.BBGM_SIM = (function () {
         const exit = side.exitMargins[pid];
         if (entry == null || exit == null) continue;
         if (entry >= 1 && entry <= 3) {
-          if (exit >= 1 && (line.ipOuts || 0) >= 1 && pid !== side.savePid) {
+          // No hold for the pitcher who earned the save or the win (a
+          // pitcher gets at most one of W / SV / HLD per game).
+          if (exit >= 1 && (line.ipOuts || 0) >= 1 &&
+              pid !== side.savePid && pid !== side.wp) {
             line.hld = 1;
           } else if (exit <= 0) {
             line.bs = 1;

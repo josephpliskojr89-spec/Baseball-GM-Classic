@@ -1,5 +1,8 @@
 // City pool with market sizes and league assignments.
-// Each city has a market size and provides candidate nicknames.
+// NOTE: BBGM_CITIES and BBGM_NICKNAMES are inert since the fixed NABL team
+// database (data/teams.js) replaced random team identity generation. They're
+// kept for a possible future custom-league/editor mode. BBGM_PARK_NAMES at
+// the bottom of this file IS still used by ballpark generation.
 window.BBGM_CITIES = [
   // Large markets (8)
   { city: 'Brooklyn', market: 'large', region: 'NY', nicknames: ['Crowns', 'Bridge', 'Aces'] },
