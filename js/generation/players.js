@@ -679,5 +679,11 @@ window.BBGM_PLAYER_GEN = (function () {
     }
   }
 
-  return { generate, validateLeagueReadiness, assignBullpenRoles };
+  return {
+    generate, validateLeagueReadiness, assignBullpenRoles,
+    // Exposed for the roster-management UI: position eligibility checks and
+    // single-team readiness validation after user-driven roster moves.
+    canPlay,
+    validateTeam: checkTeamReadiness,
+  };
 })();
