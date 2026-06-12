@@ -23,13 +23,13 @@ window.BBGM_SIM = (function () {
     const players = state.players;
     const year = state.meta.currentDate.year;
 
-    // Set up lineups: home in DH league uses DH; away uses home league rules
-    const homeLineup = getLineup(home, players, away);
-    const awayLineup = getLineup(away, players, home);
-
-    // Starters
+    // Starters first — lineup choice depends on the opposing starter's hand.
     const homeSP = pickStarter(home, players, state);
     const awaySP = pickStarter(away, players, state);
+
+    // Lineups: vs-LHP lineup when the opposing starter throws left.
+    const homeLineup = getLineup(home, players, awaySP);
+    const awayLineup = getLineup(away, players, homeSP);
 
     // Hard fail loudly rather than silently marking the game played.
     // Earlier bail-out behaviour silently dropped W/L records, producing
@@ -53,18 +53,24 @@ window.BBGM_SIM = (function () {
     }
 
     // Track game state. catcher is cached for SB resolution (see findCatcher).
+    // pitchCount holds ESTIMATED PITCHES for the current pitcher's outing
+    // (per-PA estimates — see pitchesForPA). entryMargins / exitMargins
+    // record the score margin when each pitcher entered / left, used for
+    // hold and blown-save accounting in assignPitcherDecisions.
     const teamState = {
       home: {
         team: home, lineup: homeLineup, lineupIdx: 0,
         sp: homeSP, currentP: homeSP, pitchCount: 0, pitchersUsed: [homeSP.id], runs: 0, hits: 0, errors: 0,
-        bullpenIdx: 0, parkFactors: home.ballpark.factors,
+        parkFactors: home.ballpark.factors,
         catcher: findCatcher(home, players),
+        entryMargins: { [homeSP.id]: 0 }, exitMargins: {},
       },
       away: {
         team: away, lineup: awayLineup, lineupIdx: 0,
         sp: awaySP, currentP: awaySP, pitchCount: 0, pitchersUsed: [awaySP.id], runs: 0, hits: 0, errors: 0,
-        bullpenIdx: 0, parkFactors: home.ballpark.factors, // Park factors apply to both
+        parkFactors: home.ballpark.factors, // Park factors apply to both
         catcher: findCatcher(away, players),
+        entryMargins: { [awaySP.id]: 0 }, exitMargins: {},
       },
     };
 
@@ -219,11 +225,11 @@ window.BBGM_SIM = (function () {
       off.lineupIdx = (off.lineupIdx + 1) % off.lineup.length;
 
       // Check pitcher fatigue / change
-      maybeChangePitcher(off, def, inning, outs, 0, isBottom, state);
+      maybeChangePitcher(off, def, gs, inning, state);
 
       const pitcher = def.currentP;
       const result = resolveAtBat(batter, pitcher, off.parkFactors, def);
-      def.pitchCount++;
+      def.pitchCount += pitchesForPA(result.kind);
 
       const bs = gs(batter);
       const ps = gs(pitcher);
@@ -539,12 +545,63 @@ window.BBGM_SIM = (function () {
     return { kind: 'OUT', battedBall: bbType };
   }
 
+  // ---- Pitcher stamina tiers (bible 7.4) ----------------------------------
+  // The engine resolves PA-level outcomes, so pitch counts are estimated per
+  // plate appearance. Averages ~3.8 pitches/PA league-wide: strikeouts and
+  // walks are long PAs, balls in play shorter.
+  // League average lands ~3.6 pitches/PA — the classic late-90s norm this
+  // engine models (modern TTO baseball runs closer to 3.9).
+  function pitchesForPA(kind) {
+    switch (kind) {
+      case 'K': return 4 + Math.floor(rand() * 3);   // 4-6
+      case 'BB':
+      case 'IBB': return 5 + Math.floor(rand() * 2); // 5-6
+      case 'HBP': return 2 + Math.floor(rand() * 3); // 2-4
+      default: return 2 + Math.floor(rand() * 3);    // 2-4 (BIP)
+    }
+  }
+
+  // Piecewise-linear interpolation across the 7.4.1 tier anchors.
+  function lerpTiers(stamina, anchors) {
+    const s = clamp(stamina, 20, 80);
+    for (let i = 1; i < anchors.length; i++) {
+      if (s <= anchors[i][0]) {
+        const [s0, v0] = anchors[i - 1];
+        const [s1, v1] = anchors[i];
+        return v0 + (v1 - v0) * ((s - s0) / (s1 - s0));
+      }
+    }
+    return anchors[anchors.length - 1][1];
+  }
+
+  // Base pitch limit: the typical pull point before bonuses/penalties.
+  // Anchored on the upper half of each tier's target window in 7.4.1.
+  function basePitchLimit(stamina) {
+    return lerpTiers(stamina, [
+      [20, 12], [30, 18], [40, 25], [45, 40],
+      [50, 82], [55, 96], [60, 104], [65, 110],
+      [70, 116], [75, 121], [80, 126],
+    ]);
+  }
+
+  // Hard ceiling the effective limit can never exceed (7.4.1 ceilings).
+  function pitchCeiling(stamina) {
+    return lerpTiers(stamina, [
+      [20, 18], [30, 22], [40, 30], [45, 50],
+      [50, 92], [55, 102], [60, 107], [65, 116],
+      [70, 122], [75, 128], [80, 134],
+    ]);
+  }
+
+  // Per-pitch decay of effective stuff/velocity/control/movement once the
+  // pitcher works past ~80% of his base limit (7.4.4). Low-stamina arms
+  // decay much faster once pushed past their window.
   function applyFatigue(rating, pitcher, def) {
     const stamina = pitcher.ratings.stamina;
-    const threshold = stamina <= 30 ? 30 : stamina <= 50 ? 70 : stamina <= 70 ? 90 : 105;
+    const threshold = basePitchLimit(stamina) * 0.8;
     const overage = Math.max(0, def.pitchCount - threshold);
-    const decay = overage * 0.15;
-    return rating - decay;
+    const decayRate = stamina >= 50 ? 0.20 : 0.45;
+    return rating - overage * decayRate;
   }
 
   // Find the defensive catcher for SB resolution: prefer the catcher in the
@@ -604,72 +661,124 @@ window.BBGM_SIM = (function () {
     return Math.random() < clamp(successProb, 0.20, 0.95) ? 'safe' : 'caught';
   }
 
-  function maybeChangePitcher(off, def, inning, outs, runsThisInning, isBottom, state) {
-    const pitcher = def.currentP;
-    // def.pitchCount increments by 1 per PA — it tracks batters faced, not
-    // actual pitches. Limits below are expressed in BF.
-    const bf = def.pitchCount;
-    const stamina = pitcher.ratings.stamina;
-    const isStarter = pitcher.id === def.sp.id;
+  // Lazily backfill bullpen roles for saves created before the roles field
+  // existed (pre-Phase-3). Same logic as generation-time assignment.
+  function ensureBullpenRoles(team, players) {
+    if (team.bullpenRoles && team.bullpenRoles.setup) return team.bullpenRoles;
+    team.bullpenRoles = window.BBGM_PLAYER_GEN.assignBullpenRoles(team, players);
+    return team.bullpenRoles;
+  }
 
-    let pull = false;
-    if (isStarter) {
-      // Target ~5.5–7.0 IP per start. SP retires roughly 18–22 batters at
-      // peak; baserunners push BF a bit higher. Pull around 22–28 BF
-      // depending on stamina.
-      const limit = stamina >= 70 ? 30 : stamina >= 50 ? 26 : 22;
-      if (bf >= limit) pull = true;
-      // Late-inning hand-off to the bullpen (pull at the 7th regardless if
-      // the SP has already worked through the order multiple times).
-      if (inning >= 7 && bf >= 24) pull = true;
-    } else {
-      // Reliever — typically 1 inning, multi-inning if stamina supports it.
-      const limit = stamina >= 60 ? 9 : 5;
-      if (bf >= limit) pull = true;
-    }
-
-    if (!pull) return;
-
-    // Choose next pitcher
+  // Pick the next reliever by role + leverage (bible 7.4.6 / 7.8):
+  //  - 9th+ with a 1-3 run lead (or tied in extras): closer
+  //  - 7th+ close game: setup arms
+  //  - blowout either way: mop-up, then long man
+  //  - starter knocked out early: long man eats innings
+  //  - otherwise: middle relief
+  // Within a role, prefer the least-used arm this season (workload spread).
+  function chooseReliever(off, def, inning, state) {
     const team = def.team;
     const players = state.players;
     const used = new Set(def.pitchersUsed);
-    let next = null;
+    const margin = def.runs - off.runs; // our (fielding side's) lead
+    const year = state.meta.currentDate.year;
+    const roles = ensureBullpenRoles(team, players);
 
-    // If 9th inning and team leading by 1-3, bring closer
-    const ourRuns = isBottom ? def.runs : off.runs - off.runs; // off is the team batting in this half (we're def)
-    const theirRuns = isBottom ? off.runs : def.runs;
-    // (This is simplified — closer logic just picks closer if late and we're ahead)
-    const margin = def.runs - off.runs;
-    if (inning >= 9 && margin > 0 && margin <= 3 && team.closer && !used.has(team.closer)) {
-      next = players[team.closer];
-    }
+    const closerFree = team.closer && !used.has(team.closer) && players[team.closer];
+    if (closerFree && inning >= 9 && margin >= 1 && margin <= 3) return players[team.closer];
+    if (closerFree && inning >= 10 && margin === 0) return players[team.closer];
 
-    if (!next) {
-      // Pick the least-used eligible reliever rather than the first in the
-      // bullpen list. Without this rotation the same "setup man" entered
-      // every single game (162 appearances, 340+ IP) because team.bullpen
-      // is statically sorted by quality at generation. Sorting by season
-      // G with a small random tiebreak spreads workload across the entire
-      // bullpen the way real MLB usage does.
-      const year = state.meta.currentDate.year;
-      const eligible = team.bullpen.filter((id) => !used.has(id) && players[id]);
-      if (eligible.length > 0) {
-        eligible.sort((a, b) => {
+    const blowout = Math.abs(margin) >= 5;
+    const close = margin >= -2 && margin <= 3;
+
+    let order;
+    if (blowout) order = ['mopup', 'long', 'middle', 'setup'];
+    else if (inning >= 7 && close) order = ['setup', 'middle', 'mopup', 'long'];
+    else if (inning <= 4) order = ['long', 'mopup', 'middle', 'setup'];
+    else order = ['middle', 'mopup', 'long', 'setup'];
+
+    for (const role of order) {
+      const cands = (roles[role] || []).filter((id) => !used.has(id) && players[id]);
+      if (cands.length) {
+        cands.sort((a, b) => {
           const ga = (players[a].stats[year] && players[a].stats[year].g) || 0;
           const gb = (players[b].stats[year] && players[b].stats[year].g) || 0;
           if (ga !== gb) return ga - gb;
           return Math.random() - 0.5;
         });
-        next = players[eligible[0]];
+        return players[cands[0]];
       }
     }
-    if (!next) return; // no one available - keep going
+    // Last resort: the closer even in a non-save spot.
+    if (closerFree) return players[team.closer];
+    return null;
+  }
+
+  function maybeChangePitcher(off, def, gs, inning, state) {
+    const pitcher = def.currentP;
+    const pitches = def.pitchCount; // estimated pitches this outing
+    const stamina = pitcher.ratings.stamina;
+    const isStarter = pitcher.id === def.sp.id;
+    const ps = gs(pitcher);
+    const ip = (ps.ipOuts || 0) / 3;
+    const runsAllowed = ps.r || 0;
+    const traffic = (ps.h || 0) + (ps.bb || 0);
+    const margin = def.runs - off.runs;
+
+    let pull = false;
+    if (isStarter) {
+      // Effective pitch limit (7.4.3): base + efficiency bonus - trouble
+      // penalty, capped by the tier ceiling. Recomputed every PA.
+      let limit = basePitchLimit(stamina);
+      const ppi = ip > 0 ? pitches / ip : 0;
+      if (ip >= 3 && ppi > 0 && ppi <= 14) limit += 12;
+      else if (ip >= 3 && ppi > 0 && ppi <= 16) limit += 6;
+      limit -= runsAllowed * 2.5;
+      limit -= Math.max(0, traffic - ip * 1.8) * 2;
+      limit = Math.min(limit, pitchCeiling(stamina));
+      limit = Math.max(limit, 45); // never pure-pitch-count yank absurdly early
+
+      if (pitches >= limit) pull = true;
+
+      // Blowup pull regardless of pitch count: the start has gone sideways.
+      if (runsAllowed >= 6) pull = true;
+      else if (runsAllowed >= 4 && ip < 5 && inning >= 3) pull = true;
+
+      // Complete-game chase (7.4.5): a dominant starter late in a close,
+      // low-run game stays in as long as he's under his tier ceiling.
+      if (pull && inning >= 8 && runsAllowed <= 2 && Math.abs(margin) <= 4 &&
+          pitches < pitchCeiling(stamina) - 5 && stamina >= 60) {
+        pull = false;
+      }
+    } else {
+      // Reliever limit from his tier base, with a short-leash trouble pull.
+      const limit = Math.min(basePitchLimit(stamina), 60);
+      if (pitches >= limit) pull = true;
+      if (runsAllowed >= 3) pull = true;
+
+      // Proactive closer call: 9th inning or later protecting a 1-3 run
+      // lead, hand the ball to the closer even if the current reliever
+      // isn't tired. Without this, fresh setup men finish 9th innings
+      // under their pitch limits and steal the save chances.
+      const closerId = def.team.closer;
+      if (inning >= 9 && margin >= 1 && margin <= 3 && closerId &&
+          pitcher.id !== closerId && !def.pitchersUsed.includes(closerId)) {
+        pull = true;
+      }
+    }
+
+    if (!pull) return;
+
+    const next = chooseReliever(off, def, inning, state);
+    if (!next) return; // bullpen empty — current pitcher keeps going
+
+    // Record margins for hold / blown-save accounting.
+    def.exitMargins[pitcher.id] = margin;
+    def.entryMargins[next.id] = margin;
+
     def.currentP = next;
     def.pitchersUsed.push(next.id);
     def.pitchCount = 0;
-    // Reliever entering counts as a game appearance
-    // We'll record that when stats are saved
   }
 
   function pickStarter(team, players, state) {
@@ -680,22 +789,31 @@ window.BBGM_SIM = (function () {
     return sp;
   }
 
-  function getLineup(team, players, opponent) {
-    // For now ignore opp pitcher handedness to keep simple, use vs RHP lineup
-    const lineupSpec = team.lineupRH && team.lineupRH.length ? team.lineupRH : team.lineupLH;
+  function getLineup(team, players, opposingSP) {
+    // Use the vs-LHP lineup when the opposing starter throws left, the
+    // vs-RHP lineup otherwise. Falls back to whichever lineup exists.
+    const vsLefty = opposingSP && opposingSP.throws === 'L';
+    const preferred = vsLefty ? team.lineupLH : team.lineupRH;
+    const fallback = vsLefty ? team.lineupRH : team.lineupLH;
+    const lineupSpec = (preferred && preferred.length) ? preferred : fallback;
     if (!lineupSpec || !lineupSpec.length) return [];
     return lineupSpec.map((spot) => players[spot.playerId]).filter(Boolean);
   }
 
   function assignPitcherDecisions(teamState, gameStats) {
     // Pitcher G and GS are set at appearance time inside simHalfInning, so
-    // this function only handles W / L / SV. We award exactly one W and one
-    // L per completed game.
+    // this function handles W / L / SV / HLD / BS / CG / SHO. Exactly one W
+    // and one L per completed game.
     const home = teamState.home;
     const away = teamState.away;
     const homeWon = home.runs > away.runs;
     const winSide = homeWon ? home : away;
     const lossSide = homeWon ? away : home;
+    const finalMargin = (side, other) => side.runs - other.runs;
+
+    // Final pitcher on each side never got an exitMargin — stamp it now.
+    home.exitMargins[home.pitchersUsed[home.pitchersUsed.length - 1]] = finalMargin(home, away);
+    away.exitMargins[away.pitchersUsed[away.pitchersUsed.length - 1]] = finalMargin(away, home);
 
     const winSP = winSide.sp;
     const lossSP = lossSide.sp;
@@ -722,12 +840,6 @@ window.BBGM_SIM = (function () {
       }
     }
 
-    // Loss: always charged to the SP for now.
-    if (lossSPStats) {
-      lossSPStats.l = 1;
-      lossSide.lp = lossSP.id;
-    }
-
     // Save: winning side's final pitcher, if he wasn't the SP, kept the lead
     // by 1-3 runs, and recorded at least 1 IP.
     if (winSide.pitchersUsed.length > 1) {
@@ -737,6 +849,53 @@ window.BBGM_SIM = (function () {
       if (ls && margin >= 1 && margin <= 3 && ls.ipOuts >= 3 && last !== winSP.id) {
         ls.sv = 1;
         winSide.savePid = last;
+      }
+    }
+
+    // Holds and blown saves from entry/exit margins. A reliever who entered
+    // protecting a 1-3 run lead and:
+    //  - left with the lead intact and recorded an out → HLD (no HLD for
+    //    the pitcher who earned the SV)
+    //  - left with the lead gone → BS
+    let lossSideBlewIt = null;
+    for (const side of [home, away]) {
+      for (let i = 1; i < side.pitchersUsed.length; i++) {
+        const pid = side.pitchersUsed[i];
+        const line = gameStats[pid];
+        if (!line) continue;
+        const entry = side.entryMargins[pid];
+        const exit = side.exitMargins[pid];
+        if (entry == null || exit == null) continue;
+        if (entry >= 1 && entry <= 3) {
+          if (exit >= 1 && (line.ipOuts || 0) >= 1 && pid !== side.savePid) {
+            line.hld = 1;
+          } else if (exit <= 0) {
+            line.bs = 1;
+            if (side === lossSide) lossSideBlewIt = pid;
+          }
+        }
+      }
+    }
+
+    // Loss: charged to the reliever who blew the lead when there is one,
+    // otherwise to the SP (simplified).
+    if (lossSideBlewIt && gameStats[lossSideBlewIt]) {
+      gameStats[lossSideBlewIt].l = 1;
+      lossSide.lp = lossSideBlewIt;
+    } else if (lossSPStats) {
+      lossSPStats.l = 1;
+      lossSide.lp = lossSP.id;
+    }
+
+    // Complete games / shutouts: a side that used exactly one pitcher.
+    for (const side of [home, away]) {
+      if (side.pitchersUsed.length === 1) {
+        const line = gameStats[side.sp.id];
+        if (line) {
+          line.cg = 1;
+          const oppRuns = side === home ? away.runs : home.runs;
+          if (oppRuns === 0) line.sho = 1;
+        }
       }
     }
   }

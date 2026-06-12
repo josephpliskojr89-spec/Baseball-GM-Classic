@@ -325,9 +325,15 @@ window.BBGM_PLAYER_GEN = (function () {
     const archetype = pickWeighted(rng, archDefs, (a) => a.weight).key;
     const archDef = archDefs.find((a) => a.key === archetype);
 
-    // Quad-A cap
+    // Quad-A cap. Stamina is exempt for pitchers — Quad-A is a talent cap
+    // (MLB-quality stuff never materializes), not a workload cap. Capping
+    // stamina at 50 silently turned Quad-A rotation starters into swingmen
+    // under the 7.4 tier table.
     if (archDef.ceilingCap) {
-      for (const k of ratingKeys) ceiling[k] = Math.min(ceiling[k], archDef.ceilingCap);
+      for (const k of ratingKeys) {
+        if (isPitcher && k === 'stamina') continue;
+        ceiling[k] = Math.min(ceiling[k], archDef.ceilingCap);
+      }
     }
 
     // Current ratings: closer to ceiling for older players.
@@ -347,8 +353,13 @@ window.BBGM_PLAYER_GEN = (function () {
 
     const ratings = {};
     for (const k of ratingKeys) {
-      // Floor of ceiling - 25 (or min 25)
-      const floor = clamp(ceiling[k] - 25, 25, 60);
+      // Floor of ceiling - 25 (or min 25). Stamina for starters uses a much
+      // tighter floor (ceiling - 10): endurance is built up early in a
+      // career rather than talent-gated, so a rotation SP's current stamina
+      // sits near his ceiling even when his stuff is still developing.
+      const floor = (isPitcher && k === 'stamina' && primaryPosition === 'SP')
+        ? clamp(ceiling[k] - 8, 48, 72)
+        : clamp(ceiling[k] - 25, 25, 60);
       const cur = floor + (ceiling[k] - floor) * progressFraction + rnormal(rng, 0, 2);
       ratings[k] = clamp(Math.round(cur * 10) / 10, 20, 80);
     }
@@ -398,7 +409,14 @@ window.BBGM_PLAYER_GEN = (function () {
       // multiple innings in relief, or only get an inning. Hard caps for
       // bullpen roles prevent generation from rolling SP-grade stamina on
       // a guy who's never going to start.
-      if (role === 'SP') c += rnormal(rng, 8, 2);
+      if (role === 'SP') {
+        // Rotation starters live in the 55-65 stamina band per bible 7.4.1
+        // ("most normal starters live here"); below ~55 the tier table
+        // correctly treats an arm as a swingman with 60-80 pitch limits,
+        // which is wrong for a rotation regular. Floor the ceiling at 56.
+        c += rnormal(rng, 8, 2);
+        c = Math.max(c, 58);
+      }
       if (role === 'RP') {
         c -= rnormal(rng, 8, 3);
         c = Math.min(c, 55); // RPs cap below the "starter capable" threshold
@@ -475,10 +493,44 @@ window.BBGM_PLAYER_GEN = (function () {
     rps.sort((a, b) => (b.ratings.stuff + b.ratings.velocity) - (a.ratings.stuff + a.ratings.velocity));
     team.closer = (cps[0] || rps[0]).id;
     team.bullpen = rps.filter((p) => p.id !== team.closer).map((p) => p.id);
+    team.bullpenRoles = assignBullpenRoles(team, players);
 
     // Lineup: build vs RHP and vs LHP
     team.lineupRH = buildLineup(hitters, 'R', team);
     team.lineupLH = buildLineup(hitters, 'L', team);
+  }
+
+  // Assign bullpen roles per bible 7.8 labels. The closer is tracked
+  // separately on team.closer; this covers the rest of the pen:
+  //  - setup (2): best remaining arms — high-leverage 7th/8th work
+  //  - long (1): highest stamina — early-knockout and blowout innings
+  //  - mopup (1): weakest arm — garbage time
+  //  - middle (rest): everyone else
+  // Exported so the sim can lazily backfill roles on saves created before
+  // this field existed.
+  function assignBullpenRoles(team, players) {
+    const arms = (team.bullpen || []).map((id) => players[id]).filter(Boolean);
+    const quality = (p) => p.ratings.stuff + p.ratings.velocity + p.ratings.control * 0.5;
+
+    const roles = { setup: [], middle: [], long: [], mopup: [] };
+    if (arms.length === 0) return roles;
+
+    const byQuality = arms.slice().sort((a, b) => quality(b) - quality(a));
+    roles.setup = byQuality.slice(0, 2).map((p) => p.id);
+
+    const rest = byQuality.slice(2);
+    if (rest.length > 0) {
+      // Long man: highest stamina of the rest.
+      const byStamina = rest.slice().sort((a, b) => b.ratings.stamina - a.ratings.stamina);
+      roles.long = [byStamina[0].id];
+      const remaining = rest.filter((p) => p.id !== byStamina[0].id);
+      if (remaining.length > 0) {
+        // Mop-up: weakest remaining arm.
+        roles.mopup = [remaining[remaining.length - 1].id];
+        roles.middle = remaining.slice(0, remaining.length - 1).map((p) => p.id);
+      }
+    }
+    return roles;
   }
 
   function buildLineup(hitters, vsHand, team) {
@@ -627,5 +679,5 @@ window.BBGM_PLAYER_GEN = (function () {
     }
   }
 
-  return { generate, validateLeagueReadiness };
+  return { generate, validateLeagueReadiness, assignBullpenRoles };
 })();
