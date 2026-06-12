@@ -140,47 +140,68 @@ window.BBGM_UI_GAMES = (function () {
     return card;
   }
 
+  // Game Detail view (bible 20.6.4): header, line score, batting and
+  // pitching box scores, team totals, and the AB-by-AB game log (collapsed
+  // by default). Opens from every completed-game tap target.
   function showBoxScore(state, gameId) {
     const game = state.league.schedule.games.find((g) => g.gameId === gameId);
     if (!game || !game.played) return;
     const home = state.league.teams.find((t) => t.id === game.homeId);
     const away = state.league.teams.find((t) => t.id === game.awayId);
+    const r = game.result;
     const body = U.el('div');
 
-    // Score line
+    // ---- Header ----
+    const homeWon = r.homeRuns > r.awayRuns;
     const scoreLine = U.el('div', { style: { 'margin-bottom': '12px' } });
-    scoreLine.appendChild(U.el('div', { class: 'boxscore-team' }, [
-      U.teamCap(away),
-      U.el('span', { style: { 'margin-left': '8px' } }, away.name),
-      U.el('span', { class: 'score' }, String(game.result.awayRuns)),
-    ]));
-    scoreLine.appendChild(U.el('div', { class: 'boxscore-team' }, [
-      U.teamCap(home),
-      U.el('span', { style: { 'margin-left': '8px' } }, home.name),
-      U.el('span', { class: 'score' }, String(game.result.homeRuns)),
-    ]));
-    if (game.result.innings && game.result.innings !== 9) {
-      scoreLine.appendChild(U.el('div', { class: 'muted', style: { 'font-size': '12px' } },
-        `${game.result.innings} innings • ${away.abbr} ${game.result.awayHits} H, ${home.abbr} ${game.result.homeHits} H`));
-    } else {
-      scoreLine.appendChild(U.el('div', { class: 'muted', style: { 'font-size': '12px' } },
-        `${away.abbr} ${game.result.awayHits || '-'} H, ${home.abbr} ${game.result.homeHits || '-'} H`));
+    for (const [team, runs, won] of [[away, r.awayRuns, !homeWon], [home, r.homeRuns, homeWon]]) {
+      scoreLine.appendChild(U.el('div', { class: 'boxscore-team', style: won ? {} : { opacity: '0.75' } }, [
+        U.teamCap(team),
+        U.el('span', { style: { 'margin-left': '8px' } }, team.name),
+        U.el('span', { class: 'score' }, String(runs)),
+      ]));
     }
+    const meta = [D.format(game.date)];
+    if (r.innings && r.innings !== 9) meta.push(`${r.innings} innings`);
+    scoreLine.appendChild(U.el('div', { class: 'muted', style: { 'font-size': '12px' } }, meta.join(' • ')));
     body.appendChild(scoreLine);
 
-    // Pitcher decisions
-    if (game.result.homeWP || game.result.awayWP) {
-      const pitchers = U.el('div', { style: { 'font-size': '13px', 'margin-bottom': '10px' } });
-      const wp = game.result.homeWP || game.result.awayWP;
-      const lp = game.result.homeLP || game.result.awayLP;
-      const sv = game.result.saveP;
-      const wpP = wp ? state.players[wp] : null;
-      const lpP = lp ? state.players[lp] : null;
-      const svP = sv ? state.players[sv] : null;
-      if (wpP) pitchers.appendChild(U.el('div', { class: 'muted' }, `WP: ${wpP.name}`));
-      if (lpP) pitchers.appendChild(U.el('div', { class: 'muted' }, `LP: ${lpP.name}`));
-      if (svP) pitchers.appendChild(U.el('div', { class: 'muted' }, `SV: ${svP.name}`));
-      body.appendChild(pitchers);
+    // ---- Line score ----
+    if (r.lineScore && r.lineScore.away && r.lineScore.away.length) {
+      body.appendChild(buildLineScore(r, away, home));
+    }
+
+    // ---- Decisions ----
+    const decisions = [];
+    const nameOf = (pid) => (pid && state.players[pid]) ? state.players[pid].name : null;
+    const wp = nameOf(r.homeWP || r.awayWP);
+    const lp = nameOf(r.homeLP || r.awayLP);
+    const sv = nameOf(r.saveP);
+    if (wp) decisions.push(`W: ${wp}`);
+    if (lp) decisions.push(`L: ${lp}`);
+    if (sv) decisions.push(`SV: ${sv}`);
+    if (decisions.length) {
+      body.appendChild(U.el('div', { class: 'muted', style: { 'font-size': '13px', 'margin-bottom': '12px' } },
+        decisions.join('  •  ')));
+    }
+
+    // ---- Box scores ----
+    if (r.box) {
+      for (const [team, side] of [[away, r.box.away], [home, r.box.home]]) {
+        body.appendChild(U.el('div', { class: 'card-title', style: { 'margin-top': '14px' } }, `${team.name} Batting`));
+        body.appendChild(buildBattingTable(state, side.batters));
+        body.appendChild(U.el('div', { class: 'card-title', style: { 'margin-top': '10px' } }, `${team.name} Pitching`));
+        body.appendChild(buildPitchingTable(state, side.pitchers, r));
+      }
+    }
+
+    // ---- AB-by-AB game log (collapsed by default) ----
+    body.appendChild(U.el('div', { class: 'card-title', style: { 'margin-top': '14px' } }, 'Game Log'));
+    if (r.gameLog && r.gameLog.length) {
+      body.appendChild(buildGameLog(state, r, away, home));
+    } else {
+      body.appendChild(U.el('div', { class: 'empty-state', style: { padding: '12px' } },
+        'Detailed log not retained for this game.'));
     }
 
     U.showModal({
@@ -190,6 +211,164 @@ window.BBGM_UI_GAMES = (function () {
         { label: 'Close', kind: 'primary', onClick: () => true },
       ],
     });
+  }
+
+  function buildLineScore(r, away, home) {
+    const innings = Math.max(r.lineScore.away.length, r.lineScore.home.length);
+    const wrap = U.el('div', { class: 'stats-scroll', style: { 'margin-bottom': '10px' } });
+    const table = U.el('table', { class: 'stats-table' });
+    const thead = U.el('thead');
+    const trh = U.el('tr');
+    trh.appendChild(U.el('th', {}, ''));
+    for (let i = 1; i <= innings; i++) trh.appendChild(U.el('th', {}, String(i)));
+    trh.appendChild(U.el('th', {}, 'R'));
+    trh.appendChild(U.el('th', {}, 'H'));
+    thead.appendChild(trh);
+    table.appendChild(thead);
+    const tbody = U.el('tbody');
+    for (const [team, line, runs, hits] of [
+      [away, r.lineScore.away, r.awayRuns, r.awayHits],
+      [home, r.lineScore.home, r.homeRuns, r.homeHits],
+    ]) {
+      const tr = U.el('tr');
+      tr.appendChild(U.el('td', {}, team.abbr));
+      for (let i = 0; i < innings; i++) {
+        tr.appendChild(U.el('td', {}, line[i] != null ? String(line[i]) : '—'));
+      }
+      tr.appendChild(U.el('td', { style: { 'font-weight': '700' } }, String(runs)));
+      tr.appendChild(U.el('td', {}, String(hits != null ? hits : '—')));
+      tbody.appendChild(tr);
+    }
+    table.appendChild(tbody);
+    wrap.appendChild(table);
+    return wrap;
+  }
+
+  // Box batter row layout (see simulation.js boxFor):
+  //   [pid, ab, r, h, b2, b3, hr, rbi, bb, k, sb]
+  function buildBattingTable(state, batters) {
+    const wrap = U.el('div', { class: 'stats-scroll' });
+    const table = U.el('table', { class: 'stats-table' });
+    const thead = U.el('thead');
+    const trh = U.el('tr');
+    for (const h of ['Batter', 'AB', 'R', 'H', 'RBI', 'BB', 'K', 'AVG']) trh.appendChild(U.el('th', {}, h));
+    thead.appendChild(trh);
+    table.appendChild(thead);
+    const tbody = U.el('tbody');
+    const totals = { ab: 0, r: 0, h: 0, rbi: 0, bb: 0, k: 0 };
+    for (const row of batters) {
+      const [pid, ab, runs, hits, b2, b3, hr, rbi, bb, k] = row;
+      const p = state.players[pid];
+      if (!p) continue;
+      totals.ab += ab; totals.r += runs; totals.h += hits; totals.rbi += rbi; totals.bb += bb; totals.k += k;
+      const season = p.stats[state.meta.currentDate.year];
+      const tr = U.el('tr');
+      const extras = [];
+      if (b2) extras.push(`${b2}·2B`);
+      if (b3) extras.push(`${b3}·3B`);
+      if (hr) extras.push(`${hr}·HR`);
+      tr.appendChild(U.el('td', {}, `${p.primaryPosition} ${p.name}${extras.length ? ' (' + extras.join(', ') + ')' : ''}`));
+      tr.appendChild(U.el('td', {}, String(ab)));
+      tr.appendChild(U.el('td', {}, String(runs)));
+      tr.appendChild(U.el('td', {}, String(hits)));
+      tr.appendChild(U.el('td', {}, String(rbi)));
+      tr.appendChild(U.el('td', {}, String(bb)));
+      tr.appendChild(U.el('td', {}, String(k)));
+      tr.appendChild(U.el('td', {}, season ? S.fmtAvg(S.avg(season)) : '—'));
+      tbody.appendChild(tr);
+    }
+    // Team totals row
+    const tt = U.el('tr', { style: { 'font-weight': '700' } });
+    tt.appendChild(U.el('td', {}, 'Totals'));
+    for (const k of ['ab', 'r', 'h', 'rbi', 'bb', 'k']) tt.appendChild(U.el('td', {}, String(totals[k])));
+    tt.appendChild(U.el('td', {}, ''));
+    tbody.appendChild(tt);
+    table.appendChild(tbody);
+    wrap.appendChild(table);
+    return wrap;
+  }
+
+  // Box pitcher row layout: [pid, ipOuts, h, r, er, bb, k, hr]
+  function buildPitchingTable(state, pitchers, r) {
+    const wrap = U.el('div', { class: 'stats-scroll' });
+    const table = U.el('table', { class: 'stats-table' });
+    const thead = U.el('thead');
+    const trh = U.el('tr');
+    for (const h of ['Pitcher', 'IP', 'H', 'R', 'ER', 'BB', 'K', 'ERA']) trh.appendChild(U.el('th', {}, h));
+    thead.appendChild(trh);
+    table.appendChild(thead);
+    const tbody = U.el('tbody');
+    for (const row of pitchers) {
+      const [pid, ipOuts, h, runs, er, bb, k] = row;
+      const p = state.players[pid];
+      if (!p) continue;
+      const tags = [];
+      if (pid === r.homeWP || pid === r.awayWP) tags.push('W');
+      if (pid === r.homeLP || pid === r.awayLP) tags.push('L');
+      if (pid === r.saveP) tags.push('SV');
+      if ((r.hldPids || []).includes(pid)) tags.push('H');
+      if ((r.bsPids || []).includes(pid)) tags.push('BS');
+      const season = p.stats[state.meta.currentDate.year];
+      const tr = U.el('tr');
+      tr.appendChild(U.el('td', {}, `${p.name}${tags.length ? ' (' + tags.join(', ') + ')' : ''}`));
+      tr.appendChild(U.el('td', {}, S.fmtIP(ipOuts)));
+      tr.appendChild(U.el('td', {}, String(h)));
+      tr.appendChild(U.el('td', {}, String(runs)));
+      tr.appendChild(U.el('td', {}, String(er)));
+      tr.appendChild(U.el('td', {}, String(bb)));
+      tr.appendChild(U.el('td', {}, String(k)));
+      tr.appendChild(U.el('td', {}, season && season.ipOuts ? S.era(season).toFixed(2) : '—'));
+      tbody.appendChild(tr);
+    }
+    table.appendChild(tbody);
+    wrap.appendChild(table);
+    return wrap;
+  }
+
+  // Game log entry layout (see simulation.js logPlay):
+  //   [inning, half, batter/runner id, pitcher id, outs before, base mask,
+  //    code, rbi, away score after, home score after]
+  const PLAY_TEXT = {
+    '1B': 'Single', '2B': 'Double', '3B': 'Triple', 'HR': 'Home Run',
+    'BB': 'Walk', 'HBP': 'Hit by Pitch', 'K': 'Strikeout', 'OUT': 'Out',
+    'SF': 'Sacrifice Fly', 'GIDP': 'Grounded into Double Play',
+    'SB': 'Stolen Base', 'CS': 'Caught Stealing',
+  };
+
+  function buildGameLog(state, r, away, home) {
+    const details = U.el('details');
+    details.appendChild(U.el('summary', {
+      style: { cursor: 'pointer', color: 'var(--accent)', 'font-size': '13px', 'font-weight': '600', padding: '6px 0' },
+    }, `Show at-bat by at-bat log (${r.gameLog.length} plays)`));
+
+    const list = U.el('div', { style: { 'font-size': '12px', 'line-height': '1.5' } });
+    let lastHalf = '';
+    for (const e of r.gameLog) {
+      const [inning, half, batterId, pitcherId, outsBefore, mask, code, rbi, as, hs] = e;
+      const halfKey = `${half}-${inning}`;
+      if (halfKey !== lastHalf) {
+        lastHalf = halfKey;
+        const battingTeam = half === 0 ? away : home;
+        list.appendChild(U.el('div', {
+          style: { 'font-weight': '700', 'margin-top': '8px', color: 'var(--text-primary)' },
+        }, `${half === 0 ? 'Top' : 'Bottom'} ${ordinal(inning)} — ${battingTeam.abbr} batting`));
+      }
+      const batter = state.players[batterId];
+      const text = PLAY_TEXT[code] || code;
+      let line = `${batter ? batter.name : '??'} — ${text}`;
+      if (rbi > 0) line += `, ${rbi} RBI`;
+      line += ` (${as}-${hs})`;
+      list.appendChild(U.el('div', { class: 'muted' }, line));
+    }
+    details.appendChild(list);
+    return details;
+  }
+
+  function ordinal(n) {
+    if (n % 10 === 1 && n !== 11) return `${n}st`;
+    if (n % 10 === 2 && n !== 12) return `${n}nd`;
+    if (n % 10 === 3 && n !== 13) return `${n}rd`;
+    return `${n}th`;
   }
 
   return { render, showBoxScore };

@@ -85,20 +85,28 @@ window.BBGM_SIM = (function () {
     }
 
     // Half-innings. Track outs the home and away pitching staffs each
-    // recorded so we can validate ipOuts attribution at the end.
+    // recorded so we can validate ipOuts attribution at the end. gameLog
+    // collects one compact entry per plate appearance (bible 20.6.4);
+    // lineScore collects runs per half-inning for the box score header.
     let inning = 1;
     let extras = false;
     let homeOuts = 0; // outs the home staff recorded against away batters
     let awayOuts = 0;
+    const gameLog = [];
+    const lineScore = { away: [], home: [] };
     while (inning <= 9 || teamState.home.runs === teamState.away.runs) {
       // Top half (away batting, home pitching)
-      homeOuts += simHalfInning(teamState.away, teamState.home, gs, inning, false, state);
+      const awayBefore = teamState.away.runs;
+      homeOuts += simHalfInning(teamState.away, teamState.home, gs, inning, false, state, gameLog);
+      lineScore.away.push(teamState.away.runs - awayBefore);
       // If 9+ and home leading, end before bottom half
       if (inning >= 9 && teamState.home.runs > teamState.away.runs && !extras) {
         break;
       }
       // Bottom half (home batting, away pitching)
-      awayOuts += simHalfInning(teamState.home, teamState.away, gs, inning, true, state);
+      const homeBefore = teamState.home.runs;
+      awayOuts += simHalfInning(teamState.home, teamState.away, gs, inning, true, state, gameLog);
+      lineScore.home.push(teamState.home.runs - homeBefore);
       if (inning >= 9 && teamState.home.runs !== teamState.away.runs) break;
       inning++;
       if (inning > 18) break; // safety cap
@@ -179,6 +187,33 @@ window.BBGM_SIM = (function () {
     updateStreak(home, homeWon);
     updateStreak(away, !homeWon);
 
+    // Per-game box lines for the Game Detail view (bible 20.6.4). Compact
+    // arrays — decoder lives in the UI. Batters in lineup order:
+    //   [pid, ab, r, h, b2, b3, hr, rbi, bb, k, sb]
+    // Pitchers in appearance order:
+    //   [pid, ipOuts, h, r, er, bb, k, hr]
+    function boxFor(side) {
+      const batters = [];
+      for (const p of side.lineup) {
+        const s = gameStats[p.id];
+        if (!s) continue;
+        batters.push([p.id, s.ab || 0, s.r || 0, s.h || 0, s.b2 || 0, s.b3 || 0, s.hr || 0, s.rbi || 0, s.bb || 0, s.k || 0, s.sb || 0]);
+      }
+      const pitchers = [];
+      for (const pid of side.pitchersUsed) {
+        const s = gameStats[pid];
+        if (!s) continue;
+        pitchers.push([pid, s.ipOuts || 0, s.h || 0, s.r || 0, s.er || 0, s.bb || 0, s.k || 0, s.hr || 0]);
+      }
+      return { batters, pitchers };
+    }
+    const hldPids = [];
+    const bsPids = [];
+    for (const pid in gameStats) {
+      if (gameStats[pid].hld) hldPids.push(pid);
+      if (gameStats[pid].bs) bsPids.push(pid);
+    }
+
     game.played = true;
     game.result = {
       homeRuns: teamState.home.runs,
@@ -193,12 +228,37 @@ window.BBGM_SIM = (function () {
       homeLP: teamState.home.lp || null,
       awayLP: teamState.away.lp || null,
       saveP: teamState.home.savePid || teamState.away.savePid || null,
+      hldPids,
+      bsPids,
+      homeSPid: homeSP.id,
+      awaySPid: awaySP.id,
+      lineScore,
+      box: { home: boxFor(teamState.home), away: boxFor(teamState.away) },
+      gameLog,
       year,
     };
     return game.result;
   }
 
-  function simHalfInning(off, def, gs, inning, isBottom, state) {
+  // Append one compact game-log entry. Array layout (decoder lives in the
+  // Game Detail UI — keep in sync):
+  //   [0] inning  [1] half (0 top / 1 bottom)  [2] batter/runner id
+  //   [3] pitcher id  [4] outs before play  [5] base mask before play
+  //       (1 = runner on 1st, 2 = on 2nd, 4 = on 3rd)
+  //   [6] result code ('1B','2B','3B','HR','BB','HBP','K','OUT','SF',
+  //       'GIDP','SB','CS')
+  //   [7] RBI on the play  [8] away score after  [9] home score after
+  function logPlay(log, inning, isBottom, playerId, pitcherId, outsBefore, baseMask, code, rbi, off, def) {
+    const awayScore = isBottom ? def.runs : off.runs;
+    const homeScore = isBottom ? off.runs : def.runs;
+    log.push([inning, isBottom ? 1 : 0, playerId, pitcherId, outsBefore, baseMask, code, rbi, awayScore, homeScore]);
+  }
+
+  function baseMaskOf(bases) {
+    return (bases[0] ? 1 : 0) | (bases[1] ? 2 : 0) | (bases[2] ? 4 : 0);
+  }
+
+  function simHalfInning(off, def, gs, inning, isBottom, state, log) {
     let outs = 0;
     // Each base position holds a runner object { playerId, responsiblePitcherId }
     // or null. responsiblePitcherId is the pitcher who put the runner on base
@@ -243,6 +303,12 @@ window.BBGM_SIM = (function () {
 
       const newRunner = { playerId: batter.id, responsiblePitcherId: pitcher.id };
 
+      // Pre-play snapshot for the game log entry appended after the branch.
+      const outsBeforePlay = outs;
+      const maskBeforePlay = baseMaskOf(bases);
+      const rbiBeforePlay = bs.rbi;
+      let playCode = result.kind === 'IBB' ? 'BB' : result.kind;
+
       if (result.kind === 'BB' || result.kind === 'IBB') {
         bs.bb++;
         ps.bb++;
@@ -284,6 +350,7 @@ window.BBGM_SIM = (function () {
         }
 
         if (isSF) {
+          playCode = 'SF';
           outs++;
           ps.ipOuts = (ps.ipOuts || 0) + 1;
           const r3 = bases[2];
@@ -292,6 +359,7 @@ window.BBGM_SIM = (function () {
           bs.sf++;
           bs.rbi++;
         } else if (isGIDP) {
+          playCode = 'GIDP';
           bs.ab++;
           bs.gidp++;
           // Two outs: the batter at home plate and the lead runner. Cap at 3.
@@ -338,20 +406,30 @@ window.BBGM_SIM = (function () {
         bs.rbi += baserunners.length + 1;
       }
 
+      // Game log entry for the plate appearance.
+      if (log) {
+        logPlay(log, inning, isBottom, batter.id, pitcher.id,
+          outsBeforePlay, maskBeforePlay, playCode, bs.rbi - rbiBeforePlay, off, def);
+      }
+
       // Stolen base attempts after PA (only with R1, no R2 ahead).
       if (bases[0] && outs < 3 && !bases[1]) {
         const runner = state.players[bases[0].playerId];
         if (shouldAttemptSB(runner, pitcher, def)) {
+          const sbOuts = outs;
+          const sbMask = baseMaskOf(bases);
           const sbResult = resolveSB(runner, pitcher, def);
           if (sbResult === 'safe') {
             bases[1] = bases[0]; bases[0] = null;
             gs(runner).sb++;
+            if (log) logPlay(log, inning, isBottom, runner.id, pitcher.id, sbOuts, sbMask, 'SB', 0, off, def);
           } else {
             // Caught stealing: out credited to current pitcher on the mound.
             bases[0] = null;
             outs++;
             ps.ipOuts = (ps.ipOuts || 0) + 1;
             gs(runner).cs++;
+            if (log) logPlay(log, inning, isBottom, runner.id, pitcher.id, sbOuts, sbMask, 'CS', 0, off, def);
           }
         }
       }

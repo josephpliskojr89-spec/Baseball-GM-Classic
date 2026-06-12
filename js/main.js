@@ -467,8 +467,28 @@ window.BBGM_MAIN = (function () {
     // Generate news for any noteworthy results
     generateDailyNews(state, today, games);
 
+    // AB-by-AB log retention guard (bible 8.7.1 + localStorage quota).
+    // Full-season logs for every game measured ~6.6MB — enough to blow the
+    // localStorage quota on many phones. Policy: keep AB logs all season
+    // for the user's games, and a rolling 14-day window for AI games.
+    // Box scores and line scores are kept all season for every game, so
+    // historical Game Detail views still render complete box scores; only
+    // the at-bat narrative is pruned (the UI shows a "not retained" note).
+    pruneOldGameLogs(state, today);
+
     // Advance
     state.meta.currentDate = D.addDays(today, 1);
+  }
+
+  function pruneOldGameLogs(state, today) {
+    const userTeamId = state.meta.userTeamId;
+    for (const g of state.league.schedule.games) {
+      if (!g.played || !g.result || !g.result.gameLog) continue;
+      if (g.homeId === userTeamId || g.awayId === userTeamId) continue;
+      if (D.diffDays(g.date, today) > 14) {
+        g.result.gameLog = null;
+      }
+    }
   }
 
   function generateDailyNews(state, date, games) {

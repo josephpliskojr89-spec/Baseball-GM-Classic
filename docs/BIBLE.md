@@ -1650,9 +1650,15 @@ What's discarded at season rollover:
 - Per-game player stat lines (already not retained per the rule above)
 - Per-inning line scores (kept only as long as the parent game's log is kept)
 
-**Storage envelope.** A typical season has ~2,430 games × ~75 PA per game = ~180,000 AB log entries. At a tight ~50 bytes per entry (inning, half, batter ID, pitcher ID, result code, base/out state, score) the total is roughly ~9 MB during the in-season period. This dominates save size while in-season but is reset to zero after rollover. The save's long-running floor (player + team + history) stays in the 5–8 MB range described above.
+**Storage envelope (measured).** A typical season has ~2,430 games × ~75 PA per game = ~180,000 AB log entries. Implemented as compact arrays on `game.result.gameLog`, a full season of logs measured ~6.6 MB, pushing the total save to ~11 MB — enough to blow the localStorage quota on many phones.
 
-Live in-season the data lives on each game record (e.g., extending the existing `game.result` with a `gameLog` array). Rollover deletes that field on every game from the year being closed out.
+**In-season retention guard.** To stay inside the bible 2.3 save budget (<5 MB), AB logs follow a two-tier in-season retention policy, applied daily by the sim loop:
+
+- **User-team games:** AB log retained for the entire season (all 162 games).
+- **AI-vs-AI games:** AB log retained for a rolling 14-day window, then pruned.
+- **Box scores and line scores:** retained for the entire season for *every* game — the Game Detail view always renders complete box scores; only the at-bat narrative is pruned for older AI games (the UI shows a "not retained" note).
+
+Measured post-season save with the guard: ~4.9 MB. Season rollover (Phase 15) still clears all remaining logs from the closing year.
 
 Historical Game Detail views still work after rollover — the box score and team totals are reconstructed from the season-totals data. The AB-by-AB section of the Game Detail view shows a "Detailed log not retained for prior seasons" note when the log has been pruned.
 
