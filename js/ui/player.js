@@ -40,6 +40,32 @@ window.BBGM_UI_PLAYER = (function () {
       }, '⚠ ' + desc + (inj.careerAltering ? ' • career-altering' : '')));
     }
 
+    // Fatigue chip — only surfaces when fatigue has reached moderate level.
+    // Bible 10.8 design intent is that low fatigue is invisible (no
+    // micromanagement); the chip appears as the rest pressure ramps.
+    const FAT = window.BBGM_FATIGUE;
+    if (FAT && !p.isPitcher && FAT.isModerate(p)) {
+      const lvl = FAT.level(p);
+      const colorByLevel = {
+        moderate: { bg: 'rgba(240, 162, 58, 0.15)', border: 'rgba(240, 162, 58, 0.4)', text: 'var(--warning)', label: 'Moderate fatigue' },
+        high:     { bg: 'rgba(240, 162, 58, 0.22)', border: 'rgba(240, 162, 58, 0.5)', text: 'var(--warning)', label: 'High fatigue' },
+        critical: { bg: 'rgba(226, 92, 92, 0.18)',  border: 'rgba(226, 92, 92, 0.45)', text: 'var(--danger)',  label: 'Fatigued — suggested rest: 1 day' },
+      };
+      const cfg = colorByLevel[lvl];
+      body.appendChild(U.el('div', {
+        style: {
+          background: cfg.bg,
+          border: `1px solid ${cfg.border}`,
+          color: cfg.text,
+          padding: '8px 12px',
+          'border-radius': 'var(--radius-md)',
+          'margin-bottom': '12px',
+          'font-size': '12px',
+          'font-weight': '600',
+        }
+      }, `● ${cfg.label}`));
+    }
+
     // Current season stats
     const year = state.meta.currentDate.year;
     const s = p.stats[year];

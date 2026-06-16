@@ -61,10 +61,15 @@ window.BBGM_INJURIES = (function () {
   // For a pitcher: appearances vary (SP ~30, RP ~60). We use a per-BF rate
   // and let workload do the rest. Pitcher rolls happen on the pitcher's
   // line, position-player rolls on the batter's line.
-  // Hitter rate calibrated to ~15% season IL incidence at 600 PA.
+  // Hitter rate calibrated to ~15% season IL incidence at 600 PA. With
+  // the fatigue system live (bible 10.8), the per-PA prob is scaled down
+  // because fatigued starters take a 1.0x–2.5x risk multiplier on top —
+  // so the BASE rate has to come down or league incidence runs hot.
   // Pitcher rate scaled for the mix of SP (~600 BF) and RP (~200 BF) to
-  // land around 20% IL incidence per the bible target.
-  const BASE_PA_INJURY_PROB     = 0.00055; // position players (per PA)
+  // land around 20% IL incidence per the bible target (no fatigue
+  // multiplier on pitchers — their fatigue lives in the per-pitch decay
+  // model in 7.4).
+  const BASE_PA_INJURY_PROB     = 0.00020; // position players (per PA)
   const BASE_PITCH_INJURY_PROB  = 0.00068; // pitchers (per batter faced)
 
   // Injury-proneness multiplier (1-10, default ~5 → 1.0x). Bible 10.2.
@@ -75,10 +80,14 @@ window.BBGM_INJURIES = (function () {
   }
 
   // ---- Public: roll an injury for one event (PA for a hitter, BF for a
-  // pitcher). Returns null when no injury occurs.
+  // pitcher). Returns null when no injury occurs. Position-player rolls
+  // are multiplied by the player's current fatigue factor (bible 10.8 —
+  // high fatigue meaningfully raises injury risk).
   function rollForHitter(rng, batter) {
     const proneness = batter.hidden && batter.hidden.injuryProneness;
-    const p = BASE_PA_INJURY_PROB * pronenessMul(proneness);
+    const FAT = window.BBGM_FATIGUE;
+    const fatMul = FAT ? FAT.injuryMultiplier(batter) : 1;
+    const p = BASE_PA_INJURY_PROB * pronenessMul(proneness) * fatMul;
     if (rng() >= p) return null;
     return buildInjury(rng, batter, /* isPitcherInjury */ false);
   }

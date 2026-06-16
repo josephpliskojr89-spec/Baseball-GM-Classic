@@ -142,7 +142,7 @@ window.BBGM_MAIN = (function () {
         }
 
         const state = {
-          version: '0.5.0',
+          version: '0.5.1',
           meta: {
             seed,
             created: new Date().toISOString(),
@@ -438,6 +438,11 @@ window.BBGM_MAIN = (function () {
     // Tick recovery on every injured player, return them when the clock
     // runs out (and demote whoever's filling their slot).
     advanceInjuryRecovery(state, today);
+    // Position-player fatigue (bible 10.8): players who didn't appear today
+    // recover; rest-recommended notifications fire for user-team starters
+    // who hit the very-high threshold.
+    advanceFatigueRecovery(state, games);
+    surfaceFatigueRestNotifications(state, today);
 
     // Generate news for any noteworthy results
     generateDailyNews(state, today, games);
@@ -527,6 +532,59 @@ window.BBGM_MAIN = (function () {
           date: { ...today },
           body: `<strong>${p.name}</strong> activated from the IL.`,
         });
+      }
+    }
+  }
+
+  // ---- Position-player fatigue (bible 10.8) ----------------------------
+  // Accumulation happens at game end inside simulation.js. The two daily
+  // hooks here are: (1) recover anyone who DIDN'T play today, (2) surface
+  // a one-time "rest recommended" news entry for user-team starters who
+  // cross the very-high threshold.
+
+  function advanceFatigueRecovery(state, games) {
+    const FAT = window.BBGM_FATIGUE;
+    if (!FAT) return;
+    const playedToday = new Set();
+    for (const g of games) {
+      if (!g.played || !g.result || !g.result.box) continue;
+      for (const side of ['home', 'away']) {
+        for (const row of g.result.box[side].batters) playedToday.add(row[0]);
+      }
+    }
+    // Two-tier recovery: game days still get a partial overnight bump down
+    // (otherwise fatigue saturates by mid-May since starters play ~6 of 7
+    // days). Off days recover at the full rate.
+    for (const id in state.players) {
+      const p = state.players[id];
+      if (!p || p.isPitcher) continue;
+      if (playedToday.has(id)) FAT.partialRecover(p);
+      else FAT.recover(p);
+    }
+  }
+
+  function surfaceFatigueRestNotifications(state, today) {
+    const FAT = window.BBGM_FATIGUE;
+    if (!FAT) return;
+    const userTeamId = state.meta.userTeamId;
+    const userTeam = state.league.teams.find((t) => t.id === userTeamId);
+    if (!userTeam) return;
+    if (!state.news) state.news = [];
+    for (const id of userTeam.roster) {
+      const p = state.players[id];
+      if (!p || p.isPitcher) continue;
+      // Reset the once-per-stretch latch when the player cools off.
+      if (!FAT.isModerate(p)) {
+        if (p._restNotified) p._restNotified = false;
+        continue;
+      }
+      if (FAT.isVeryHigh(p) && !p._restNotified) {
+        // Bible 10.8 example UI language — verbatim.
+        state.news.push({
+          date: { ...today },
+          body: `<strong>${p.name}</strong> is fatigued. Suggested rest: 1 day.`,
+        });
+        p._restNotified = true;
       }
     }
   }

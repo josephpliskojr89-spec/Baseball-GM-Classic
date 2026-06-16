@@ -4,6 +4,7 @@
 window.BBGM_SIM = (function () {
   const S = window.BBGM_STATS;
   const INJ = () => window.BBGM_INJURIES;
+  const FAT = () => window.BBGM_FATIGUE;
 
   // Random helper (use Math.random for in-game variance — seedable RNG used at gen)
   function rand() { return Math.random(); }
@@ -22,9 +23,13 @@ window.BBGM_SIM = (function () {
     const homeSP = pickStarter(home, players, state);
     const awaySP = pickStarter(away, players, state);
 
-    // Lineups: vs-LHP lineup when the opposing starter throws left.
-    const homeLineup = getLineup(home, players, awaySP);
-    const awayLineup = getLineup(away, players, homeSP);
+    // Lineups: vs-LHP lineup when the opposing starter throws left. Each
+    // lineup is paired with a parallel positions array so fatigue
+    // accumulation (catcher bonus) knows what slot each batter played.
+    const homeWithPos = getLineupWithPositions(home, players, awaySP);
+    const awayWithPos = getLineupWithPositions(away, players, homeSP);
+    const homeLineup = homeWithPos.players;
+    const awayLineup = awayWithPos.players;
 
     // Hard fail loudly rather than silently marking the game played.
     // Earlier bail-out behaviour silently dropped W/L records, producing
@@ -54,14 +59,14 @@ window.BBGM_SIM = (function () {
     // hold and blown-save accounting in assignPitcherDecisions.
     const teamState = {
       home: {
-        team: home, lineup: homeLineup, lineupIdx: 0,
+        team: home, lineup: homeLineup, lineupPositions: homeWithPos.positions, lineupIdx: 0,
         sp: homeSP, currentP: homeSP, pitchCount: 0, pitchersUsed: [homeSP.id], runs: 0, hits: 0, errors: 0,
         parkFactors: home.ballpark.factors,
         catcher: findCatcher(home, players),
         entryMargins: { [homeSP.id]: 0 }, exitMargins: {},
       },
       away: {
-        team: away, lineup: awayLineup, lineupIdx: 0,
+        team: away, lineup: awayLineup, lineupPositions: awayWithPos.positions, lineupIdx: 0,
         sp: awaySP, currentP: awaySP, pitchCount: 0, pitchersUsed: [awaySP.id], runs: 0, hits: 0, errors: 0,
         parkFactors: home.ballpark.factors, // Park factors apply to both
         catcher: findCatcher(away, players),
@@ -170,6 +175,21 @@ window.BBGM_SIM = (function () {
       delete gameLine._playerId;
       delete gameLine._injury;
       S.addStat(seasonStats, gameLine);
+    }
+
+    // Fatigue accumulation for position players (bible 10.8). Every batter
+    // in the actual game lineup gets the starter bump; catchers get the
+    // catcher bump. Recovery for everyone else happens in main.js's daily
+    // loop. Pitchers have their own per-pitch decay (7.4) and are skipped.
+    // Defensive: skip if fatigue module isn't loaded.
+    const fat = FAT();
+    if (fat) {
+      for (let i = 0; i < homeLineup.length; i++) {
+        fat.accumulateForGame(homeLineup[i], homeWithPos.positions[i], true);
+      }
+      for (let i = 0; i < awayLineup.length; i++) {
+        fat.accumulateForGame(awayLineup[i], awayWithPos.positions[i], true);
+      }
     }
 
     // Update team records
@@ -559,6 +579,20 @@ window.BBGM_SIM = (function () {
       power = vsHand === 'L' ? r.powerVsR : r.powerVsL;
     }
 
+    // Fatigue penalty (bible 10.8): a tired starter loses a few effective
+    // points off contact and power. Linear ramp past the moderate threshold,
+    // capped so a maxed-out hitter still plays at -6 (not crippling).
+    // Defensive: skip if fatigue module isn't loaded yet (test harnesses,
+    // SW-cache load-order edge cases).
+    const fat = FAT();
+    if (fat) {
+      const fatPenalty = fat.performancePenalty(batter);
+      if (fatPenalty > 0) {
+        contact -= fatPenalty;
+        power -= fatPenalty;
+      }
+    }
+
     const discipline = r.discipline;
     const stuff = applyFatigue(p.stuff, pitcher, def);
     const control = applyFatigue(p.control, pitcher, def);
@@ -910,38 +944,42 @@ window.BBGM_SIM = (function () {
     return players[team.rotation[dayIndex % n]];
   }
 
-  function getLineup(team, players, opposingSP) {
-    // Use the vs-LHP lineup when the opposing starter throws left, the
-    // vs-RHP lineup otherwise. Falls back to whichever lineup exists.
+  // Build the game-time lineup. Returns parallel { players, positions }
+  // arrays so fatigue accumulation knows what slot each batter played
+  // (catchers fatigue faster per bible 10.8). The lineup config itself
+  // stays unchanged when an injured starter is substituted — the regular
+  // slots back in as soon as he's available again.
+  function getLineupWithPositions(team, players, opposingSP) {
     const vsLefty = opposingSP && opposingSP.throws === 'L';
     const preferred = vsLefty ? team.lineupLH : team.lineupRH;
     const fallback = vsLefty ? team.lineupRH : team.lineupLH;
     const lineupSpec = (preferred && preferred.length) ? preferred : fallback;
-    if (!lineupSpec || !lineupSpec.length) return [];
+    if (!lineupSpec || !lineupSpec.length) return { players: [], positions: [] };
 
-    // Substitute injured starters with bench replacements at game time. The
-    // lineup config itself stays unchanged — when the regular returns, he
-    // slots back in. Keep one "used" set so we don't double-pick a sub.
     const inj = INJ();
     const used = new Set(lineupSpec.map((s) => s.playerId));
-    const result = [];
+    const resultP = [];
+    const resultPos = [];
     for (const spot of lineupSpec) {
       const p = players[spot.playerId];
       if (p && inj.isAvailable(p)) {
-        result.push(p);
+        resultP.push(p);
+        resultPos.push(spot.position);
         continue;
       }
       const sub = findLineupSub(team, players, spot.position, used);
       if (sub) {
         used.add(sub.id);
-        result.push(sub);
+        resultP.push(sub);
+        resultPos.push(spot.position);
       } else if (p) {
         // No healthy bench bat fits the slot — play the regular anyway so
         // the game can sim (a deeper-rosters problem we'll surface later).
-        result.push(p);
+        resultP.push(p);
+        resultPos.push(spot.position);
       }
     }
-    return result;
+    return { players: resultP, positions: resultPos };
   }
 
   function findLineupSub(team, players, position, used) {
