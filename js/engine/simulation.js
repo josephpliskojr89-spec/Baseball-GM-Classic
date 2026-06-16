@@ -3,6 +3,7 @@
 // averages (BA .265, K% 17%, BB% 9%, HR rate 2.8%).
 window.BBGM_SIM = (function () {
   const S = window.BBGM_STATS;
+  const INJ = () => window.BBGM_INJURIES;
 
   // Random helper (use Math.random for in-game variance — seedable RNG used at gen)
   function rand() { return Math.random(); }
@@ -152,6 +153,14 @@ window.BBGM_SIM = (function () {
       throw err;
     }
 
+    // Collect injuries from per-PA / per-BF rolls. simOneDay applies them
+    // tomorrow (substitution, IL state transition, notification).
+    const injuriesThisGame = [];
+    for (const pid in gameStats) {
+      const line = gameStats[pid];
+      if (line._injury) injuriesThisGame.push({ playerId: pid, injury: line._injury });
+    }
+
     // Update player season stats
     for (const pid in gameStats) {
       const p = players[pid];
@@ -159,6 +168,7 @@ window.BBGM_SIM = (function () {
       const seasonStats = S.ensureSeason(p, year);
       const gameLine = gameStats[pid];
       delete gameLine._playerId;
+      delete gameLine._injury;
       S.addStat(seasonStats, gameLine);
     }
 
@@ -236,6 +246,7 @@ window.BBGM_SIM = (function () {
       lineScore,
       box: { home: boxFor(teamState.home), away: boxFor(teamState.away) },
       gameLog,
+      injuries: injuriesThisGame, // [{playerId, injury}] — applied next day
       year,
     };
     return game.result;
@@ -306,6 +317,22 @@ window.BBGM_SIM = (function () {
       // can never be overwritten or skipped by the decision logic later.
       if (!ps.g) ps.g = 1;
       if (pitcher.id === def.sp.id && !ps.gs) ps.gs = 1;
+
+      // Injury rolls (bible 10.1). Per-PA roll for the batter, per-BF roll
+      // for the pitcher. Each player's injury is stashed on their game-stat
+      // line under _injury so simulateGame can collect them after the game
+      // ends — applying mid-game would require an in-game substitution
+      // system that doesn't exist yet. Day-to-day cases mean the player is
+      // listed as questionable starting tomorrow; IL cases also start
+      // tomorrow but route through main.js's substitution handler.
+      if (!bs._injury) {
+        const hi = INJ().rollForHitter(rand, batter);
+        if (hi) bs._injury = hi;
+      }
+      if (!ps._injury) {
+        const pi = INJ().rollForPitcher(rand, pitcher);
+        if (pi) ps._injury = pi;
+      }
 
       const newRunner = { playerId: batter.id, responsiblePitcherId: pitcher.id };
 
@@ -767,7 +794,9 @@ window.BBGM_SIM = (function () {
     const year = state.meta.currentDate.year;
     const roles = ensureBullpenRoles(team, players);
 
-    const closerFree = team.closer && !used.has(team.closer) && players[team.closer];
+    const inj = INJ();
+    const closerP = team.closer && players[team.closer];
+    const closerFree = closerP && !used.has(team.closer) && inj.isAvailable(closerP);
     if (closerFree && inning >= 9 && margin >= 1 && margin <= 3) return players[team.closer];
     if (closerFree && inning >= 10 && margin === 0) return players[team.closer];
 
@@ -781,7 +810,7 @@ window.BBGM_SIM = (function () {
     else order = ['middle', 'mopup', 'long', 'setup'];
 
     for (const role of order) {
-      const cands = (roles[role] || []).filter((id) => !used.has(id) && players[id]);
+      const cands = (roles[role] || []).filter((id) => !used.has(id) && players[id] && inj.isAvailable(players[id]));
       if (cands.length) {
         cands.sort((a, b) => {
           const ga = (players[a].stats[year] && players[a].stats[year].g) || 0;
@@ -866,10 +895,19 @@ window.BBGM_SIM = (function () {
 
   function pickStarter(team, players, state) {
     if (!team.rotation || team.rotation.length === 0) return null;
-    // Use day-of-year mod 5 to rotate
     const dayIndex = state.meta.gamesPlayedByTeam ? (state.meta.gamesPlayedByTeam[team.id] || 0) : 0;
-    const sp = players[team.rotation[dayIndex % team.rotation.length]];
-    return sp;
+    // Walk the rotation starting at today's slot; the first available pitcher
+    // (not on the IL or day-to-day) starts. This lets an injured ace get
+    // skipped without forcing a permanent rotation swap.
+    const inj = INJ();
+    const n = team.rotation.length;
+    for (let i = 0; i < n; i++) {
+      const sp = players[team.rotation[(dayIndex + i) % n]];
+      if (sp && inj.isAvailable(sp)) return sp;
+    }
+    // Everyone hurt — fall back to the day's slot so the game can sim
+    // rather than throw. (Substitution UI in stage 4 will surface this.)
+    return players[team.rotation[dayIndex % n]];
   }
 
   function getLineup(team, players, opposingSP) {
@@ -880,7 +918,46 @@ window.BBGM_SIM = (function () {
     const fallback = vsLefty ? team.lineupRH : team.lineupLH;
     const lineupSpec = (preferred && preferred.length) ? preferred : fallback;
     if (!lineupSpec || !lineupSpec.length) return [];
-    return lineupSpec.map((spot) => players[spot.playerId]).filter(Boolean);
+
+    // Substitute injured starters with bench replacements at game time. The
+    // lineup config itself stays unchanged — when the regular returns, he
+    // slots back in. Keep one "used" set so we don't double-pick a sub.
+    const inj = INJ();
+    const used = new Set(lineupSpec.map((s) => s.playerId));
+    const result = [];
+    for (const spot of lineupSpec) {
+      const p = players[spot.playerId];
+      if (p && inj.isAvailable(p)) {
+        result.push(p);
+        continue;
+      }
+      const sub = findLineupSub(team, players, spot.position, used);
+      if (sub) {
+        used.add(sub.id);
+        result.push(sub);
+      } else if (p) {
+        // No healthy bench bat fits the slot — play the regular anyway so
+        // the game can sim (a deeper-rosters problem we'll surface later).
+        result.push(p);
+      }
+    }
+    return result;
+  }
+
+  function findLineupSub(team, players, position, used) {
+    const GEN = window.BBGM_PLAYER_GEN;
+    const inj = INJ();
+    const candidates = team.roster
+      .map((id) => players[id])
+      .filter((p) => p && !p.isPitcher && !used.has(p.id) && inj.isAvailable(p) && GEN.canPlay(p, position));
+    if (!candidates.length) return null;
+    candidates.sort((a, b) => hitterScore(b) - hitterScore(a));
+    return candidates[0];
+  }
+
+  function hitterScore(p) {
+    const r = p.ratings;
+    return r.contactVsR + r.contactVsL + r.powerVsR + r.powerVsL + r.discipline + r.speed * 0.5;
   }
 
   function assignPitcherDecisions(teamState, gameStats) {

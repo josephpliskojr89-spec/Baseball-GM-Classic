@@ -19,6 +19,27 @@ window.BBGM_UI_PLAYER = (function () {
     if (team) header.appendChild(U.el('div', { class: 'player-profile-team' }, team.name));
     body.appendChild(header);
 
+    // Active injury banner — shown above stats so it's the first thing the
+    // user sees on a profile they're considering a roster move for.
+    if (p.currentInjury) {
+      const inj = p.currentInjury;
+      const desc = inj.ilType
+        ? `${inj.ilType} IL — ${inj.daysOut} days (${inj.type})`
+        : `Day-to-day — ${inj.daysOut} day${inj.daysOut !== 1 ? 's' : ''} (${inj.type})`;
+      body.appendChild(U.el('div', {
+        style: {
+          background: 'rgba(226, 92, 92, 0.15)',
+          border: '1px solid rgba(226, 92, 92, 0.4)',
+          color: 'var(--danger)',
+          padding: '10px 12px',
+          'border-radius': 'var(--radius-md)',
+          'margin-bottom': '12px',
+          'font-size': '13px',
+          'font-weight': '600',
+        }
+      }, '⚠ ' + desc + (inj.careerAltering ? ' • career-altering' : '')));
+    }
+
     // Current season stats
     const year = state.meta.currentDate.year;
     const s = p.stats[year];

@@ -142,7 +142,7 @@ window.BBGM_MAIN = (function () {
         }
 
         const state = {
-          version: '0.4.0',
+          version: '0.5.0',
           meta: {
             seed,
             created: new Date().toISOString(),
@@ -431,6 +431,14 @@ window.BBGM_MAIN = (function () {
         throw new Error(`simOneDay halted: ${ctx} — ${e.message}`);
       }
     }
+    // Injuries from today's games: place players on IL, swap minors bodies
+    // up to keep the 26-man roster legal, and surface user-team incidents
+    // in the news feed.
+    applyInjuriesFromGames(state, today, games);
+    // Tick recovery on every injured player, return them when the clock
+    // runs out (and demote whoever's filling their slot).
+    advanceInjuryRecovery(state, today);
+
     // Generate news for any noteworthy results
     generateDailyNews(state, today, games);
 
@@ -455,6 +463,89 @@ window.BBGM_MAIN = (function () {
       if (D.diffDays(g.date, today) > 14) {
         g.result.gameLog = null;
       }
+    }
+  }
+
+  // ---- Injury handling (bible 10) ---------------------------------------
+  // Stage 1 scope:
+  //   - place injured players on day-to-day or IL with appropriate days
+  //   - tick recovery daily and clear when the clock runs out
+  //   - apply career-altering ceiling drops (10.6) right away
+  //   - surface user-team incidents in the news feed
+  //
+  // Stage 1 deliberately does NOT make roster transactions (no call-ups,
+  // no team.il list). The injured player stays on team.roster — counted
+  // toward the 26-man — and the engine's getLineup / pickStarter / reliever
+  // selection already skip unavailable players, so the team plays
+  // effectively short-handed for the IL stint. Bible-correct IL transactions
+  // (move to separate team.il list, call up minor leaguer) ship with the IL
+  // management UI in stage 4.
+
+  function applyInjuriesFromGames(state, today, games) {
+    const INJ = window.BBGM_INJURIES;
+    const userTeamId = state.meta.userTeamId;
+    for (const g of games) {
+      if (!g.played || !g.result || !g.result.injuries) continue;
+      for (const entry of g.result.injuries) {
+        const p = state.players[entry.playerId];
+        if (!p) continue;
+        // Skip if the player is already injured (rare double-rolls).
+        if (!INJ.isAvailable(p)) continue;
+        INJ.placeOnIL(p, entry.injury, today);
+        if (entry.injury.careerAltering && p.hidden && p.hidden.ceiling) {
+          applyCareerAlteringCeiling(p, entry.injury);
+        }
+        if (p.teamId === userTeamId) {
+          if (!state.news) state.news = [];
+          const team = state.league.teams.find((t) => t.id === p.teamId);
+          state.news.push({
+            date: { ...today },
+            body: `<strong>${p.name}</strong> (${team ? team.abbr : '?'}) suffered a ${entry.injury.type.toLowerCase()} — ` +
+              (entry.injury.ilType ? `placed on the ${entry.injury.ilType} IL (out ~${entry.injury.daysOut} days)` :
+                `day-to-day, expected back in ${entry.injury.daysOut} day${entry.injury.daysOut !== 1 ? 's' : ''}`) +
+              (entry.injury.careerAltering ? ' — career-altering' : '') + '.',
+          });
+        }
+      }
+    }
+  }
+
+  function advanceInjuryRecovery(state, today) {
+    const INJ = window.BBGM_INJURIES;
+    const userTeamId = state.meta.userTeamId;
+    for (const id in state.players) {
+      const p = state.players[id];
+      if (!p) continue;
+      // Tick recovery for every player whose clock is running. tickRecovery
+      // returns true on the transition day, false otherwise.
+      const wasInjured = !INJ.isAvailable(p);
+      if (!wasInjured) continue;
+      const came = INJ.tickRecovery(p);
+      if (came && p.teamId === userTeamId) {
+        if (!state.news) state.news = [];
+        state.news.push({
+          date: { ...today },
+          body: `<strong>${p.name}</strong> activated from the IL.`,
+        });
+      }
+    }
+  }
+
+  // Career-altering injuries cut a chunk off the relevant ceiling (10.6).
+  function applyCareerAlteringCeiling(p, injury) {
+    const c = p.hidden.ceiling;
+    const drop = (key, n) => { if (c[key] != null) c[key] = Math.max(20, c[key] - n); };
+    if (p.isPitcher) {
+      if (injury.type === 'UCL tear') { drop('velocity', 5); drop('stuff', 3); }
+      else if (injury.type === 'Shoulder inflammation') { drop('velocity', 4); }
+      else if (injury.type === 'Lat strain') { drop('velocity', 3); }
+      else { drop('stuff', 3); }
+    } else {
+      if (injury.type === 'Knee injury') { drop('speed', 6); drop('defense', 3); }
+      else if (injury.type === 'Shoulder issue') { drop('arm', 5); drop('powerVsR', 2); drop('powerVsL', 2); }
+      else if (injury.type === 'Wrist injury') { drop('powerVsR', 4); drop('powerVsL', 4); }
+      else if (injury.type === 'Back injury') { drop('powerVsR', 3); drop('powerVsL', 3); drop('speed', 2); }
+      else { drop('contactVsR', 2); drop('contactVsL', 2); }
     }
   }
 

@@ -1935,13 +1935,17 @@ These are designed to feel like real moments. A 24-year-old ace blowing out his 
 
 After implementation, the injury system is calibrated against these targets:
 
-- Total IL stints league-wide should match ~500-550 per season (modern MLB averages roughly 700-800, but we're targeting slightly fewer for the era)
-- Tommy John surgeries: ~15-25 per season league-wide
-- Career-altering injuries: ~3-8 per season league-wide
 - About 20% of pitchers should have at least one IL stint in a given year
 - About 15% of position players similarly
+- Tommy John surgeries: ~15-25 per season league-wide
+- Career-altering injuries: ~3-8 per season league-wide
+- Total IL stints league-wide: ~150-200 per season
 
 Calibration happens after engine implementation by simulating multi-season runs and comparing output to targets.
+
+**Note on the stint-count target.** Earlier drafts of this section listed ~500-550 stints, but that figure can't reconcile with the percentage targets above — at ~130 players going on IL across the league, ~500 stints would require an average of nearly four IL stints per IL'd player per year, which doesn't happen even in injury-plagued MLB seasons. The percentage targets (which describe what the user actually experiences) are authoritative; the stint count was revised to ~150-200 to match (≈1.2 stints per IL'd player). MLB has run anywhere from 700+ stints in recent years down to a few hundred in earlier eras, so this number stays a soft guidepost.
+
+**Note on career-altering rate (10.3).** §10.3 describes career-altering events as "~0.5% of severe injuries" but that produces well under 1 per season at the calibrated stint volume. To hit the 3-8 target above, the implementation uses ~5% of severe stints as the career-altering coefficient. Treat the 0.5% figure in 10.3 as the discarded simpler version.
 
 ### 10.8 Position-Player Fatigue and Stamina
 
