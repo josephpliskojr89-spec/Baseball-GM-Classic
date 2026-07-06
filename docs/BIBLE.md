@@ -45,6 +45,8 @@ The project is for personal use. No commercial intent, no app store distribution
 
 **Pillar 3 — Mobile-first, browser-native.** Fully playable on a phone via mobile browser. Layouts, tap targets, and information density designed for mobile *first* and adapted up to desktop. Hosted as static site, saved to home screen via PWA. No app store, no install, no native code.
 
+**Pillar 4 — You are the GM, not the manager.** Every team — the player's included — has a manager with his own style and tendencies who runs the day-to-day: lineups, batting order, rotation order, bullpen roles, rest days, and in-game tactics. The player's job is the front office: build the roster, work the draft and the trade market, manage the budget, and hire the manager whose style fits the roster you're building. If you want a different style of baseball on the field, you don't tap lineup arrows — you hire a different manager. (Until the manager system ships in Phase 10, the player acts as their own interim manager through the direct lineup/rotation/bullpen controls; those controls become the manager's domain once managers exist. See 17.7.)
+
 ### 1.3 Scope Boundaries
 
 **In scope:**
@@ -1862,6 +1864,8 @@ The engine rolls retirement probability each offseason for players age 33+. Prob
 
 Retirement is a one-way state. Retired players are eligible for Hall of Fame after 5 years.
 
+At retirement time, roll and stamp the "open to coaching" flag (per 17.9) so retirees can enter the coach/manager pipeline when the staffing system is live.
+
 ---
 
 ## 10. Injury System
@@ -2889,7 +2893,7 @@ Coach hiring follows similar archetype-driven patterns but is generally less pol
 
 **Coach firings:** Less politicized. Usually tied to manager firings (new manager often brings their own coaches) or extreme failure (development modifier consistently negative). Most coach turnover happens organically when contracts expire.
 
-**Hiring pool:** Each offseason, fired managers and coaches enter a free agent pool. Some retire instead of seeking new positions. New first-year managers occasionally enter the pool from minor-league managerial ranks.
+**Hiring pool:** The league maintains a standing pool of unemployed managers and coaches at all times — it exists from league generation (roughly 8-12 unemployed managers and 15-20 unemployed coaches of varying quality and archetype), not just after the first firings. Each offseason the pool gains fired managers and coaches, new first-year candidates from the minor-league managerial ranks, and recently retired players entering the profession (see 17.9); it loses hires and candidates who age out or retire from the profession. The pool should always be deep enough that a firing never strands a team — but shallow enough that the good candidates go fast and hiring late means bargain-bin options.
 
 **User's hiring decisions:**
 - After firing (or contract expiration), user can interview candidates from FA pool
@@ -2899,9 +2903,21 @@ Coach hiring follows similar archetype-driven patterns but is generally less pol
 
 ### 17.7 Manager and Coach Effects on Simulation
 
-**Manager effects on game simulation:**
-- Manager's tendency parameters affect AI lineup construction (when AI builds lineup) and tactical decisions (bunts, SB attempts, pitcher pulls, etc.)
-- User can override individual decisions but the manager's defaults apply when user is not actively managing
+**The manager runs the day-to-day — for every team, the user's included (Pillar 4).** The player is the GM. Once the manager system ships, the manager owns:
+
+- Lineup construction and batting order (vs RHP / vs LHP), per his lineup-construction tendency
+- Rotation order and spot starts
+- Bullpen roles and in-game deployment (per his leverage / quick-hook tendencies)
+- Rest days and fatigue management (the engine's current auto-rest behavior becomes the manager's judgment, colored by his tendencies — some managers ride their regulars harder)
+- In-game tactics: bunts, hit-and-runs, SB aggressiveness, pinch-hitting, defensive replacements
+
+The GM does **not** override individual game-day decisions. GM influence over the on-field product is indirect and realistic:
+
+- **Hire the right manager.** The primary lever. Roster built for speed and contact? An old-school small-ball manager uses it; a three-true-outcomes manager wastes it.
+- **Shape the roster.** The manager plays the players he's given. A manager can't bench your star for a scrub — decisions follow talent, colored by tendencies.
+- **Organizational directives (light touch, at most).** A small set of GM-to-manager asks — "get the kid regular at-bats," "ease the veteran's workload" — that nudge (not command) manager behavior. This is an optional Phase 10+ refinement; it must never become a lineup editor in disguise.
+
+**Transition plan.** The Phase 3 lineup/rotation/bullpen editing UI is the *interim* manager: the user acts as their own skipper until Phase 10. When managers land, those screens become views of the manager's decisions (with his reasoning surfaced where cheap: "Sitting Vance Shepherd — day off after 12 straight starts"), and direct editing is retired for the user team just as it never existed for AI teams. The engine's current generic decision logic (auto-rest, reliever rest rules, leverage-based bullpen calls, pull thresholds) is the baseline "league-average manager"; Phase 10 parameterizes it by each manager's tendency values rather than rewriting it.
 
 **Coach effects on progression:**
 - Hitting coach's modifier applied to all hitter progression rolls in the organization (MLB through Rookie ball)
@@ -2920,6 +2936,18 @@ These effects make hiring decisions matter mechanically, not just narratively. A
 - Random voter variance
 
 User-team managers are eligible. Winning Manager of the Year boosts the manager's reputation rating significantly and adds a small bonus to their next contract negotiation.
+
+### 17.9 Retired Players Entering Coaching
+
+Some retired players move into the coaching profession, so long-running saves grow their own staffing history — the catcher you drafted in year 2 might be a managerial candidate in year 14.
+
+**Pipeline:**
+- When a player retires (per 9.6), roll for a coaching career. Base chance ~10-15%, weighted up by: high makeup grade, catcher or middle-infield background (the classic manager pedigree), long careers, and modest-star-but-not-superstar status. Weighted down for low makeup.
+- A retiree who enters the profession joins the coach pool 1-3 years after retirement, as a hitting or pitching coach candidate (by playing background) with a development modifier seeded partly from his makeup and work ethic.
+- Coaches with strong results and reputation can graduate to manager candidates after ~3-6 years in the pool or on a staff. Their initial manager tendencies are colored by the era and style they played in.
+- Name recognition matters: a beloved former star entering coaching gets reputation and hiring interest above his actual attributes — sometimes deservedly, sometimes not (the failed-legend-manager arc is a real baseball story).
+
+**Phase note:** the retirement flag ("open to coaching") should be stamped at retirement time when Phase 5 progression/retirement ships, even though the coaching system itself is Phase 10 — otherwise early-save retirees can never enter the pipeline.
 
 ---
 
@@ -3295,12 +3323,17 @@ The Team tab is the user's organizational management center. Sub-screens:
 - Defensive position assignments
 - Designated hitter / pitcher's spot for appropriate league
 - Save lineup; revert to manager's recommendation
+- *Pillar 4:* edit affordances are interim (user-as-acting-manager).
+  From Phase 10 this screen shows the manager's lineups read-only, with
+  his reasoning surfaced where cheap (rest days, platoon calls per 17.7)
 
 **20.4.3 Pitching Staff**
 - Starting rotation (5 SP listed in order)
 - Bullpen with assigned roles (closer, setup, middle, lefty specialist, mop-up)
 - Drag/tap to reassign roles
 - Pitching schedule preview (who pitches next based on rest)
+- *Pillar 4:* same as 20.4.2 — editing is interim; from Phase 10 the
+  manager owns rotation order and bullpen roles
 
 **20.4.4 Minor League System**
 - All minor leaguers listed by level (AAA / AA / A+ / A / Rookie)
@@ -3577,6 +3610,13 @@ This approach is essential for AI-assisted coding: each phase keeps complexity m
 
 **Goal:** User can manage their active roster and lineup throughout a season, and the engine pitch-count behaviour matches the stamina tier contract in 7.4.
 
+> **Pillar 4 note.** The direct lineup/rotation/bullpen editing built in
+> this phase is an *interim* control surface — the user acting as their
+> own manager until the manager system exists. In Phase 10 those screens
+> become views of the manager's decisions and direct editing is retired
+> (per 17.7). Build them accordingly: the rendering is permanent, the
+> edit affordances are not.
+
 **Build:**
 - 26-man roster management
 - 40-man roster
@@ -3674,7 +3714,9 @@ This approach is essential for AI-assisted coding: each phase keeps complexity m
 - Modifiers (level appropriateness, coaching, work ethic, injuries — per 9.3)
 - Volatility / random variance (per 9.4)
 - Ceiling adjustments over career (per 9.5)
-- Retirement logic (per 9.6)
+- Retirement logic (per 9.6), including the "open to coaching" flag
+  stamped at retirement (per 17.9) so early-save retirees can enter the
+  Phase 10 coaching pipeline
 
 **End-of-phase test:**
 - After multiple simulated years, players progress according to their archetypes
@@ -3768,23 +3810,42 @@ This approach is essential for AI-assisted coding: each phase keeps complexity m
 - Contract values feel realistic
 - Extensions work
 
-### 21.11 Phase 10: Manager and Coach System (Estimated: 1 session)
+### 21.11 Phase 10: Manager and Coach System (Estimated: 1-2 sessions)
 
-**Goal:** Hireable staff with mechanical effects.
+**Goal:** Every team run day-to-day by its own manager (Pillar 4 — the
+user becomes a pure GM), with hireable staff carrying mechanical effects.
 
 **Build:**
 - Manager and coach generation (with attributes per 17.2, 17.4)
 - Manager archetypes (per 17.3)
+- All 30 teams assigned a manager at league generation, plus the
+  standing unemployed pool (~8-12 managers, ~15-20 coaches — per 17.6)
 - Owner archetype hiring preferences (per 17.5)
 - Hiring/firing logic (per 17.6)
 - Hiring interface
-- Manager tendency effects on game simulation (revisit 7.8)
+- Manager tendency effects on game simulation (revisit 7.8) —
+  parameterize the existing engine decision logic (lineups, auto-rest,
+  bullpen leverage, pull thresholds) by each manager's tendencies
+  rather than rewriting it
+- **Manager takes over the user team's day-to-day (per 17.7):** the
+  Phase 3 lineup/rotation/bullpen editing screens become views of the
+  manager's decisions; direct editing is retired for the user team
+- Retired-player coaching pipeline (per 17.9) — consume the
+  "open to coaching" flags stamped since Phase 5
 - Coach development modifiers (apply to progression — revisit phase 5)
 
 **End-of-phase test:**
-- User can hire/fire manager and coaches
-- Manager tendencies affect AI game decisions
+- Every team, including the user's, has a manager making lineup,
+  rotation, bullpen, rest, and tactical decisions per his tendencies
+- Two managers with different styles produce visibly different usage
+  patterns from the same roster
+- User can hire/fire manager and coaches; unemployed pool refills
+  believably (firings, minor-league candidates, notable retirees)
 - Coach modifiers affect player development
+
+**Deferred:**
+- GM organizational directives (light nudges per 17.7) — optional
+  refinement once manager control feels right
 
 ### 21.12 Phase 11: Amateur Draft (Estimated: 1 session)
 
