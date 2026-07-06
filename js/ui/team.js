@@ -231,8 +231,24 @@ window.BBGM_UI_TEAM = (function () {
       team[key].forEach((spot, idx) => {
         list.appendChild(lineupRow(state, team, key, idx));
       });
+      // Western League: pitchers bat 9th (bible 3.1). Shown as a fixed,
+      // non-editable slot — the day's starter (then relievers) occupies it.
+      if (team.league !== 'east') {
+        list.appendChild(pitcherSpotRow(team[key].length + 1));
+      }
       container.appendChild(list);
     }
+  }
+
+  function pitcherSpotRow(orderNum) {
+    const row = U.el('div', { class: 'roster-row', style: { opacity: '0.7' } });
+    row.appendChild(U.el('span', { class: 'pos-badge', style: { 'background': 'var(--bg-elevated)' } }, String(orderNum)));
+    const info = U.el('div', { class: 'player-row-info' });
+    info.appendChild(U.el('div', { class: 'player-row-name' }, 'Pitcher’s spot'));
+    info.appendChild(U.el('div', { class: 'player-row-meta' },
+      'P • Western League rules — the pitcher on the mound bats here'));
+    row.appendChild(info);
+    return row;
   }
 
   function lineupRow(state, team, key, idx) {

@@ -191,8 +191,21 @@ window.BBGM_PLAYER_GEN = (function () {
       bats = throws; // pitchers usually bat handedness of throw
     }
 
-    // Service time
-    const serviceYears = clamp(age - 22, 0, 18);
+    // Service time — seeded from roster context, not raw age. Only active
+    // 26-man players carry real MLB service; a 28-year-old AAA depth arm
+    // has little or none (the old flat `age - 22` formula made half the
+    // minors FA-eligible the moment free agency reads serviceTime).
+    let serviceYears;
+    if (status === 'active') {
+      const debutAge = rint(rng, 22, 27);
+      serviceYears = clamp(age - debutAge, 0, 18);
+    } else if (rosterStatus === 'AAA') {
+      // AAA filler: mostly no service; some have a cup of coffee or a
+      // couple of part-time years behind them.
+      serviceYears = rng() < 0.6 ? 0 : Math.min(rint(rng, 1, 3), Math.max(0, age - 24));
+    } else {
+      serviceYears = 0; // true prospects haven't debuted
+    }
     const contract = generateContract(rng, age, tier, ratings, isPitcher, serviceYears);
 
     // Hidden values

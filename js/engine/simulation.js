@@ -1,6 +1,8 @@
 // Game simulation engine. At-bat resolution following bible 7.3 with simplified
 // but representative outcome math. Calibrated to produce close to target league
 // averages (BA .265, K% 17%, BB% 9%, HR rate 2.8%).
+// DH rules per bible 3.1: Eastern League parks use the DH; in Western League
+// parks pitchers bat 9th for both teams (home team's league sets the rule).
 window.BBGM_SIM = (function () {
   const S = window.BBGM_STATS;
   const INJ = () => window.BBGM_INJURIES;
@@ -23,11 +25,20 @@ window.BBGM_SIM = (function () {
     const homeSP = pickStarter(home, players, state);
     const awaySP = pickStarter(away, players, state);
 
+    // DH rule follows the HOME team's league (bible 3.1): Eastern League
+    // parks use the DH; in Western League parks pitchers bat 9th — for
+    // BOTH teams. getLineupWithPositions reshapes each lineup accordingly
+    // (visiting East team drops its DH; visiting West team adds one).
+    const useDH = home.league === 'east';
+
     // Lineups: vs-LHP lineup when the opposing starter throws left. Each
     // lineup is paired with a parallel positions array so fatigue
     // accumulation (catcher bonus) knows what slot each batter played.
-    const homeWithPos = getLineupWithPositions(home, players, awaySP);
-    const awayWithPos = getLineupWithPositions(away, players, homeSP);
+    // In no-DH games the 9th slot is a pitcher sentinel: players[i] is
+    // null and positions[i] is 'P'; simHalfInning resolves it to the
+    // batting team's current pitcher at each turn through the order.
+    const homeWithPos = getLineupWithPositions(home, players, awaySP, useDH);
+    const awayWithPos = getLineupWithPositions(away, players, homeSP, useDH);
     const homeLineup = homeWithPos.players;
     const awayLineup = awayWithPos.players;
 
@@ -36,12 +47,15 @@ window.BBGM_SIM = (function () {
     // 0-0 teams in late September. Generation-time readiness validation
     // (BBGM_PLAYER_GEN.validateLeagueReadiness) should prevent this from
     // ever firing — but keep the throw so any future regression surfaces.
-    if (!homeSP || !awaySP || homeLineup.length < 8 || awayLineup.length < 8) {
+    // Count only real hitters (the pitcher-spot sentinel is null).
+    const homeHitterCount = homeLineup.filter(Boolean).length;
+    const awayHitterCount = awayLineup.filter(Boolean).length;
+    if (!homeSP || !awaySP || homeHitterCount < 8 || awayHitterCount < 8) {
       const reason = [];
       if (!homeSP) reason.push(`home (${home.abbr}) has no starting pitcher`);
       if (!awaySP) reason.push(`away (${away.abbr}) has no starting pitcher`);
-      if (homeLineup.length < 8) reason.push(`home lineup length ${homeLineup.length} < 8`);
-      if (awayLineup.length < 8) reason.push(`away lineup length ${awayLineup.length} < 8`);
+      if (homeHitterCount < 8) reason.push(`home lineup hitters ${homeHitterCount} < 8`);
+      if (awayHitterCount < 8) reason.push(`away lineup hitters ${awayHitterCount} < 8`);
       const err = new Error(
         `simulateGame: cannot simulate ${away.abbr}@${home.abbr} (${game.gameId}): ${reason.join('; ')}`
       );
@@ -74,7 +88,14 @@ window.BBGM_SIM = (function () {
       },
     };
 
-    // Initialize stat tracking for this game
+    // Initialize stat tracking for this game.
+    // gs(p): a pitcher's PITCHING line / a position player's batting line.
+    // gsBat(p): the batting line for any batter. For position players it's
+    // the same object as gs(p); for pitchers batting (no-DH games) it's a
+    // separate hitter line keyed 'bat:<id>' — pitching and batting stats
+    // share field names (h, bb, k, r, hr) and must never be mixed on one
+    // object. Batting lines persist to season stats under stats[year]
+    // .batting (see the season-update loop below).
     const gameStats = {};
     function gs(p) {
       if (!gameStats[p.id]) {
@@ -82,6 +103,15 @@ window.BBGM_SIM = (function () {
         gameStats[p.id]._playerId = p.id;
       }
       return gameStats[p.id];
+    }
+    function gsBat(p) {
+      if (!p.isPitcher) return gs(p);
+      const key = 'bat:' + p.id;
+      if (!gameStats[key]) {
+        gameStats[key] = S.emptyHitter();
+        gameStats[key]._playerId = p.id;
+      }
+      return gameStats[key];
     }
 
     // Half-innings. Track outs the home and away pitching staffs each
@@ -96,7 +126,7 @@ window.BBGM_SIM = (function () {
     while (inning <= 9 || teamState.home.runs === teamState.away.runs) {
       // Top half (away batting, home pitching)
       const awayBefore = teamState.away.runs;
-      homeOuts += simHalfInning(teamState.away, teamState.home, gs, inning, false, state, gameLog);
+      homeOuts += simHalfInning(teamState.away, teamState.home, gs, gsBat, inning, false, state, gameLog);
       lineScore.away.push(teamState.away.runs - awayBefore);
       // If 9+ and home leading, end before bottom half
       if (inning >= 9 && teamState.home.runs > teamState.away.runs) {
@@ -104,11 +134,23 @@ window.BBGM_SIM = (function () {
       }
       // Bottom half (home batting, away pitching)
       const homeBefore = teamState.home.runs;
-      awayOuts += simHalfInning(teamState.home, teamState.away, gs, inning, true, state, gameLog);
+      awayOuts += simHalfInning(teamState.home, teamState.away, gs, gsBat, inning, true, state, gameLog);
       lineScore.home.push(teamState.home.runs - homeBefore);
       if (inning >= 9 && teamState.home.runs !== teamState.away.runs) break;
       inning++;
-      if (inning > 18) break; // safety cap
+      // No tie games — extras play until decided. The earlier 18-inning
+      // cap silently ended tied games and handed the away team a W (2-3
+      // times per season, measured). This guard exists only to turn a
+      // scoring-logic bug into a loud failure instead of an infinite
+      // loop; reaching inning 50 legitimately is ~(0.5)^40 improbable.
+      if (inning > 50) {
+        const err = new Error(
+          `simulateGame: ${away.abbr}@${home.abbr} (${game.gameId}) still tied after ${inning - 1} innings — aborting`
+        );
+        err.code = 'GAME_UNRESOLVED';
+        err.gameId = game.gameId;
+        throw err;
+      }
     }
 
     // Compute decisions (W/L/SV)
@@ -117,11 +159,13 @@ window.BBGM_SIM = (function () {
     // Hitter games played: every batter who took at least one PA in this
     // game gets G=1 (exactly once per game). With no in-game substitutions
     // yet, the lineup batters who hit are the only candidates. Pitcher G/GS
-    // is set at appearance time inside simHalfInning.
-    for (const pid in gameStats) {
-      const p = players[pid];
-      if (!p || p.isPitcher) continue;
-      const line = gameStats[pid];
+    // is set at appearance time inside simHalfInning; a pitcher's 'bat:'
+    // line gets its own G so the batting sub-line reads correctly.
+    for (const key in gameStats) {
+      const isBatLine = key.startsWith('bat:');
+      const p = players[isBatLine ? key.slice(4) : key];
+      if (!p || (p.isPitcher && !isBatLine)) continue;
+      const line = gameStats[key];
       if ((line.pa || 0) > 0) line.g = 1;
     }
 
@@ -132,14 +176,18 @@ window.BBGM_SIM = (function () {
     const awayBatterStats = [];
     const homePitcherStats = [];
     const awayPitcherStats = [];
-    for (const pid in gameStats) {
+    for (const key in gameStats) {
+      const isBatLine = key.startsWith('bat:');
+      const pid = isBatLine ? key.slice(4) : key;
       const p = players[pid];
       if (!p) continue;
       const isHome = p.teamId === home.id;
-      const bucket = p.isPitcher
+      // A pitcher's 'bat:' line is a batting line (pitchers bat in no-DH
+      // games) — it belongs in the batter buckets so run totals reconcile.
+      const bucket = (p.isPitcher && !isBatLine)
         ? (isHome ? homePitcherStats : awayPitcherStats)
         : (isHome ? homeBatterStats : awayBatterStats);
-      bucket.push(gameStats[pid]);
+      bucket.push(gameStats[key]);
     }
     const validation = S.validateGameStats({
       homeRuns: teamState.home.runs,
@@ -166,15 +214,19 @@ window.BBGM_SIM = (function () {
       if (line._injury) injuriesThisGame.push({ playerId: pid, injury: line._injury });
     }
 
-    // Update player season stats
-    for (const pid in gameStats) {
+    // Update player season stats. Pitcher batting lines ('bat:' keys) go
+    // to the separate stats[year].batting object — field names collide
+    // with pitching stats, so they must never merge onto the same line.
+    for (const key in gameStats) {
+      const isBatLine = key.startsWith('bat:');
+      const pid = isBatLine ? key.slice(4) : key;
       const p = players[pid];
       if (!p) continue;
-      const seasonStats = S.ensureSeason(p, year);
-      const gameLine = gameStats[pid];
+      const gameLine = gameStats[key];
       delete gameLine._playerId;
       delete gameLine._injury;
-      S.addStat(seasonStats, gameLine);
+      const target = isBatLine ? S.ensurePitcherBatting(p, year) : S.ensureSeason(p, year);
+      S.addStat(target, gameLine);
     }
 
     // Fatigue accumulation for position players (bible 10.8). Every batter
@@ -217,10 +269,21 @@ window.BBGM_SIM = (function () {
     //   [pid, ipOuts, h, r, er, bb, k, hr]
     function boxFor(side) {
       const batters = [];
+      const batRow = (pid, s) =>
+        [pid, s.ab || 0, s.r || 0, s.h || 0, s.b2 || 0, s.b3 || 0, s.hr || 0, s.rbi || 0, s.bb || 0, s.k || 0, s.sb || 0];
       for (const p of side.lineup) {
+        if (p === null) {
+          // Pitcher's spot (no-DH game): every pitcher who batted, in
+          // appearance order.
+          for (const pid of side.pitchersUsed) {
+            const s = gameStats['bat:' + pid];
+            if (s) batters.push(batRow(pid, s));
+          }
+          continue;
+        }
         const s = gameStats[p.id];
         if (!s) continue;
-        batters.push([p.id, s.ab || 0, s.r || 0, s.h || 0, s.b2 || 0, s.b3 || 0, s.hr || 0, s.rbi || 0, s.bb || 0, s.k || 0, s.sb || 0]);
+        batters.push(batRow(p.id, s));
       }
       const pitchers = [];
       for (const pid of side.pitchersUsed) {
@@ -290,7 +353,7 @@ window.BBGM_SIM = (function () {
     return (bases[0] ? 1 : 0) | (bases[1] ? 2 : 0) | (bases[2] ? 4 : 0);
   }
 
-  function simHalfInning(off, def, gs, inning, isBottom, state, log) {
+  function simHalfInning(off, def, gs, gsBat, inning, isBottom, state, log) {
     let outs = 0;
     // Walkoff rule: in the bottom of the 9th or later, the game ends the
     // moment the home side takes the lead — the inning does NOT play out to
@@ -304,11 +367,13 @@ window.BBGM_SIM = (function () {
 
     // Charge a scored run: R to the runner's batting line, R+ER to the
     // pitcher who was responsible for putting that runner on base. We assume
-    // all runs are earned until the error system exists.
+    // all runs are earned until the error system exists. gsBat: a scoring
+    // runner may be a pitcher who reached base batting (no-DH games) —
+    // his run belongs on his batting line, not his pitching line.
     function chargeRun(scoredRunner) {
       off.runs++;
       const runnerP = state.players[scoredRunner.playerId];
-      if (runnerP) gs(runnerP).r++;
+      if (runnerP) gsBat(runnerP).r++;
       const respP = state.players[scoredRunner.responsiblePitcherId];
       if (respP) {
         const rs = gs(respP);
@@ -318,7 +383,12 @@ window.BBGM_SIM = (function () {
     }
 
     while (outs < 3) {
-      const batter = off.lineup[off.lineupIdx];
+      // Pitcher's spot (no-DH games): the sentinel resolves to whoever is
+      // currently pitching for the BATTING side. Relievers bat in the
+      // pitcher's slot when it comes up — no pinch-hitting until an
+      // in-game substitution system exists.
+      let batter = off.lineup[off.lineupIdx];
+      if (batter === null) batter = off.currentP;
       off.lineupIdx = (off.lineupIdx + 1) % off.lineup.length;
 
       // Check pitcher fatigue / change
@@ -328,7 +398,7 @@ window.BBGM_SIM = (function () {
       const result = resolveAtBat(batter, pitcher, off.parkFactors, def);
       def.pitchCount += pitchesForPA(result.kind);
 
-      const bs = gs(batter);
+      const bs = gsBat(batter);
       const ps = gs(pitcher);
       bs.pa++;
       ps.bf++;
@@ -345,7 +415,10 @@ window.BBGM_SIM = (function () {
       // system that doesn't exist yet. Day-to-day cases mean the player is
       // listed as questionable starting tomorrow; IL cases also start
       // tomorrow but route through main.js's substitution handler.
-      if (!bs._injury) {
+      // No batting-injury roll for a pitcher at the plate — his injury
+      // exposure is already modeled by the per-BF roll on his pitching
+      // line, and 2-3 extra PAs shouldn't double-dip it.
+      if (!batter.isPitcher && !bs._injury) {
         const hi = INJ().rollForHitter(rand, batter);
         if (hi) bs._injury = hi;
       }
@@ -466,22 +539,23 @@ window.BBGM_SIM = (function () {
       }
 
       // Stolen base attempts after PA (only with R1, no R2 ahead).
+      // Pitchers on base never attempt a steal.
       if (bases[0] && outs < 3 && !bases[1]) {
         const runner = state.players[bases[0].playerId];
-        if (shouldAttemptSB(runner, pitcher, def)) {
+        if (!runner.isPitcher && shouldAttemptSB(runner, pitcher, def)) {
           const sbOuts = outs;
           const sbMask = baseMaskOf(bases);
           const sbResult = resolveSB(runner, pitcher, def);
           if (sbResult === 'safe') {
             bases[1] = bases[0]; bases[0] = null;
-            gs(runner).sb++;
+            gsBat(runner).sb++;
             if (log) logPlay(log, inning, isBottom, runner.id, pitcher.id, sbOuts, sbMask, 'SB', 0, off, def);
           } else {
             // Caught stealing: out credited to current pitcher on the mound.
             bases[0] = null;
             outs++;
             ps.ipOuts = (ps.ipOuts || 0) + 1;
-            gs(runner).cs++;
+            gsBat(runner).cs++;
             if (log) logPlay(log, inning, isBottom, runner.id, pitcher.id, sbOuts, sbMask, 'CS', 0, off, def);
           }
         }
@@ -528,7 +602,8 @@ window.BBGM_SIM = (function () {
   function advanceOnHit(bases, batter, hitType, newRunner) {
     const runs = [];
     const bs = bases.slice();
-    const speed = batter.ratings.speed || 50;
+    // Pitchers batting have no speed rating — treat them as slow (30).
+    const speed = batter.isPitcher ? 30 : (batter.ratings.speed || 50);
     const speedBonus = Math.random() < (speed - 50) / 200;
 
     if (hitType === 1) {
@@ -565,35 +640,45 @@ window.BBGM_SIM = (function () {
   }
 
   function resolveAtBat(batter, pitcher, parkFactors, def) {
-    const r = batter.ratings;
     const p = pitcher.ratings;
-
-    // Use handedness for hitter ratings
     const vsHand = pitcher.throws === 'L' ? 'L' : 'R';
-    let contact = vsHand === 'L' ? r.contactVsL : r.contactVsR;
-    let power = vsHand === 'L' ? r.powerVsL : r.powerVsR;
 
-    // Switch hitter chooses opposite-handed
-    if (batter.bats === 'S') {
-      contact = vsHand === 'L' ? r.contactVsR : r.contactVsL;
-      power = vsHand === 'L' ? r.powerVsR : r.powerVsL;
-    }
+    let contact, power, discipline, batterSpeed;
+    if (batter.isPitcher) {
+      // Pitcher at the plate (Western League / no-DH games, bible 3.1).
+      // Pitchers have no batting ratings — use a canned bottom-of-scale
+      // line plus the kBase bump below. Calibrated to the classic-era
+      // pitcher slash: ~.130 BA, ~35-40% K, ~4-5% BB, near-zero power.
+      contact = 20; power = 20; discipline = 20; batterSpeed = 30;
+    } else {
+      const r = batter.ratings;
+      contact = vsHand === 'L' ? r.contactVsL : r.contactVsR;
+      power = vsHand === 'L' ? r.powerVsL : r.powerVsR;
 
-    // Fatigue penalty (bible 10.8): a tired starter loses a few effective
-    // points off contact and power. Linear ramp past the moderate threshold,
-    // capped so a maxed-out hitter still plays at -6 (not crippling).
-    // Defensive: skip if fatigue module isn't loaded yet (test harnesses,
-    // SW-cache load-order edge cases).
-    const fat = FAT();
-    if (fat) {
-      const fatPenalty = fat.performancePenalty(batter);
-      if (fatPenalty > 0) {
-        contact -= fatPenalty;
-        power -= fatPenalty;
+      // Switch hitter chooses opposite-handed
+      if (batter.bats === 'S') {
+        contact = vsHand === 'L' ? r.contactVsR : r.contactVsL;
+        power = vsHand === 'L' ? r.powerVsR : r.powerVsL;
       }
+
+      // Fatigue penalty (bible 10.8): a tired starter loses a few effective
+      // points off contact and power. Linear ramp past the moderate threshold,
+      // capped so a maxed-out hitter still plays at -6 (not crippling).
+      // Defensive: skip if fatigue module isn't loaded yet (test harnesses,
+      // SW-cache load-order edge cases). Pitchers batting are exempt
+      // (position-player fatigue doesn't apply to them).
+      const fat = FAT();
+      if (fat) {
+        const fatPenalty = fat.performancePenalty(batter);
+        if (fatPenalty > 0) {
+          contact -= fatPenalty;
+          power -= fatPenalty;
+        }
+      }
+      discipline = r.discipline;
+      batterSpeed = r.speed;
     }
 
-    const discipline = r.discipline;
     const stuff = applyFatigue(p.stuff, pitcher, def);
     const control = applyFatigue(p.control, pitcher, def);
     const movement = applyFatigue(p.movement, pitcher, def);
@@ -601,12 +686,15 @@ window.BBGM_SIM = (function () {
 
     // Base rates - calibrated to target league averages.
     // K rate: 17%. Driven by stuff+velocity vs contact+discipline.
-    const kBase = 0.185;
+    // Pitchers batting whiff far beyond what a 20 contact grade alone
+    // produces — the extra bump lands their K% near the historical ~37%.
+    const kBase = batter.isPitcher ? 0.285 : 0.185;
     const kAdj = (grade(stuff) * 0.06) + (grade(velocity) * 0.03) - (grade(contact) * 0.05) - (grade(discipline) * 0.02);
     const kProb = clamp(kBase + kAdj, 0.04, 0.45);
 
-    // BB rate: 9%. Driven by control vs discipline.
-    const bbBase = 0.09;
+    // BB rate: 9%. Driven by control vs discipline. Pitchers batting walk
+    // less than their 20-grade discipline alone implies (~4-5% era rate).
+    const bbBase = batter.isPitcher ? 0.075 : 0.09;
     const bbAdj = -(grade(control) * 0.04) + (grade(discipline) * 0.03);
     const bbProb = clamp(bbBase + bbAdj, 0.02, 0.20);
 
@@ -620,6 +708,9 @@ window.BBGM_SIM = (function () {
     if (roll < kProb + bbProb + hbpProb) return { kind: 'HBP' };
 
     // Ball in play.
+    // Pitchers batting make weak contact beyond what the rating grades
+    // capture — scale their BIP hit chances down to land near .130 BA.
+    const bipHitMul = batter.isPitcher ? 0.82 : 1;
     // Determine batted ball type.
     const battedBallRoll = Math.random();
     const flyRate = clamp(0.34 + grade(power) * 0.04 - grade(movement) * 0.03, 0.22, 0.48);
@@ -646,8 +737,8 @@ window.BBGM_SIM = (function () {
 
     if (bbType === 'ground') {
       // Hit prob target ~ .240 on grounders, modified by speed.
-      let hitProb = 0.235 + grade(r.speed) * 0.04 + grade(contact) * 0.015;
-      hitProb *= parkHitsFactor;
+      let hitProb = 0.235 + grade(batterSpeed) * 0.04 + grade(contact) * 0.015;
+      hitProb *= parkHitsFactor * bipHitMul;
       if (Math.random() < hitProb) {
         if (Math.random() < 0.04 * parkXBHFactor) return { kind: '2B', battedBall: bbType };
         return { kind: '1B', battedBall: bbType };
@@ -658,7 +749,7 @@ window.BBGM_SIM = (function () {
     if (bbType === 'line') {
       // Line drives: target ~ .65 hit rate
       let hitProb = 0.66 + grade(contact) * 0.03;
-      hitProb *= parkHitsFactor;
+      hitProb *= parkHitsFactor * bipHitMul;
       if (Math.random() < hitProb) {
         const ext = Math.random();
         if (ext < 0.22 * parkXBHFactor) return { kind: '2B', battedBall: bbType };
@@ -671,17 +762,21 @@ window.BBGM_SIM = (function () {
 
     if (bbType === 'fly') {
       // Fly balls: HR chance based on power; otherwise mostly outs with some XB.
+      // The 2% floor keeps real hitters honest, but it inflates pitcher
+      // batters (power 20 computes to ~0.4% — the floor quintupled it,
+      // producing ~50 pitcher HR per season instead of a handful).
       const hrBase = 0.10;
       const hrAdj = grade(power) * 0.08;
-      let hrProb = clamp((hrBase + hrAdj) * parkHRFactor, 0.02, 0.50);
+      const hrFloor = batter.isPitcher ? 0.002 : 0.02;
+      let hrProb = clamp((hrBase + hrAdj) * parkHRFactor, hrFloor, 0.50);
       if (Math.random() < hrProb) return { kind: 'HR', battedBall: bbType };
 
-      const xbProb = 0.12 * parkXBHFactor;
+      const xbProb = 0.12 * parkXBHFactor * bipHitMul;
       if (Math.random() < xbProb) {
         if (Math.random() < 0.08) return { kind: '3B', battedBall: bbType };
         return { kind: '2B', battedBall: bbType };
       }
-      const singleProb = 0.07 + grade(contact) * 0.02;
+      const singleProb = (0.07 + grade(contact) * 0.02) * bipHitMul;
       if (Math.random() < singleProb) return { kind: '1B', battedBall: bbType };
       return { kind: 'OUT', battedBall: bbType };
     }
@@ -949,12 +1044,25 @@ window.BBGM_SIM = (function () {
   // (catchers fatigue faster per bible 10.8). The lineup config itself
   // stays unchanged when an injured starter is substituted — the regular
   // slots back in as soon as he's available again.
-  function getLineupWithPositions(team, players, opposingSP) {
+  //
+  // useDH follows the home team's league (bible 3.1). The stored lineup
+  // shape differs by team league (East: 9 slots with a DH; West: 8), so
+  // interleague games reshape here:
+  //  - no-DH game, East team: drop the DH slot; pitcher bats 9th
+  //  - no-DH game, West team: pitcher bats 9th (sentinel appended)
+  //  - DH game, West team: best healthy bench bat is added as DH
+  // The pitcher sentinel is players[i] = null with positions[i] = 'P';
+  // simHalfInning resolves it to the batting side's current pitcher.
+  function getLineupWithPositions(team, players, opposingSP, useDH) {
     const vsLefty = opposingSP && opposingSP.throws === 'L';
     const preferred = vsLefty ? team.lineupLH : team.lineupRH;
     const fallback = vsLefty ? team.lineupRH : team.lineupLH;
-    const lineupSpec = (preferred && preferred.length) ? preferred : fallback;
+    let lineupSpec = (preferred && preferred.length) ? preferred : fallback;
     if (!lineupSpec || !lineupSpec.length) return { players: [], positions: [] };
+
+    // East team playing under no-DH rules: the DH slot disappears (its
+    // occupant is bench/sub-eligible for this game, like real interleague).
+    if (!useDH) lineupSpec = lineupSpec.filter((s) => s.position !== 'DH');
 
     const inj = INJ();
     const used = new Set(lineupSpec.map((s) => s.playerId));
@@ -978,6 +1086,21 @@ window.BBGM_SIM = (function () {
         resultP.push(p);
         resultPos.push(spot.position);
       }
+    }
+
+    if (useDH && !lineupSpec.some((s) => s.position === 'DH')) {
+      // West team playing under DH rules: best healthy bench bat DHs.
+      const dh = findLineupSub(team, players, 'DH', used);
+      if (dh) {
+        used.add(dh.id);
+        resultP.push(dh);
+        resultPos.push('DH');
+      }
+    }
+    if (!useDH) {
+      // Pitcher bats 9th.
+      resultP.push(null);
+      resultPos.push('P');
     }
     return { players: resultP, positions: resultPos };
   }

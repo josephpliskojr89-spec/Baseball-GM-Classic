@@ -12,7 +12,7 @@ window.BBGM_UI_MENU = (function () {
     // Build constant is bumped with every release so the user can tell at a
     // glance which dashboard.js the browser actually loaded. Save version
     // is the save-schema version and changes only when the schema changes.
-    const BUILD = 'phase4-fatigue-1';
+    const BUILD = 'v0.6.0-structural-1';
     card.appendChild(U.el('div', { class: 'inset-list', style: { 'border': 'none' } }, [
       insetRow('Team', userTeam.name),
       insetRow('Date', window.BBGM_DATES.format(state.meta.currentDate)),
@@ -61,8 +61,8 @@ window.BBGM_UI_MENU = (function () {
           actions: [
             { label: 'Cancel', kind: 'secondary', onClick: () => true },
             { label: 'Erase & Restart', kind: 'danger', onClick: () => {
-              window.BBGM_STATE.reset();
-              location.reload();
+              window.BBGM_STATE.reset().then(() => location.reload());
+              return false; // keep modal up until reload
             }},
           ],
         });

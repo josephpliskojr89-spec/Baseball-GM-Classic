@@ -13,24 +13,51 @@ window.BBGM_MAIN = (function () {
       navigator.serviceWorker.register('./service-worker.js').catch(() => {});
     }
 
-    // Check for existing save
-    const hasSave = window.BBGM_STATE.hasSave();
-    document.getElementById('btnLoadGame').disabled = !hasSave;
-    if (!hasSave) {
-      document.getElementById('btnLoadGame').classList.add('hidden');
-    }
+    // Surface persistence failures loudly. A save that silently stops
+    // persisting (quota, private-browsing eviction, IDB corruption) is the
+    // worst failure mode this app has — the user keeps playing and loses
+    // everything on refresh. Toast on every failure, full modal once.
+    let saveErrorModalShown = false;
+    window.BBGM_STATE.onSaveError((err) => {
+      U.showToast('SAVE FAILED — your progress is not being saved.', 'danger', 6000);
+      if (saveErrorModalShown) return;
+      saveErrorModalShown = true;
+      U.showModal({
+        title: 'Save Failure',
+        body: 'The game could not write your save (' + ((err && err.name) || 'unknown error') + '). ' +
+              'Your progress since the last successful save will be lost if you close this page. ' +
+              'Export your save now as a backup, then try freeing storage space or restarting the browser.',
+        actions: [
+          { label: 'Export Save', kind: 'primary', onClick: () => { window.BBGM_STATE.exportToFile(); return true; } },
+          { label: 'OK', kind: 'secondary', onClick: () => true },
+        ],
+      });
+    });
+
+    // Check for existing save (async — IndexedDB). The Continue button
+    // stays hidden until the check confirms a save exists.
+    let saveExists = false;
+    const loadBtn = document.getElementById('btnLoadGame');
+    loadBtn.disabled = true;
+    loadBtn.classList.add('hidden');
+    window.BBGM_STATE.hasSave().then((has) => {
+      saveExists = has;
+      if (has) {
+        loadBtn.disabled = false;
+        loadBtn.classList.remove('hidden');
+      }
+    });
 
     // Wire splash buttons
     document.getElementById('btnNewGame').addEventListener('click', () => {
-      if (hasSave) {
+      if (saveExists) {
         U.showModal({
           title: 'Start a New Game?',
           body: 'You have an existing save. Starting a new game will erase it.',
           actions: [
             { label: 'Cancel', kind: 'secondary', onClick: () => true },
             { label: 'Erase & New', kind: 'danger', onClick: () => {
-              window.BBGM_STATE.reset();
-              startNewGameFlow();
+              window.BBGM_STATE.reset().then(() => startNewGameFlow());
             }},
           ],
         });
@@ -38,10 +65,13 @@ window.BBGM_MAIN = (function () {
         startNewGameFlow();
       }
     });
-    document.getElementById('btnLoadGame').addEventListener('click', () => {
-      const s = window.BBGM_STATE.load();
-      if (s) startGame(s);
-      else U.showToast('No save found.', 'warning');
+    loadBtn.addEventListener('click', () => {
+      window.BBGM_STATE.load().then((s) => {
+        if (s) startGame(s);
+        else U.showToast('No save found.', 'warning');
+      }).catch((e) => {
+        U.showToast('Load failed: ' + e.message, 'danger');
+      });
     });
     document.getElementById('btnImportGame').addEventListener('click', () => {
       const input = document.getElementById('fileImport');
@@ -142,7 +172,7 @@ window.BBGM_MAIN = (function () {
         }
 
         const state = {
-          version: '0.5.1',
+          version: C.VERSION,
           meta: {
             seed,
             created: new Date().toISOString(),
@@ -209,8 +239,7 @@ window.BBGM_MAIN = (function () {
     }
 
     document.getElementById('btnRegenerate').onclick = () => {
-      window.BBGM_STATE.reset();
-      startNewGameFlow();
+      window.BBGM_STATE.reset().then(() => startNewGameFlow());
     };
   }
 
@@ -242,8 +271,8 @@ window.BBGM_MAIN = (function () {
               'Start a new game to use the NABL teams. Your old save will be erased.',
         actions: [
           { label: 'Start New Game', kind: 'danger', onClick: () => {
-            window.BBGM_STATE.reset();
-            location.reload();
+            window.BBGM_STATE.reset().then(() => location.reload());
+            return false; // keep modal up until reload
           }},
         ],
       });
@@ -258,16 +287,28 @@ window.BBGM_MAIN = (function () {
     }
   }
 
+  // Numeric semver comparison: is version a < version b? Plain string
+  // comparison breaks at 0.10.0 ('0.10.0' < '0.3.0' lexicographically),
+  // so components are compared as numbers.
+  function versionLt(a, b) {
+    const pa = String(a).split('.');
+    const pb = String(b).split('.');
+    for (let i = 0; i < 3; i++) {
+      const x = parseInt(pa[i], 10) || 0;
+      const y = parseInt(pb[i], 10) || 0;
+      if (x !== y) return x < y;
+    }
+    return false;
+  }
+
   // Pre-NABL saves either have version < '0.3.0' or contain teams with the
   // legacy 'A' / 'B' league values. Either condition flags the save as
   // unsupported. (This gate supersedes the older broken-schedule check —
   // every pre-0.3.0 save is rejected here before schedule quality matters.)
-  // NOTE: plain string comparison is fine while versions are 0.x.y with
-  // single-digit components; revisit before any 0.10.x release.
   function savePreNABL(state) {
     if (!state || !state.league || !Array.isArray(state.league.teams)) return false;
     const v = state.version || '0.1.0';
-    if (v < '0.3.0') return true;
+    if (versionLt(v, '0.3.0')) return true;
     for (const t of state.league.teams) {
       if (t.league === 'A' || t.league === 'B') return true;
     }
@@ -447,10 +488,11 @@ window.BBGM_MAIN = (function () {
     // Generate news for any noteworthy results
     generateDailyNews(state, today, games);
 
-    // AB-by-AB log retention guard (bible 8.7.1 + localStorage quota).
-    // Full-season logs for every game measured ~6.6MB — enough to blow the
-    // localStorage quota on many phones. Policy: keep AB logs all season
-    // for the user's games, and a rolling 14-day window for AI games.
+    // AB-by-AB log retention guard (bible 8.7.1). Storage moved to
+    // IndexedDB in 0.6.0 so quota is no longer the forcing constraint,
+    // but full-season logs for every game measured ~6.6MB — still worth
+    // pruning for save/export size and load time. Policy: keep AB logs
+    // all season for the user's games, a rolling 14-day window for AI games.
     // Box scores and line scores are kept all season for every game, so
     // historical Game Detail views still render complete box scores; only
     // the at-bat narrative is pruned (the UI shows a "not retained" note).

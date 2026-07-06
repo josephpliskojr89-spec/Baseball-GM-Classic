@@ -1,6 +1,9 @@
 // Game-wide constants
 window.BBGM_CONSTANTS = {
-  VERSION: '0.1.0',
+  // Single source of truth for the app/save version. main.js stamps this
+  // into new saves; index.html's ?v= cache-busters and the service-worker
+  // cache name must be bumped in lockstep (they can't read JS constants).
+  VERSION: '0.6.0',
   START_YEAR: 2026,
   TEAMS_PER_LEAGUE: 15,
   // Two leagues, three divisions each. Internal values are lowercase for

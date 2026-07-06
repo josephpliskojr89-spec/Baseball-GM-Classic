@@ -261,7 +261,10 @@ window.BBGM_UI_GAMES = (function () {
       const p = state.players[pid];
       if (!p) continue;
       totals.ab += ab; totals.r += runs; totals.h += hits; totals.rbi += rbi; totals.bb += bb; totals.k += k;
-      const season = p.stats[state.meta.currentDate.year];
+      // Pitchers batting (no-DH games): season AVG comes from the separate
+      // batting line, never the pitching line (whose h/bb/k mean allowed).
+      const seasonAll = p.stats[state.meta.currentDate.year];
+      const season = p.isPitcher ? (seasonAll && seasonAll.batting) : seasonAll;
       const tr = U.el('tr');
       const extras = [];
       if (b2) extras.push(`${b2}·2B`);

@@ -57,7 +57,7 @@ The project is for personal use. No commercial intent, no app store distribution
 - Injuries and IL management
 - Manager and coach hiring with mechanical effects
 - Awards and Hall of Fame
-- Save/load via localStorage with file export/import
+- Save/load via IndexedDB with file export/import
 
 **Out of scope (initial build):**
 - Multiplayer or online features
@@ -94,7 +94,7 @@ Sessions accommodate both 30-second (advance a day, glance at standings) and 30-
 - Mobile performance better without framework overhead
 - AI-assisted code generation stays consistent without framework abstractions
 
-**Storage:** Browser localStorage. Save format JSON. Export/import via downloaded `.json` for backup and cross-device transfer.
+**Storage:** Browser IndexedDB (moved from localStorage in 0.6.0 — a measured end-of-season save was ~5 MB, right at the localStorage quota on many phones; IndexedDB stores the state object via structured clone with a far larger quota). Legacy localStorage saves migrate automatically on first load. Save failures surface to the user immediately (toast + export-prompt modal) — persistence must never fail silently. Export/import via downloaded `.json` for backup and cross-device transfer.
 
 **Hosting:** Static site, deployable to GitHub Pages, Netlify, or Cloudflare Pages. No server-side code, no database, no API calls during play.
 
@@ -150,7 +150,7 @@ Sessions accommodate both 30-second (advance a day, glance at standings) and 30-
 
 ### 2.3 Data Architecture
 
-Entire game state held as one JavaScript object in memory, persisted to localStorage:
+Entire game state held as one JavaScript object in memory, persisted to IndexedDB:
 
 ```
 {
@@ -169,7 +169,7 @@ Entire game state held as one JavaScript object in memory, persisted to localSto
 
 **ID system:** Every player, team, prospect, staff member has unique ID. References use IDs, not nested objects. Lookups via helpers (`getPlayer(id)`, `getTeam(id)`).
 
-**Save size:** Target under 5MB for a 10-year save (within mobile localStorage limits). Achieved by storing season totals (not game-by-game), pruning old detailed data, compact representations.
+**Save size:** Target under ~10MB for a 10-year save (IndexedDB quota is generous, but export files and load times still reward restraint). Achieved by storing season totals (not game-by-game), pruning old detailed data, compact representations.
 
 ### 2.4 Save/Load System
 
@@ -211,10 +211,13 @@ Entire game state held as one JavaScript object in memory, persisted to localSto
 
 30 teams in 2 leagues of 15. Each league: 3 divisions of 5.
 
-- **Conference A** (functionally American League — uses DH)
-- **Conference B** (functionally National League — no DH by default; tunable)
+- **Eastern League** (functionally American League — uses DH)
+- **Western League** (functionally National League — pitchers bat 9th; no DH)
 
-Three divisions per league: East / Central / West. Interleague games use home league's DH rules.
+Interleague games use the home league's DH rules — this is implemented (as of 0.6.0):
+- In a Western park, both teams' pitchers bat 9th. A visiting Eastern team drops its DH slot for the game (the DH player is bench/substitution-eligible).
+- In an Eastern park, a visiting Western team slots its best available bench bat at DH.
+- Pitchers batting use a fixed weak batting profile (~.130 BA, ~35-40% K, minimal walks/power — classic-era pitcher hitting). Their batting stats accumulate on a separate `stats[year].batting` line, never mixed with pitching stats. No pinch-hitting for the pitcher until an in-game substitution system exists — relievers bat when the spot comes up.
 
 ### 3.2 Schedule
 
@@ -1632,7 +1635,7 @@ Storage minimization:
 
 Total season-stat storage per player per year: roughly 200 bytes. Across 2,250 players × 1 year = ~450KB. After 10 years: ~4.5MB just for current player season-by-season stats. Plus retired player career stats add another 1-2MB depending on length.
 
-This is at the edge of mobile localStorage comfort but achievable. If saves get tight, we can compress retired player stats further.
+With IndexedDB storage (0.6.0) this is comfortably inside quota; the budget now protects export-file size and load time. If saves get tight, we can compress retired player stats further.
 
 #### 8.7.1 AB-by-AB Game Log Retention
 
@@ -1650,9 +1653,9 @@ What's discarded at season rollover:
 - Per-game player stat lines (already not retained per the rule above)
 - Per-inning line scores (kept only as long as the parent game's log is kept)
 
-**Storage envelope (measured).** A typical season has ~2,430 games × ~75 PA per game = ~180,000 AB log entries. Implemented as compact arrays on `game.result.gameLog`, a full season of logs measured ~6.6 MB, pushing the total save to ~11 MB — enough to blow the localStorage quota on many phones.
+**Storage envelope (measured).** A typical season has ~2,430 games × ~75 PA per game = ~180,000 AB log entries. Implemented as compact arrays on `game.result.gameLog`, a full season of logs measured ~6.6 MB, pushing the total save to ~11 MB. (Storage moved to IndexedDB in 0.6.0 so this no longer risks blowing a quota, but the retention policy below stays — it keeps export files and load times reasonable.)
 
-**In-season retention guard.** To stay inside the bible 2.3 save budget (<5 MB), AB logs follow a two-tier in-season retention policy, applied daily by the sim loop:
+**In-season retention guard.** To stay inside the bible 2.3 save budget, AB logs follow a two-tier in-season retention policy, applied daily by the sim loop:
 
 - **User-team games:** AB log retained for the entire season (all 162 games).
 - **AI-vs-AI games:** AB log retained for a rolling 14-day window, then pruned.
@@ -1920,6 +1923,8 @@ The user (or AI for non-user teams) decides how to fill the roster spot during t
 When the IL stint ends, the user must activate the player (or DFA them, but that's rare). Activation requires removing someone from the active roster.
 
 **Rehab assignments** for major injuries: A player coming off a long IL stint may be sent to AAA on a rehab assignment for 5-15 games before activation. This is automatic and adds realism.
+
+**Recovery clocks and the offseason (Phase 15 requirement).** Injury recovery is implemented as a per-simulated-day countdown (`ilStatus.daysRemaining` / `dayToDayDaysRemaining`), and the sim only advances ~185 days per year (Opening Day through late September). Long injuries — Tommy John at 365-540 days — must heal on *calendar* time, not sim-day time, or a TJ takes 2-3 in-game seasons instead of 14-18 months. When season rollover (Phase 15, per 21.16) jumps the calendar from season end to the next Opening Day, it MUST fast-forward every player's recovery clock by the number of calendar days skipped. The same applies to any future date-driven countdown (suspensions, rehab windows).
 
 ### 10.6 Career-Altering Injury Narrative
 
@@ -3841,6 +3846,10 @@ This approach is essential for AI-assisted coding: each phase keeps complexity m
   - Verify the Game Detail view's "Detailed log not retained for
     prior seasons" empty state renders correctly for any historical
     game after rollover
+  - Fast-forward every injury recovery clock (`ilStatus.daysRemaining`,
+    `dayToDayDaysRemaining`) by the calendar days the rollover skips,
+    so long injuries heal on calendar time (per 10.5 — without this a
+    Tommy John takes 2-3 in-game seasons instead of 14-18 months)
 
 **End-of-phase test:**
 - Full offseason flows correctly

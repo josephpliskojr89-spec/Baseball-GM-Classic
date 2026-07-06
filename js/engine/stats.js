@@ -7,6 +7,15 @@ window.BBGM_STATS = (function () {
     return player.stats[year];
   }
 
+  // Pitchers bat in no-DH games (bible 3.1). Their batting stats live on a
+  // nested stats[year].batting object — pitching and batting lines share
+  // field names (h, bb, k, r, hr), so they can never merge onto one object.
+  function ensurePitcherBatting(player, year) {
+    const s = ensureSeason(player, year);
+    if (!s.batting) s.batting = emptyHitter();
+    return s.batting;
+  }
+
   function emptyHitter() {
     return {
       g: 0, ab: 0, pa: 0, h: 0, b2: 0, b3: 0, hr: 0,
@@ -79,7 +88,13 @@ window.BBGM_STATS = (function () {
     const total = emptyHitter();
     for (const id of team.roster) {
       const p = players[id];
-      if (!p || p.isPitcher) continue;
+      if (!p) continue;
+      if (p.isPitcher) {
+        // Pitcher batting lines (no-DH games) count toward team hitting.
+        const s = p.stats[year];
+        if (s && s.batting) addStat(total, s.batting);
+        continue;
+      }
       const s = p.stats[year];
       if (s) addStat(total, s);
     }
@@ -166,7 +181,7 @@ window.BBGM_STATS = (function () {
   }
 
   return {
-    ensureSeason, emptyHitter, emptyPitcher,
+    ensureSeason, ensurePitcherBatting, emptyHitter, emptyPitcher,
     avg, obp, slg, ops, tb,
     era, whip, k9, bb9, hr9,
     fmtAvg, fmtIP, addStat,

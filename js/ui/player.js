@@ -72,6 +72,11 @@ window.BBGM_UI_PLAYER = (function () {
     body.appendChild(U.el('div', { class: 'card-title' }, `${year} Stats`));
     if (p.isPitcher) {
       body.appendChild(pitcherStatGrid(s));
+      // Batting line from no-DH games (Western League parks).
+      if (s && s.batting && s.batting.pa > 0) {
+        body.appendChild(U.el('div', { class: 'card-title', style: { 'margin-top': '16px' } }, 'Batting'));
+        body.appendChild(hitterStatGrid(s.batting));
+      }
     } else {
       body.appendChild(hitterStatGrid(s));
     }

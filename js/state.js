@@ -1,12 +1,106 @@
-// State management: in-memory game state plus localStorage persistence.
+// State management: in-memory game state plus IndexedDB persistence.
+//
+// Storage moved from localStorage to IndexedDB in 0.6.0. A measured
+// end-of-season save is ~5 MB — right at the classic localStorage quota —
+// and multi-season saves only grow. IndexedDB stores the state object via
+// structured clone (no 5 MB string, far larger quota). Saves created under
+// the old localStorage key are migrated transparently on first load.
+//
+// The persistence API is asynchronous: load(), hasSave(), reset(), and
+// saveNow() return Promises. Save failures are surfaced through the
+// onSaveError handler (main.js shows the user a loud warning) instead of
+// being silently console.warn'd — a save that stops persisting mid-season
+// must never look like everything is fine.
 window.BBGM_STATE = (function () {
-  const STORAGE_KEY = 'bbgm-classic-save-v1';
+  const DB_NAME = 'bbgm-classic';
+  const DB_VERSION = 1;
+  const STORE = 'saves';
+  const SAVE_KEY = 'main';
+  // Pre-0.6.0 localStorage key. Read once for migration, then removed.
+  const LEGACY_STORAGE_KEY = 'bbgm-classic-save-v1';
 
   let state = null;
   let saveTimer = null;
   let saveBlocked = false;
+  let saveErrorHandler = null;
   const subscribers = new Set();
 
+  // ---- IndexedDB plumbing ----
+  let dbPromise = null;
+  function openDB() {
+    if (dbPromise) return dbPromise;
+    dbPromise = new Promise((resolve, reject) => {
+      if (!('indexedDB' in window)) {
+        reject(new Error('IndexedDB not available in this browser'));
+        return;
+      }
+      const req = indexedDB.open(DB_NAME, DB_VERSION);
+      req.onupgradeneeded = () => {
+        if (!req.result.objectStoreNames.contains(STORE)) {
+          req.result.createObjectStore(STORE);
+        }
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error || new Error('IndexedDB open failed'));
+      req.onblocked = () => reject(new Error('IndexedDB open blocked'));
+    });
+    // Allow a retry on the next call if opening failed.
+    dbPromise.catch(() => { dbPromise = null; });
+    return dbPromise;
+  }
+
+  function idbPut(value) {
+    return openDB().then((db) => new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE, 'readwrite');
+      tx.objectStore(STORE).put(value, SAVE_KEY);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error || new Error('IndexedDB write failed'));
+      tx.onabort = () => reject(tx.error || new Error('IndexedDB write aborted'));
+    }));
+  }
+
+  function idbGet() {
+    return openDB().then((db) => new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE, 'readonly');
+      const req = tx.objectStore(STORE).get(SAVE_KEY);
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => reject(req.error || new Error('IndexedDB read failed'));
+    }));
+  }
+
+  function idbHasKey() {
+    return openDB().then((db) => new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE, 'readonly');
+      const req = tx.objectStore(STORE).getKey(SAVE_KEY);
+      req.onsuccess = () => resolve(req.result !== undefined);
+      req.onerror = () => reject(req.error || new Error('IndexedDB read failed'));
+    }));
+  }
+
+  function idbDelete() {
+    return openDB().then((db) => new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE, 'readwrite');
+      tx.objectStore(STORE).delete(SAVE_KEY);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error || new Error('IndexedDB delete failed'));
+      tx.onabort = () => reject(tx.error || new Error('IndexedDB delete aborted'));
+    }));
+  }
+
+  function readLegacySave() {
+    try {
+      const raw = localStorage.getItem(LEGACY_STORAGE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function clearLegacySave() {
+    try { localStorage.removeItem(LEGACY_STORAGE_KEY); } catch (e) {}
+  }
+
+  // ---- Public API ----
   function get() {
     return state;
   }
@@ -19,8 +113,11 @@ window.BBGM_STATE = (function () {
 
   function reset() {
     state = null;
-    try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
+    clearLegacySave();
     notify();
+    return idbDelete().catch((e) => {
+      console.error('Reset: failed to delete IndexedDB save:', e);
+    });
   }
 
   function subscribe(fn) {
@@ -45,32 +142,54 @@ window.BBGM_STATE = (function () {
     if (!b) queueSave();
   }
 
-  function saveNow() {
-    if (!state) return;
-    try {
-      const json = JSON.stringify(state);
-      localStorage.setItem(STORAGE_KEY, json);
-    } catch (e) {
-      console.warn('Save failed:', e);
-    }
+  // Register a handler invoked whenever a persistence write fails.
+  function onSaveError(fn) {
+    saveErrorHandler = fn;
   }
 
+  function saveNow() {
+    if (!state) return Promise.resolve();
+    return idbPut(state).catch((e) => {
+      console.error('Save failed:', e);
+      if (saveErrorHandler) {
+        try { saveErrorHandler(e); } catch (err) { console.error(err); }
+      }
+    });
+  }
+
+  // Loads the save from IndexedDB. Falls back to (and migrates) a legacy
+  // localStorage save if IndexedDB has none. Resolves to the state object
+  // or null when no save exists.
   function load() {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (!raw) return null;
-      state = JSON.parse(raw);
-      return state;
-    } catch (e) {
-      console.warn('Load failed:', e);
-      return null;
-    }
+    return idbGet()
+      .catch((e) => {
+        console.warn('IndexedDB load failed, checking legacy save:', e);
+        return null;
+      })
+      .then((saved) => {
+        if (saved) {
+          state = saved;
+          return state;
+        }
+        const legacy = readLegacySave();
+        if (!legacy) return null;
+        state = legacy;
+        // Migrate: write to IndexedDB, then clear the localStorage copy to
+        // free its quota. Keep the legacy copy if the write fails so the
+        // user can't lose the save to a botched migration.
+        return idbPut(legacy)
+          .then(() => { clearLegacySave(); return state; })
+          .catch((e) => {
+            console.error('Legacy save migration to IndexedDB failed:', e);
+            return state;
+          });
+      });
   }
 
   function hasSave() {
-    try {
-      return !!localStorage.getItem(STORAGE_KEY);
-    } catch (e) { return false; }
+    return idbHasKey()
+      .catch(() => false)
+      .then((has) => has || !!readLegacySave());
   }
 
   function exportToFile() {
@@ -96,8 +215,12 @@ window.BBGM_STATE = (function () {
             reject(new Error('File does not look like a Baseball GM Classic save.'));
             return;
           }
-          set(obj);
-          resolve(obj);
+          state = obj;
+          notify();
+          // Persist BEFORE resolving: menu.js reloads the page on success,
+          // and resolving on the debounced save path would race the reload
+          // and load the previous save.
+          idbPut(obj).then(() => resolve(obj)).catch(reject);
         } catch (e) { reject(e); }
       };
       reader.onerror = () => reject(reader.error);
@@ -121,7 +244,7 @@ window.BBGM_STATE = (function () {
 
   return {
     get, set, reset, subscribe, saveNow, load, hasSave,
-    exportToFile, importFromFile, setSaveBlocked,
+    exportToFile, importFromFile, setSaveBlocked, onSaveError,
     getPlayer, getTeam, userTeam,
   };
 })();
