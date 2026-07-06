@@ -177,6 +177,13 @@ window.BBGM_STATS = (function () {
     for (const s of homePitcherStats) checkNonNeg('homePitcher', s);
     for (const s of awayPitcherStats) checkNonNeg('awayPitcher', s);
 
+    // Earned runs can never exceed runs allowed (unearned-run accounting).
+    for (const [label, arr] of [['homePitcher', homePitcherStats], ['awayPitcher', awayPitcherStats]]) {
+      for (const s of arr) {
+        if ((s.er || 0) > (s.r || 0)) issues.push(`${label} er ${s.er} > r ${s.r}`);
+      }
+    }
+
     return { ok: issues.length === 0, issues };
   }
 

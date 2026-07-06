@@ -1175,6 +1175,10 @@ The engine is tuned to produce these league averages (modeled on roughly 1998-20
 
 Calibration step: After engine implementation, simulate 10,000 games with average rosters and verify these averages emerge. Tune until they do.
 
+**Measured calibration (0.7.0, tools/season_harness.js, full-season runs):** BA .263-.265 / OBP .335-.336 / SLG .419-.423 (league-wide including pitcher hitting; position players alone run ~.271/.344/.434), K% 16.6-17.0, BB% ~9.2, HR% 2.8-2.9, R/G 4.66-4.70, SB attempts ~150/team at 73-74% success, GIDP ~145/team, errors ~105/team.
+
+**Note on ERA and WHIP targets.** The 4.20 ERA and 1.32 WHIP figures above are internally inconsistent with the batting targets: a .265/.340 league scoring 4.7 R/G with realistic unearned-run accounting (~6-8% of runs) produces ERA ≈ 4.4 and WHIP ≈ 1.44 — which is what real 1999-2001 MLB actually posted (2000: .270 BA, 4.77 ERA, 1.47 WHIP). The engine follows the batting targets and honest accounting; treat measured ERA ~4.4 / WHIP ~1.44 as correct rather than re-tuning toward 4.20/1.32.
+
 ### 7.3 At-Bat Resolution
 
 Every at-bat is resolved through a sequence of probabilistic decisions:
@@ -1369,6 +1373,19 @@ Starter stamina and pull logic directly control bullpen usage.
 
 Pitcher stamina tuning must be validated by checking full-season starter IP/start, reliever appearances, saves, and complete-game frequency together — not in isolation. Per-tier behaviour is the contract: a 35-stamina LOOGY pulling multi-inning bridge work is a tuning failure, even if league averages happen to look OK.
 
+**Reliever rest (implemented, 0.7.0).** Between-game fatigue exists for relievers: an arm that has pitched three consecutive days is unavailable (except as a depleted-pen last resort), and an arm that worked yesterday is picked last within his role and pitches on a ~35% shorter leash. Appearance dates and consecutive-day counts are stamped on the player after each game.
+
+#### 7.4.8 Pitcher Decisions (W / L / SV / HLD / BS)
+
+Decisions follow the official scoring rules, simplified:
+
+- **Win (9.17):** the pitcher of record — whoever was pitching for the winning team when it took the lead for the last time. A starter must complete 5 innings; otherwise the win goes to the winning team's most effective reliever (most outs recorded, fewest runs allowed as tiebreak).
+- **Loss (9.18):** the pitcher responsible for the decisive go-ahead run (inherited runners charge the pitcher who put them on base).
+- **Save (9.19):** the winning team's final pitcher, if he isn't the winning pitcher and either entered protecting a 1-3 run lead and recorded 1+ inning, or pitched 3+ innings with the lead. Final margin is not the test — a closer who enters +2 and wins 7-4 after his team tacks on still earns the save.
+- **Hold / blown save:** entered protecting a 1-3 run lead; left with it intact and an out recorded → HLD (never for the W or SV pitcher); left with the lead gone → BS.
+
+Measured: closers ~27-29 SV and ~2-3 W per season; relievers earn ~33% of wins — both in line with the classic era.
+
 #### 7.4.7 Validation Targets
 
 After a full-season simulation, the engine should produce:
@@ -1421,6 +1438,16 @@ Defense affects:
 - **Caught stealing:** Catcher arm + accuracy drives CS%
 
 The engine tracks both fielding chances and conversion rates by position. Errors are randomly distributed within fielding chances, weighted by the fielder's rating.
+
+**Implementation note (0.7.0 — team-level approximation).** Per-fielder chance attribution doesn't exist yet; the engine uses the lineup's average defense rating:
+
+- **Range:** BIP hit probabilities scale ± a few percent with team defense.
+- **Errors:** ~3% of would-be outs become reached-on-error (batter safe, runners advance one base, AB but no hit, no out), scaled by team defense; ~105 errors per team per season measured. Line scores show R/H/E.
+- **Unearned runs:** a run is unearned if the scoring runner reached on an error, scored on the error play, or scored after a two-out error extended the inning (~6% of runs; full official earned-run reconstruction is out of scope).
+- **Double plays:** GIDP requires a ground ball with a runner on first and fewer than two outs; conversion scales with team defense (~145 GIDP/team measured).
+- **Caught stealing:** catcher arm drives CS% (already per-player).
+
+Per-position attribution (individual E totals, fielding percentage) ships with position-specific defense in a later phase.
 
 ### 7.7 Park Factor Application
 
@@ -1872,11 +1899,13 @@ When an injury hits, severity is rolled:
 
 **Day-to-day (50% of injuries):** 1-3 day absence. Player listed as questionable but not on IL. No roster move needed. Minor strains, bruises, fatigue.
 
-**10-day IL (25%):** 10-15 days out. Player goes on 10-day IL; team activates a 40-man player to fill the spot. Mild strains, low-grade sprains, blister issues for pitchers.
+**10-day IL (22%):** 10-15 days out. Player goes on 10-day IL; team activates a 40-man player to fill the spot. Mild strains, low-grade sprains, blister issues for pitchers.
 
-**15-day IL (10% — pitcher-specific tier):** Pitcher version of short IL. Common for arm fatigue, blisters, minor inflammation.
+**15-day IL (8% — pitcher-specific tier):** Pitcher version of short IL. Common for arm fatigue, blisters, minor inflammation.
 
-**60-day IL (12%):** Two-month-plus absence. Significant injury — moderate strains, fractures, surgeries-with-recovery. Requires 40-man roster move (player removed from 40-man during IL stint).
+**Multi-week (8%):** 25-45 days out on the 10-day IL — the 3-6 week class (grade-2 strains, minor fractures, moderate sprains) that's the most common serious-injury class in real baseball. Added in 0.7.0; earlier drafts had no severity between 21 and 60 days.
+
+**60-day IL (9%):** Two-month-plus absence. Significant injury — moderate strains, fractures, surgeries-with-recovery. Requires 40-man roster move (player removed from 40-man during IL stint).
 
 **Season-ending (3%):** Player out for the year. Major surgery, ACL, Tommy John, severe fractures. Player on 60-day IL but won't return this season.
 
@@ -1950,7 +1979,11 @@ Calibration happens after engine implementation by simulating multi-season runs 
 
 **Note on the stint-count target.** Earlier drafts of this section listed ~500-550 stints, but that figure can't reconcile with the percentage targets above — at ~130 players going on IL across the league, ~500 stints would require an average of nearly four IL stints per IL'd player per year, which doesn't happen even in injury-plagued MLB seasons. The percentage targets (which describe what the user actually experiences) are authoritative; the stint count was revised to ~150-200 to match (≈1.2 stints per IL'd player). MLB has run anywhere from 700+ stints in recent years down to a few hundred in earlier eras, so this number stays a soft guidepost.
 
-**Note on career-altering rate (10.3).** §10.3 describes career-altering events as "~0.5% of severe injuries" but that produces well under 1 per season at the calibrated stint volume. To hit the 3-8 target above, the implementation uses ~5% of severe stints as the career-altering coefficient. Treat the 0.5% figure in 10.3 as the discarded simpler version.
+**Note on career-altering rate (10.3).** §10.3 describes career-altering events as "~0.5% of severe injuries" but that produces well under 1 per season at the calibrated stint volume. To hit the 3-8 target above, the implementation uses ~10% of severe stints as the career-altering coefficient (measured: 4-7 per season). Treat the 0.5% figure in 10.3 as the discarded simpler version.
+
+**Note on Tommy John share.** UCL tears are down-weighted in the pitcher injury-type catalog (weight 0.75 vs 1.0 for other types). At a uniform share, every-UCL-is-season-ending made TJ counts run above the 15-25 target; the calibrated weight lands 14-20 per season.
+
+**Measured calibration (0.7.0, tools/season_harness.js):** ~155-170 IL stints per season, TJ 14-17, career-altering 4-7, 21% of pitchers and ~17% of position players with an IL stint — all within the targets above.
 
 ### 10.8 Position-Player Fatigue and Stamina
 
@@ -1977,6 +2010,8 @@ Fatigue should create natural rest pressure, bench usage, and injury risk withou
 > "Vance Shepherd is fatigued. Suggested rest: 1 day."
 
 Surfaced as a soft notification on the dashboard or roster screen — never a blocking modal. Users who ignore it accept the elevated injury risk.
+
+**Auto-rest (implemented, 0.7.0).** The engine gives rest days automatically, for every team including the user's: a starter whose fatigue crosses the critical threshold sits for the day, replaced by the best fresh bench bat eligible for his slot, and returns to his lineup spot as soon as he's recovered below the threshold. If the whole bench is also gassed (or nobody covers the position), the regular plays tired. This is what makes the "no micromanagement" promise real — before auto-rest existed, static lineups played all 162 games, and every starting catcher and 33+ regular saturated at maximum fatigue by June (measured median season-peak of 97-98/100; with auto-rest it's ~91, brushing the threshold then resting). The soft notification still fires so the user understands why their catcher sat.
 
 **Phase dependency:**
 

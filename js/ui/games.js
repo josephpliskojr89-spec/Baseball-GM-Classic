@@ -223,12 +223,13 @@ window.BBGM_UI_GAMES = (function () {
     for (let i = 1; i <= innings; i++) trh.appendChild(U.el('th', {}, String(i)));
     trh.appendChild(U.el('th', {}, 'R'));
     trh.appendChild(U.el('th', {}, 'H'));
+    trh.appendChild(U.el('th', {}, 'E'));
     thead.appendChild(trh);
     table.appendChild(thead);
     const tbody = U.el('tbody');
-    for (const [team, line, runs, hits] of [
-      [away, r.lineScore.away, r.awayRuns, r.awayHits],
-      [home, r.lineScore.home, r.homeRuns, r.homeHits],
+    for (const [team, line, runs, hits, errors] of [
+      [away, r.lineScore.away, r.awayRuns, r.awayHits, r.awayErrors],
+      [home, r.lineScore.home, r.homeRuns, r.homeHits, r.homeErrors],
     ]) {
       const tr = U.el('tr');
       tr.appendChild(U.el('td', {}, team.abbr));
@@ -237,6 +238,8 @@ window.BBGM_UI_GAMES = (function () {
       }
       tr.appendChild(U.el('td', { style: { 'font-weight': '700' } }, String(runs)));
       tr.appendChild(U.el('td', {}, String(hits != null ? hits : '—')));
+      // Pre-0.7 games have no error counts — show a dash, not 0.
+      tr.appendChild(U.el('td', {}, errors != null ? String(errors) : '—'));
       tbody.appendChild(tr);
     }
     table.appendChild(tbody);
@@ -335,7 +338,7 @@ window.BBGM_UI_GAMES = (function () {
     '1B': 'Single', '2B': 'Double', '3B': 'Triple', 'HR': 'Home Run',
     'BB': 'Walk', 'HBP': 'Hit by Pitch', 'K': 'Strikeout', 'OUT': 'Out',
     'SF': 'Sacrifice Fly', 'GIDP': 'Grounded into Double Play',
-    'SB': 'Stolen Base', 'CS': 'Caught Stealing',
+    'SB': 'Stolen Base', 'CS': 'Caught Stealing', 'E': 'Reached on Error',
   };
 
   function buildGameLog(state, r, away, home) {

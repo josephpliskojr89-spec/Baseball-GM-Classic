@@ -12,6 +12,10 @@ window.BBGM_INJURIES = (function () {
   // Some types are constrained to particular severity buckets — e.g. UCL
   // tears are always season-ending (Tommy John), blisters are always
   // day-to-day. Most types span the standard 5-tier distribution.
+  // Types carry a pick weight (default 1). UCL tears are down-weighted:
+  // at a uniform 1/8 share they produced ~26 Tommy Johns per season vs the
+  // 10.7 target of 15-25 (every UCL tear is season-ending, so its share
+  // punches above its weight in severe-injury volume).
   const HITTER_TYPES = [
     { name: 'Hamstring strain' },
     { name: 'Quad strain' },
@@ -26,7 +30,7 @@ window.BBGM_INJURIES = (function () {
   const PITCHER_TYPES = [
     { name: 'Shoulder inflammation' },
     { name: 'Elbow inflammation' },
-    { name: 'UCL tear', fixedSeverity: 'season-ending', daysOverride: [365, 540] }, // Tommy John
+    { name: 'UCL tear', weight: 0.75, fixedSeverity: 'season-ending', daysOverride: [365, 540] }, // Tommy John
     { name: 'Forearm strain' },
     { name: 'Lat strain' },
     { name: 'Oblique strain' },
@@ -36,19 +40,22 @@ window.BBGM_INJURIES = (function () {
 
   // ---- Severity tiers (bible 10.3) ----
   // Weights are the share OF AN INJURY, not the share of all PAs.
+  // The multi-week band fills the previously-missing 3-6 week class (a
+  // player goes on the 10-day IL but stays out 25-45 days) — the most
+  // common serious-injury class in real baseball.
   const SEVERITY = [
     { kind: 'day-to-day',    weight: 50, daysRange: [1, 3],   ilType: null     },
-    { kind: '10-day',        weight: 25, daysRange: [10, 15], ilType: '10-day' },
-    { kind: '15-day',        weight: 10, daysRange: [15, 21], ilType: '15-day' }, // pitchers only
-    { kind: '60-day',        weight: 12, daysRange: [60, 90], ilType: '60-day' },
+    { kind: '10-day',        weight: 22, daysRange: [10, 15], ilType: '10-day' },
+    { kind: '15-day',        weight:  8, daysRange: [15, 21], ilType: '15-day' }, // pitchers only
+    { kind: 'multi-week',    weight:  8, daysRange: [25, 45], ilType: '10-day' },
+    { kind: '60-day',        weight:  9, daysRange: [60, 90], ilType: '60-day' },
     { kind: 'season-ending', weight:  3, daysRange: [120, 365], ilType: '60-day' },
   ];
   // Career-altering injuries land on top of severe (60-day or season-ending)
-  // stints. Bible 10.3 reads "~0.5% of severe injuries" but 10.7 wants 3-8
-  // per season — and a season typically produces ~75 severe stints. 5%
-  // hits the 10.7 target (3-4 per season); 10.3's number is the discarded
-  // simpler version.
-  const CAREER_ALTERING_RATE = 0.05;
+  // stints. Bible 10.3's "~0.5% of severe injuries" produces well under 1
+  // per season; 10.7 wants 3-8. A season produces ~50-65 severe stints, so
+  // 10% lands mid-target (~5-6 per season).
+  const CAREER_ALTERING_RATE = 0.10;
 
   // ---- Per-event injury probabilities ----
   // Bible 10.1 targets ~20% of pitchers and ~15% of position players with
@@ -61,16 +68,16 @@ window.BBGM_INJURIES = (function () {
   // For a pitcher: appearances vary (SP ~30, RP ~60). We use a per-BF rate
   // and let workload do the rest. Pitcher rolls happen on the pitcher's
   // line, position-player rolls on the batter's line.
-  // Hitter rate calibrated to ~15% season IL incidence at 600 PA. With
-  // the fatigue system live (bible 10.8), the per-PA prob is scaled down
-  // because fatigued starters take a 1.0x–2.5x risk multiplier on top —
-  // so the BASE rate has to come down or league incidence runs hot.
-  // Pitcher rate scaled for the mix of SP (~600 BF) and RP (~200 BF) to
-  // land around 20% IL incidence per the bible target (no fatigue
+  // Hitter rate calibrated empirically (tools/season_harness.js): the old
+  // 0.00020 produced only ~6-8% of position players with an IL stint per
+  // season vs the 15% bible target — the fatigue multiplier it assumed
+  // would make up the gap only fires above 80 fatigue, which auto-rest
+  // (10.8) now largely prevents. Pitcher rate is per batter faced, mixing
+  // SP (~750 BF) and RP (~250 BF) to land ~20% IL incidence (no fatigue
   // multiplier on pitchers — their fatigue lives in the per-pitch decay
   // model in 7.4).
-  const BASE_PA_INJURY_PROB     = 0.00020; // position players (per PA)
-  const BASE_PITCH_INJURY_PROB  = 0.00068; // pitchers (per batter faced)
+  const BASE_PA_INJURY_PROB     = 0.00052; // position players (per PA)
+  const BASE_PITCH_INJURY_PROB  = 0.00074; // pitchers (per batter faced)
 
   // Injury-proneness multiplier (1-10, default ~5 → 1.0x). Bible 10.2.
   function pronenessMul(proneness) {
@@ -101,7 +108,7 @@ window.BBGM_INJURIES = (function () {
 
   function buildInjury(rng, player, isPitcherInjury) {
     const catalog = isPitcherInjury ? PITCHER_TYPES : HITTER_TYPES;
-    const type = catalog[Math.floor(rng() * catalog.length)];
+    const type = pickWeightedType(rng, catalog);
 
     // Severity: type-constrained or weighted distribution. Pitcher-only
     // 15-day rolls become 10-day when picked for a hitter.
@@ -134,9 +141,10 @@ window.BBGM_INJURIES = (function () {
   function pickSeverity(rng, isPitcherInjury) {
     // Drop the 15-day bucket for hitters by redistributing its weight to
     // the 10-day bucket.
+    const fifteenDayWeight = SEVERITY.find((s) => s.kind === '15-day').weight;
     const tiers = SEVERITY.filter((s) => isPitcherInjury || s.kind !== '15-day');
     const adjusted = tiers.map((s) => {
-      if (!isPitcherInjury && s.kind === '10-day') return { ...s, weight: s.weight + 10 };
+      if (!isPitcherInjury && s.kind === '10-day') return { ...s, weight: s.weight + fifteenDayWeight };
       return s;
     });
     const total = adjusted.reduce((acc, s) => acc + s.weight, 0);
@@ -150,6 +158,17 @@ window.BBGM_INJURIES = (function () {
 
   function randInt(rng, lo, hi) {
     return lo + Math.floor(rng() * (hi - lo + 1));
+  }
+
+  function pickWeightedType(rng, catalog) {
+    let total = 0;
+    for (const t of catalog) total += t.weight != null ? t.weight : 1;
+    let r = rng() * total;
+    for (const t of catalog) {
+      r -= t.weight != null ? t.weight : 1;
+      if (r <= 0) return t;
+    }
+    return catalog[catalog.length - 1];
   }
 
   // ---- Public: place a player on the disabled list ----

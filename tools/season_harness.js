@@ -66,6 +66,8 @@ const peakFatigue = {};
 let homeWins = 0, totalGames = 0;
 const runsByLeague = { east: 0, west: 0 }, gamesByLeague = { east: 0, west: 0 };
 let relieverWins = 0;
+let fieldingErrors = 0;
+let consecDayViolations = 0; // reliever appearing on a 4th straight day
 
 function applyCeilingDrop(p) {
   const c = p.hidden.ceiling;
@@ -99,6 +101,15 @@ function simOneDay(state) {
     const wp = winSide === 'home' ? r.homeWP : r.awayWP;
     const spid = winSide === 'home' ? r.homeSPid : r.awaySPid;
     if (wp && wp !== spid) relieverWins++;
+    fieldingErrors += (r.homeErrors || 0) + (r.awayErrors || 0);
+  }
+  // Rest-rule audit: consecPitchDays is stamped at game end, so a value of
+  // 4+ on a pitcher who worked today means a 4th consecutive day of use.
+  for (const pid in state.players) {
+    const p = state.players[pid];
+    if ((p.consecPitchDays || 0) >= 4 && p.lastPitchedDate && D.eq(p.lastPitchedDate, today)) {
+      consecDayViolations++;
+    }
   }
   for (const g of games) {
     if (!g.played || !g.result || !g.result.injuries) continue;
@@ -206,10 +217,13 @@ console.log('PA', pitcherBatTot.pa, '| BA', S.avg(pitcherBatTot).toFixed(3), '(t
   '| K%', pct(pitcherBatTot.k / (pitcherBatTot.pa || 1)), '(t ~35-40%)',
   '| BB%', pct(pitcherBatTot.bb / (pitcherBatTot.pa || 1)), '(t ~4-5%)',
   '| HR', pitcherBatTot.hr);
-console.log('--- League pitching ---');
+console.log('--- League pitching / defense ---');
 console.log('ERA', S.era(pitTot).toFixed(2), '(t 4.20) | WHIP', S.whip(pitTot).toFixed(2), '(t 1.32)',
   '| K/9', S.k9(pitTot).toFixed(1), '(t 7.0) | BB/9', S.bb9(pitTot).toFixed(1), '(t 3.3) | HR/9', S.hr9(pitTot).toFixed(2), '(t 0.95)');
-console.log('CG:', cgTotal, '| SHO:', shoTotal);
+const totalRuns = runsByLeague.east + runsByLeague.west;
+console.log('errors/team:', (fieldingErrors / 30).toFixed(0), '(t ~100-120) | unearned run share:',
+  pct((pitTot.r - pitTot.er) / (pitTot.r || 1)), '(MLB ~7-8%)');
+console.log('CG:', cgTotal, '| SHO:', shoTotal, '| reliever 4th-straight-day appearances (soft rule; depleted-pen fallback only):', consecDayViolations);
 console.log('--- Usage (7.4.7) ---');
 console.log('SP IP/start avg:', avg(spLines).toFixed(2), '(t 5.5-6.5) range', Math.min(...spLines).toFixed(2), '-', Math.max(...spLines).toFixed(2));
 console.log('setup G avg:', avg(setupG).toFixed(0), '(t 60-75) | middle:', avg(middleG).toFixed(0),
