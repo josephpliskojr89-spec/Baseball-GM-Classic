@@ -3905,6 +3905,31 @@ user becomes a pure GM), with hireable staff carrying mechanical effects.
 - GM organizational directives (light nudges per 17.7) — optional
   refinement once manager control feels right
 
+> **Status (0.10.0) — Pillar 4 delivered.** Every team, the user's
+> included, is run by a manager with archetype-driven tendencies:
+> lineup construction (old-school speed-first vs modern OPS-stacked
+> ordering), small-ball (sac bunts finally exist — pitchers bunt
+> classically in the West, small-ball skippers bunt close-and-late;
+> measured ~55 SH/team West, ~12 East — plus SB aggressiveness),
+> quick hook (pitch-limit leash, complete-game appetite), and bullpen
+> leverage (closer in the 8th and wide setup windows for matchup
+> managers, strict 9th-inning closers for role-rigid ones). The all-5
+> "league-average manager" reproduces the pre-Phase-10 engine exactly,
+> so old saves behave identically until staff exists (auto-staffed on
+> load). Direct lineup/rotation/bullpen editing is retired — those
+> screens are read-only views with the manager's byline; the GM's
+> minors promotions trigger the manager to re-set his own lineup.
+> Coaches carry real development modifiers into progression (strongest
+> for under-27s). Owners fire managers (patience by archetype), fired
+> staff join the standing pool, retirees with the 17.9 flag enter
+> coaching 1-4 years out (name recognition inflating reputation),
+> veteran coaches graduate to manager candidacy, and the user hires
+> from the pool via Team → Staff during the offseason (auto-filled by
+> the owner at Opening Day if ignored). Not yet: pinch-hitting /
+> defensive-replacement tendencies (need in-game substitutions),
+> in-season firings, Manager of the Year (Phase 14), coach
+> specialty-specific rating bonuses.
+
 ### 21.12 Phase 11: Amateur Draft (Estimated: 1 session)
 
 **Goal:** Annual draft event with full mechanics.

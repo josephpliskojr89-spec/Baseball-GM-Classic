@@ -25,6 +25,7 @@ window.BBGM_UI_TEAM = (function () {
       { key: 'lineup', label: 'Lineup' },
       { key: 'pitching', label: 'Pitching' },
       { key: 'minors', label: 'Minors' },
+      { key: 'staff', label: 'Staff' },
       { key: 'trades', label: 'Trades' },
       { key: 'freeagents', label: 'Free Agents' },
     ];
@@ -41,8 +42,19 @@ window.BBGM_UI_TEAM = (function () {
     else if (activeTab === 'lineup') renderLineup(container, state, team);
     else if (activeTab === 'pitching') renderPitching(container, state, team);
     else if (activeTab === 'minors') renderMinors(container, state, team);
+    else if (activeTab === 'staff') window.BBGM_UI_FRONTOFFICE.renderStaff(container, state);
     else if (activeTab === 'trades') window.BBGM_UI_FRONTOFFICE.renderTrades(container, state);
     else if (activeTab === 'freeagents') window.BBGM_UI_FRONTOFFICE.renderFreeAgents(container, state);
+  }
+
+  // Pillar 4 byline: these screens show the manager's decisions.
+  function managerByline(state, team) {
+    const STAFF = window.BBGM_STAFF;
+    const mgr = STAFF && STAFF.managerFor(state, team);
+    return U.el('p', { class: 'muted', style: { 'font-size': '12px', 'margin-bottom': '10px' } },
+      mgr
+        ? `Managed by ${mgr.name} (${mgr.archetypeName}). The manager sets the lineups, rotation, and bullpen — shape the roster and hire the right skipper (Team → Staff).`
+        : 'No manager — the owner will hire one before Opening Day.');
   }
 
   // Inline rating chips for at-a-glance scanning on Lineup / Pitching rows.
@@ -141,18 +153,6 @@ window.BBGM_UI_TEAM = (function () {
     });
   }
 
-  function arrowButtons(onUp, onDown) {
-    const wrap = U.el('div', { style: { display: 'flex', gap: '4px' } });
-    wrap.appendChild(U.el('button', {
-      class: 'btn-secondary btn-sm', style: { 'min-width': '40px', 'min-height': '40px', padding: '4px' },
-      on: { click: (e) => { e.stopPropagation(); onUp(); } },
-    }, '▲'));
-    wrap.appendChild(U.el('button', {
-      class: 'btn-secondary btn-sm', style: { 'min-width': '40px', 'min-height': '40px', padding: '4px' },
-      on: { click: (e) => { e.stopPropagation(); onDown(); } },
-    }, '▼'));
-    return wrap;
-  }
 
   // ------- Roster tab -------
 
@@ -252,9 +252,7 @@ window.BBGM_UI_TEAM = (function () {
   // ------- Lineup tab (editable) -------
 
   function renderLineup(container, state, team) {
-    container.appendChild(U.el('p', {
-      class: 'muted', style: { 'font-size': '12px', 'margin-bottom': '10px' },
-    }, 'Use ▲▼ to reorder. Tap a batter to swap in a bench player.'));
+    container.appendChild(managerByline(state, team));
 
     for (const [key, label] of [['lineupRH', 'Lineup vs. RHP'], ['lineupLH', 'Lineup vs. LHP']]) {
       container.appendChild(U.el('div', { class: 'card-title', style: { 'margin-top': '14px' } }, label));
@@ -295,9 +293,10 @@ window.BBGM_UI_TEAM = (function () {
     const info = U.el('button', {
       class: 'player-row-info',
       style: { 'text-align': 'left', background: 'none', border: 'none', padding: '0', cursor: 'pointer' },
-      on: { click: () => showLineupActions(state, team, key, idx) },
+      on: { click: () => window.BBGM_UI_PLAYER.show(p.id) },
     });
-    info.appendChild(U.el('div', { class: 'player-row-name' }, p.name));
+    const onIL = (team.il || []).includes(p.id);
+    info.appendChild(U.el('div', { class: 'player-row-name' }, p.name + (onIL ? '  🏥' : '')));
     info.appendChild(U.el('div', { class: 'player-row-meta' },
       `${spot.position} • Age ${p.age}` + (s ? ` • ${S.fmtAvg(S.avg(s))}/${S.fmtAvg(S.obp(s))}/${S.fmtAvg(S.slg(s))}` : '')));
     // Quick-scan ratings: overall hitter score plus L/R-averaged contact and
@@ -311,49 +310,11 @@ window.BBGM_UI_TEAM = (function () {
       ['SPD', p.ratings.speed],
     ]));
     row.appendChild(info);
-
-    row.appendChild(arrowButtons(
-      () => moveSpot(state, team, key, idx, -1),
-      () => moveSpot(state, team, key, idx, +1),
-    ));
     return row;
   }
 
-  function moveSpot(state, team, key, idx, dir) {
-    const lineup = team[key];
-    const j = idx + dir;
-    if (j < 0 || j >= lineup.length) return;
-    [lineup[idx], lineup[j]] = [lineup[j], lineup[idx]];
-    commit(state);
-  }
 
-  function showLineupActions(state, team, key, idx) {
-    const spot = team[key][idx];
-    const p = state.players[spot.playerId];
-    actionModal(`${p.name} (${spot.position})`, [
-      { label: 'Swap Batter…', kind: 'primary', onClick: () => {
-        // Open after this modal closes.
-        setTimeout(() => showLineupSwap(state, team, key, idx), 0);
-      }},
-      { label: 'View Profile', kind: 'secondary', onClick: () => {
-        setTimeout(() => window.BBGM_UI_PLAYER.show(p.id), 0);
-      }},
-    ]);
-  }
 
-  function showLineupSwap(state, team, key, idx) {
-    const spot = team[key][idx];
-    const inLineup = new Set(team[key].map((s) => s.playerId));
-    const candidates = team.roster
-      .map((id) => state.players[id])
-      .filter((p) => p && !p.isPitcher && !inLineup.has(p.id) && GEN().canPlay(p, spot.position))
-      .sort((a, b) => overallHitter(b) - overallHitter(a));
-    pickerModal(state, `Swap in at ${spot.position}`, candidates,
-      (p) => `${p.primaryPosition} • Age ${p.age} • OVR ${U.gradeFor(overallHitter(p))}`,
-      (p) => {
-        mutateTeam(state, team, () => { spot.playerId = p.id; });
-      });
-  }
 
   // ------- Pitching tab (editable) -------
 
@@ -363,9 +324,7 @@ window.BBGM_UI_TEAM = (function () {
       team.bullpenRoles = GEN().assignBullpenRoles(team, players);
     }
 
-    container.appendChild(U.el('p', {
-      class: 'muted', style: { 'font-size': '12px', 'margin-bottom': '10px' },
-    }, 'Use ▲▼ to reorder the rotation. Tap a pitcher to swap or assign a bullpen role.'));
+    container.appendChild(managerByline(state, team));
 
     container.appendChild(U.el('div', { class: 'card-title' }, 'Starting Rotation'));
     const list = U.el('div', { class: 'roster-list' });
@@ -411,7 +370,7 @@ window.BBGM_UI_TEAM = (function () {
     const info = U.el('button', {
       class: 'player-row-info',
       style: { 'text-align': 'left', background: 'none', border: 'none', padding: '0', cursor: 'pointer' },
-      on: { click: () => showRotationActions(state, team, idx) },
+      on: { click: () => window.BBGM_UI_PLAYER.show(p.id) },
     });
     info.appendChild(U.el('div', { class: 'player-row-name' }, p.name));
     const desc = s && s.gs
@@ -425,67 +384,11 @@ window.BBGM_UI_TEAM = (function () {
       ['STA', p.ratings.stamina],
     ]));
     row.appendChild(info);
-
-    row.appendChild(arrowButtons(
-      () => moveRotation(state, team, idx, -1),
-      () => moveRotation(state, team, idx, +1),
-    ));
     return row;
   }
 
-  function moveRotation(state, team, idx, dir) {
-    const j = idx + dir;
-    if (j < 0 || j >= team.rotation.length) return;
-    [team.rotation[idx], team.rotation[j]] = [team.rotation[j], team.rotation[idx]];
-    commit(state);
-  }
 
-  function showRotationActions(state, team, idx) {
-    const p = state.players[team.rotation[idx]];
-    actionModal(`${p.name} (SP${idx + 1})`, [
-      { label: 'Swap Starter…', kind: 'primary', onClick: () => {
-        setTimeout(() => showRotationSwap(state, team, idx), 0);
-      }},
-      { label: 'View Profile', kind: 'secondary', onClick: () => {
-        setTimeout(() => window.BBGM_UI_PLAYER.show(p.id), 0);
-      }},
-    ]);
-  }
 
-  function showRotationSwap(state, team, idx) {
-    const inRotation = new Set(team.rotation);
-    const candidates = team.roster
-      .map((id) => state.players[id])
-      .filter((p) => p && p.isPitcher && !inRotation.has(p.id))
-      .sort((a, b) => {
-        // SP-primary arms first, then by stamina
-        if ((a.primaryPosition === 'SP') !== (b.primaryPosition === 'SP')) {
-          return a.primaryPosition === 'SP' ? -1 : 1;
-        }
-        return b.ratings.stamina - a.ratings.stamina;
-      });
-    pickerModal(state, `Swap into rotation (SP${idx + 1})`, candidates,
-      (p) => `${p.primaryPosition} • STA ${U.gradeFor(p.ratings.stamina)}` +
-             (p.primaryPosition !== 'SP' ? ' • ⚠ not a starter' : ''),
-      (p) => {
-        mutateTeam(state, team, () => {
-          const old = team.rotation[idx];
-          team.rotation[idx] = p.id;
-          // If the new starter came from the bullpen, the displaced starter
-          // takes his bullpen slot and role.
-          const bi = team.bullpen.indexOf(p.id);
-          if (bi >= 0) {
-            team.bullpen[bi] = old;
-            const roles = team.bullpenRoles || {};
-            for (const r in roles) {
-              const ix = roles[r].indexOf(p.id);
-              if (ix >= 0) roles[r][ix] = old;
-            }
-          }
-          if (team.closer === p.id) team.closer = old;
-        });
-      });
-  }
 
   function bullpenRow(state, team, p, badge) {
     const year = state.meta.currentDate.year;
@@ -496,7 +399,7 @@ window.BBGM_UI_TEAM = (function () {
     const info = U.el('button', {
       class: 'player-row-info',
       style: { 'text-align': 'left', background: 'none', border: 'none', padding: '0', cursor: 'pointer' },
-      on: { click: () => showBullpenActions(state, team, p) },
+      on: { click: () => window.BBGM_UI_PLAYER.show(p.id) },
     });
     info.appendChild(U.el('div', { class: 'player-row-name' }, p.name));
     const desc = s && s.g
@@ -513,42 +416,8 @@ window.BBGM_UI_TEAM = (function () {
     return row;
   }
 
-  function showBullpenActions(state, team, p) {
-    const isCloser = team.closer === p.id;
-    const actions = [];
-    if (!isCloser) {
-      actions.push({ label: 'Make Closer', kind: 'primary', onClick: () => makeCloser(state, team, p.id) });
-      for (const [role, label] of [['setup', 'Set: Setup'], ['middle', 'Set: Middle'], ['long', 'Set: Long Relief'], ['mopup', 'Set: Mop-up']]) {
-        actions.push({ label, kind: 'secondary', onClick: () => setBullpenRole(state, team, p.id, role) });
-      }
-    }
-    actions.push({ label: 'View Profile', kind: 'secondary', onClick: () => {
-      setTimeout(() => window.BBGM_UI_PLAYER.show(p.id), 0);
-    }});
-    actionModal(`${p.name}${isCloser ? ' (Closer)' : ''}`, actions);
-  }
 
-  function makeCloser(state, team, pid) {
-    mutateTeam(state, team, () => {
-      const old = team.closer;
-      team.closer = pid;
-      team.bullpen = team.bullpen.filter((id) => id !== pid);
-      const roles = team.bullpenRoles || (team.bullpenRoles = { setup: [], middle: [], long: [], mopup: [] });
-      for (const r in roles) roles[r] = roles[r].filter((id) => id !== pid);
-      if (old) {
-        team.bullpen.push(old);
-        (roles.setup = roles.setup || []).push(old);
-      }
-    });
-  }
 
-  function setBullpenRole(state, team, pid, role) {
-    mutateTeam(state, team, () => {
-      const roles = team.bullpenRoles || (team.bullpenRoles = { setup: [], middle: [], long: [], mopup: [] });
-      for (const r in roles) roles[r] = roles[r].filter((id) => id !== pid);
-      (roles[role] = roles[role] || []).push(pid);
-    });
-  }
 
   // ------- Minors tab (promotion) -------
 
@@ -642,37 +511,9 @@ window.BBGM_UI_TEAM = (function () {
       down.rosterStatus = 'AAA';
       down.status = 'minors';
 
-      if (down.isPitcher) {
-        // Replace the demoted pitcher everywhere he's referenced.
-        const ri = team.rotation.indexOf(rosterId);
-        if (ri >= 0) team.rotation[ri] = minorsId;
-        if (team.closer === rosterId) team.closer = minorsId;
-        const bi = team.bullpen.indexOf(rosterId);
-        if (bi >= 0) team.bullpen[bi] = minorsId;
-        const roles = team.bullpenRoles || {};
-        for (const r in roles) {
-          const ix = roles[r].indexOf(rosterId);
-          if (ix >= 0) roles[r][ix] = minorsId;
-        }
-      } else {
-        // Lineups: the promoted hitter takes the slot if eligible; otherwise
-        // the best eligible bench hitter does.
-        for (const key of ['lineupRH', 'lineupLH']) {
-          for (const spot of team[key]) {
-            if (spot.playerId !== rosterId) continue;
-            if (GEN().canPlay(up, spot.position)) {
-              spot.playerId = minorsId;
-              continue;
-            }
-            const inLineup = new Set(team[key].map((s) => s.playerId));
-            const sub = team.roster
-              .map((id) => state.players[id])
-              .filter((q) => q && !q.isPitcher && !inLineup.has(q.id) && GEN().canPlay(q, spot.position))
-              .sort((a, b) => overallHitter(b) - overallHitter(a))[0];
-            spot.playerId = sub ? sub.id : minorsId;
-          }
-        }
-      }
+      // The GM made the roster move; the manager re-sets his lineup,
+      // rotation, and bullpen around the new 26-man (Pillar 4).
+      window.BBGM_ROSTER.safeRebuild(state, team);
     });
   }
 

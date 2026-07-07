@@ -186,6 +186,13 @@ window.BBGM_MAIN = (function () {
           freeAgents: [],
           history: { seasons: [] },
         };
+        // Staff the league (bible 17): every team gets a manager + coaches,
+        // plus the standing unemployed pool. Then each manager sets his
+        // team's lineups per his own style (Pillar 4).
+        window.BBGM_STAFF.ensureStaff(state);
+        for (const t of state.league.teams) {
+          window.BBGM_ROSTER.safeRebuild(state, t);
+        }
         window.BBGM_STATE.set(state);
         U.hideProgress();
         showTeamSelect();
@@ -277,6 +284,13 @@ window.BBGM_MAIN = (function () {
         ],
       });
       return;
+    }
+
+    // Migration: pre-0.10 saves have no staff — hire the league out of a
+    // fresh pool so managers exist mid-save (Pillar 4).
+    if (!state.staff) {
+      window.BBGM_STAFF.ensureStaff(state);
+      window.BBGM_STATE.set(state);
     }
 
     if (state.meta.userTeamId) {
@@ -515,6 +529,31 @@ window.BBGM_MAIN = (function () {
         date,
         body: `Milestone: <strong>${m.name}</strong>${t ? ` (${t.abbr})` : ''} reached ` +
               `${m.threshold.toLocaleString()} career ${m.label}.`,
+      });
+    }
+
+    // Staff moves (17.6/17.9): firings, hirings, notable career changes.
+    for (const ev of summary.staffEvents || []) {
+      const t = ev.teamId && teamOf(ev.teamId);
+      let body = null;
+      if (ev.kind === 'mgr-fired') {
+        body = `${t.abbr} fire manager <strong>${ev.name}</strong> after a ${ev.wins}-win season.`;
+      } else if (ev.kind === 'mgr-retired') {
+        body = `${t.abbr} manager <strong>${ev.name}</strong> announces his retirement.`;
+      } else if (ev.kind === 'mgr-hired') {
+        body = `${t.abbr} hire <strong>${ev.name}</strong> (${ev.archetype}) as manager.`;
+      } else if (ev.kind === 'coach-enters') {
+        body = `Former player <strong>${ev.name}</strong> joins the coaching ranks as a ${ev.domain} coach.`;
+      } else if (ev.kind === 'coach-to-manager') {
+        body = `<strong>${ev.name}</strong> leaves the coaching ranks to pursue managing.`;
+      }
+      if (body) state.news.push({ date, body });
+    }
+    const userTeamObj = teamOf(userTeamId);
+    if (userTeamObj && !userTeamObj.managerId) {
+      state.news.push({
+        date,
+        body: `<strong>Your manager's seat is empty.</strong> Hire a new skipper from Team → Staff before Opening Day (the owner will pick one for you otherwise).`,
       });
     }
 

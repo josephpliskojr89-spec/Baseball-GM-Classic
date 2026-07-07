@@ -65,13 +65,17 @@ window.BBGM_PROGRESSION = (function () {
   }
 
   // Progress one player one offseason. Mutates ratings in place.
-  function progressPlayer(p, year) {
+  // coachMod (bible 9.3 / 17.4): the org's hitting or pitching coach
+  // development modifier (-0.10..+0.20). Coaches matter most for players
+  // still developing; established veterans get less than half the effect.
+  function progressPlayer(p, year, coachMod) {
     const arch = archetypeDef(p);
     ensureCurveState(p, arch);
     const h = p.hidden;
     const keys = p.isPitcher ? PITCHER_KEYS : HITTER_KEYS;
     const age = p.age;
-    const posMod = 1 + workEthicMod(p) - injuryMod(p, year) - levelPenalty(p);
+    const coach = (coachMod || 0) * (age < 27 ? 1 : 0.4);
+    const posMod = 1 + workEthicMod(p) + coach - injuryMod(p, year) - levelPenalty(p);
 
     // Late-bloomer breakout (9.2): one-time jump of 30-50% of the
     // remaining ceiling gap at the stamped breakout age.

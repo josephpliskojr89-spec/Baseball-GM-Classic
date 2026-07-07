@@ -234,11 +234,24 @@ window.BBGM_OFFSEASON = (function () {
     }
     state.freeAgents = (state.freeAgents || []).filter((id) => !retiredIds.has(id));
 
-    // 5. Progression + aging (9.1-9.5).
+    // 4.5. Staff offseason (17.6/17.9): manager records and reputation,
+    // owner-driven firings, coach churn, the retired-player coaching
+    // pipeline, AI hiring. Runs before progression so this year's coach
+    // modifiers reflect the staff that actually coached the season.
+    const STAFF = window.BBGM_STAFF;
+    STAFF.ensureStaff(state);
+    const staffEvents = STAFF.runStaffOffseason(state, records, summary.retirements, year);
+    summary.staffEvents = staffEvents;
+
+    // 5. Progression + aging (9.1-9.5), with org coach modifiers (9.3).
+    const coachModByTeam = {};
+    for (const t of teams) coachModByTeam[t.id] = STAFF.coachModsFor(state, t);
     for (const id in players) {
       const p = players[id];
       if (p.retired) continue;
-      PROG().progressPlayer(p, year);
+      const mods = p.teamId && coachModByTeam[p.teamId];
+      const coachMod = mods ? (p.isPitcher ? mods.pitching : mods.hitting) : 0;
+      PROG().progressPlayer(p, year, coachMod);
       p.age++;
     }
 
@@ -381,6 +394,10 @@ window.BBGM_OFFSEASON = (function () {
       rebuildTeamConfig(state, t, summary);
       t.seasonRecord = { w: 0, l: 0, rs: 0, ra: 0, lastTen: [], streak: 0 };
     }
+
+    // Any manager vacancy the user left unfilled is auto-hired at Opening
+    // Day (the owner won't start a season without a skipper).
+    window.BBGM_STAFF.ensureStaff(state);
 
     // Fail loud if any org came out of the offseason unplayable.
     GEN().validateLeagueReadiness(state.league, players);

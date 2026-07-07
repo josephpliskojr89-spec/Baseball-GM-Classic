@@ -351,6 +351,7 @@ window.BBGM_UI_GAMES = (function () {
     'BB': 'Walk', 'HBP': 'Hit by Pitch', 'K': 'Strikeout', 'OUT': 'Out',
     'SF': 'Sacrifice Fly', 'GIDP': 'Grounded into Double Play',
     'SB': 'Stolen Base', 'CS': 'Caught Stealing', 'E': 'Reached on Error',
+    'SH': 'Sacrifice Bunt',
   };
 
   function buildGameLog(state, r, away, home) {

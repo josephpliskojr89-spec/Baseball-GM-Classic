@@ -185,6 +185,11 @@ window.BBGM_ROSTER = (function () {
   function safeRebuild(state, team) {
     const GEN = window.BBGM_PLAYER_GEN;
     const players = state.players;
+    // The team's manager shapes the batting order (17.7). League-average
+    // style when unstaffed.
+    const STAFF = window.BBGM_STAFF;
+    const tendencies = STAFF ? STAFF.tendenciesFor(state, team) : null;
+    const opts = { lineupStyle: tendencies ? tendencies.lineupStyle : undefined };
     let lastErr = null;
     // Patches added on earlier attempts are protected from make-room
     // demotion — without this, "add an RF, demote the weakest hitter"
@@ -192,7 +197,7 @@ window.BBGM_ROSTER = (function () {
     const protectedIds = new Set();
     for (let attempt = 0; attempt < 10; attempt++) {
       try {
-        GEN.assignLineupsAndPitching(Math.random, team, players);
+        GEN.assignLineupsAndPitching(Math.random, team, players, opts);
         return;
       } catch (e) {
         lastErr = e;

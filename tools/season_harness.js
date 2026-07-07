@@ -35,6 +35,7 @@ const files = [
   'js/engine/minors.js',
   'js/engine/trades.js',
   'js/engine/freeagency.js',
+  'js/engine/staff.js',
   'js/engine/simulation.js',
   'js/engine/standings.js',
   'js/engine/offseason.js',
@@ -62,6 +63,9 @@ const state = {
   players,
   news: [],
 };
+// Staff the league (Phase 10) and let each manager set his lineups.
+W.BBGM_STAFF.ensureStaff(state);
+for (const t of state.league.teams) W.BBGM_ROSTER.safeRebuild(state, t);
 
 // ---- Metrics collectors ----
 const YEAR = C.START_YEAR;
@@ -236,8 +240,20 @@ console.log('BA', S.avg(hitTot).toFixed(3), '|', S.avg(leagueBatTot).toFixed(3),
   '| SLG', S.slg(hitTot).toFixed(3), '|', S.slg(leagueBatTot).toFixed(3), '(t .425)');
 console.log('K%', pct(hitTot.k / hitTot.pa), '(t 17%) | BB%', pct(hitTot.bb / hitTot.pa), '(t 9%) | HR%', pct(hitTot.hr / hitTot.pa), '(t 2.8%)');
 const sbAtt = hitTot.sb + hitTot.cs;
+// Sac bunts split by league: west (pitchers bat + bunt) should far exceed east.
+const shByLeague = { east: 0, west: 0 };
+for (const t of league.teams) {
+  for (const id of t.roster.concat(t.minors || [])) {
+    const p = players[id];
+    if (!p || !p.stats[YEAR]) continue;
+    const s = p.stats[YEAR];
+    shByLeague[t.league] += (s.sh || 0) + ((s.batting && s.batting.sh) || 0);
+  }
+}
 console.log('SB att/team:', (sbAtt / 30).toFixed(0), '(t ~140) | SB%', pct(hitTot.sb / sbAtt), '(t 72%)',
-  '| SF/team', (hitTot.sf / 30).toFixed(0), '(t ~40) | SH/team', (hitTot.sh / 30).toFixed(0), '(t ~30) | GIDP/team', (hitTot.gidp / 30).toFixed(0));
+  '| SF/team', (hitTot.sf / 30).toFixed(0), '(t ~40) | GIDP/team', (hitTot.gidp / 30).toFixed(0));
+console.log('SH/team: EAST', (shByLeague.east / 15).toFixed(0), '| WEST', (shByLeague.west / 15).toFixed(0),
+  '(t: west ~40-70 w/ pitcher bunts, east ~10-30)');
 console.log('--- Pitcher hitting (no-DH games) ---');
 console.log('PA', pitcherBatTot.pa, '| BA', S.avg(pitcherBatTot).toFixed(3), '(t ~.130)',
   '| K%', pct(pitcherBatTot.k / (pitcherBatTot.pa || 1)), '(t ~35-40%)',
@@ -298,10 +314,13 @@ if (seasonsArg > 1) {
     const faSigned = state.faMarket ? state.faMarket.entries.filter((e) => e.signedTeamId).length : 0;
     const faUnsigned = state.faMarket ? state.faMarket.entries.length - faSigned : 0;
     const champ = state.league.teams.find((t) => t.id === summary.postseason.champion.id);
+    const staffEv = summary.staffEvents || [];
     console.log(`${summary.year}: 🏆 ${champ.abbr} (WS ${summary.postseason.worldSeries.score.join('-')})` +
       ` | retired ${summary.retirements.length} | milestones ${summary.milestones.length}` +
       ` | FA: ${summary.newFAs} out, ${faSigned} signed, ${faUnsigned} unsigned` +
       ` | trades total ${(state.history.trades || []).length}` +
+      ` | staff: ${staffEv.filter((e) => e.kind === 'mgr-fired').length} fired,` +
+      ` ${staffEv.filter((e) => e.kind === 'coach-enters').length} retirees→coaching` +
       ` | new org players ${summary.newPlayers}`);
 
     if (si === seasonsArg) break;

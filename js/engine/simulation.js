@@ -7,6 +7,14 @@ window.BBGM_SIM = (function () {
   const S = window.BBGM_STATS;
   const INJ = () => window.BBGM_INJURIES;
   const FAT = () => window.BBGM_FATIGUE;
+  const STAFF = () => window.BBGM_STAFF;
+
+  // Manager tendencies for a side; league-average when unstaffed (Pillar 4:
+  // the all-5 default IS the engine's classic behavior).
+  function mgrFor(state, team) {
+    const st = STAFF();
+    return st ? st.tendenciesFor(state, team) : { smallBall: 5, leverage: 5, quickHook: 5, lineupStyle: 5 };
+  }
 
   // Random helper (use Math.random for in-game variance — seedable RNG used at gen)
   function rand() { return Math.random(); }
@@ -82,6 +90,7 @@ window.BBGM_SIM = (function () {
         parkFactors: home.ballpark.factors,
         catcher: findCatcher(home, players),
         defenseAvg: lineupDefenseAvg(homeLineup),
+        mgr: mgrFor(state, home),
         entryMargins: { [homeSP.id]: 0 }, exitMargins: {},
         recordPid: null, lossPid: null,
       },
@@ -91,6 +100,7 @@ window.BBGM_SIM = (function () {
         parkFactors: home.ballpark.factors, // Park factors apply to both
         catcher: findCatcher(away, players),
         defenseAvg: lineupDefenseAvg(awayLineup),
+        mgr: mgrFor(state, away),
         entryMargins: { [awaySP.id]: 0 }, exitMargins: {},
         recordPid: null, lossPid: null,
       },
@@ -439,6 +449,40 @@ window.BBGM_SIM = (function () {
       maybeChangePitcher(off, def, gs, inning, state);
 
       const pitcher = def.currentP;
+
+      // Sacrifice bunt call (bible 7.5, manager small-ball tendency).
+      // Pitchers at the plate bunt classically; position players bunt only
+      // for small-ball managers in close-and-late spots.
+      if (shouldBunt(batter, off, def, bases, outs, inning)) {
+        const bs = gsBat(batter);
+        const ps = gs(pitcher);
+        bs.pa++;
+        ps.bf++;
+        if (!ps.g) ps.g = 1;
+        if (pitcher.id === def.sp.id && !ps.gs) ps.gs = 1;
+        def.pitchCount += 2;
+        const outsBefore = outs;
+        const maskBefore = baseMaskOf(bases);
+        const buntSkill = batter.isPitcher ? 42 : (batter.ratings.bunting || 40);
+        const success = Math.random() < clamp(0.60 + (buntSkill - 40) * 0.006, 0.35, 0.90);
+        outs++;
+        ps.ipOuts = (ps.ipOuts || 0) + 1;
+        let code;
+        if (success) {
+          // Successful sacrifice: batter out, runners move up. PA, SH, no AB.
+          bs.sh = (bs.sh || 0) + 1;
+          if (bases[1] && !bases[2]) { bases[2] = bases[1]; bases[1] = null; }
+          if (bases[0] && !bases[1]) { bases[1] = bases[0]; bases[0] = null; }
+          code = 'SH';
+        } else {
+          // Botched bunt: batter out, nobody advances. Counts as an AB.
+          bs.ab++;
+          code = 'OUT';
+        }
+        if (log) logPlay(log, inning, isBottom, batter.id, pitcher.id, outsBefore, maskBefore, code, 0, off, def);
+        continue;
+      }
+
       const result = resolveAtBat(batter, pitcher, off.parkFactors, def);
       def.pitchCount += pitchesForPA(result.kind);
 
@@ -612,7 +656,7 @@ window.BBGM_SIM = (function () {
       // Pitchers on base never attempt a steal.
       if (bases[0] && outs < 3 && !bases[1]) {
         const runner = state.players[bases[0].playerId];
-        if (!runner.isPitcher && shouldAttemptSB(runner, pitcher, def)) {
+        if (!runner.isPitcher && shouldAttemptSB(runner, pitcher, off, def)) {
           const sbOuts = outs;
           const sbMask = baseMaskOf(bases);
           const sbResult = resolveSB(runner, pitcher, def);
@@ -974,17 +1018,38 @@ window.BBGM_SIM = (function () {
     return ((pitcher.ratings.stamina || 50) - 50) * 0.001;
   }
 
-  function shouldAttemptSB(runner, pitcher, def) {
+  // Sacrifice bunt decision (bible 7.5). Squeeze plays (R3) are not called.
+  function shouldBunt(batter, off, def, bases, outs, inning) {
+    if (outs >= 2) return false;
+    if (bases[2]) return false;
+    if (!bases[0] && !bases[1]) return false;
+    if (batter.isPitcher) {
+      // Classic-era pitcher at the plate: bunt the runner over, usually.
+      return Math.random() < 0.55;
+    }
+    const mgr = off.mgr || { smallBall: 5 };
+    if (mgr.smallBall <= 3) return false;
+    // Close-and-late with a weak bat at the plate.
+    const margin = off.runs - def.runs;
+    if (inning < 7 && mgr.smallBall < 8) return false;
+    if (margin < -2 || margin > 1) return false;
+    if (hitterScore(batter) > 245) return false; // you don't bunt your stars
+    return Math.random() < (mgr.smallBall - 3) * 0.05;
+  }
+
+  function shouldAttemptSB(runner, pitcher, off, def) {
     // Faster runners attempt more; stronger-armed catchers deter attempts.
+    // The manager's small-ball tendency scales aggressiveness (7.5).
     const speed = runner.ratings.speed || 50;
     const arm = catcherArm(def);
     const armDeter = (arm - 50) * 0.005;       // ~0.15 swing across the arm grade
     const holdDeter = pitcherHoldMod(pitcher); // tiny extra for high-stamina pitcher
+    const mgrMul = 1 + (((off.mgr && off.mgr.smallBall) || 5) - 5) * 0.09; // 0.64x-1.45x
 
-    if (speed < 40) return Math.random() < clamp(0.01 - armDeter, 0.001, 0.05);
-    if (speed < 50) return Math.random() < clamp(0.042 - armDeter - holdDeter, 0.005, 0.15);
+    if (speed < 40) return Math.random() < clamp((0.01 - armDeter) * mgrMul, 0.001, 0.05);
+    if (speed < 50) return Math.random() < clamp((0.042 - armDeter - holdDeter) * mgrMul, 0.005, 0.15);
     // Base/slope tuned to ~140 attempts per team per season (bible 7.2).
-    const baseProb = 0.105 + (speed - 50) * 0.017 - armDeter - holdDeter;
+    const baseProb = (0.105 + (speed - 50) * 0.017 - armDeter - holdDeter) * mgrMul;
     return Math.random() < clamp(baseProb, 0.02, 0.40);
   }
 
@@ -1038,18 +1103,28 @@ window.BBGM_SIM = (function () {
     const roles = ensureBullpenRoles(team, players);
 
     const inj = INJ();
+    // Bullpen leverage tendency (17.2): matchup-driven managers use the
+    // closer for 4-6 out saves and widen the setup window; role-rigid
+    // managers hold the closer strictly for the 9th.
+    const leverage = (def.mgr && def.mgr.leverage) || 5;
+    const closerInning = leverage >= 8 ? 8 : 9;
     const closerP = team.closer && players[team.closer];
     const closerFree = closerP && !used.has(team.closer) && inj.isAvailable(closerP) &&
       team.roster.includes(team.closer) && !needsPenRest(closerP, today);
-    if (closerFree && inning >= 9 && margin >= 1 && margin <= 3) return players[team.closer];
-    if (closerFree && inning >= 10 && margin === 0) return players[team.closer];
+    if (closerFree && inning >= closerInning && margin >= 1 && margin <= 3) return players[team.closer];
+    if (closerFree && leverage > 2 && inning >= 10 && margin === 0) return players[team.closer];
 
     const blowout = Math.abs(margin) >= 5;
-    const close = margin >= -3 && margin <= 4;
+    // Average leverage (4-6) reproduces the pre-Phase-10 engine exactly;
+    // high-leverage managers widen the high-leverage window, role-rigid
+    // managers shrink it.
+    const closeBand = leverage >= 7 ? [-4, 5] : leverage <= 3 ? [-1, 3] : [-3, 4];
+    const close = margin >= closeBand[0] && margin <= closeBand[1];
+    const setupInning = leverage >= 7 ? 6 : 7;
 
     let order;
     if (blowout) order = ['mopup', 'long', 'middle', 'setup'];
-    else if (inning >= 7 && close) order = ['setup', 'middle', 'mopup', 'long'];
+    else if (inning >= setupInning && close) order = ['setup', 'middle', 'mopup', 'long'];
     else if (inning <= 4) order = ['long', 'mopup', 'middle', 'setup'];
     else order = ['middle', 'mopup', 'long', 'setup'];
 
@@ -1093,16 +1168,20 @@ window.BBGM_SIM = (function () {
     const traffic = (ps.h || 0) + (ps.bb || 0);
     const margin = def.runs - off.runs;
 
+    const quickHook = (def.mgr && def.mgr.quickHook) || 5;
     let pull = false;
     if (isStarter) {
       // Effective pitch limit (7.4.3): base + efficiency bonus - trouble
-      // penalty, capped by the tier ceiling. Recomputed every PA.
+      // penalty, capped by the tier ceiling. Recomputed every PA. The
+      // manager's quick-hook tendency stretches or shortens the leash
+      // ~±8% (17.2).
       let limit = basePitchLimit(stamina);
       const ppi = ip > 0 ? pitches / ip : 0;
       if (ip >= 3 && ppi > 0 && ppi <= 14) limit += 12;
       else if (ip >= 3 && ppi > 0 && ppi <= 16) limit += 6;
       limit -= runsAllowed * 2.5;
       limit -= Math.max(0, traffic - ip * 1.8) * 2;
+      limit *= 1 - (quickHook - 5) * 0.016;
       limit = Math.min(limit, pitchCeiling(stamina));
       limit = Math.max(limit, 45); // never pure-pitch-count yank absurdly early
 
@@ -1114,7 +1193,8 @@ window.BBGM_SIM = (function () {
 
       // Complete-game chase (7.4.5): a dominant starter late in a close,
       // low-run game stays in as long as he's under his tier ceiling.
-      if (pull && inning >= 8 && runsAllowed <= 2 && Math.abs(margin) <= 4 &&
+      // Quick-hook managers don't chase complete games.
+      if (pull && quickHook <= 6 && inning >= 8 && runsAllowed <= 2 && Math.abs(margin) <= 4 &&
           pitches < pitchCeiling(stamina) - 5 && stamina >= 60) {
         pull = false;
       }
@@ -1126,12 +1206,14 @@ window.BBGM_SIM = (function () {
       if (pitches >= limit) pull = true;
       if (runsAllowed >= 3) pull = true;
 
-      // Proactive closer call: 9th inning or later protecting a 1-3 run
-      // lead, hand the ball to the closer even if the current reliever
-      // isn't tired. Without this, fresh setup men finish 9th innings
-      // under their pitch limits and steal the save chances.
+      // Proactive closer call: protecting a 1-3 run lead in closer
+      // territory (9th, or 8th for high-leverage managers), hand the ball
+      // to the closer even if the current reliever isn't tired. Without
+      // this, fresh setup men finish 9th innings under their pitch limits
+      // and steal the save chances.
       const closerId = def.team.closer;
-      if (inning >= 9 && margin >= 1 && margin <= 3 && closerId &&
+      const closerFrom = ((def.mgr && def.mgr.leverage) || 5) >= 8 ? 8 : 9;
+      if (inning >= closerFrom && margin >= 1 && margin <= 3 && closerId &&
           pitcher.id !== closerId && !def.pitchersUsed.includes(closerId)) {
         pull = true;
       }

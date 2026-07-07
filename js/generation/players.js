@@ -490,7 +490,10 @@ window.BBGM_PLAYER_GEN = (function () {
     return { g: 0, ab: 0, pa: 0, h: 0, b2: 0, b3: 0, hr: 0, r: 0, rbi: 0, sb: 0, cs: 0, bb: 0, k: 0, hbp: 0, sf: 0, sh: 0 };
   }
 
-  function assignLineupsAndPitching(rng, team, players) {
+  // opts.lineupStyle (1-10, bible 17.2): ≤3 old-school ordering (speed at
+  // the top, sluggers 3-4-5), ≥7 modern (best OPS bats stacked at the top),
+  // middle = a soft blend. Defaults to modern (the pre-Phase-10 behavior).
+  function assignLineupsAndPitching(rng, team, players, opts = {}) {
     const roster = team.roster.map((id) => players[id]);
     const hitters = roster.filter((p) => !p.isPitcher);
     const pitchers = roster.filter((p) => p.isPitcher);
@@ -520,8 +523,8 @@ window.BBGM_PLAYER_GEN = (function () {
     team.bullpenRoles = assignBullpenRoles(team, players);
 
     // Lineup: build vs RHP and vs LHP
-    team.lineupRH = buildLineup(hitters, 'R', team);
-    team.lineupLH = buildLineup(hitters, 'L', team);
+    team.lineupRH = buildLineup(hitters, 'R', team, opts.lineupStyle);
+    team.lineupLH = buildLineup(hitters, 'L', team, opts.lineupStyle);
   }
 
   // Assign bullpen roles per bible 7.8 labels. The closer is tracked
@@ -557,7 +560,7 @@ window.BBGM_PLAYER_GEN = (function () {
     return roles;
   }
 
-  function buildLineup(hitters, vsHand, team) {
+  function buildLineup(hitters, vsHand, team, lineupStyle) {
     // Required positions (8 in NL-style B-league, 9 in AL-style A-league with DH).
     const isDH = team.league === 'east';
     const positions = isDH
@@ -600,14 +603,53 @@ window.BBGM_PLAYER_GEN = (function () {
       remainingPositions.splice(idx, 1);
     }
 
-    // Build the lineup in standard order, then sort by offensive value to
-    // produce a "modern" batting order (best hitters at the top).
+    // Build the lineup in standard order, then apply the manager's batting
+    // order philosophy (17.2 lineup construction).
     const lineup = positions.map((pos) => ({ playerId: placedByPos[pos], position: pos }));
-    lineup.sort((a, b) => {
-      const ha = hitters.find((p) => p.id === a.playerId);
-      const hb = hitters.find((p) => p.id === b.playerId);
-      return offensiveValue(hb, vsHand) - offensiveValue(ha, vsHand);
-    });
+    const byId = {};
+    for (const p of hitters) byId[p.id] = p;
+    const style = lineupStyle != null ? lineupStyle : 7;
+
+    if (style <= 3) {
+      // Old-school: fastest high-contact bat leads off, bat-control second,
+      // sluggers 3-4-5, everyone else by offense descending.
+      const rest = lineup.slice();
+      const speedScore = (s) => {
+        const p = byId[s.playerId];
+        return p.ratings.speed * 1.2 + (vsHand === 'L' ? p.ratings.contactVsL : p.ratings.contactVsR);
+      };
+      const powerScore = (s) => {
+        const p = byId[s.playerId];
+        return vsHand === 'L' ? p.ratings.powerVsL : p.ratings.powerVsR;
+      };
+      const offScore = (s) => offensiveValue(byId[s.playerId], vsHand);
+      const take = (arr, scoreFn) => {
+        arr.sort((a, b) => scoreFn(b) - scoreFn(a));
+        return arr.shift();
+      };
+      const ordered = [];
+      ordered.push(take(rest, speedScore));            // 1: table-setter
+      ordered.push(take(rest, speedScore));            // 2: bat control
+      ordered.push(take(rest, offScore));              // 3: best hitter
+      ordered.push(take(rest, powerScore));            // 4: cleanup power
+      if (rest.length) ordered.push(take(rest, powerScore)); // 5: more power
+      rest.sort((a, b) => offScore(b) - offScore(a));
+      return ordered.concat(rest);
+    }
+
+    // Modern (and blended middle): best hitters stacked at the top.
+    lineup.sort((a, b) => offensiveValue(byId[b.playerId], vsHand) - offensiveValue(byId[a.playerId], vsHand));
+    if (style > 3 && style < 7 && lineup.length >= 4) {
+      // Soft blend: slide the top power bat to cleanup.
+      const powerOf = (s) => {
+        const p = byId[s.playerId];
+        return vsHand === 'L' ? p.ratings.powerVsL : p.ratings.powerVsR;
+      };
+      let pi = 0;
+      for (let i = 1; i < 4; i++) if (powerOf(lineup[i]) > powerOf(lineup[pi])) pi = i;
+      const [slugger] = lineup.splice(pi, 1);
+      lineup.splice(3, 0, slugger);
+    }
     return lineup;
   }
 
