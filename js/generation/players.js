@@ -160,7 +160,9 @@ window.BBGM_PLAYER_GEN = (function () {
 
   function makePlayer(rng, opts) {
     const { slotPos, team, tier, ageRange, status, rosterStatus, isProspect } = opts;
-    const id = nextId();
+    // Post-launch generation (offseason backfill) passes an explicit id —
+    // the module counter resets on reload and would collide with saved ids.
+    const id = opts.id || nextId();
 
     // Identity
     const firstName = pick(rng, window.BBGM_NAMES.firstNames);
@@ -500,12 +502,16 @@ window.BBGM_PLAYER_GEN = (function () {
     );
     team.rotation = sps.slice(0, 5).map((p) => p.id);
 
-    // Closer: best CP, fallback best RP
+    // Closer: best CP, fallback best RP, fallback best non-rotation arm.
     const cps = pitchers.filter((p) => p.primaryPosition === 'CP');
     const rps = pitchers.filter((p) => p.primaryPosition === 'RP' || p.primaryPosition === 'CP');
     rps.sort((a, b) => (b.ratings.stuff + b.ratings.velocity) - (a.ratings.stuff + a.ratings.velocity));
-    team.closer = (cps[0] || rps[0]).id;
-    team.bullpen = rps.filter((p) => p.id !== team.closer).map((p) => p.id);
+    const nonRotation = pitchers.filter((p) => !team.rotation.includes(p.id));
+    team.closer = (cps[0] || rps[0] || nonRotation[0]).id;
+    // Bullpen: every pitcher who isn't in the rotation or closing. Spare
+    // SP-primary arms land here as swingmen/long men — keeps the pen legal
+    // when roster churn (retirements, call-ups) leaves an SP-heavy staff.
+    team.bullpen = nonRotation.filter((p) => p.id !== team.closer).map((p) => p.id);
     team.bullpenRoles = assignBullpenRoles(team, players);
 
     // Lineup: build vs RHP and vs LHP
@@ -637,8 +643,11 @@ window.BBGM_PLAYER_GEN = (function () {
       throw new Error(`Team ${tag} not ready: ${msg}`);
     }
 
-    if (!Array.isArray(team.roster) || team.roster.length !== 26) {
-      fail(`active roster size ${team.roster ? team.roster.length : 0}, expected 26`);
+    // 26 is full strength; a team may play short (24-25) while an IL stint
+    // lacks a call-up (bible 10.5 "play short-handed — legal but unwise").
+    // Over 26 is never legal.
+    if (!Array.isArray(team.roster) || team.roster.length < 24 || team.roster.length > 26) {
+      fail(`active roster size ${team.roster ? team.roster.length : 0}, expected 24-26`);
     }
 
     // Every roster id must reference a real player.
@@ -649,8 +658,8 @@ window.BBGM_PLAYER_GEN = (function () {
     const roster = team.roster.map((id) => players[id]);
     const pitchers = roster.filter((p) => p.isPitcher);
     const hitters = roster.filter((p) => !p.isPitcher);
-    if (pitchers.length < 13) fail(`only ${pitchers.length} pitchers, expected at least 13`);
-    if (hitters.length < 13) fail(`only ${hitters.length} hitters, expected at least 13`);
+    if (pitchers.length < 11) fail(`only ${pitchers.length} pitchers, expected at least 11`);
+    if (hitters.length < 11) fail(`only ${hitters.length} hitters, expected at least 11`);
 
     // Rotation: must be exactly 5 valid SP-eligible pitchers.
     if (!Array.isArray(team.rotation) || team.rotation.length < 5) {
@@ -662,9 +671,10 @@ window.BBGM_PLAYER_GEN = (function () {
       if (!p.isPitcher) fail(`rotation contains non-pitcher ${p.name} (${id})`);
     }
 
-    // Bullpen: at least 7 arms, all valid.
-    if (!Array.isArray(team.bullpen) || team.bullpen.length < 7) {
-      fail(`bullpen size ${team.bullpen ? team.bullpen.length : 0}, expected at least 7`);
+    // Bullpen: at least 6 arms plus the closer (the bible 11.2 12-pitcher
+    // config is 5 SP + closer + 6 pen), all valid.
+    if (!Array.isArray(team.bullpen) || team.bullpen.length < 6) {
+      fail(`bullpen size ${team.bullpen ? team.bullpen.length : 0}, expected at least 6`);
     }
     for (const id of team.bullpen) {
       const p = players[id];
@@ -692,11 +702,30 @@ window.BBGM_PLAYER_GEN = (function () {
     }
   }
 
+  // Generate one new player into an existing save (offseason org backfill,
+  // emergency roster fills). Caller supplies a collision-safe id via
+  // state.meta.nextGenId bookkeeping.
+  function generateNewPlayer(rng, team, opts) {
+    return makePlayer(rng, {
+      slotPos: opts.slotPos,
+      team,
+      tier: opts.tier || 'prospect',
+      ageRange: opts.ageRange || { min: 18, max: 22 },
+      status: opts.status || 'minors',
+      rosterStatus: opts.rosterStatus || 'A',
+      isProspect: opts.isProspect !== false,
+      id: opts.id,
+    });
+  }
+
   return {
     generate, validateLeagueReadiness, assignBullpenRoles,
     // Exposed for the roster-management UI: position eligibility checks and
     // single-team readiness validation after user-driven roster moves.
     canPlay,
     validateTeam: checkTeamReadiness,
+    // Post-launch generation + team config rebuild (offseason rollover).
+    generateNewPlayer,
+    assignLineupsAndPitching,
   };
 })();

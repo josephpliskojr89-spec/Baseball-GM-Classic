@@ -3703,6 +3703,15 @@ This approach is essential for AI-assisted coding: each phase keeps complexity m
 - Pinch-hitter / pinch-runner-only fatigue distinctions (treat any
   bench appearance as the same low-fatigue event for now)
 
+> **Status (0.8.0).** Stage 4 IL roster transactions are in: an IL-type
+> injury moves the player off the 26-man onto the team IL list and the
+> best minors fit is called up automatically (position-matched for
+> catchers); activation reverses the move, sending the call-up cover
+> back down. Auto-handled for every team with news for the user's —
+> a richer prompt-driven decision flow (bible 11.6) remains open.
+> Options tracking, DFA/waivers, and September expansion are still
+> deferred (Phase 8+ territory).
+
 ### 21.6 Phase 5: Progression System (Estimated: 1-2 sessions)
 
 **Goal:** Annual player development working with archetypes.
@@ -3726,6 +3735,13 @@ This approach is essential for AI-assisted coding: each phase keeps complexity m
 **Deferred:**
 - Coaching staff effects (use placeholder modifiers until coaching system built)
 
+> **Status (0.8.0).** Shipped: annual progression with per-archetype
+> curves (rise/plateau/decline, late-bloomer breakouts, one-year-wonder
+> spike/reversion), work-ethic / injury / level-appropriateness
+> modifiers, volatility, ceiling enforcement, aging, and retirement with
+> the 17.9 open-to-coaching flag. Coaching modifiers remain placeholder
+> (Phase 10). Runs inside the season rollover.
+
 ### 21.7 Phase 6: Minor League System (Estimated: 1 session)
 
 **Goal:** Functioning minor league depth with development tracking.
@@ -3747,6 +3763,14 @@ This approach is essential for AI-assisted coding: each phase keeps complexity m
 **Deferred:**
 - Rule 5 draft (small mechanic, can wait)
 
+> **Status (0.8.0).** Shipped: annual summary stat lines per level with
+> level-scaled noise (12.2/12.3, stamped at rollover on
+> `stats[year].minorsLine`), offseason level reassignment (12.4), the
+> 30-man cap with fringe releases to the FA pool (12.8), and interim
+> org backfill via generated depth signings (stands in for the draft
+> and minor-league FA until Phases 9/11). Not yet: in-season
+> proportional stat display, minor-league FA market (12.6), Rule 5.
+
 ### 21.8 Phase 7: Stats System Polish (Estimated: 1 session)
 
 **Goal:** Full stats display and league leaders.
@@ -3765,6 +3789,13 @@ This approach is essential for AI-assisted coding: each phase keeps complexity m
 - League leaders update properly
 - Milestone events trigger correctly
 - Mobile displays clean and readable
+
+> **Status (0.8.0).** Shipped: career aggregation at each rollover,
+> milestone tracking with news (8.6), postseason stat lines on a
+> separate `stats[year].postseason` bucket, career/minors/postseason
+> rows and championships/milestones on the player profile, and a
+> League → History tab (champions by year). Not yet: splits
+> (vs L/R, home/road), career-bests table, All-Star selections.
 
 ### 21.9 Phase 8: Trade System (Estimated: 1-2 sessions, includes tuning)
 
@@ -3956,6 +3987,33 @@ user becomes a pure GM), with hireable staff carrying mechanical effects.
   from the year being closed out)
 - Historical Game Detail views still render box scores from season
   totals; AB-log section shows the empty-state note
+
+> **Status (0.8.0) — minimal rollover shipped early.** The enabling
+> slice of this phase exists so Phases 5-7 can actually run: when the
+> user advances past the last regular-season day, the game plays the
+> full 12-team postseason (3.4, with postseason stats on their own
+> bucket), then runs the offseason in bible-18 order — minors season
+> lines, career aggregation + milestones, retirements, progression,
+> aging, service time, contract ticks, injury-clock fast-forward
+> across the skipped calendar (per 10.5), minors level moves + the
+> 30-cap, org backfill, team config rebuild (spring training reset),
+> fresh schedule, Opening Day. One-tap, no pacing controls yet.
+> Interim placeholders to replace in later phases: expired contracts
+> auto-renew (until Phase 9 FA), org depth backfill via generated
+> signings (until Phase 11 draft / 12.6 minor-league FA), no awards
+> voting (Phase 14), no manager hiring (Phase 10), postseason
+> injuries don't carry over, prior-season game data is archived to a
+> summary (records + champion) rather than kept whole.
+>
+> **Measured (12-season soak, tools/season_harness.js):** zero stat
+> invariant violations across ~29,000 games, league readiness valid
+> every year, 10 distinct champions in 12 seasons, retirement wave
+> settles at ~85-95/yr, save ~8 MB after 12 years. Watch items for
+> the talent-pipeline phases (9/11/12): league R/G drifts from ~4.7
+> to a stable ~4.3 by year 4 as starless generated backfill replaces
+> the original talent tiers (the draft must supply star-tier ceilings
+> to hold the run environment), and the 26-man age-vs-overall curve
+> declines monotonically instead of peaking at 26-29.
 
 ### 21.17 Phase 16: Polish and Iteration (Ongoing)
 

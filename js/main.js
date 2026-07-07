@@ -356,7 +356,110 @@ window.BBGM_MAIN = (function () {
   function advanceDay() {
     const state = window.BBGM_STATE.get();
     if (!state) return;
+    const today = state.meta.currentDate;
+    const seasonEnd = state.league.schedule.seasonEnd;
+    if (D.compare(today, seasonEnd) >= 0) {
+      confirmOffseason(state);
+      return;
+    }
     simDays(1);
+  }
+
+  // ------- Postseason + offseason rollover -------
+  function confirmOffseason(state) {
+    const year = state.meta.currentDate.year;
+    U.showModal({
+      title: 'Season Complete',
+      body: `The ${year} regular season is over. Play the postseason and run the offseason ` +
+            `(retirements, player development, new schedule) to advance to ${year + 1}?`,
+      actions: [
+        { label: 'Cancel', kind: 'secondary', onClick: () => true },
+        { label: `Play Postseason & Advance`, kind: 'primary', onClick: () => {
+          setTimeout(() => runOffseasonFlow(state), 50);
+          return true;
+        }},
+      ],
+    });
+  }
+
+  function runOffseasonFlow(state) {
+    U.showProgress('Playing postseason & running offseason…');
+    window.BBGM_STATE.setSaveBlocked(true);
+    setTimeout(() => {
+      try {
+        const summary = window.BBGM_OFFSEASON.runSeasonRollover(state);
+        pushOffseasonNews(state, summary);
+        window.BBGM_STATE.setSaveBlocked(false);
+        window.BBGM_STATE.saveNow();
+        U.hideProgress();
+        refresh();
+        const champ = state.league.teams.find((t) => t.id === summary.postseason.champion.id);
+        U.showModal({
+          title: `${summary.year} World Series`,
+          body: `The ${champ.name} win the ${summary.year} World Series! ` +
+                `${summary.retirements.length} players retired this offseason. ` +
+                `Welcome to ${summary.newYear} — pitchers and catchers have reported, ` +
+                `lineups and rotations are set for Opening Day.`,
+          actions: [{ label: 'Play Ball', kind: 'primary', onClick: () => true }],
+        });
+      } catch (e) {
+        console.error('Offseason rollover failed:', e);
+        window.BBGM_STATE.setSaveBlocked(false);
+        window.BBGM_STATE.saveNow();
+        U.hideProgress();
+        U.showModal({
+          title: 'Offseason Error',
+          body: 'The offseason rollover hit an error: ' + e.message +
+                '\n\nOpen the browser console for details.',
+          actions: [{ label: 'OK', kind: 'primary', onClick: () => true }],
+        });
+      }
+    }, 50);
+  }
+
+  function pushOffseasonNews(state, summary) {
+    if (!state.news) state.news = [];
+    const date = { ...state.meta.currentDate };
+    const teamOf = (id) => state.league.teams.find((t) => t.id === id);
+    const userTeamId = state.meta.userTeamId;
+
+    const champ = teamOf(summary.postseason.champion.id);
+    const runnerUp = teamOf(summary.postseason.runnerUp.id);
+    const ws = summary.postseason.worldSeries;
+    state.news.push({
+      date,
+      body: `<strong>${champ.name}</strong> defeat the ${runnerUp.name} ${ws.score[0]}-${ws.score[1]} ` +
+            `to win the ${summary.year} World Series.`,
+    });
+
+    // Retirements: every user-team player, plus league-wide notables.
+    for (const r of summary.retirements) {
+      const notable = r.overall >= 55 || r.age >= 39;
+      if (r.teamId !== userTeamId && !notable) continue;
+      const t = teamOf(r.teamId);
+      state.news.push({
+        date,
+        body: `<strong>${r.name}</strong> (${t ? t.abbr : 'FA'}) retires at age ${r.age}.` +
+              (r.openToCoaching ? ' Word is he wants to stay in the game as a coach.' : ''),
+      });
+    }
+
+    // Milestones crossed this season.
+    for (const m of summary.milestones) {
+      const p = state.players[m.playerId];
+      const t = p && teamOf(p.teamId);
+      state.news.push({
+        date,
+        body: `Milestone: <strong>${m.name}</strong>${t ? ` (${t.abbr})` : ''} reached ` +
+              `${m.threshold.toLocaleString()} career ${m.label}.`,
+      });
+    }
+
+    state.news.push({
+      date: { ...state.meta.currentDate },
+      body: `The ${summary.newYear} season begins — spring training set the lineups and rotations league-wide.`,
+    });
+    if (state.news.length > 200) state.news = state.news.slice(-200);
   }
 
   function simToNextEvent() {
@@ -530,6 +633,7 @@ window.BBGM_MAIN = (function () {
 
   function applyInjuriesFromGames(state, today, games) {
     const INJ = window.BBGM_INJURIES;
+    const R = window.BBGM_ROSTER;
     const userTeamId = state.meta.userTeamId;
     for (const g of games) {
       if (!g.played || !g.result || !g.result.injuries) continue;
@@ -542,6 +646,19 @@ window.BBGM_MAIN = (function () {
         if (entry.injury.careerAltering && p.hidden && p.hidden.ceiling) {
           applyCareerAlteringCeiling(p, entry.injury);
         }
+        // IL-type injuries trigger a real roster move (bible 11.5): the
+        // player comes off the 26-man onto the team IL list and the best
+        // minors fit is called up. Auto-handled for every team; the
+        // user's moves are surfaced in the news feed. Day-to-day players
+        // stay on the roster (no move needed).
+        let callUpNote = '';
+        if (entry.injury.ilType) {
+          const team = state.league.teams.find((t) => t.id === p.teamId);
+          if (team && team.roster.includes(p.id)) {
+            const { callUp } = R.placeOnILWithMove(state, team, p);
+            if (callUp) callUpNote = ` <strong>${callUp.name}</strong> called up from ${callUp.ilCallUpFor ? 'AAA' : 'the minors'}.`;
+          }
+        }
         if (p.teamId === userTeamId) {
           if (!state.news) state.news = [];
           const team = state.league.teams.find((t) => t.id === p.teamId);
@@ -550,7 +667,7 @@ window.BBGM_MAIN = (function () {
             body: `<strong>${p.name}</strong> (${team ? team.abbr : '?'}) suffered a ${entry.injury.type.toLowerCase()} — ` +
               (entry.injury.ilType ? `placed on the ${entry.injury.ilType} IL (out ~${entry.injury.daysOut} days)` :
                 `day-to-day, expected back in ${entry.injury.daysOut} day${entry.injury.daysOut !== 1 ? 's' : ''}`) +
-              (entry.injury.careerAltering ? ' — career-altering' : '') + '.',
+              (entry.injury.careerAltering ? ' — career-altering' : '') + '.' + callUpNote,
           });
         }
       }
@@ -559,6 +676,7 @@ window.BBGM_MAIN = (function () {
 
   function advanceInjuryRecovery(state, today) {
     const INJ = window.BBGM_INJURIES;
+    const R = window.BBGM_ROSTER;
     const userTeamId = state.meta.userTeamId;
     for (const id in state.players) {
       const p = state.players[id];
@@ -568,11 +686,20 @@ window.BBGM_MAIN = (function () {
       const wasInjured = !INJ.isAvailable(p);
       if (!wasInjured) continue;
       const came = INJ.tickRecovery(p);
-      if (came && p.teamId === userTeamId) {
+      if (!came) continue;
+      // If the player was on the team IL list, run the activation move:
+      // back onto the 26-man, call-up cover goes back down.
+      let sentDownNote = '';
+      const team = state.league.teams.find((t) => t.id === p.teamId);
+      if (team && (team.il || []).includes(p.id)) {
+        const { sentDown } = R.activateFromIL(state, team, p);
+        if (sentDown) sentDownNote = ` <strong>${sentDown.name}</strong> optioned to AAA.`;
+      }
+      if (p.teamId === userTeamId) {
         if (!state.news) state.news = [];
         state.news.push({
           date: { ...today },
-          body: `<strong>${p.name}</strong> activated from the IL.`,
+          body: `<strong>${p.name}</strong> activated from the IL.` + sentDownNote,
         });
       }
     }

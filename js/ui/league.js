@@ -15,6 +15,7 @@ window.BBGM_UI_LEAGUE = (function () {
       { key: 'standings', label: 'Standings' },
       { key: 'leaders', label: 'Leaders' },
       { key: 'teams', label: 'Teams' },
+      { key: 'history', label: 'History' },
     ];
     for (const t of tabDefs) {
       tabs.appendChild(U.el('button', {
@@ -27,6 +28,34 @@ window.BBGM_UI_LEAGUE = (function () {
     if (activeTab === 'standings') renderStandings(container, state);
     else if (activeTab === 'leaders') renderLeaders(container, state);
     else if (activeTab === 'teams') renderTeams(container, state);
+    else if (activeTab === 'history') renderHistory(container, state);
+  }
+
+  function renderHistory(container, state) {
+    const seasons = (state.history && state.history.seasons) || [];
+    if (!seasons.length) {
+      container.appendChild(U.el('div', { class: 'empty-state' },
+        'No completed seasons yet. History fills in as the years go by.'));
+      return;
+    }
+    container.appendChild(U.el('div', { class: 'card-title' }, 'Champions'));
+    const list = U.el('div', { class: 'roster-list' });
+    for (const s of seasons.slice().reverse()) {
+      const champ = state.league.teams.find((t) => t.id === s.championId);
+      const runnerUp = state.league.teams.find((t) => t.id === s.runnerUpId);
+      const rec = s.records && s.records[s.championId];
+      const row = U.el('div', { class: 'roster-row' });
+      if (champ) row.appendChild(U.teamCap(champ));
+      const info = U.el('div', { class: 'player-row-info' });
+      info.appendChild(U.el('div', { class: 'player-row-name' },
+        `${s.year} — ${champ ? champ.name : s.championId}`));
+      info.appendChild(U.el('div', { class: 'player-row-meta' },
+        `Beat ${runnerUp ? runnerUp.name : s.runnerUpId} ${s.worldSeries.score[0]}-${s.worldSeries.score[1]} in the World Series` +
+        (rec ? ` • ${rec.w}-${rec.l} regular season` : '')));
+      row.appendChild(info);
+      list.appendChild(row);
+    }
+    container.appendChild(list);
   }
 
   function renderStandings(container, state) {

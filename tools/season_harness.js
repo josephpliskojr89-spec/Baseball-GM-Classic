@@ -1,13 +1,15 @@
 // Headless full-season calibration harness (Node, no browser needed).
 //
-//   node tools/season_harness.js [seed]
+//   node tools/season_harness.js [seed] [seasons]
 //
 // Loads the browser modules under a fake `window`, generates a league,
-// sims a full 2,430-game season replicating main.js's simOneDay loop, and
+// sims full 2,430-game seasons replicating main.js's simOneDay loop, and
 // reports calibration metrics against the bible targets (7.2, 7.4.7, 10.7,
-// 10.8). Run this after any engine/tuning change — the per-game stat
-// invariant validation inside simulateGame throws on accounting bugs, so a
-// clean full-season run is itself a meaningful regression test.
+// 10.8). With seasons > 1 it runs the postseason + offseason rollover
+// between years (progression, retirement, minors sim) and reports
+// franchise-level metrics. Run this after any engine/tuning change — the
+// per-game stat invariant validation inside simulateGame throws on
+// accounting bugs, so a clean run is itself a meaningful regression test.
 'use strict';
 const fs = require('fs');
 const path = require('path');
@@ -28,8 +30,12 @@ const files = [
   'js/engine/stats.js',
   'js/engine/injuries.js',
   'js/engine/fatigue.js',
+  'js/engine/roster.js',
+  'js/engine/progression.js',
+  'js/engine/minors.js',
   'js/engine/simulation.js',
   'js/engine/standings.js',
+  'js/engine/offseason.js',
 ];
 
 const sandbox = { window: {}, console, Math, JSON, Array, Object, Date };
@@ -111,6 +117,7 @@ function simOneDay(state) {
       consecDayViolations++;
     }
   }
+  const R = W.BBGM_ROSTER;
   for (const g of games) {
     if (!g.played || !g.result || !g.result.injuries) continue;
     for (const entry of g.result.injuries) {
@@ -123,12 +130,20 @@ function simOneDay(state) {
         ilStints++;
         (p.isPitcher ? ilPlayersP : ilPlayersH).add(p.id);
         if (entry.injury.type === 'UCL tear') tjCount++;
+        // Roster move: onto team IL, call-up cover (mirrors main.js).
+        const team = state.league.teams.find((t) => t.id === p.teamId);
+        if (team && team.roster.includes(p.id)) R.placeOnILWithMove(state, team, p);
       } else dtdStints++;
     }
   }
   for (const id in state.players) {
     const p = state.players[id];
-    if (!INJ.isAvailable(p)) INJ.tickRecovery(p);
+    if (INJ.isAvailable(p)) continue;
+    const came = INJ.tickRecovery(p);
+    if (came) {
+      const team = state.league.teams.find((t) => t.id === p.teamId);
+      if (team && (team.il || []).includes(p.id)) R.activateFromIL(state, team, p);
+    }
   }
   const playedToday = new Set();
   for (const g of games) {
@@ -149,8 +164,15 @@ function simOneDay(state) {
   state.meta.currentDate = D.addDays(today, 1);
 }
 
-let guard = 0;
-while (D.compare(state.meta.currentDate, schedule.seasonEnd) <= 0 && guard++ < 250) simOneDay(state);
+const seasonsArg = Math.max(1, parseInt(process.argv[3] || '1', 10));
+
+function runSeason() {
+  let guard = 0;
+  while (D.compare(state.meta.currentDate, state.league.schedule.seasonEnd) <= 0 && guard++ < 250) {
+    simOneDay(state);
+  }
+}
+runSeason();
 
 // ---- Aggregate ----
 const hitTot = S.emptyHitter(), pitTot = S.emptyPitcher(), pitcherBatTot = S.emptyHitter();
@@ -253,3 +275,68 @@ for (const t of league.teams) for (const id of t.roster) {
   const s = p.stats[YEAR]; if (s && s.pa > 400) paByLeague[t.league].push(s.pa);
 }
 console.log('avg PA of 400+ PA hitters: EAST', avg(paByLeague.east).toFixed(0), 'WEST', avg(paByLeague.west).toFixed(0));
+
+// ---- Franchise mode: postseason + offseason rollover between seasons ----
+if (seasonsArg > 1) {
+  console.log('\n=== FRANCHISE MODE: ' + seasonsArg + ' seasons ===');
+  const retirementCounts = [];
+  let totalNewPlayers = 0;
+  for (let si = 1; si <= seasonsArg; si++) {
+    const gamesBefore = totalGames, errBefore = simErrors, tiesBefore = ties;
+    const runsBefore = runsByLeague.east + runsByLeague.west;
+    const sgBefore = gamesByLeague.east + gamesByLeague.west;
+    const ilBefore = ilStints;
+
+    const summary = W.BBGM_OFFSEASON.runSeasonRollover(state);
+    retirementCounts.push(summary.retirements.length);
+    totalNewPlayers += summary.newPlayers;
+    const champ = state.league.teams.find((t) => t.id === summary.postseason.champion.id);
+    console.log(`${summary.year}: 🏆 ${champ.abbr} (WS ${summary.postseason.worldSeries.score.join('-')})` +
+      ` | retired ${summary.retirements.length} | milestones ${summary.milestones.length}` +
+      ` | new org players ${summary.newPlayers}`);
+
+    if (si === seasonsArg) break;
+    runSeason();
+    const rg = (runsByLeague.east + runsByLeague.west - runsBefore) /
+               Math.max(1, gamesByLeague.east + gamesByLeague.west - sgBefore);
+    console.log(`  ${state.meta.currentDate.year} season: ${totalGames - gamesBefore} games` +
+      ` | R/G ${rg.toFixed(2)} | IL stints ${ilStints - ilBefore}` +
+      ` | sim errors ${simErrors - errBefore} | ties ${ties - tiesBefore}`);
+  }
+
+  // Franchise diagnostics.
+  console.log('--- Franchise diagnostics ---');
+  try {
+    W.BBGM_PLAYER_GEN.validateLeagueReadiness(state.league, state.players);
+    console.log('league readiness after ' + seasonsArg + ' seasons: OK');
+  } catch (e) {
+    console.log('league readiness FAILED:', e.message);
+  }
+  let retiredCount = 0, activeCount = 0, coachFlags = 0;
+  const ovrByAge = {};
+  for (const id in state.players) {
+    const p = state.players[id];
+    if (p.retired) {
+      retiredCount++;
+      if (p.retired.openToCoaching) coachFlags++;
+      continue;
+    }
+    activeCount++;
+    if (p.rosterStatus === '26-man') {
+      const bucket = p.age <= 25 ? '<=25' : p.age <= 29 ? '26-29' : p.age <= 33 ? '30-33' : '34+';
+      if (!ovrByAge[bucket]) ovrByAge[bucket] = [];
+      ovrByAge[bucket].push(W.BBGM_ROSTER.overall(p));
+    }
+  }
+  console.log('players: active', activeCount, '| retired', retiredCount,
+    '(open to coaching:', coachFlags + ')', '| retirements/yr', retirementCounts.join(', '));
+  const cohorts = ['<=25', '26-29', '30-33', '34+'].map((b) =>
+    `${b}: ${avg(ovrByAge[b] || []).toFixed(1)} (n=${(ovrByAge[b] || []).length})`);
+  console.log('26-man avg overall by age —', cohorts.join(' | '));
+  const champs = state.history.seasons.map((s) => s.championId);
+  console.log('champions:', champs.join(', '), '| distinct:', new Set(champs).size);
+  const minorsSizes = state.league.teams.map((t) => (t.minors || []).length);
+  console.log('minors sizes:', Math.min(...minorsSizes), '-', Math.max(...minorsSizes),
+    '| free agents pool:', (state.freeAgents || []).length);
+  console.log('save size:', (JSON.stringify(state).length / 1024 / 1024).toFixed(2), 'MB');
+}

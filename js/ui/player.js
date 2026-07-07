@@ -15,9 +15,26 @@ window.BBGM_UI_PLAYER = (function () {
     const header = U.el('div', { class: 'player-profile-header', style: U.teamColorVars(team || {colors:{primary:'#1c2230',secondary:'#161b22'}}) });
     header.appendChild(U.el('div', { class: 'player-profile-name' }, p.name));
     header.appendChild(U.el('div', { class: 'player-profile-meta' },
-      `${p.primaryPosition} • Age ${p.age} • ${p.bats}/${p.throws} • #${p.jersey}`));
-    if (team) header.appendChild(U.el('div', { class: 'player-profile-team' }, team.name));
+      `${p.primaryPosition} • Age ${p.age} • ${p.bats}/${p.throws} • #${p.jersey}` +
+      (p.retired ? ` • Retired ${p.retired.year}` : '')));
+    if (team && !p.retired) header.appendChild(U.el('div', { class: 'player-profile-team' }, team.name));
     body.appendChild(header);
+
+    // Championships and milestones.
+    const ach = p.achievements || {};
+    const achBits = [];
+    if (ach.championships && ach.championships.length) {
+      achBits.push(`🏆 ${ach.championships.join(', ')}`);
+    }
+    for (const m of (ach.milestones || [])) {
+      achBits.push(`${m.threshold.toLocaleString()} ${m.label} (${m.year})`);
+    }
+    if (achBits.length) {
+      body.appendChild(U.el('div', {
+        class: 'muted',
+        style: { 'font-size': '12px', 'margin-bottom': '10px' },
+      }, achBits.join(' • ')));
+    }
 
     // Active injury banner — shown above stats so it's the first thing the
     // user sees on a profile they're considering a roster move for.
@@ -222,11 +239,9 @@ window.BBGM_UI_PLAYER = (function () {
     thead.appendChild(trh);
     table.appendChild(thead);
 
-    const tbody = U.el('tbody');
-    for (const y of years) {
-      const s = p.stats[y];
-      const tr = U.el('tr');
-      tr.appendChild(U.el('td', {}, y));
+    const rowFor = (label, s, cls) => {
+      const tr = U.el('tr', cls ? { style: { color: 'var(--text-muted)' } } : {});
+      tr.appendChild(U.el('td', {}, label));
       if (isP) {
         tr.appendChild(U.el('td', {}, String(s.g || 0)));
         tr.appendChild(U.el('td', {}, String(s.gs || 0)));
@@ -249,6 +264,25 @@ window.BBGM_UI_PLAYER = (function () {
         tr.appendChild(U.el('td', {}, S.fmtAvg(S.obp(s))));
         tr.appendChild(U.el('td', {}, S.fmtAvg(S.slg(s))));
       }
+      return tr;
+    };
+
+    const tbody = U.el('tbody');
+    for (const y of years) {
+      const s = p.stats[y];
+      const playedMLB = isP ? (s.ipOuts || 0) > 0 || (s.g || 0) > 0 : (s.pa || 0) > 0;
+      if (playedMLB) tbody.appendChild(rowFor(y, s));
+      // Minor-league season line (stamped at rollover) — shown muted.
+      if (s.minorsLine) tbody.appendChild(rowFor(`${y} ${s.minorsLine.level}`, s.minorsLine, true));
+      // Postseason line, muted, tagged.
+      if (s.postseason) tbody.appendChild(rowFor(`${y} PS`, s.postseason, true));
+    }
+    // Career MLB totals (aggregated at each rollover).
+    const c = p.careerStats;
+    const hasCareer = c && (isP ? (c.ipOuts || 0) > 0 || (c.g || 0) > 0 : (c.pa || c.ab || 0) > 0);
+    if (hasCareer) {
+      const tr = rowFor('Career', c);
+      tr.style.fontWeight = '700';
       tbody.appendChild(tr);
     }
     table.appendChild(tbody);

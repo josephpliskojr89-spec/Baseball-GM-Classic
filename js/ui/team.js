@@ -202,6 +202,31 @@ window.BBGM_UI_TEAM = (function () {
     }
     container.appendChild(list);
 
+    // Injured list (bible 11.5): players on IL are off the 26-man; their
+    // call-up cover holds the spot until activation.
+    const ilPlayers = (team.il || []).map((id) => players[id]).filter(Boolean);
+    if (ilPlayers.length) {
+      container.appendChild(U.el('div', { class: 'card-title', style: { 'margin-top': '16px' } },
+        `Injured List (${ilPlayers.length})`));
+      const ilList = U.el('div', { class: 'roster-list' });
+      for (const p of ilPlayers) {
+        const row = U.el('button', {
+          class: 'roster-row', style: { opacity: '0.75' },
+          on: { click: () => window.BBGM_UI_PLAYER.show(p.id) },
+        });
+        row.appendChild(U.posBadge(p));
+        const info = U.el('div', { class: 'player-row-info' });
+        info.appendChild(U.el('div', { class: 'player-row-name' }, p.name));
+        const inj = p.currentInjury;
+        const days = p.ilStatus ? p.ilStatus.daysRemaining : 0;
+        info.appendChild(U.el('div', { class: 'player-row-meta' },
+          inj ? `${inj.ilType || ''} IL • ${inj.type} • ~${days} day${days !== 1 ? 's' : ''} left` : 'IL'));
+        row.appendChild(info);
+        ilList.appendChild(row);
+      }
+      container.appendChild(ilList);
+    }
+
     // Roster summary
     const card = U.el('div', { class: 'card', style: { 'margin-top': '16px' } });
     card.appendChild(U.el('div', { class: 'card-title' }, 'Roster Summary'));
@@ -549,8 +574,22 @@ window.BBGM_UI_TEAM = (function () {
     row.appendChild(U.posBadge(p));
     const info = U.el('div', { class: 'player-row-info' });
     info.appendChild(U.el('div', { class: 'player-row-name' }, p.name));
-    info.appendChild(U.el('div', { class: 'player-row-meta' },
-      `Age ${p.age} • ${p.bats}/${p.throws}`));
+    let meta = `Age ${p.age} • ${p.bats}/${p.throws}`;
+    // Most recent minor-league season line (stamped at each rollover).
+    const years = Object.keys(p.stats || {}).sort().reverse();
+    for (const y of years) {
+      const ml = p.stats[y] && p.stats[y].minorsLine;
+      if (!ml) continue;
+      if (p.isPitcher) {
+        const era = ml.ipOuts > 0 ? (ml.er * 27 / ml.ipOuts).toFixed(2) : '—';
+        meta += ` • ${y} ${ml.level}: ${era} ERA, ${ml.k} K`;
+      } else {
+        const avg = ml.ab > 0 ? S.fmtAvg(ml.h / ml.ab) : '—';
+        meta += ` • ${y} ${ml.level}: ${avg}, ${ml.hr} HR`;
+      }
+      break;
+    }
+    info.appendChild(U.el('div', { class: 'player-row-meta' }, meta));
     row.appendChild(info);
     const stats = U.el('div', { class: 'player-row-stats' });
     const overall = Math.round(p.isPitcher ? overallPitcher(p) : overallHitter(p));

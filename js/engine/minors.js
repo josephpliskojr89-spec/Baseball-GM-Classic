@@ -1,0 +1,115 @@
+// Minor league system (bible 12): annual summary stat simulation, level
+// reassignment, and organizational depth backfill. All of it runs at the
+// season rollover — minor league seasons are simulated as end-of-year
+// summaries, not game-by-game (12.2).
+window.BBGM_MINORS = (function () {
+  const S = () => window.BBGM_STATS;
+
+  function rand() { return Math.random(); }
+  function rint(lo, hi) { return lo + Math.floor(rand() * (hi - lo + 1)); }
+  function clamp(x, lo, hi) { return Math.max(lo, Math.min(hi, x)); }
+  function rnorm(mean, sd) {
+    let u = 0, v = 0;
+    while (u === 0) u = rand();
+    while (v === 0) v = rand();
+    return mean + sd * Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+  }
+
+  // Level anchors: the true-rating level of an average player at each stop
+  // (12.2's baselines expressed in rating points), plus noise scale — stat
+  // noise is wider at lower levels (12.3: A-ball stats are less predictive
+  // than AAA stats).
+  const LEVELS = {
+    AAA:    { anchor: 47, noise: 1.0 },
+    AA:     { anchor: 41, noise: 1.25 },
+    'A+':   { anchor: 36, noise: 1.5 },
+    A:      { anchor: 32, noise: 1.75 },
+    Rookie: { anchor: 29, noise: 2.0 },
+  };
+
+  // Generate the season stat line for one minor leaguer at his level.
+  // Stored under stats[year].minorsLine (flat MLB line stays reserved for
+  // MLB play — a mid-season call-up ends the year with both).
+  function simSeasonLine(p, year) {
+    const lvl = LEVELS[p.rosterStatus] || LEVELS.AAA;
+    const r = p.ratings;
+    const season = S().ensureSeason(p, year);
+
+    if (!p.isPitcher) {
+      const contact = (r.contactVsR + r.contactVsL) / 2;
+      const power = (r.powerVsR + r.powerVsL) / 2;
+      const delta = ((contact + power + r.discipline) / 3) - lvl.anchor;
+
+      const pa = rint(380, 560);
+      const bbRate = clamp(0.080 + (r.discipline - lvl.anchor) * 0.0016 + rnorm(0, 0.008 * lvl.noise), 0.03, 0.17);
+      const kRate = clamp(0.20 - (contact - lvl.anchor) * 0.002 + rnorm(0, 0.012 * lvl.noise), 0.07, 0.38);
+      const avg = clamp(0.262 + delta * 0.0032 + rnorm(0, 0.016 * lvl.noise), 0.170, 0.390);
+      const hrRate = clamp(0.018 + (power - lvl.anchor) * 0.0011 + rnorm(0, 0.004 * lvl.noise), 0.001, 0.065);
+
+      const bb = Math.round(pa * bbRate);
+      const ab = pa - bb - Math.round(pa * 0.012); // walks + a few HBP/sac
+      const h = Math.round(ab * avg);
+      const hr = Math.min(h, Math.round(pa * hrRate));
+      const b2 = Math.round((h - hr) * clamp(0.20 + (power - 45) * 0.001, 0.1, 0.3));
+      const b3 = Math.round((h - hr) * clamp(0.02 + (r.speed - 50) * 0.0008, 0, 0.06));
+      const k = Math.round(pa * kRate);
+      const sb = Math.max(0, Math.round((r.speed - 42) * 0.55 + rnorm(0, 3)));
+      const runsish = Math.round(h * 0.42 + bb * 0.25 + hr * 0.6);
+      season.minorsLine = {
+        level: p.rosterStatus, pa, ab, h, b2, b3, hr,
+        r: runsish, rbi: Math.round(h * 0.38 + hr * 1.1),
+        sb, cs: Math.round(sb * 0.3), bb, k,
+      };
+    } else {
+      const stuffish = (r.stuff + r.velocity) / 2;
+      const delta = ((stuffish + r.control + r.movement) / 3) - lvl.anchor;
+      const isSP = p.primaryPosition === 'SP';
+      const ipOuts = (isSP ? rint(110, 155) : rint(48, 72)) * 3;
+      const era = clamp(4.35 - delta * 0.085 + rnorm(0, 0.45 * lvl.noise), 1.60, 8.20);
+      const ip = ipOuts / 3;
+      const k9 = clamp(7.2 + (stuffish - lvl.anchor) * 0.09 + rnorm(0, 0.5 * lvl.noise), 3.5, 13.5);
+      const bb9 = clamp(3.6 - (r.control - lvl.anchor) * 0.055 + rnorm(0, 0.4 * lvl.noise), 1.0, 7.5);
+      const er = Math.round(era * ip / 9);
+      const g = isSP ? Math.round(ip / 5.3) : rint(35, 55);
+      season.minorsLine = {
+        level: p.rosterStatus,
+        g, gs: isSP ? g : 0,
+        w: Math.max(0, Math.round((isSP ? 9 : 4) * (5.2 - era) / 2.4 + rnorm(0, 1.5))),
+        l: Math.max(0, Math.round((isSP ? 8 : 3) * (era - 2.8) / 2.4 + rnorm(0, 1.5))),
+        sv: (!isSP && r.stuff >= lvl.anchor + 8) ? rint(4, 22) : 0,
+        ipOuts, er,
+        h: Math.round(ip * clamp(1.05 - delta * 0.012, 0.6, 1.5)),
+        bb: Math.round(bb9 * ip / 9), k: Math.round(k9 * ip / 9),
+        hr: Math.round(ip * clamp(0.11 - delta * 0.002, 0.02, 0.22)),
+      };
+    }
+  }
+
+  // Level reassignment each offseason (12.4): players move toward the band
+  // their true talent belongs in, at most one level per year, with age
+  // pushing older prospects up-or-out.
+  const ORDER = ['Rookie', 'A', 'A+', 'AA', 'AAA'];
+  function targetLevel(p) {
+    const ovr = window.BBGM_ROSTER.overall(p);
+    if (ovr >= 46) return 'AAA';
+    if (ovr >= 38) return 'AA';
+    if (ovr >= 30) return 'A+';
+    if (ovr >= 26) return 'A';
+    return 'Rookie';
+  }
+
+  function reassignLevel(p) {
+    const cur = ORDER.indexOf(p.rosterStatus);
+    if (cur < 0) return;
+    let target = ORDER.indexOf(targetLevel(p));
+    // Age floor: a 23-year-old doesn't belong in Rookie ball regardless of
+    // talent; a 26-year-old belongs in AA+ or out of the org.
+    if (p.age >= 23) target = Math.max(target, 1);
+    if (p.age >= 24) target = Math.max(target, 2);
+    if (p.age >= 26) target = Math.max(target, 3);
+    const next = target > cur ? cur + 1 : (target < cur ? cur - 1 : cur);
+    p.rosterStatus = ORDER[clamp(next, 0, ORDER.length - 1)];
+  }
+
+  return { simSeasonLine, reassignLevel, targetLevel, LEVELS };
+})();

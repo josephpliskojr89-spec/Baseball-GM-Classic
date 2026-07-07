@@ -1,10 +1,20 @@
 // Stats system - aggregation and rate calculations.
 window.BBGM_STATS = (function () {
+  // Stat bucket routing (bible 8.7): regular-season stats live flat on
+  // stats[year]; postseason stats live under stats[year].postseason. The
+  // sim engine is bucket-agnostic — the offseason runner flips the bucket
+  // to 'postseason' for playoff games and restores it after.
+  let statBucket = null;
+  function setStatBucket(name) { statBucket = name || null; }
+
   function ensureSeason(player, year) {
     if (!player.stats[year]) {
       player.stats[year] = player.isPitcher ? emptyPitcher() : emptyHitter();
     }
-    return player.stats[year];
+    if (!statBucket) return player.stats[year];
+    const root = player.stats[year];
+    if (!root[statBucket]) root[statBucket] = player.isPitcher ? emptyPitcher() : emptyHitter();
+    return root[statBucket];
   }
 
   // Pitchers bat in no-DH games (bible 3.1). Their batting stats live on a
@@ -82,6 +92,44 @@ window.BBGM_STATS = (function () {
     for (const k in source) {
       if (typeof source[k] === 'number') target[k] = (target[k] || 0) + source[k];
     }
+  }
+
+  // ---- Career aggregation and milestones (bible 8.6) ----
+  // Called once per season at rollover: folds the year's regular-season
+  // line into careerStats and returns any milestones crossed.
+  const HITTER_MILESTONES = [
+    ['hr', [100, 200, 300, 400, 500, 600, 700], 'home runs'],
+    ['h', [1000, 2000, 3000, 4000], 'hits'],
+    ['r', [1000, 1500, 2000], 'runs'],
+    ['rbi', [1000, 1500, 2000], 'RBI'],
+    ['sb', [300, 500], 'stolen bases'],
+  ];
+  const PITCHER_MILESTONES = [
+    ['w', [100, 200, 300], 'wins'],
+    ['k', [1000, 2000, 3000, 4000], 'strikeouts'],
+    ['sv', [100, 200, 400], 'saves'],
+  ];
+
+  function aggregateSeasonIntoCareer(player, year) {
+    const season = player.stats[year];
+    if (!season) return [];
+    if (!player.careerStats) player.careerStats = player.isPitcher ? emptyPitcher() : emptyHitter();
+    const before = { ...player.careerStats };
+    addStat(player.careerStats, season); // nested batting/postseason objects skipped (non-numeric)
+    const defs = player.isPitcher ? PITCHER_MILESTONES : HITTER_MILESTONES;
+    const crossed = [];
+    for (const [key, thresholds, label] of defs) {
+      const prev = before[key] || 0;
+      const now = player.careerStats[key] || 0;
+      for (const t of thresholds) {
+        if (prev < t && now >= t) crossed.push({ key, threshold: t, label });
+      }
+    }
+    if (crossed.length) {
+      if (!player.achievements) player.achievements = { awards: [], allStarSelections: [], championships: [], milestones: [] };
+      for (const m of crossed) player.achievements.milestones.push({ year, ...m });
+    }
+    return crossed;
   }
 
   function teamHittingTotals(team, players, year) {
@@ -189,6 +237,7 @@ window.BBGM_STATS = (function () {
 
   return {
     ensureSeason, ensurePitcherBatting, emptyHitter, emptyPitcher,
+    setStatBucket, aggregateSeasonIntoCareer,
     avg, obp, slg, ops, tb,
     era, whip, k9, bb9, hr9,
     fmtAvg, fmtIP, addStat,

@@ -55,8 +55,17 @@ window.BBGM_UI_GAMES = (function () {
 
   function renderRecent(container, state) {
     const userTeamId = state.meta.userTeamId;
+    // Postseason games (most recent completed bracket) surface here too.
+    const psGames = ((state.league.postseason && state.league.postseason.games) || [])
+      .filter((g) => g.played);
+    const userPs = psGames.filter((g) => g.homeId === userTeamId || g.awayId === userTeamId);
+    if (userPs.length) {
+      container.appendChild(U.el('div', { class: 'card-title' },
+        `${state.league.postseason.year} Postseason`));
+      for (const g of userPs.slice().reverse()) container.appendChild(gameCard(state, g));
+    }
     const games = state.league.schedule.games.filter((g) => g.played && (g.homeId === userTeamId || g.awayId === userTeamId));
-    if (games.length === 0) {
+    if (games.length === 0 && userPs.length === 0) {
       container.appendChild(U.el('div', { class: 'empty-state' }, 'No games played yet.'));
       return;
     }
@@ -144,7 +153,10 @@ window.BBGM_UI_GAMES = (function () {
   // pitching box scores, team totals, and the AB-by-AB game log (collapsed
   // by default). Opens from every completed-game tap target.
   function showBoxScore(state, gameId) {
-    const game = state.league.schedule.games.find((g) => g.gameId === gameId);
+    let game = state.league.schedule.games.find((g) => g.gameId === gameId);
+    if (!game && state.league.postseason) {
+      game = (state.league.postseason.games || []).find((g) => g.gameId === gameId);
+    }
     if (!game || !game.played) return;
     const home = state.league.teams.find((t) => t.id === game.homeId);
     const away = state.league.teams.find((t) => t.id === game.awayId);
