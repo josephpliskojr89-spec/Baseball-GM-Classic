@@ -112,6 +112,8 @@ window.BBGM_UI_PLAYER = (function () {
     // Contract / Service
     body.appendChild(U.el('div', { class: 'card-title', style: { 'margin-top': '16px' } }, 'Contract'));
     body.appendChild(contractBlock(p));
+    const ext = extensionSection(p);
+    if (ext) body.appendChild(ext);
 
     U.showModal({
       title: '',
@@ -292,13 +294,63 @@ window.BBGM_UI_PLAYER = (function () {
 
   function contractBlock(p) {
     const c = p.contract || {};
-    const grid = U.el('div', { class: 'inset-list' }, [
+    const rows = [
       insetRow('Years Remaining', String(c.years || 0)),
       insetRow('Annual Salary', U.fmtMoney(c.annualSalary || 0)),
       insetRow('Total Value', U.fmtMoney(c.totalValue || 0)),
       insetRow('Service Time', `${p.serviceTime.years}.${String(p.serviceTime.days).padStart(3,'0')}`),
-    ]);
+    ];
+    if (p.acquiredVia) {
+      const state = window.BBGM_STATE.get();
+      const from = p.acquiredVia.fromTeamId &&
+        state.league.teams.find((t) => t.id === p.acquiredVia.fromTeamId);
+      const how = p.acquiredVia.type === 'trade'
+        ? `Trade${from ? ' from ' + from.abbr : ''}, ${p.acquiredVia.year}`
+        : `Free agency, ${p.acquiredVia.year}`;
+      rows.push(insetRow('Acquired', how));
+    }
+    const grid = U.el('div', { class: 'inset-list' }, rows);
     return grid;
+  }
+
+  // Extension offer (bible 16.11) — user-team players only.
+  function extensionSection(p) {
+    const state = window.BBGM_STATE.get();
+    if (p.retired || p.teamId !== state.meta.userTeamId) return null;
+    const FA = window.BBGM_FA;
+    const wrap = U.el('div', { style: { 'margin-top': '10px' } });
+    wrap.appendChild(U.el('button', {
+      class: 'btn-secondary btn-sm', style: { width: '100%' },
+      on: { click: () => {
+        const ask = FA.extensionAsk(p);
+        const mkOffer = (label, years, total) => ({
+          label, kind: 'primary',
+          onClick: () => {
+            const err = FA.offerExtension(state, p, years, Math.round(total * 10) / 10);
+            if (err) U.showToast(err, 'warning', 5000);
+            else {
+              U.showToast(`${p.name} signs the extension.`, 'success');
+              window.BBGM_STATE.set(state);
+              window.BBGM_MAIN.refresh();
+            }
+            return true;
+          },
+        });
+        U.showModal({
+          title: `Extend ${p.name}`,
+          body: `His camp is looking for roughly ${ask.years} yr / $${ask.total}M ` +
+                `($${ask.aav}M AAV). Players still under team control take a discount; ` +
+                `walk-year players want market money.`,
+          actions: [
+            mkOffer(`Meet ask (${ask.years}y/$${ask.total}M)`, ask.years, ask.total),
+            mkOffer('Lowball −15%', ask.years, ask.total * 0.85),
+            mkOffer('Sweeten +10%', ask.years, ask.total * 1.1),
+            { label: 'Cancel', kind: 'secondary', onClick: () => true },
+          ],
+        });
+      }},
+    }, 'Offer Contract Extension…'));
+    return wrap;
   }
 
   function insetRow(label, value) {

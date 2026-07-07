@@ -335,7 +335,7 @@ window.BBGM_MAIN = (function () {
     viewOptions = {};
     switch (currentTab) {
       case 'home': window.BBGM_UI_DASHBOARD.render(main, state); break;
-      case 'team': window.BBGM_UI_TEAM.render(main, state); break;
+      case 'team': window.BBGM_UI_TEAM.render(main, state, opts); break;
       case 'league': window.BBGM_UI_LEAGUE.render(main, state); break;
       case 'games': window.BBGM_UI_GAMES.render(main, state, opts); break;
       case 'menu': window.BBGM_UI_MENU.render(main, state); break;
@@ -356,6 +356,10 @@ window.BBGM_MAIN = (function () {
   function advanceDay() {
     const state = window.BBGM_STATE.get();
     if (!state) return;
+    if (state.meta.offseasonPhase === 'freeAgency') {
+      advanceFAPeriod();
+      return;
+    }
     const today = state.meta.currentDate;
     const seasonEnd = state.league.schedule.seasonEnd;
     if (D.compare(today, seasonEnd) >= 0) {
@@ -365,54 +369,113 @@ window.BBGM_MAIN = (function () {
     simDays(1);
   }
 
-  // ------- Postseason + offseason rollover -------
+  // ------- Postseason + interactive offseason -------
   function confirmOffseason(state) {
     const year = state.meta.currentDate.year;
     U.showModal({
       title: 'Season Complete',
-      body: `The ${year} regular season is over. Play the postseason and run the offseason ` +
-            `(retirements, player development, new schedule) to advance to ${year + 1}?`,
+      body: `The ${year} regular season is over. Play the postseason and open the offseason? ` +
+            `Retirements and player development run, then free agency opens — you'll be able ` +
+            `to bid on the market before Opening Day ${year + 1}.`,
       actions: [
         { label: 'Cancel', kind: 'secondary', onClick: () => true },
-        { label: `Play Postseason & Advance`, kind: 'primary', onClick: () => {
-          setTimeout(() => runOffseasonFlow(state), 50);
+        { label: `Play Postseason`, kind: 'primary', onClick: () => {
+          setTimeout(() => runOffseasonPartAFlow(state), 50);
           return true;
         }},
       ],
     });
   }
 
-  function runOffseasonFlow(state) {
-    U.showProgress('Playing postseason & running offseason…');
+  function offseasonError(e) {
+    console.error('Offseason failed:', e);
+    window.BBGM_STATE.setSaveBlocked(false);
+    window.BBGM_STATE.saveNow();
+    U.hideProgress();
+    U.showModal({
+      title: 'Offseason Error',
+      body: 'The offseason hit an error: ' + e.message + '\n\nOpen the browser console for details.',
+      actions: [{ label: 'OK', kind: 'primary', onClick: () => true }],
+    });
+  }
+
+  function runOffseasonPartAFlow(state) {
+    U.showProgress('Playing postseason & opening the offseason…');
     window.BBGM_STATE.setSaveBlocked(true);
     setTimeout(() => {
       try {
-        const summary = window.BBGM_OFFSEASON.runSeasonRollover(state);
+        const summary = window.BBGM_OFFSEASON.runSeasonRolloverPartA(state);
         pushOffseasonNews(state, summary);
         window.BBGM_STATE.setSaveBlocked(false);
         window.BBGM_STATE.saveNow();
         U.hideProgress();
         refresh();
         const champ = state.league.teams.find((t) => t.id === summary.postseason.champion.id);
+        const userFAs = summary.retirements.length; // headline numbers
         U.showModal({
           title: `${summary.year} World Series`,
           body: `The ${champ.name} win the ${summary.year} World Series! ` +
-                `${summary.retirements.length} players retired this offseason. ` +
-                `Welcome to ${summary.newYear} — pitchers and catchers have reported, ` +
-                `lineups and rotations are set for Opening Day.`,
-          actions: [{ label: 'Play Ball', kind: 'primary', onClick: () => true }],
+                `${userFAs} players retired and ${summary.newFAs} hit free agency. ` +
+                `The market is open — work it from Team → Free Agents, advance the ` +
+                `signing period from the dashboard, and start the season when you're done.`,
+          actions: [{ label: 'To the Offseason', kind: 'primary', onClick: () => true }],
         });
       } catch (e) {
-        console.error('Offseason rollover failed:', e);
+        offseasonError(e);
+      }
+    }, 50);
+  }
+
+  function advanceFAPeriod() {
+    const state = window.BBGM_STATE.get();
+    if (!state || state.meta.offseasonPhase !== 'freeAgency') return;
+    const result = window.BBGM_OFFSEASON.advanceFARound(state);
+    window.BBGM_STATE.set(state);
+    refresh();
+    const userSignings = result.signings.filter((s) => s.isUser);
+    if (userSignings.length) {
+      const names = userSignings.map((s) => state.players[s.entry.playerId].name).join(', ');
+      U.showToast(`Signed: ${names}!`, 'success', 5000);
+    } else {
+      U.showToast(`FA period ${result.round}/${state.faMarket.totalRounds} — ${result.signings.length} players signed league-wide.`, 'info');
+    }
+    if (result.done) {
+      U.showModal({
+        title: 'Free Agency Winding Down',
+        body: 'The market has run its course. Start the season?',
+        actions: [
+          { label: 'Not Yet', kind: 'secondary', onClick: () => true },
+          { label: 'Start Season', kind: 'primary', onClick: () => {
+            setTimeout(() => startSeasonFlow(state), 50);
+            return true;
+          }},
+        ],
+      });
+    }
+  }
+
+  function startSeasonFlow(state) {
+    U.showProgress('Spring training…');
+    window.BBGM_STATE.setSaveBlocked(true);
+    setTimeout(() => {
+      try {
+        const summary = window.BBGM_OFFSEASON.runSeasonRolloverPartB(state);
+        if (!state.news) state.news = [];
+        state.news.push({
+          date: { ...state.meta.currentDate },
+          body: `The ${summary.newYear} season begins — spring training set the lineups and rotations league-wide.`,
+        });
         window.BBGM_STATE.setSaveBlocked(false);
         window.BBGM_STATE.saveNow();
         U.hideProgress();
+        navigate('home');
         U.showModal({
-          title: 'Offseason Error',
-          body: 'The offseason rollover hit an error: ' + e.message +
-                '\n\nOpen the browser console for details.',
-          actions: [{ label: 'OK', kind: 'primary', onClick: () => true }],
+          title: `Opening Day ${summary.newYear}`,
+          body: `Lineups and rotations are set league-wide. Play ball!`,
+          actions: [{ label: 'Play Ball', kind: 'primary', onClick: () => true }],
         });
+      } catch (e) {
+        offseasonError(e);
       }
     }, 50);
   }
@@ -455,10 +518,21 @@ window.BBGM_MAIN = (function () {
       });
     }
 
-    state.news.push({
-      date: { ...state.meta.currentDate },
-      body: `The ${summary.newYear} season begins — spring training set the lineups and rotations league-wide.`,
-    });
+    // User-team departures to free agency.
+    const market = state.faMarket;
+    if (market) {
+      for (const e of market.entries) {
+        if (e.formerTeamId !== userTeamId) continue;
+        const p = state.players[e.playerId];
+        if (p) {
+          state.news.push({
+            date,
+            body: `<strong>${p.name}</strong>'s contract expired — he's a free agent seeking ` +
+                  `${e.askYears} yr / $${e.askTotal}M.`,
+          });
+        }
+      }
+    }
     if (state.news.length > 200) state.news = state.news.slice(-200);
   }
 
@@ -499,6 +573,10 @@ window.BBGM_MAIN = (function () {
   function simDays(numDays) {
     const state = window.BBGM_STATE.get();
     if (!state) return;
+    if (state.meta.offseasonPhase) {
+      U.showToast('It\'s the offseason — advance the free-agency period instead.', 'info');
+      return;
+    }
     if (numDays > 1) U.showProgress(`Simulating ${numDays} days…`);
     document.getElementById('btnAdvance').disabled = true;
 
@@ -587,6 +665,10 @@ window.BBGM_MAIN = (function () {
     // who hit the very-high threshold.
     advanceFatigueRecovery(state, games);
     surfaceFatigueRestNotifications(state, today);
+
+    // AI trade activity (bible 15.7): AI-AI deals and occasional
+    // unsolicited offers to the user, up to the July 31 deadline.
+    window.BBGM_TRADES.aiTradeTick(state, today);
 
     // Generate news for any noteworthy results
     generateDailyNews(state, today, games);
@@ -921,7 +1003,10 @@ window.BBGM_MAIN = (function () {
     return report;
   }
 
-  return { navigate, refresh, advanceDay, simToNextEvent, simToEndOfMonth, simToSeasonEnd, validateCurrentSave };
+  return {
+    navigate, refresh, advanceDay, simToNextEvent, simToEndOfMonth, simToSeasonEnd,
+    advanceFAPeriod, startSeasonFlow, validateCurrentSave,
+  };
 })();
 
 // Dev-only namespace alias. Lets users run `BBGM_DEBUG.validateCurrentSave()`

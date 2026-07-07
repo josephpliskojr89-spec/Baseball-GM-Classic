@@ -11,7 +11,8 @@ window.BBGM_UI_TEAM = (function () {
 
   let activeTab = 'roster';
 
-  function render(container, state) {
+  function render(container, state, opts = {}) {
+    if (opts && opts.tab) activeTab = opts.tab;
     U.clearChildren(container);
     const team = state.league.teams.find((t) => t.id === state.meta.userTeamId);
 
@@ -24,6 +25,8 @@ window.BBGM_UI_TEAM = (function () {
       { key: 'lineup', label: 'Lineup' },
       { key: 'pitching', label: 'Pitching' },
       { key: 'minors', label: 'Minors' },
+      { key: 'trades', label: 'Trades' },
+      { key: 'freeagents', label: 'Free Agents' },
     ];
     for (const t of tabDefs) {
       const btn = U.el('button', {
@@ -38,6 +41,8 @@ window.BBGM_UI_TEAM = (function () {
     else if (activeTab === 'lineup') renderLineup(container, state, team);
     else if (activeTab === 'pitching') renderPitching(container, state, team);
     else if (activeTab === 'minors') renderMinors(container, state, team);
+    else if (activeTab === 'trades') window.BBGM_UI_FRONTOFFICE.renderTrades(container, state);
+    else if (activeTab === 'freeagents') window.BBGM_UI_FRONTOFFICE.renderFreeAgents(container, state);
   }
 
   // Inline rating chips for at-a-glance scanning on Lineup / Pitching rows.
@@ -236,7 +241,8 @@ window.BBGM_UI_TEAM = (function () {
     ul.appendChild(insetRow('26-Man Roster', `${roster.length} / 26`));
     ul.appendChild(insetRow('Pitchers', `${pCount}`));
     ul.appendChild(insetRow('Position Players', `${hCount}`));
-    ul.appendChild(insetRow('Payroll Base', U.fmtMoney(team.payrollBase)));
+    ul.appendChild(insetRow('Payroll',
+      `$${window.BBGM_FA.computePayroll(team, players).toFixed(1)}M / $${team.payrollBase}M`));
     ul.appendChild(insetRow('Owner', team.ownerName));
     ul.appendChild(insetRow('Ballpark', team.ballpark.name));
     card.appendChild(ul);

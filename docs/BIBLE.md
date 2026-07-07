@@ -3821,6 +3821,17 @@ This approach is essential for AI-assisted coding: each phase keeps complexity m
 **Deferred:**
 - Three-team trades, draft pick trades (per 15.2 deferrals)
 
+> **Status (0.9.0).** Shipped: Trade Value engine (15.3) with window/owner
+> modifiers (15.4), user proposal flow with accept/counter/reject and
+> directional feedback (15.5/15.6), counter suggestions, cash up to $20M
+> each way, structural trade validation (catcher/SP floors, position
+> coverage — with a self-healing rebuild after execution), AI-AI
+> background trades with a deadline-week surge (15.7/15.10), unsolicited
+> AI offers to the user (viewable in Team → Trades), trade history
+> (15.11) and per-player "Acquired via" lines. Not yet: information
+> asymmetry on prospects (needs Phase 13 scouting fog), multi-round
+> AI counter iteration, three-team/pick trades.
+
 ### 21.10 Phase 9: Free Agency System (Estimated: 1 session)
 
 **Goal:** Functioning offseason FA market.
@@ -3840,6 +3851,22 @@ This approach is essential for AI-assisted coding: each phase keeps complexity m
 - AI competes appropriately
 - Contract values feel realistic
 - Extensions work
+
+> **Status (0.9.0).** Shipped: the offseason now pauses at an interactive
+> free-agency window (16.1) — the market builds from genuinely expired
+> contracts (6+ service years reach FA per 11.4; team-control players
+> renew with automatic arbitration raises at 3-5 years), asking prices
+> with ranges and player preferences (16.4/16.5), round-based bidding
+> where stars sign first (18.8) against AI teams gated by needs, payroll
+> room, and owner archetype (16.7), a rival-bid "you'd need to top ~$X"
+> signal (16.6), eroding asks and late-round pillow contracts (16.8),
+> mid-season minor-league signings (16.9), extensions from the player
+> profile (16.11), and payroll tracking against the team budget.
+> Measured: ~60-190 FAs per class, most signed within the window, stable
+> league population, and the R/G talent drift from 0.8.0 is gone (FA
+> recycling holds the run environment at ~4.6-4.7). Not yet: released
+> players / dead money (16.12), qualifying offers (16.10, skipped by
+> design), FA preferences shown in scouting reports.
 
 ### 21.11 Phase 10: Manager and Coach System (Estimated: 1-2 sessions)
 
@@ -3988,22 +4015,21 @@ user becomes a pure GM), with hireable staff carrying mechanical effects.
 - Historical Game Detail views still render box scores from season
   totals; AB-log section shows the empty-state note
 
-> **Status (0.8.0) — minimal rollover shipped early.** The enabling
-> slice of this phase exists so Phases 5-7 can actually run: when the
+> **Status (0.9.0) — rollover now pauses for free agency.** When the
 > user advances past the last regular-season day, the game plays the
-> full 12-team postseason (3.4, with postseason stats on their own
-> bucket), then runs the offseason in bible-18 order — minors season
-> lines, career aggregation + milestones, retirements, progression,
-> aging, service time, contract ticks, injury-clock fast-forward
-> across the skipped calendar (per 10.5), minors level moves + the
-> 30-cap, org backfill, team config rebuild (spring training reset),
-> fresh schedule, Opening Day. One-tap, no pacing controls yet.
-> Interim placeholders to replace in later phases: expired contracts
-> auto-renew (until Phase 9 FA), org depth backfill via generated
-> signings (until Phase 11 draft / 12.6 minor-league FA), no awards
-> voting (Phase 14), no manager hiring (Phase 10), postseason
-> injuries don't carry over, prior-season game data is archived to a
-> summary (records + champion) rather than kept whole.
+> full 12-team postseason (3.4, postseason stats on their own bucket),
+> runs the November offseason (minors season lines, career aggregation
+> + milestones, retirements, progression, aging, service time,
+> contract ticks with real FA expiration per 11.4), then STOPS at the
+> interactive free-agency window — the user browses the market, makes
+> offers, and advances signing periods at their own pace (or skips
+> straight to Opening Day). "Start Season" finishes the rollover:
+> remaining FA resolution, injury-clock fast-forward (10.5), minors
+> level moves + 30-cap, org backfill, config rebuild, fresh schedule.
+> Interim placeholders for later phases: org depth backfill via
+> generated signings (until Phase 11 draft), no awards voting (Phase
+> 14), no manager hiring (Phase 10), postseason injuries don't carry
+> over, prior-season game data archives to a summary.
 >
 > **Measured (12-season soak, tools/season_harness.js):** zero stat
 > invariant violations across ~29,000 games, league readiness valid

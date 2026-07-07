@@ -950,7 +950,7 @@ window.BBGM_SIM = (function () {
       for (const spot of lineup) {
         if (spot.position === 'C') {
           const p = players[spot.playerId];
-          if (p) return p;
+          if (p && team.roster.includes(p.id)) return p;
         }
       }
     }
@@ -1040,7 +1040,7 @@ window.BBGM_SIM = (function () {
     const inj = INJ();
     const closerP = team.closer && players[team.closer];
     const closerFree = closerP && !used.has(team.closer) && inj.isAvailable(closerP) &&
-      !needsPenRest(closerP, today);
+      team.roster.includes(team.closer) && !needsPenRest(closerP, today);
     if (closerFree && inning >= 9 && margin >= 1 && margin <= 3) return players[team.closer];
     if (closerFree && inning >= 10 && margin === 0) return players[team.closer];
 
@@ -1056,7 +1056,7 @@ window.BBGM_SIM = (function () {
     for (const role of order) {
       const cands = (roles[role] || []).filter((id) =>
         !used.has(id) && players[id] && inj.isAvailable(players[id]) &&
-        !needsPenRest(players[id], today));
+        team.roster.includes(id) && !needsPenRest(players[id], today));
       if (cands.length) {
         cands.sort((a, b) => {
           // Fresh arms first (didn't pitch yesterday), then spread workload.
@@ -1155,17 +1155,27 @@ window.BBGM_SIM = (function () {
     if (!team.rotation || team.rotation.length === 0) return null;
     const dayIndex = state.meta.gamesPlayedByTeam ? (state.meta.gamesPlayedByTeam[team.id] || 0) : 0;
     // Walk the rotation starting at today's slot; the first available pitcher
-    // (not on the IL or day-to-day) starts. This lets an injured ace get
-    // skipped without forcing a permanent rotation swap.
+    // (healthy AND still on the roster — rotation refs can go stale between
+    // config rebuilds) starts. This lets an injured ace get skipped without
+    // forcing a permanent rotation swap.
     const inj = INJ();
     const n = team.rotation.length;
     for (let i = 0; i < n; i++) {
       const sp = players[team.rotation[(dayIndex + i) % n]];
-      if (sp && inj.isAvailable(sp)) return sp;
+      if (sp && inj.isAvailable(sp) && team.roster.includes(sp.id)) return sp;
     }
-    // Everyone hurt — fall back to the day's slot so the game can sim
-    // rather than throw. (Substitution UI in stage 4 will surface this.)
-    return players[team.rotation[dayIndex % n]];
+    // Whole rotation unavailable — best healthy rostered arm starts
+    // (SP-primary preferred) so the game can sim rather than throw.
+    const arms = team.roster
+      .map((id) => players[id])
+      .filter((p) => p && p.isPitcher && inj.isAvailable(p))
+      .sort((a, b) => {
+        const sa = a.primaryPosition === 'SP' ? 0 : 1;
+        const sb = b.primaryPosition === 'SP' ? 0 : 1;
+        if (sa !== sb) return sa - sb;
+        return (b.ratings.stamina || 0) - (a.ratings.stamina || 0);
+      });
+    return arms[0] || players[team.rotation[dayIndex % n]];
   }
 
   // Build the game-time lineup. Returns parallel { players, positions }
@@ -1200,7 +1210,11 @@ window.BBGM_SIM = (function () {
     const resultPos = [];
     for (const spot of lineupSpec) {
       const p = players[spot.playerId];
-      const available = p && inj.isAvailable(p);
+      // Roster membership is required: a stale lineup ref (player traded,
+      // demoted, or released since the lineup was set) must never field a
+      // player for a team he isn't on — his stats would bucket to the
+      // wrong side. The daily sub logic covers the slot instead.
+      const available = p && inj.isAvailable(p) && team.roster.includes(p.id);
       // Auto-rest (bible 10.8): a starter at critical fatigue sits for the
       // day if a fresher bench bat can cover the slot — the engine handles
       // routine rest in the background for every team, user's included.
@@ -1216,9 +1230,11 @@ window.BBGM_SIM = (function () {
         used.add(sub.id);
         resultP.push(sub);
         resultPos.push(spot.position);
-      } else if (p) {
+      } else if (p && team.roster.includes(p.id)) {
         // No bench bat fits the slot — the regular plays (tired or not) so
         // the game can sim (a deeper-rosters problem we'll surface later).
+        // Stale refs (player no longer on the roster) never play; the
+        // lineup runs a man short instead.
         resultP.push(p);
         resultPos.push(spot.position);
       }
@@ -1245,14 +1261,20 @@ window.BBGM_SIM = (function () {
     const GEN = window.BBGM_PLAYER_GEN;
     const inj = INJ();
     const fat = FAT();
-    const candidates = team.roster
+    const healthy = team.roster
       .map((id) => players[id])
-      .filter((p) => p && !p.isPitcher && !used.has(p.id) && inj.isAvailable(p) && GEN.canPlay(p, position));
-    if (!candidates.length) return null;
-    // Prefer bench bats that aren't themselves at critical fatigue; if the
-    // whole bench is gassed, fall back to whoever's best.
-    const fresh = fat ? candidates.filter((p) => !fat.isVeryHigh(p)) : candidates;
-    const pool = fresh.length ? fresh : candidates;
+      .filter((p) => p && !p.isPitcher && !used.has(p.id) && inj.isAvailable(p));
+    if (!healthy.length) return null;
+    // Preference ladder: position-eligible and fresh > eligible > any fresh
+    // bat out of position > anyone. A 26-man roster always carries more
+    // hitters than lineup slots, so a healthy roster never fields short
+    // just because the natural backup is hurt.
+    const eligible = healthy.filter((p) => GEN.canPlay(p, position));
+    const freshOf = (arr) => (fat ? arr.filter((p) => !fat.isVeryHigh(p)) : arr);
+    const pool = freshOf(eligible).length ? freshOf(eligible)
+      : eligible.length ? eligible
+      : freshOf(healthy).length ? freshOf(healthy)
+      : healthy;
     pool.sort((a, b) => hitterScore(b) - hitterScore(a));
     return pool[0];
   }

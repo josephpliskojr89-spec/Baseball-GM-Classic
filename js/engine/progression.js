@@ -129,6 +129,10 @@ window.BBGM_PROGRESSION = (function () {
     // Fringe minor-league veterans wash out young — keeps orgs from
     // carrying 30-year-old A-ball filler forever.
     if (p.status === 'minors' && age >= 29 && ovr < 45) return 0.5;
+    // Unsigned free agents drift out of the game (16.8: the pool must not
+    // accumulate careers' worth of fringe veterans).
+    if (p.status === 'FA' && age >= 28 && ovr < 48) return 0.6;
+    if (p.status === 'FA' && age >= 33) return 0.5;
     if (age < 33) return 0;
     const base = { 33: 0.05, 34: 0.08, 35: 0.14, 36: 0.22, 37: 0.32, 38: 0.45, 39: 0.60, 40: 0.75, 41: 0.85 }[age];
     let prob = base != null ? base : 0.95;

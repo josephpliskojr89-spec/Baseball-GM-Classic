@@ -24,11 +24,16 @@ window.BBGM_UI_DASHBOARD = (function () {
     strip.appendChild(U.el('div', { class: 'team-strip-record' }, record));
     container.appendChild(strip);
 
-    // Today's status card
-    container.appendChild(renderTodayCard(state, team));
+    // Offseason free-agency card replaces the game-day cards (bible 18.8).
+    if (state.meta.offseasonPhase === 'freeAgency') {
+      container.appendChild(renderOffseasonCard(state, team));
+    } else {
+      // Today's status card
+      container.appendChild(renderTodayCard(state, team));
 
-    // Quick actions
-    container.appendChild(renderQuickActions(state, team));
+      // Quick actions
+      container.appendChild(renderQuickActions(state, team));
+    }
 
     // Recent results
     container.appendChild(U.el('div', { class: 'section-header' }, [
@@ -90,6 +95,50 @@ window.BBGM_UI_DASHBOARD = (function () {
     } else {
       card.appendChild(U.el('p', {}, 'No game scheduled today.'));
     }
+    return card;
+  }
+
+  function renderOffseasonCard(state, team) {
+    const card = U.el('div', { class: 'card' });
+    const market = state.faMarket || { round: 0, totalRounds: 8, entries: [], userOffers: [] };
+    card.appendChild(U.el('div', { class: 'card-title' },
+      `Offseason — Free Agency (period ${market.round}/${market.totalRounds})`));
+    const unsigned = market.entries.filter((e) => !e.signedTeamId).length;
+    const payroll = window.BBGM_FA.computePayroll(team, window.BBGM_STATE.get().players);
+    card.appendChild(U.el('p', { style: { 'font-size': '13px', 'margin-bottom': '10px' } },
+      `${unsigned} free agents on the market • ${market.userOffers.length} offer${market.userOffers.length !== 1 ? 's' : ''} out • ` +
+      `payroll $${payroll.toFixed(1)}M of $${team.payrollBase}M`));
+
+    card.appendChild(U.el('button', {
+      class: 'btn-primary btn-sm', style: { width: '100%', 'margin-bottom': '8px' },
+      on: { click: () => window.BBGM_MAIN.navigate('team', { tab: 'freeagents' }) },
+    }, 'Browse Free Agents'));
+    const grid = U.el('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap' } });
+    grid.appendChild(U.el('button', {
+      class: 'btn-secondary btn-sm', style: { flex: '1 1 calc(50% - 4px)' },
+      on: { click: () => window.BBGM_MAIN.advanceFAPeriod() },
+    }, 'Advance FA Period ▶'));
+    grid.appendChild(U.el('button', {
+      class: 'btn-secondary btn-sm', style: { flex: '1 1 calc(50% - 4px)' },
+      on: { click: () => window.BBGM_MAIN.navigate('team', { tab: 'trades' }) },
+    }, 'Trade Center'));
+    grid.appendChild(U.el('button', {
+      class: 'btn-secondary btn-sm', style: { flex: '1 1 100%' },
+      on: { click: () => {
+        U.showModal({
+          title: 'Start the Season?',
+          body: 'Any remaining free agents resolve automatically, spring training sets lineups, and Opening Day arrives.',
+          actions: [
+            { label: 'Cancel', kind: 'secondary', onClick: () => true },
+            { label: 'Start Season', kind: 'primary', onClick: () => {
+              setTimeout(() => window.BBGM_MAIN.startSeasonFlow(window.BBGM_STATE.get()), 50);
+              return true;
+            }},
+          ],
+        });
+      }},
+    }, 'Finish Offseason & Start Season'));
+    card.appendChild(grid);
     return card;
   }
 

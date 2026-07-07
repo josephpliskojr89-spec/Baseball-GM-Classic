@@ -507,7 +507,12 @@ window.BBGM_PLAYER_GEN = (function () {
     const rps = pitchers.filter((p) => p.primaryPosition === 'RP' || p.primaryPosition === 'CP');
     rps.sort((a, b) => (b.ratings.stuff + b.ratings.velocity) - (a.ratings.stuff + a.ratings.velocity));
     const nonRotation = pitchers.filter((p) => !team.rotation.includes(p.id));
-    team.closer = (cps[0] || rps[0] || nonRotation[0]).id;
+    const closerPick = cps[0] || rps[0] || nonRotation[0];
+    if (!closerPick) {
+      // Parseable failure for safeRebuild's pitching-side repair path.
+      throw new Error(`assignLineupsAndPitching(${team.abbr}): no relief arm available for closer`);
+    }
+    team.closer = closerPick.id;
     // Bullpen: every pitcher who isn't in the rotation or closing. Spare
     // SP-primary arms land here as swingmen/long men — keeps the pen legal
     // when roster churn (retirements, call-ups) leaves an SP-heavy staff.

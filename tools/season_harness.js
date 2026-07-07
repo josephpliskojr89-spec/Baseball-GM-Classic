@@ -33,6 +33,8 @@ const files = [
   'js/engine/roster.js',
   'js/engine/progression.js',
   'js/engine/minors.js',
+  'js/engine/trades.js',
+  'js/engine/freeagency.js',
   'js/engine/simulation.js',
   'js/engine/standings.js',
   'js/engine/offseason.js',
@@ -145,6 +147,8 @@ function simOneDay(state) {
       if (team && (team.il || []).includes(p.id)) R.activateFromIL(state, team, p);
     }
   }
+  // AI trade activity (mirrors main.js).
+  W.BBGM_TRADES.aiTradeTick(state, today);
   const playedToday = new Set();
   for (const g of games) {
     if (!g.played || !g.result || !g.result.box) continue;
@@ -287,12 +291,17 @@ if (seasonsArg > 1) {
     const sgBefore = gamesByLeague.east + gamesByLeague.west;
     const ilBefore = ilStints;
 
+    const tradesBefore = (state.history && state.history.trades ? state.history.trades.length : 0);
     const summary = W.BBGM_OFFSEASON.runSeasonRollover(state);
     retirementCounts.push(summary.retirements.length);
     totalNewPlayers += summary.newPlayers;
+    const faSigned = state.faMarket ? state.faMarket.entries.filter((e) => e.signedTeamId).length : 0;
+    const faUnsigned = state.faMarket ? state.faMarket.entries.length - faSigned : 0;
     const champ = state.league.teams.find((t) => t.id === summary.postseason.champion.id);
     console.log(`${summary.year}: 🏆 ${champ.abbr} (WS ${summary.postseason.worldSeries.score.join('-')})` +
       ` | retired ${summary.retirements.length} | milestones ${summary.milestones.length}` +
+      ` | FA: ${summary.newFAs} out, ${faSigned} signed, ${faUnsigned} unsigned` +
+      ` | trades total ${(state.history.trades || []).length}` +
       ` | new org players ${summary.newPlayers}`);
 
     if (si === seasonsArg) break;
@@ -338,5 +347,10 @@ if (seasonsArg > 1) {
   const minorsSizes = state.league.teams.map((t) => (t.minors || []).length);
   console.log('minors sizes:', Math.min(...minorsSizes), '-', Math.max(...minorsSizes),
     '| free agents pool:', (state.freeAgents || []).length);
+  console.log('total trades logged:', (state.history.trades || []).length,
+    '| payroll range:', (() => {
+      const ps = state.league.teams.map((t) => W.BBGM_FA.computePayroll(t, state.players));
+      return `$${Math.min(...ps).toFixed(0)}M - $${Math.max(...ps).toFixed(0)}M`;
+    })());
   console.log('save size:', (JSON.stringify(state).length / 1024 / 1024).toFixed(2), 'MB');
 }

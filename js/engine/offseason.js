@@ -1,22 +1,35 @@
-// Postseason + season rollover (the enabling slice of bible 18 / Phase 15).
+// Postseason + season rollover (bible 18 / Phase 15 slice, extended with
+// the interactive free-agency period in 0.9.0).
 //
-// runSeasonRollover(state) drives everything that happens between the last
-// regular-season game and the next Opening Day, in bible-18 order:
-//   1. Postseason (3.4): 12-team bracket, played through the World Series
-//   2. Minor-league season stat lines stamped (12.2 — summary sim)
-//   3. Career aggregation + milestones (8.6)
-//   4. Retirements (9.6), incl. the 17.9 open-to-coaching flag
-//   5. Annual progression (9.1-9.5) and aging
-//   6. Service time, contract ticks (auto-renew placeholder until Phase 9)
-//   7. Injury-clock fast-forward across the skipped calendar (10.5)
-//   8. Minors level reassignment + 30-cap enforcement (12.4, 12.8)
-//   9. Org backfill and roster top-up (interim until draft/FA phases)
-//  10. Team config rebuild (lineups/rotation/pen), records reset,
-//      new schedule, Opening Day
+// The offseason now runs in two parts around an interactive FA window:
 //
-// Not yet modeled (documented, later phases): awards voting, manager/coach
-// hiring, arbitration/FA/trades, Rule 5, scouting budgets, spring-training
-// position battles, postseason injuries carrying into the new year.
+//   runSeasonRolloverPartA(state)
+//     1. Postseason (3.4): 12-team bracket through the World Series
+//     2. Minor-league season stat lines (12.2), career agg + milestones (8.6)
+//     3. Retirements (9.6, with the 17.9 coaching flag)
+//     4. Annual progression (9.1-9.5) and aging
+//     5. Service time; contract ticks — EXPIRED CONTRACTS NOW REACH FREE
+//        AGENCY (16.2) instead of auto-renewing
+//     6. FA market built (asking prices, preferences); offseasonPhase set
+//
+//   advanceFARound(state)  — one bidding round (16.5-16.7); stars sign
+//        first (18.8); occasional offseason AI-AI trades
+//
+//   runSeasonRolloverPartB(state)
+//     7. Remaining FA rounds auto-resolve; unsigned FAs stay available for
+//        mid-season minor-league deals (16.8/16.9)
+//     8. New schedule; injury clocks fast-forwarded season-end → Opening
+//        Day (10.5); healed IL players rejoin
+//     9. Minors level reassignment + 30-cap (12.4/12.8)
+//    10. Org backfill/top-up, self-healing config rebuild, records reset,
+//        Opening Day
+//
+// runSeasonRollover(state) runs A + all rounds + B in one shot (harness,
+// "Sim Rest of Offseason" button).
+//
+// Not yet modeled (later phases): awards voting, manager/coach hiring,
+// arbitration, Rule 5, scouting budgets, spring-training battles,
+// postseason injuries carrying over.
 window.BBGM_OFFSEASON = (function () {
   const D = () => window.BBGM_DATES;
   const S = () => window.BBGM_STATS;
@@ -25,6 +38,8 @@ window.BBGM_OFFSEASON = (function () {
   const MIN = () => window.BBGM_MINORS;
   const ROSTER = () => window.BBGM_ROSTER;
   const ST = () => window.BBGM_STANDINGS;
+  const FA = () => window.BBGM_FA;
+  const TRADES = () => window.BBGM_TRADES;
 
   function rand() { return Math.random(); }
   function rint(lo, hi) { return lo + Math.floor(rand() * (hi - lo + 1)); }
@@ -60,11 +75,11 @@ window.BBGM_OFFSEASON = (function () {
   function playSeries(state, high, low, bestOf, cursor, tag, games) {
     const need = Math.floor(bestOf / 2) + 1;
     let hw = 0, lw = 0;
-    const seq = { n: 0 };
+    let n = 0;
     while (hw < need && lw < need) {
-      const highHosts = HOST[bestOf][seq.n];
+      const highHosts = HOST[bestOf][n];
       const g = {
-        gameId: `ps${state.meta.currentDate.year}_${tag}_${seq.n}`,
+        gameId: `ps${state.meta.currentDate.year}_${tag}_${n}`,
         date: { ...cursor.date },
         homeId: highHosts ? high.id : low.id,
         awayId: highHosts ? low.id : high.id,
@@ -78,7 +93,7 @@ window.BBGM_OFFSEASON = (function () {
       const homeWon = g.result.homeRuns > g.result.awayRuns;
       const highWon = (homeWon && highHosts) || (!homeWon && !highHosts);
       if (highWon) hw++; else lw++;
-      seq.n++;
+      n++;
       cursor.date = D().addDays(cursor.date, 1);
     }
     cursor.date = D().addDays(cursor.date, 2); // travel/rest between rounds
@@ -137,18 +152,18 @@ window.BBGM_OFFSEASON = (function () {
     return { winnerId: s.winner.id, loserId: s.loser.id, score: s.score.slice() };
   }
 
-  // ---- Offseason rollover --------------------------------------------------
+  // ---- Offseason part A ------------------------------------------------------
 
   function nextGenId(state) {
     if (!state.meta.nextGenId) state.meta.nextGenId = 1;
     return `g${state.meta.currentDate.year}_${state.meta.nextGenId++}`;
   }
 
-  function runSeasonRollover(state) {
+  function runSeasonRolloverPartA(state) {
     const year = state.meta.currentDate.year;
     const players = state.players;
     const teams = state.league.teams;
-    const summary = { year, retirements: [], milestones: [], newPlayers: 0 };
+    const summary = { year, retirements: [], milestones: [], newFAs: 0 };
 
     // 1. Postseason.
     const ps = runPostseason(state);
@@ -167,19 +182,20 @@ window.BBGM_OFFSEASON = (function () {
     }
 
     // Archive the season NOW, while records are still on the teams
-    // (they're reset during the rebuild below).
+    // (they're reset in part B's rebuild).
     const records = {};
     for (const t of teams) {
       records[t.id] = { w: t.seasonRecord.w, l: t.seasonRecord.l, rs: t.seasonRecord.rs, ra: t.seasonRecord.ra };
     }
-    const historyEntry = {
+    if (!state.history) state.history = { seasons: [] };
+    state.history.seasons.push({
       year,
       championId: ps.champion.id,
       runnerUpId: ps.runnerUp.id,
       worldSeries: ps.worldSeries,
       records,
       playoffSeeds: ps.rounds.map((r) => ({ league: r.league, seeds: r.seeds })),
-    };
+    });
 
     // 2. Minor-league season stat lines (12.2) — with the ratings the
     // players actually had this season, i.e. before progression.
@@ -196,7 +212,7 @@ window.BBGM_OFFSEASON = (function () {
       for (const m of crossed) summary.milestones.push({ playerId: p.id, name: p.name, ...m });
     }
 
-    // 4. Retirements (9.6). Config cleanup happens in the rebuild below.
+    // 4. Retirements (9.6). Config cleanup happens in part B's rebuild.
     for (const id in players) {
       const p = players[id];
       if (p.retired) continue;
@@ -216,6 +232,7 @@ window.BBGM_OFFSEASON = (function () {
       t.roster40 = (t.roster40 || []).filter((id) => !retiredIds.has(id));
       t.il = (t.il || []).filter((id) => !retiredIds.has(id));
     }
+    state.freeAgents = (state.freeAgents || []).filter((id) => !retiredIds.has(id));
 
     // 5. Progression + aging (9.1-9.5).
     for (const id in players) {
@@ -225,32 +242,90 @@ window.BBGM_OFFSEASON = (function () {
       p.age++;
     }
 
-    // 6. Service time and contract ticks.
+    // 6. Service time and contract ticks. Only players with 6+ years of
+    //    service reach free agency when their deal expires (bible 11.4);
+    //    everyone else is under team control — renewed at the minimum
+    //    pre-arb, or with escalating arbitration raises at 3-5 years
+    //    (11.4's simplified arbitration: automatic salary steps, no
+    //    hearing process).
     for (const id in players) {
       const p = players[id];
       if (p.retired) continue;
       if (p.rosterStatus === '26-man' || p.rosterStatus === 'IL') {
         p.serviceTime.years = Math.min(20, (p.serviceTime.years || 0) + 1);
       }
-      if (p.contract) {
+      if (p.contract && p.teamId) {
         p.contract.years = Math.max(0, (p.contract.years || 1) - 1);
         if (p.contract.years === 0) {
-          // Placeholder until Phase 9 free agency: expired contracts
-          // auto-renew for a year so rosters stay intact.
-          p.contract.years = 1;
-          p.contract.signedAt = 'auto-renew';
+          const sv = p.serviceTime.years || 0;
+          if (sv >= 6) {
+            FA().releaseToPool(state, p, 'contract-expired');
+            summary.newFAs++;
+          } else {
+            // Team control: renew. Arb years step toward market value.
+            const ovr = ROSTER().overall(p);
+            let salary = 0.74;
+            if (sv >= 3) {
+              const share = sv === 3 ? 0.4 : sv === 4 ? 0.6 : 0.8;
+              salary = Math.max(0.74, TRADES().expectedAAV(ovr, p.age) * share);
+            }
+            salary = Math.round(salary * 10) / 10;
+            p.contract = {
+              years: 1, annualSalary: salary, totalValue: salary,
+              signedAt: sv >= 3 ? 'arbitration' : 'renewal',
+            };
+          }
         }
       }
     }
 
-    // 7. New schedule first (we need Opening Day for the clock math).
+    // 7. Build the FA market and open the window (16.1: mid-November).
+    FA().buildMarket(state);
+    state.meta.offseasonPhase = 'freeAgency';
+    state.meta.currentDate = D().fromYMD(year, 11, 15);
+    return summary;
+  }
+
+  // ---- FA rounds --------------------------------------------------------------
+
+  // One bidding round (~12 days of the offseason calendar). Occasional
+  // offseason AI-AI trades fire alongside the market.
+  function advanceFARound(state) {
+    if (state.meta.offseasonPhase !== 'freeAgency') return { signings: [], done: true };
+    const signings = FA().resolveRound(state);
+    state.meta.currentDate = D().addDays(state.meta.currentDate, 12);
+    TRADES().aiTradeTick(state, state.meta.currentDate);
+    const market = state.faMarket;
+    return { signings, round: market.round, done: market.round >= market.totalRounds };
+  }
+
+  // ---- Offseason part B ---------------------------------------------------------
+
+  function runSeasonRolloverPartB(state) {
+    const players = state.players;
+    const teams = state.league.teams;
+    const summary = { newPlayers: 0 };
+    const year = state.history.seasons[state.history.seasons.length - 1].year;
+
+    // Auto-resolve any remaining FA rounds (user skipped ahead).
+    let guard = 0;
+    while (state.faMarket && state.faMarket.round < state.faMarket.totalRounds && guard++ < 12) {
+      FA().resolveRound(state);
+    }
+    // Unsigned FAs stay in state.freeAgents for mid-season deals (16.8/16.9).
+    state.meta.offseasonPhase = null;
+
+    // New schedule first (Opening Day anchors the clock math).
     const newYear = year + 1;
     const rng = window.BBGM_RNG.makeRng(
       window.BBGM_RNG.hashStringToSeed(`${state.meta.seed}:${newYear}`));
+    const oldSeasonEnd = state.league.schedule.seasonEnd;
     const schedule = window.BBGM_SCHEDULE.generate(rng, state.league, newYear);
-    const skippedDays = Math.max(0, D().diffDays(state.meta.currentDate, schedule.openingDay));
 
-    // Injury clocks heal on calendar time across the offseason (10.5).
+    // Injury clocks heal on calendar time across the whole offseason —
+    // from the last day recovery actually ticked (regular-season end) to
+    // Opening Day (10.5).
+    const skippedDays = Math.max(0, D().diffDays(oldSeasonEnd, schedule.openingDay));
     for (const id in players) {
       const p = players[id];
       if (p.retired) continue;
@@ -283,7 +358,7 @@ window.BBGM_OFFSEASON = (function () {
       t.il = still;
     }
 
-    // 8. Minors level reassignment + 30-cap (12.4 / 12.8).
+    // Minors level reassignment + 30-cap (12.4 / 12.8).
     for (const t of teams) {
       for (const pid of t.minors || []) {
         const p = players[pid];
@@ -291,10 +366,9 @@ window.BBGM_OFFSEASON = (function () {
       }
     }
 
-    // 9. Backfill and top-up every org, then rebuild configs.
+    // Backfill and top-up every org, then rebuild configs.
     for (const t of teams) {
       topUpTeam(state, t, summary);
-      // Enforce the 30-man minors cap by releasing the oldest fringe (12.8).
       while ((t.minors || []).length > 30) {
         const cut = t.minors
           .map((id) => players[id])
@@ -302,22 +376,17 @@ window.BBGM_OFFSEASON = (function () {
           .sort((a, b) => (ROSTER().overall(a) + (50 - a.age)) - (ROSTER().overall(b) + (50 - b.age)))[0];
         if (!cut) break;
         t.minors.splice(t.minors.indexOf(cut.id), 1);
-        cut.teamId = null;
-        cut.status = 'FA';
-        cut.rosterStatus = 'FA';
-        if (!state.freeAgents) state.freeAgents = [];
-        state.freeAgents.push(cut.id);
+        FA().releaseToPool(state, cut, 'released');
       }
       rebuildTeamConfig(state, t, summary);
       t.seasonRecord = { w: 0, l: 0, rs: 0, ra: 0, lastTen: [], streak: 0 };
     }
 
-    // 10. Fail loud if any org came out of the offseason unplayable.
+    // Fail loud if any org came out of the offseason unplayable.
     GEN().validateLeagueReadiness(state.league, players);
 
-    // Archive season history and swap in the new season.
-    if (!state.history) state.history = { seasons: [] };
-    state.history.seasons.push(historyEntry);
+    // Swap in the new season.
+    state.pendingTradeOffers = [];
     state.league.schedule = schedule;
     state.meta.gamesPlayedByTeam = {};
     state.meta.currentDate = { ...schedule.openingDay };
@@ -325,10 +394,21 @@ window.BBGM_OFFSEASON = (function () {
     return summary;
   }
 
+  // One-shot convenience: postseason + full FA auto-resolution + new season.
+  function runSeasonRollover(state) {
+    const a = runSeasonRolloverPartA(state);
+    let guard = 0;
+    while (state.faMarket.round < state.faMarket.totalRounds && guard++ < 12) {
+      advanceFARound(state);
+    }
+    const b = runSeasonRolloverPartB(state);
+    return { ...a, ...b };
+  }
+
   // Keep an org playable: roster trimmed/filled to 26 (13 P / 13 H target),
   // 5 starting pitchers, 2 catchers, all 8 positions covered, minors depth
-  // ≥ 22. Interim stand-in for the draft (Phase 11) and FA (Phase 9) —
-  // generated players are org depth signings, not stars.
+  // ≥ 22. Interim stand-in for the draft (Phase 11) — generated players are
+  // org depth signings, not stars.
   function topUpTeam(state, team, summary) {
     const players = state.players;
     const inj = window.BBGM_INJURIES;
@@ -348,7 +428,6 @@ window.BBGM_OFFSEASON = (function () {
         if (p.isPitcher && p.primaryPosition === 'SP' && countSP() <= 5) return false;
         return true;
       }).sort((a, b) => {
-        // IL call-up covers go first, then by talent.
         const ca = a.ilCallUpFor ? 0 : 1;
         const cb = b.ilCallUpFor ? 0 : 1;
         if (ca !== cb) return ca - cb;
@@ -385,16 +464,13 @@ window.BBGM_OFFSEASON = (function () {
       return p;
     }
 
-    // IL healing can leave both the returning player and his call-up cover
-    // on the roster — trim back to 26 before filling anything.
+    // IL healing / FA signings can leave the roster over 26 — trim first.
     let guard = 0;
     while (team.roster.length > 26 && guard++ < 20) {
       if (!demoteWeakest()) break;
     }
 
-    // Structural needs first: a full rotation's worth of SP-primary arms,
-    // two catchers, and coverage for every defensive position. Demotions
-    // that make room stay type-matched so the P/H split doesn't erode.
+    // Structural needs: full rotation, two catchers, position coverage.
     guard = 0;
     while (countSP() < 5 && guard++ < 8) {
       if (team.roster.length >= 26) demoteWeakest('P');
@@ -435,6 +511,18 @@ window.BBGM_OFFSEASON = (function () {
       demoteWeakest('P');
       promoteOrGenerate({ isPitcher: false, slotPos: 'UT' });
     }
+    // Absolute validation floors (11 pitchers / 11 hitters) regardless of
+    // which path above eroded the balance — generation always converges.
+    guard = 0;
+    while (rosterPlayers().filter((p) => !p.isPitcher).length < 11 && guard++ < 8) {
+      demoteWeakest('P');
+      promoteOrGenerate({ isPitcher: false, slotPos: 'UT' });
+    }
+    guard = 0;
+    while (countP() < 11 && guard++ < 8) {
+      demoteWeakest('H');
+      promoteOrGenerate({ isPitcher: true, slotPos: 'RP' });
+    }
 
     // Keep a believable farm: ≥ 22 minor leaguers, mixed ages/levels.
     guard = 0;
@@ -471,54 +559,14 @@ window.BBGM_OFFSEASON = (function () {
     }
   }
 
-  // Rebuild lineups/rotation/bullpen, self-healing: position coverage can
-  // look fine player-by-player yet fail the actual lineup assignment (the
-  // eligible players all get consumed by other slots — a matching problem).
-  // On failure, add a player at the missing position and retry.
+  // Rebuild lineups/rotation/bullpen via the shared guaranteed-convergent
+  // repair loop (roster.js safeRebuild).
   function rebuildTeamConfig(state, team, summary) {
-    const players = state.players;
-    const protectedIds = new Set();
-    for (let attempt = 0; attempt < 8; attempt++) {
-      try {
-        GEN().assignLineupsAndPitching(rand, team, players);
-        return;
-      } catch (e) {
-        const m = /position (\w+)/.exec(e.message || '');
-        const pos = m ? m[1] : 'UT';
-        // Make room with a HITTER demotion (we're adding a hitter), never
-        // touching anyone just added for coverage, the catcher floor, or
-        // the SP floor.
-        if (team.roster.length >= 26) {
-          const roster = team.roster.map((id) => players[id]).filter(Boolean);
-          const cCount = roster.filter((p) => !p.isPitcher && p.primaryPosition === 'C').length;
-          const cands = roster
-            .filter((p) => !protectedIds.has(p.id) && !p.isPitcher &&
-              !(p.primaryPosition === 'C' && cCount <= 2))
-            .sort((a, b) => ROSTER().overall(a) - ROSTER().overall(b));
-          const down = cands[0];
-          if (down) {
-            team.roster.splice(team.roster.indexOf(down.id), 1);
-            team.minors.push(down.id);
-            down.status = 'minors';
-            down.rosterStatus = 'AAA';
-          }
-        }
-        const p = GEN().generateNewPlayer(rand, team, {
-          slotPos: pos, tier: 'depth', isProspect: false,
-          ageRange: { mean: 26, stdev: 2, min: 22, max: 31 },
-          status: 'active', rosterStatus: '26-man',
-          id: nextGenId(state),
-        });
-        players[p.id] = p;
-        team.roster.push(p.id);
-        protectedIds.add(p.id);
-        summary.newPlayers++;
-      }
-    }
-    // Eight repairs failed — surface it (validateLeagueReadiness will throw
-    // with full context right after).
-    GEN().assignLineupsAndPitching(rand, team, players);
+    ROSTER().safeRebuild(state, team);
   }
 
-  return { runSeasonRollover, runPostseason, seedLeague };
+  return {
+    runSeasonRollover, runSeasonRolloverPartA, runSeasonRolloverPartB,
+    advanceFARound, runPostseason, seedLeague,
+  };
 })();

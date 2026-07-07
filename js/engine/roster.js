@@ -52,12 +52,17 @@ window.BBGM_ROSTER = (function () {
         if (inP && !inP.isPitcher && GEN.canPlay(inP, spot.position)) {
           spot.playerId = inId;
         } else {
-          // Best eligible roster bat takes the slot.
+          // Best eligible roster bat takes the slot; if nobody eligible is
+          // free, ANY free roster bat does — an out-of-position stopgap
+          // beats a stale reference to a player who left the roster (the
+          // engine treats healthy lineup-spec players as playable, so a
+          // stale ref would field a minors/traded player).
           const inLineup = new Set(team[key].map((s) => s.playerId));
-          const sub = team.roster
+          const free = team.roster
             .map((id) => players[id])
-            .filter((q) => q && !q.isPitcher && !inLineup.has(q.id) && GEN.canPlay(q, spot.position))
-            .sort((a, b) => overall(b) - overall(a))[0];
+            .filter((q) => q && !q.isPitcher && !inLineup.has(q.id))
+            .sort((a, b) => overall(b) - overall(a));
+          const sub = free.find((q) => GEN.canPlay(q, spot.position)) || free[0];
           if (sub) spot.playerId = sub.id;
         }
       }
@@ -162,5 +167,97 @@ window.BBGM_ROSTER = (function () {
     return { sentDown: down };
   }
 
-  return { placeOnILWithMove, activateFromIL, replaceRefs, bestCallUp, overall };
+  // Collision-safe id for players generated into an existing save (the
+  // generation module's counter resets on reload). Shared by the offseason
+  // backfill and emergency in-season signings.
+  function newPlayerId(state) {
+    if (!state.meta.nextGenId) state.meta.nextGenId = 1;
+    return `g${state.meta.currentDate.year}_${state.meta.nextGenId++}`;
+  }
+
+  // Guaranteed-convergent team config rebuild. assignLineupsAndPitching can
+  // fail on solvable-looking rosters (greedy lineup matching) or on rosters
+  // that roster churn left short somewhere. Each retry fixes the named
+  // deficiency with a promotion or a generated depth signing whose PRIMARY
+  // position is the missing one, so every attempt strictly reduces the
+  // failure space. Throws (fail loud) only if ten repairs somehow don't
+  // converge — which would indicate a real bug, not an unlucky roster.
+  function safeRebuild(state, team) {
+    const GEN = window.BBGM_PLAYER_GEN;
+    const players = state.players;
+    let lastErr = null;
+    // Patches added on earlier attempts are protected from make-room
+    // demotion — without this, "add an RF, demote the weakest hitter"
+    // can demote the RF added one attempt ago and loop forever.
+    const protectedIds = new Set();
+    for (let attempt = 0; attempt < 10; attempt++) {
+      try {
+        GEN.assignLineupsAndPitching(Math.random, team, players);
+        return;
+      } catch (e) {
+        lastErr = e;
+        const m = /position (\w+)/.exec(e.message || '');
+        const isLineupHole = !!m;
+        const pos = m ? m[1] : null;
+
+        if (isLineupHole) {
+          // Prefer an org player whose PRIMARY is the missing position —
+          // secondary-eligible players can be re-consumed by the greedy
+          // matcher. Otherwise generate one.
+          let patch = (team.minors || []).map((id) => players[id])
+            .filter((p) => p && !p.isPitcher && p.primaryPosition === pos)
+            .sort((a, b) => overall(b) - overall(a))[0];
+          if (patch) {
+            team.minors.splice(team.minors.indexOf(patch.id), 1);
+          } else {
+            patch = GEN.generateNewPlayer(Math.random, team, {
+              slotPos: pos, tier: 'depth', isProspect: false,
+              ageRange: { mean: 27, stdev: 2, min: 23, max: 32 },
+              status: 'active', rosterStatus: '26-man',
+              id: newPlayerId(state),
+            });
+            players[patch.id] = patch;
+          }
+          team.roster.push(patch.id);
+          patch.status = 'active';
+          patch.rosterStatus = '26-man';
+          protectedIds.add(patch.id);
+          // Make room: weakest hitter who isn't a needed catcher, isn't
+          // the patch itself, and isn't a previous attempt's patch.
+          if (team.roster.length > 26) {
+            const roster = team.roster.map((id) => players[id]).filter(Boolean);
+            const cCount = roster.filter((p) => !p.isPitcher && p.primaryPosition === 'C').length;
+            const down = roster
+              .filter((p) => !p.isPitcher && !protectedIds.has(p.id) &&
+                !(p.primaryPosition === 'C' && cCount <= 2))
+              .sort((a, b) => overall(a) - overall(b))[0];
+            if (down) {
+              team.roster.splice(team.roster.indexOf(down.id), 1);
+              team.minors.push(down.id);
+              down.status = 'minors';
+              down.rosterStatus = 'AAA';
+              replaceRefs(team, players, down.id, null);
+            }
+          }
+        } else {
+          // Pitching-side failure (e.g. no closer candidate / empty staff):
+          // add an arm.
+          const p = GEN.generateNewPlayer(Math.random, team, {
+            slotPos: 'RP', tier: 'depth', isProspect: false,
+            ageRange: { mean: 27, stdev: 2, min: 23, max: 32 },
+            status: 'active', rosterStatus: '26-man',
+            id: newPlayerId(state),
+          });
+          players[p.id] = p;
+          team.roster.push(p.id);
+        }
+      }
+    }
+    throw lastErr;
+  }
+
+  return {
+    placeOnILWithMove, activateFromIL, replaceRefs, bestCallUp, overall,
+    newPlayerId, safeRebuild,
+  };
 })();
