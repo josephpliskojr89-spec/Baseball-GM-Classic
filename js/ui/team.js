@@ -420,11 +420,11 @@ window.BBGM_UI_TEAM = (function () {
        '▲ = scouts say he\'s ready for a higher level; ▼ = overmatched, send him ' +
        'down. Development stalls at the wrong level (worse the further off).'));
     const minors = team.minors.map((id) => players[id]).filter(Boolean);
-    const byLevel = { AAA: [], AA: [], 'A+': [], A: [], Rookie: [] };
+    const byLevel = { AAA: [], AA: [], A: [], Rookie: [] };
     for (const p of minors) {
       if (byLevel[p.rosterStatus]) byLevel[p.rosterStatus].push(p);
     }
-    for (const lvl of ['AAA', 'AA', 'A+', 'A', 'Rookie']) {
+    for (const lvl of ['AAA', 'AA', 'A', 'Rookie']) {
       if (byLevel[lvl].length === 0) continue;
       container.appendChild(U.el('div', { class: 'card-title', style: { 'margin-top': '16px' } }, `${lvl} (${byLevel[lvl].length})`));
       const list = U.el('div', { class: 'roster-list' });
@@ -519,7 +519,7 @@ window.BBGM_UI_TEAM = (function () {
     const MIN = window.BBGM_MINORS;
     const rec = MIN.recommendedLevel(p);
     const body = U.el('div', { class: 'roster-list' });
-    for (const lvl of ['AAA', 'AA', 'A+', 'A', 'Rookie']) {
+    for (const lvl of ['AAA', 'AA', 'A', 'Rookie']) {
       const isCurrent = p.rosterStatus === lvl;
       const rowAttrs = {
         class: 'roster-row',

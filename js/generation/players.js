@@ -103,10 +103,9 @@ window.BBGM_PLAYER_GEN = (function () {
     // ~30 minor leaguers total (we already added 14 AAA via 40-man filler;
     // add ~16 more spread across AA/A+/A/Rookie).
     const distribution = [
-      { level: 'AA', count: 5 },
-      { level: 'A+', count: 5 },
-      { level: 'A', count: 4 },
-      { level: 'Rookie', count: 2 },
+      { level: 'AA', count: 6 },
+      { level: 'A', count: 7 },
+      { level: 'Rookie', count: 3 },
     ];
     for (const d of distribution) {
       for (let i = 0; i < d.count; i++) {
@@ -151,8 +150,7 @@ window.BBGM_PLAYER_GEN = (function () {
     switch (level) {
       case 'AAA': return { mean: 26, stdev: 2.5, min: 19, max: 35 };
       case 'AA': return { mean: 23, stdev: 1.5, min: 19, max: 28 };
-      case 'A+': return { mean: 21, stdev: 1.2, min: 18, max: 25 };
-      case 'A': return { mean: 20, stdev: 1.2, min: 17, max: 23 };
+      case 'A': return { mean: 20.5, stdev: 1.3, min: 17, max: 24 };
       case 'Rookie': return { mean: 18, stdev: 1.0, min: 16, max: 21 };
     }
     return { mean: 23, stdev: 2, min: 18, max: 30 };

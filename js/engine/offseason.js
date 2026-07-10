@@ -583,7 +583,7 @@ window.BBGM_OFFSEASON = (function () {
       const isPitcher = rand() < 0.5;
       const slotPos = isPitcher ? (rand() < 0.6 ? 'SP' : 'RP')
         : ['C', '1B', '2B', '3B', 'SS', 'OF', 'UT'][rint(0, 6)];
-      const level = ['Rookie', 'A', 'A+'][rint(0, 2)];
+      const level = ['Rookie', 'A'][rint(0, 1)];
       const p = GEN().generateNewPlayer(rand, team, {
         slotPos, tier: 'prospect',
         ageRange: { mean: level === 'Rookie' ? 18 : 20, stdev: 1.2, min: 17, max: 23 },

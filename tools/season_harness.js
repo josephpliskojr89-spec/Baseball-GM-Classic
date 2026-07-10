@@ -322,6 +322,16 @@ if (seasonsArg > 1) {
 
     const tradesBefore = (state.history && state.history.trades ? state.history.trades.length : 0);
     const summary = W.BBGM_OFFSEASON.runSeasonRollover(state);
+    // Regression guard: postseason games must not bleed into the archived
+    // regular-season records (every team's record sums to exactly 162).
+    const archived = state.history.seasons[state.history.seasons.length - 1].records;
+    for (const tid in archived) {
+      const r = archived[tid];
+      if (r.w + r.l !== 162) {
+        console.log(`✗ RECORD POLLUTION: ${tid} archived ${r.w}-${r.l} (${r.w + r.l} games)`);
+        process.exit(1);
+      }
+    }
     retirementCounts.push(summary.retirements.length);
     totalNewPlayers += summary.newPlayers;
     const faSigned = state.faMarket ? state.faMarket.entries.filter((e) => e.signedTeamId).length : 0;

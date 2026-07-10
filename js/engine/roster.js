@@ -72,7 +72,8 @@ window.BBGM_ROSTER = (function () {
   // Best healthy minor leaguer of the given type, AAA preferred.
   function bestCallUp(team, players, isPitcher, positionNeed) {
     const inj = INJ();
-    const levelRank = { AAA: 0, AA: 1, 'A+': 2, A: 3, Rookie: 4 };
+    // 'A+' kept for saves loaded mid-migration (merged into A in 0.12).
+    const levelRank = { AAA: 0, AA: 1, 'A+': 2, A: 2, Rookie: 3 };
     const cands = (team.minors || [])
       .map((id) => players[id])
       .filter((p) => p && p.isPitcher === isPitcher && inj.isAvailable(p));

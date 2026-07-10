@@ -362,6 +362,16 @@ Regenerated each offseason. Plausible-not-perfect is the goal.
 - **LCS:** Best-of-7
 - **World Series:** Best-of-7. Home-field by regular-season record.
 
+> **Status (0.12.0) — Playoffs hub + record isolation.** League →
+> Playoffs shows the most recent completed bracket: champion banner,
+> per-league seed lists (with archived records and bye labels), every
+> series (WC/DS/LCS/WS) with scores, and tap-through to each series'
+> games and full box scores. Before the first postseason exists it
+> shows a live "if the season ended today" seeding preview. Fixed
+> alongside: postseason games no longer bleed into `seasonRecord` —
+> the 162-game record is untouched by playoff results (was a real bug;
+> the harness now hard-fails if any archived record ≠ 162 games).
+
 ### 3.5 Tiebreakers
 
 1. Head-to-head record
@@ -2218,20 +2228,28 @@ Level assignment is decided each spring training. The user can override but the 
 
 The user manages this tension. Aggressive promotion can damage ceiling. Conservative handling can also damage ceiling. The "right" level is contextual and somewhat subjective — that's the development meta-game.
 
-> **Status (0.11.2) — level fit is live.** minors.js `recommendedLevel`
-> (overall-rating thresholds + age floors) is the single source of truth
-> for three things: the scout arrows on Team → Minors (green ▲ = ready
-> for a higher level, red ▼ = overmatched, nothing at the proper level),
-> the development gate in progression.js (one level off = mild drag,
-> −8/−10%; two or more = a genuinely stunted year, −20/−25% — both
-> directions per the table above), and AI offseason reassignment (one
-> step per year toward the recommendation, two when badly misplaced).
-> The user can now assign any minor leaguer to any level from the
-> minors tab (Move Level… with the scouts' pick starred) in addition to
-> promote-to-26-man swaps; the action modal states the scouts' verdict
-> in words. Not yet: sustained-misplacement ceiling damage (only the
-> annual progression drag), mid-season AI promotions (12.5), and the
-> promotion-candidate notifications.
+> **Status (0.12.0) — four-level ladder, tools-based placement, level
+> fit live.** A+ merged into A (0.12 saves migrate on load): the ladder
+> is Rookie (<35) → A (35-40) → AA (40-45) → AAA (45+). Placement is
+> NOT rigid overall banding — minors.js `placementRating` adjusts the
+> read by profile: an exceptional top tool with a real foundation (hit
+> tool + discipline for bats, command + movement for arms) plays up to
+> +4 above the overall; a profile carried by one loud tool that doesn't
+> translate plays up to −4 below it. `recommendedLevel` (placement +
+> age floors) is the single source of truth for three things: the scout
+> arrows on Team → Minors (green ▲ = ready for a higher level, red ▼ =
+> overmatched, nothing at the proper level), the development gate in
+> progression.js (one level off = mild drag, −8/−10%; two or more = a
+> genuinely stunted year, −20/−25% — both directions per the table
+> above), and AI offseason reassignment (one step per year toward the
+> recommendation, two when badly misplaced). The user can assign any
+> minor leaguer to any level from the minors tab (Move Level… with the
+> scouts' pick starred) in addition to promote-to-26-man swaps; the
+> action modal states the scouts' verdict in words. Draft assignment
+> also reads the placement (a polished college bat can open at AA;
+> never straight to AAA). Not yet: sustained-misplacement ceiling
+> damage (only the annual progression drag), mid-season AI promotions
+> (12.5), and the promotion-candidate notifications.
 
 ### 12.5 Promotion Mechanics
 

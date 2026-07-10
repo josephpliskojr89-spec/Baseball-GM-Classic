@@ -262,23 +262,28 @@ window.BBGM_SIM = (function () {
       }
     }
 
-    // Update team records
+    // Update team records — REGULAR SEASON ONLY. Postseason games carry
+    // game.postseason and must never touch seasonRecord: the 162-game
+    // record is what standings, seeding comparisons, and the season
+    // archive read (playoff wins bleeding into it was a real bug).
     const homeWon = teamState.home.runs > teamState.away.runs;
-    home.seasonRecord.rs += teamState.home.runs;
-    home.seasonRecord.ra += teamState.away.runs;
-    away.seasonRecord.rs += teamState.away.runs;
-    away.seasonRecord.ra += teamState.home.runs;
-    if (homeWon) {
-      home.seasonRecord.w++;
-      away.seasonRecord.l++;
-    } else {
-      home.seasonRecord.l++;
-      away.seasonRecord.w++;
+    if (!game.postseason) {
+      home.seasonRecord.rs += teamState.home.runs;
+      home.seasonRecord.ra += teamState.away.runs;
+      away.seasonRecord.rs += teamState.away.runs;
+      away.seasonRecord.ra += teamState.home.runs;
+      if (homeWon) {
+        home.seasonRecord.w++;
+        away.seasonRecord.l++;
+      } else {
+        home.seasonRecord.l++;
+        away.seasonRecord.w++;
+      }
+      updateLastTen(home, homeWon ? 'W' : 'L');
+      updateLastTen(away, homeWon ? 'L' : 'W');
+      updateStreak(home, homeWon);
+      updateStreak(away, !homeWon);
     }
-    updateLastTen(home, homeWon ? 'W' : 'L');
-    updateLastTen(away, homeWon ? 'L' : 'W');
-    updateStreak(home, homeWon);
-    updateStreak(away, !homeWon);
 
     // Per-game box lines for the Game Detail view (bible 20.6.4). Compact
     // arrays — decoder lives in the UI. Batters in lineup order:

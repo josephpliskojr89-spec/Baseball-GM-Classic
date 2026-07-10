@@ -21,10 +21,9 @@ window.BBGM_MINORS = (function () {
   // than AAA stats).
   const LEVELS = {
     AAA:    { anchor: 47, noise: 1.0 },
-    AA:     { anchor: 41, noise: 1.25 },
-    'A+':   { anchor: 36, noise: 1.5 },
-    A:      { anchor: 32, noise: 1.75 },
-    Rookie: { anchor: 29, noise: 2.0 },
+    AA:     { anchor: 42, noise: 1.25 },
+    A:      { anchor: 36, noise: 1.6 },
+    Rookie: { anchor: 31, noise: 2.0 },
   };
 
   // Generate the season stat line for one minor leaguer at his level.
@@ -85,26 +84,61 @@ window.BBGM_MINORS = (function () {
     }
   }
 
-  // Level placement (12.4): the band a player's true talent belongs in,
-  // with age floors (a 23-year-old doesn't belong in Rookie ball; a
-  // 26-year-old belongs in AA+ or out of the org). This is the single
-  // source of truth for the scout arrows in the minors UI, the level-fit
-  // development penalty (progression.js), and AI offseason reassignment.
-  const ORDER = ['Rookie', 'A', 'A+', 'AA', 'AAA'];
-  function targetLevel(p) {
+  // Level placement (12.4): the band a player's talent belongs in, with
+  // age floors (a 23-year-old doesn't belong in Rookie ball; a 26-year-old
+  // belongs in AA+ or out of the org). This is the single source of truth
+  // for the scout arrows in the minors UI, the level-fit development
+  // penalty (progression.js), and AI offseason reassignment.
+  //
+  // Four-level ladder: Rookie (<35) → A (35-40) → AA (40-45) → AAA (45+).
+  const ORDER = ['Rookie', 'A', 'AA', 'AAA'];
+
+  // Placement isn't rigid overall-rating banding. Scouts place players by
+  // how the profile projects, not the composite number:
+  //  - Exceptional top-end tools play ABOVE the overall — when the
+  //    foundation supports them (a 70-power bat who can also hit gets
+  //    challenged early, like real life).
+  //  - A profile carried by one loud tool that doesn't translate (all
+  //    speed and no hit tool; all velocity and no command) plays BELOW
+  //    the overall until the foundation catches up.
+  // "Foundation" = the translating skills: the hit tool + plate
+  // discipline for hitters, command + movement for pitchers.
+  function placementRating(p) {
     const ovr = window.BBGM_ROSTER.overall(p);
-    if (ovr >= 46) return 'AAA';
-    if (ovr >= 38) return 'AA';
-    if (ovr >= 30) return 'A+';
-    if (ovr >= 26) return 'A';
+    const r = p.ratings;
+    let best, foundation;
+    if (p.isPitcher) {
+      best = Math.max(r.velocity, r.movement, r.control, r.stuff);
+      foundation = (r.control + r.movement) / 2;
+    } else {
+      best = Math.max(r.contactVsR, r.contactVsL, r.powerVsR, r.powerVsL,
+        r.discipline, r.speed, r.defense, r.arm);
+      foundation = (r.contactVsR + r.contactVsL + r.discipline) / 3;
+    }
+    let adj = 0;
+    // Exceptional tool with a real foundation: plays up.
+    if (best - ovr >= 8 && foundation >= ovr - 5) {
+      adj += Math.min(4, (best - ovr - 4) * 0.35);
+    }
+    // One loud tool, weak foundation: plays down.
+    if (foundation <= ovr - 7) {
+      adj -= Math.min(4, (ovr - foundation - 3) * 0.4);
+    }
+    return ovr + adj;
+  }
+
+  function targetLevel(p) {
+    const rating = placementRating(p);
+    if (rating >= 45) return 'AAA';
+    if (rating >= 40) return 'AA';
+    if (rating >= 35) return 'A';
     return 'Rookie';
   }
 
   function recommendedLevel(p) {
     let target = ORDER.indexOf(targetLevel(p));
     if (p.age >= 23) target = Math.max(target, 1);
-    if (p.age >= 24) target = Math.max(target, 2);
-    if (p.age >= 26) target = Math.max(target, 3);
+    if (p.age >= 26) target = Math.max(target, 2);
     return ORDER[target];
   }
 
@@ -131,5 +165,5 @@ window.BBGM_MINORS = (function () {
     p.rosterStatus = ORDER[clamp(next, 0, ORDER.length - 1)];
   }
 
-  return { simSeasonLine, reassignLevel, targetLevel, recommendedLevel, levelFitDelta, LEVELS, ORDER };
+  return { simSeasonLine, reassignLevel, targetLevel, recommendedLevel, levelFitDelta, placementRating, LEVELS, ORDER };
 })();

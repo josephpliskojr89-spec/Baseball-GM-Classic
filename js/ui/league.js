@@ -13,6 +13,7 @@ window.BBGM_UI_LEAGUE = (function () {
     const tabs = U.el('div', { class: 'tabs' });
     const tabDefs = [
       { key: 'standings', label: 'Standings' },
+      { key: 'playoffs', label: 'Playoffs' },
       { key: 'leaders', label: 'Leaders' },
       { key: 'teams', label: 'Teams' },
       { key: 'history', label: 'History' },
@@ -26,9 +27,152 @@ window.BBGM_UI_LEAGUE = (function () {
     container.appendChild(tabs);
 
     if (activeTab === 'standings') renderStandings(container, state);
+    else if (activeTab === 'playoffs') renderPlayoffs(container, state);
     else if (activeTab === 'leaders') renderLeaders(container, state);
     else if (activeTab === 'teams') renderTeams(container, state);
     else if (activeTab === 'history') renderHistory(container, state);
+  }
+
+  // ------- Playoffs tab: bracket + matchups (3.4) -------
+  // Shows the most recent completed postseason from state.league.postseason.
+  // Before the first one exists, a seeding preview built from the live
+  // standings shows who'd be in if the season ended today.
+
+  function renderPlayoffs(container, state) {
+    const ps = state.league.postseason;
+    if (!ps) {
+      renderSeedPreview(container, state);
+      return;
+    }
+
+    // Champion banner.
+    const champ = state.league.teams.find((t) => t.id === ps.championId);
+    const runnerUp = state.league.teams.find((t) => t.id === ps.runnerUpId);
+    const banner = U.el('div', { class: 'card', style: champ ? U.teamColorVars(champ) : {} });
+    banner.appendChild(U.el('div', { class: 'card-title' }, `${ps.year} World Series Champions`));
+    const line = U.el('div', { style: { display: 'flex', 'align-items': 'center', gap: '8px' } });
+    if (champ) line.appendChild(U.teamCap(champ, { size: 'lg' }));
+    line.appendChild(U.el('div', {}, [
+      U.el('div', { style: { 'font-weight': '700' } }, champ ? champ.name : ps.championId),
+      U.el('div', { class: 'muted', style: { 'font-size': '12px' } },
+        `def. ${runnerUp ? runnerUp.name : ps.runnerUpId} ${ps.worldSeries.score[0]}-${ps.worldSeries.score[1]}`),
+    ]));
+    banner.appendChild(line);
+    container.appendChild(banner);
+
+    // Records for seed labels come from the archived season.
+    const season = ((state.history && state.history.seasons) || []).find((s) => s.year === ps.year);
+    const recOf = (teamId) => {
+      const r = season && season.records && season.records[teamId];
+      return r ? `${r.w}-${r.l}` : '';
+    };
+
+    for (const round of ps.rounds || []) {
+      const seedNo = {};
+      round.seeds.forEach((id, i) => { seedNo[id] = i + 1; });
+      container.appendChild(U.el('div', { class: 'card-title', style: { 'margin-top': '16px' } },
+        `${U.leagueName(round.league)} League`));
+
+      // Seeds strip.
+      const seedsCard = U.el('div', { class: 'card', style: { padding: '8px 12px' } });
+      for (const id of round.seeds) {
+        const t = state.league.teams.find((x) => x.id === id);
+        seedsCard.appendChild(U.el('p', { style: { 'font-size': '12px', margin: '2px 0' } },
+          `#${seedNo[id]} ${t ? t.name : id}${recOf(id) ? ' (' + recOf(id) + ')' : ''}` +
+          (seedNo[id] <= 2 ? ' — first-round bye' : '')));
+      }
+      container.appendChild(seedsCard);
+
+      const list = U.el('div', { class: 'roster-list' });
+      list.appendChild(seriesRow(state, ps, 'WC', round.wildCard[0], `${round.league}_wc1`, seedNo));
+      list.appendChild(seriesRow(state, ps, 'WC', round.wildCard[1], `${round.league}_wc2`, seedNo));
+      list.appendChild(seriesRow(state, ps, 'DS', round.divisionSeries[0], `${round.league}_ds1`, seedNo));
+      list.appendChild(seriesRow(state, ps, 'DS', round.divisionSeries[1], `${round.league}_ds2`, seedNo));
+      list.appendChild(seriesRow(state, ps, 'LCS', round.lcs, `${round.league}_lcs`, seedNo));
+      container.appendChild(list);
+    }
+
+    container.appendChild(U.el('div', { class: 'card-title', style: { 'margin-top': '16px' } }, 'World Series'));
+    const wsList = U.el('div', { class: 'roster-list' });
+    wsList.appendChild(seriesRow(state, ps, 'WS', ps.worldSeries, 'ws', {}));
+    container.appendChild(wsList);
+  }
+
+  // One series line: winner cap, "ABC def. XYZ 3-1", tap for the games.
+  function seriesRow(state, ps, label, summary, tag, seedNo) {
+    const winner = state.league.teams.find((t) => t.id === summary.winnerId);
+    const loser = state.league.teams.find((t) => t.id === summary.loserId);
+    const seedOf = (id) => seedNo[id] ? `#${seedNo[id]} ` : '';
+    const row = U.el('button', {
+      class: 'roster-row',
+      on: { click: () => showSeriesGames(state, ps, label, summary, tag) },
+    });
+    row.appendChild(U.el('span', { class: 'pos-badge' }, label));
+    if (winner) row.appendChild(U.teamCap(winner));
+    const info = U.el('div', { class: 'player-row-info' });
+    info.appendChild(U.el('div', { class: 'player-row-name' },
+      `${seedOf(summary.winnerId)}${winner ? winner.abbr : '?'} def. ${seedOf(summary.loserId)}${loser ? loser.abbr : '?'}`));
+    info.appendChild(U.el('div', { class: 'player-row-meta' }, 'Tap for the games'));
+    row.appendChild(info);
+    row.appendChild(U.el('div', { class: 'player-row-stats' },
+      `${summary.score[0]}-${summary.score[1]}`));
+    return row;
+  }
+
+  function showSeriesGames(state, ps, label, summary, tag) {
+    const winner = state.league.teams.find((t) => t.id === summary.winnerId);
+    const loser = state.league.teams.find((t) => t.id === summary.loserId);
+    const games = (ps.games || []).filter((g) => g.postseason === tag);
+    const body = U.el('div', { class: 'roster-list' });
+    games.forEach((g, i) => {
+      if (!g.result) return;
+      const home = state.league.teams.find((t) => t.id === g.homeId);
+      const away = state.league.teams.find((t) => t.id === g.awayId);
+      const row = U.el('button', {
+        class: 'roster-row',
+        on: { click: () => {
+          U.closeModal();
+          window.BBGM_MAIN.navigate('games', { gameId: g.gameId });
+        }},
+      });
+      row.appendChild(U.el('span', { class: 'pos-badge' }, `G${i + 1}`));
+      const info = U.el('div', { class: 'player-row-info' });
+      const hw = g.result.homeRuns > g.result.awayRuns;
+      info.appendChild(U.el('div', { class: 'player-row-name' },
+        `${away ? away.abbr : '?'} ${g.result.awayRuns} @ ${home ? home.abbr : '?'} ${g.result.homeRuns}`));
+      info.appendChild(U.el('div', { class: 'player-row-meta' },
+        `${(hw ? home : away) ? (hw ? home : away).abbr : '?'} win` +
+        (g.result.innings && g.result.innings !== 9 ? ` (${g.result.innings})` : '') +
+        ' • tap for box score'));
+      row.appendChild(info);
+      body.appendChild(row);
+    });
+    U.showModal({
+      title: `${label}: ${winner ? winner.abbr : '?'} ${summary.score[0]}-${summary.score[1]} ${loser ? loser.abbr : '?'}`,
+      body,
+      actions: [{ label: 'Close', kind: 'secondary', onClick: () => true }],
+    });
+  }
+
+  // Pre-first-postseason: live "if the season ended today" seeding.
+  function renderSeedPreview(container, state) {
+    container.appendChild(U.el('p', { class: 'muted', style: { 'font-size': '12px', 'margin-bottom': '10px' } },
+      'No postseason has been played yet. Here\'s the bracket if the season ended today — ' +
+      'top two seeds in each league draw first-round byes.'));
+    for (const lg of ['east', 'west']) {
+      const seeds = window.BBGM_OFFSEASON.seedLeague(state, lg);
+      container.appendChild(U.el('div', { class: 'card-title', style: { 'margin-top': '12px' } },
+        `${U.leagueName(lg)} League`));
+      const card = U.el('div', { class: 'card', style: { padding: '8px 12px' } });
+      seeds.forEach((t, i) => {
+        card.appendChild(U.el('p', { style: { 'font-size': '12px', margin: '2px 0' } },
+          `#${i + 1} ${t.name} (${t.seasonRecord.w}-${t.seasonRecord.l})` +
+          (i < 2 ? ' — bye' : '')));
+      });
+      card.appendChild(U.el('p', { class: 'muted', style: { 'font-size': '11px', 'margin-top': '6px' } },
+        `Wild card: #3 hosts #6, #4 hosts #5 (best of 3).`));
+      container.appendChild(card);
+    }
   }
 
   function renderHistory(container, state) {

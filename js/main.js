@@ -293,6 +293,16 @@ window.BBGM_MAIN = (function () {
       window.BBGM_STATE.set(state);
     }
 
+    // Migration: 0.12 merged A+ into A (four-level ladder).
+    let mergedAPlus = false;
+    for (const id in state.players) {
+      if (state.players[id].rosterStatus === 'A+') {
+        state.players[id].rosterStatus = 'A';
+        mergedAPlus = true;
+      }
+    }
+    if (mergedAPlus) window.BBGM_STATE.set(state);
+
     if (state.meta.userTeamId) {
       document.getElementById('app').classList.remove('hidden');
       refresh();

@@ -19,7 +19,7 @@ window.BBGM_TRADES = (function () {
     return Math.round(aav * 10) / 10;
   }
 
-  const LEVEL_RISK = { AAA: 1.0, AA: 0.78, 'A+': 0.58, A: 0.44, Rookie: 0.34 };
+  const LEVEL_RISK = { AAA: 1.0, AA: 0.78, A: 0.5, Rookie: 0.34 };
 
   function tradeValue(p) {
     if (p.status === 'minors') return prospectValue(p);
@@ -71,7 +71,7 @@ window.BBGM_TRADES = (function () {
     let tv = clamp((ceilAvg - 44) * 2.0, 0, 62);
     tv *= LEVEL_RISK[p.rosterStatus] != null ? LEVEL_RISK[p.rosterStatus] : 0.5;
     // Young-for-level is the classic breakout indicator.
-    const youngAge = { AAA: 23, AA: 22, 'A+': 21, A: 20, Rookie: 19 }[p.rosterStatus] || 22;
+    const youngAge = { AAA: 23, AA: 22, A: 20, Rookie: 19 }[p.rosterStatus] || 22;
     if (p.age <= youngAge) tv *= 1.2;
     else if (p.age >= youngAge + 3) tv *= 0.6;
     return clamp(tv, 0, 100);

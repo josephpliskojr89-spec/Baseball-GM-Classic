@@ -466,19 +466,20 @@ window.BBGM_DRAFT = (function () {
     return rate;
   }
 
-  // Assignment level by round and age (13.8), respecting the age floors the
-  // offseason reassignment uses (a 23-year-old never reports to Rookie ball).
-  function levelFor(round, age) {
-    let level;
-    if (round === 1) level = 'A+';
-    else if (round <= 3) level = 'A';
-    else if (round <= 7) level = age >= 21 ? 'A' : 'Rookie';
-    else level = 'Rookie';
-    const ORDER = ['Rookie', 'A', 'A+'];
-    let idx = ORDER.indexOf(level);
-    if (age >= 22) idx = Math.max(idx, 1);
-    if (age >= 24) idx = Math.max(idx, 2);
-    return ORDER[idx];
+  // Assignment level by round (13.8) on the four-level ladder, lifted by
+  // the scouts' placement read (a polished college bat can open at AA)
+  // but never straight to AAA out of the draft.
+  function levelFor(p, round) {
+    const MIN = window.BBGM_MINORS;
+    let base;
+    if (round <= 3) base = 'A';
+    else if (round <= 7) base = p.age >= 21 ? 'A' : 'Rookie';
+    else base = 'Rookie';
+    let idx = MIN.ORDER.indexOf(base);
+    const rec = MIN.ORDER.indexOf(MIN.recommendedLevel(p));
+    idx = Math.max(idx, Math.min(rec, MIN.ORDER.indexOf('AA')));
+    if (p.age >= 23) idx = Math.max(idx, 1);
+    return MIN.ORDER[idx];
   }
 
   function completeDraft(state) {
@@ -510,7 +511,7 @@ window.BBGM_DRAFT = (function () {
       const team = state.league.teams.find((t) => t.id === pick.teamId);
       p.status = 'minors';
       p.teamId = team.id;
-      p.rosterStatus = levelFor(pick.round, p.age);
+      p.rosterStatus = levelFor(p, pick.round);
       p.contract = { years: 1, annualSalary: 0.74, totalValue: 0.74, signedAt: 'draft' };
       p.draft = {
         year, round: pick.round, pick: pick.pick, overall: pick.overall,
