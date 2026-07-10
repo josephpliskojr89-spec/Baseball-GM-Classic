@@ -85,9 +85,11 @@ window.BBGM_MINORS = (function () {
     }
   }
 
-  // Level reassignment each offseason (12.4): players move toward the band
-  // their true talent belongs in, at most one level per year, with age
-  // pushing older prospects up-or-out.
+  // Level placement (12.4): the band a player's true talent belongs in,
+  // with age floors (a 23-year-old doesn't belong in Rookie ball; a
+  // 26-year-old belongs in AA+ or out of the org). This is the single
+  // source of truth for the scout arrows in the minors UI, the level-fit
+  // development penalty (progression.js), and AI offseason reassignment.
   const ORDER = ['Rookie', 'A', 'A+', 'AA', 'AAA'];
   function targetLevel(p) {
     const ovr = window.BBGM_ROSTER.overall(p);
@@ -98,18 +100,36 @@ window.BBGM_MINORS = (function () {
     return 'Rookie';
   }
 
-  function reassignLevel(p) {
-    const cur = ORDER.indexOf(p.rosterStatus);
-    if (cur < 0) return;
+  function recommendedLevel(p) {
     let target = ORDER.indexOf(targetLevel(p));
-    // Age floor: a 23-year-old doesn't belong in Rookie ball regardless of
-    // talent; a 26-year-old belongs in AA+ or out of the org.
     if (p.age >= 23) target = Math.max(target, 1);
     if (p.age >= 24) target = Math.max(target, 2);
     if (p.age >= 26) target = Math.max(target, 3);
-    const next = target > cur ? cur + 1 : (target < cur ? cur - 1 : cur);
+    return ORDER[target];
+  }
+
+  // How far a minor leaguer sits from his recommended level, in levels.
+  // Positive = playing BELOW his talent (scouts recommend promotion),
+  // negative = promoted past it (scouts recommend demotion), 0 = proper
+  // level. Non-minors players return 0.
+  function levelFitDelta(p) {
+    if (p.status !== 'minors') return 0;
+    const cur = ORDER.indexOf(p.rosterStatus);
+    if (cur < 0) return 0;
+    return ORDER.indexOf(recommendedLevel(p)) - cur;
+  }
+
+  // AI offseason reassignment: one step toward the recommended level per
+  // year, two when badly misplaced (now that level fit gates development,
+  // orgs don't leave a breakout bat two levels down for two winters).
+  function reassignLevel(p) {
+    const cur = ORDER.indexOf(p.rosterStatus);
+    if (cur < 0) return;
+    const target = ORDER.indexOf(recommendedLevel(p));
+    const step = Math.abs(target - cur) >= 2 ? 2 : 1;
+    const next = target > cur ? cur + step : (target < cur ? cur - step : cur);
     p.rosterStatus = ORDER[clamp(next, 0, ORDER.length - 1)];
   }
 
-  return { simSeasonLine, reassignLevel, targetLevel, LEVELS };
+  return { simSeasonLine, reassignLevel, targetLevel, recommendedLevel, levelFitDelta, LEVELS, ORDER };
 })();

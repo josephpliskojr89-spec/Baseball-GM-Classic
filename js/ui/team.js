@@ -144,15 +144,6 @@ window.BBGM_UI_TEAM = (function () {
     });
   }
 
-  // Action modal: a few labeled buttons.
-  function actionModal(title, actions) {
-    U.showModal({
-      title,
-      body: U.el('div'),
-      actions: actions.concat([{ label: 'Cancel', kind: 'secondary', onClick: () => true }]),
-    });
-  }
-
 
   // ------- Roster tab -------
 
@@ -425,7 +416,9 @@ window.BBGM_UI_TEAM = (function () {
     const players = state.players;
     container.appendChild(U.el('p', {
       class: 'muted', style: { 'font-size': '12px', 'margin-bottom': '10px' },
-    }, 'Tap a player to view or promote (swaps with a 26-man player of the same type).'));
+    }, 'Tap a player to promote him to the 26-man or move him between levels. ' +
+       '▲ = scouts say he\'s ready for a higher level; ▼ = overmatched, send him ' +
+       'down. Development stalls at the wrong level (worse the further off).'));
     const minors = team.minors.map((id) => players[id]).filter(Boolean);
     const byLevel = { AAA: [], AA: [], 'A+': [], A: [], Rookie: [] };
     for (const p of minors) {
@@ -448,7 +441,21 @@ window.BBGM_UI_TEAM = (function () {
     });
     row.appendChild(U.posBadge(p));
     const info = U.el('div', { class: 'player-row-info' });
-    info.appendChild(U.el('div', { class: 'player-row-name' }, p.name));
+    // Scout level-fit arrow (12.4): ▲ recommend promotion, ▼ recommend
+    // demotion, nothing at the proper level.
+    const fit = window.BBGM_MINORS.levelFitDelta(p);
+    const nameEl = U.el('div', { class: 'player-row-name' });
+    if (fit > 0) {
+      nameEl.appendChild(U.el('span', {
+        style: { color: 'var(--success, #3fb950)', 'margin-right': '4px', 'font-weight': '700' },
+      }, '▲'));
+    } else if (fit < 0) {
+      nameEl.appendChild(U.el('span', {
+        style: { color: 'var(--danger, #f85149)', 'margin-right': '4px', 'font-weight': '700' },
+      }, '▼'));
+    }
+    nameEl.appendChild(document.createTextNode(p.name));
+    info.appendChild(nameEl);
     let meta = `Age ${p.age} • ${p.bats}/${p.throws}`;
     // Most recent minor-league season line (stamped at each rollover).
     const years = Object.keys(p.stats || {}).sort().reverse();
@@ -476,14 +483,76 @@ window.BBGM_UI_TEAM = (function () {
   }
 
   function showMinorsActions(state, team, p) {
-    actionModal(`${p.name} (${p.rosterStatus})`, [
-      { label: 'Promote (swap)…', kind: 'primary', onClick: () => {
-        setTimeout(() => showPromoteSwap(state, team, p), 0);
-      }},
-      { label: 'View Profile', kind: 'secondary', onClick: () => {
-        setTimeout(() => window.BBGM_UI_PLAYER.show(p.id), 0);
-      }},
-    ]);
+    const MIN = window.BBGM_MINORS;
+    const fit = MIN.levelFitDelta(p);
+    const rec = MIN.recommendedLevel(p);
+    const note = fit > 0
+      ? `Scouts: he's outgrown ${p.rosterStatus} — ready for ${rec}. Leaving him down stunts his development.`
+      : fit < 0
+        ? `Scouts: overmatched at ${p.rosterStatus} — belongs at ${rec}. Rushing him stunts his development.`
+        : `Scouts: ${p.rosterStatus} is the right level for him.`;
+    U.showModal({
+      title: `${p.name} (${p.rosterStatus})`,
+      body: U.el('p', { class: 'muted', style: { 'font-size': '12px' } }, note),
+      actions: [
+        { label: 'Promote to 26-man (swap)…', kind: 'primary', onClick: () => {
+          setTimeout(() => showPromoteSwap(state, team, p), 0);
+          return true;
+        }},
+        { label: 'Move Level…', kind: 'secondary', onClick: () => {
+          setTimeout(() => showLevelMove(state, team, p), 0);
+          return true;
+        }},
+        { label: 'View Profile', kind: 'secondary', onClick: () => {
+          setTimeout(() => window.BBGM_UI_PLAYER.show(p.id), 0);
+          return true;
+        }},
+        { label: 'Cancel', kind: 'secondary', onClick: () => true },
+      ],
+    });
+  }
+
+  // Assign a minor leaguer to any level (12.4). Free to do — the cost is
+  // baked into development: the further from the scouts' recommended
+  // level a prospect plays, the more his growth year is wasted.
+  function showLevelMove(state, team, p) {
+    const MIN = window.BBGM_MINORS;
+    const rec = MIN.recommendedLevel(p);
+    const body = U.el('div', { class: 'roster-list' });
+    for (const lvl of ['AAA', 'AA', 'A+', 'A', 'Rookie']) {
+      const isCurrent = p.rosterStatus === lvl;
+      const rowAttrs = {
+        class: 'roster-row',
+        style: isCurrent ? { opacity: '0.5' } : {},
+        on: { click: () => {
+          if (isCurrent) return;
+          U.closeModal();
+          p.rosterStatus = lvl;
+          window.BBGM_STATE.set(state);
+          U.showToast(`${p.name} assigned to ${lvl}.`, 'success');
+          render(document.getElementById('mainView'), state);
+        }},
+      };
+      if (isCurrent) rowAttrs.disabled = 'disabled';
+      const row = U.el('button', rowAttrs);
+      row.appendChild(U.el('span', { class: 'pos-badge' }, lvl));
+      const info = U.el('div', { class: 'player-row-info' });
+      info.appendChild(U.el('div', { class: 'player-row-name' },
+        (isCurrent ? 'Current level' : lvl === rec ? 'Scouts recommend' : ' ')));
+      row.appendChild(info);
+      if (lvl === rec && !isCurrent) {
+        row.appendChild(U.el('div', {
+          class: 'player-row-stats',
+          style: { color: 'var(--success, #3fb950)', 'font-weight': '700' },
+        }, '★'));
+      }
+      body.appendChild(row);
+    }
+    U.showModal({
+      title: `Assign ${p.name}`,
+      body,
+      actions: [{ label: 'Cancel', kind: 'secondary', onClick: () => true }],
+    });
   }
 
   function showPromoteSwap(state, team, minorsP) {

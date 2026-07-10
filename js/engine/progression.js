@@ -30,16 +30,19 @@ window.BBGM_PROGRESSION = (function () {
     if (arch.breakoutAge && h.breakoutAge == null) h.breakoutAge = rint(arch.breakoutAge[0], arch.breakoutAge[1]);
   }
 
-  // Level appropriateness (9.3 / 12.4): compare true overall to the level's
-  // band. Returns a progression multiplier penalty (0 = none).
-  const LEVEL_BANDS = { AAA: [46, 80], AA: [38, 55], 'A+': [30, 50], A: [25, 45], Rookie: [20, 40] };
+  // Level appropriateness (9.3 / 12.4): development is gated by playing at
+  // the right level, using the same recommendation the scout arrows show.
+  // One level off is a mild drag (a season of it happens naturally on the
+  // way up); two or more levels off genuinely stunts the year — a stud
+  // sandbagged in A-ball learns nothing from weak competition, and a kid
+  // rushed past his level gets overmatched instead of developing.
   function levelPenalty(p) {
     if (p.status !== 'minors') return 0;
-    const band = LEVEL_BANDS[p.rosterStatus];
-    if (!band) return 0;
-    const ovr = window.BBGM_ROSTER.overall(p);
-    if (ovr > band[1]) return 0.10;  // held back too long
-    if (ovr < band[0]) return 0.15;  // promoted too aggressively
+    const delta = window.BBGM_MINORS.levelFitDelta(p);
+    if (delta >= 2) return 0.20;   // left too low: dominating, not learning
+    if (delta === 1) return 0.08;
+    if (delta <= -2) return 0.25;  // rushed: overmatched
+    if (delta === -1) return 0.10;
     return 0;
   }
 
@@ -178,5 +181,5 @@ window.BBGM_PROGRESSION = (function () {
     return true;
   }
 
-  return { progressPlayer, rollRetirement, retirementProb, LEVEL_BANDS };
+  return { progressPlayer, rollRetirement, retirementProb, levelPenalty };
 })();

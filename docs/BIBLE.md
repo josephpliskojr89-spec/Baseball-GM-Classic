@@ -2218,6 +2218,21 @@ Level assignment is decided each spring training. The user can override but the 
 
 The user manages this tension. Aggressive promotion can damage ceiling. Conservative handling can also damage ceiling. The "right" level is contextual and somewhat subjective — that's the development meta-game.
 
+> **Status (0.11.2) — level fit is live.** minors.js `recommendedLevel`
+> (overall-rating thresholds + age floors) is the single source of truth
+> for three things: the scout arrows on Team → Minors (green ▲ = ready
+> for a higher level, red ▼ = overmatched, nothing at the proper level),
+> the development gate in progression.js (one level off = mild drag,
+> −8/−10%; two or more = a genuinely stunted year, −20/−25% — both
+> directions per the table above), and AI offseason reassignment (one
+> step per year toward the recommendation, two when badly misplaced).
+> The user can now assign any minor leaguer to any level from the
+> minors tab (Move Level… with the scouts' pick starred) in addition to
+> promote-to-26-man swaps; the action modal states the scouts' verdict
+> in words. Not yet: sustained-misplacement ceiling damage (only the
+> annual progression drag), mid-season AI promotions (12.5), and the
+> promotion-candidate notifications.
+
 ### 12.5 Promotion Mechanics
 
 Mid-season promotions happen when:
