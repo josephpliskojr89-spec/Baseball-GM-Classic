@@ -3,8 +3,9 @@
 // buried menu item. The hub carries the full annual arc:
 //
 //   offseason  -> countdown + draft history
-//   May-June   -> class preview: strength, mock draft, filterable big
-//                 board, personal target list
+//   May-June   -> tabbed class preview: Overview (scout read + mock draft
+//                 + history), Big Board (full filterable prospect list),
+//                 Targets (the user's flagged players)
 //   June 30    -> the draft room: on-the-clock strip, live pick tracker,
 //                 pick screen with scouting recommendation, quick-draft
 //   post-draft -> recap: your class, round 1 results, signing fallout
@@ -14,6 +15,7 @@ window.BBGM_UI_DRAFT = (function () {
   const DRAFT = () => window.BBGM_DRAFT;
 
   // Session-sticky view state (resets on reload, not on re-render).
+  let activeTab = 'overview';
   let posFilter = 'ALL';
   let bgFilter = 'ALL';
   let boardDepth = 50;
@@ -36,19 +38,77 @@ window.BBGM_UI_DRAFT = (function () {
     const today = state.meta.currentDate;
     const isDraftDay = DRAFT().draftDayPending(state, today);
 
+    // Event views own the whole screen: the live room needs focus, the
+    // recap and offseason countdown have no board to organize.
     if (!draft || draft.year < today.year) {
       renderCountdown(container, state);
-    } else if (draft.phase === 'live') {
+      renderHistory(container, state);
+      return;
+    }
+    if (draft.phase === 'live') {
       renderDraftRoom(container, state);
-    } else if (draft.phase === 'complete') {
+      return;
+    }
+    if (draft.phase === 'complete') {
       renderRecap(container, state);
-    } else if (isDraftDay) {
-      renderDraftDayLanding(container, state);
-    } else {
-      renderPreview(container, state);
+      renderHistory(container, state);
+      return;
     }
 
+    // Class preview (and draft-day landing): tabbed — Overview / Big
+    // Board / Targets keep the long lists off the scout's summary page.
+    // On draft day the Begin card sits ABOVE the tabs so it's visible no
+    // matter which tab the user left the hub on.
+    if (isDraftDay) renderDraftDayCard(container, state);
+    const targetCount = (draft.userBoard || []).length;
+    const tabs = U.el('div', { class: 'tabs' });
+    const tabDefs = [
+      { key: 'overview', label: 'Overview' },
+      { key: 'board', label: 'Big Board' },
+      { key: 'targets', label: targetCount ? `Targets (${targetCount})` : 'Targets' },
+    ];
+    for (const t of tabDefs) {
+      tabs.appendChild(U.el('button', {
+        class: `tab${activeTab === t.key ? ' active' : ''}`,
+        on: { click: () => { activeTab = t.key; render(container, state); } },
+      }, t.label));
+    }
+    container.appendChild(tabs);
+
+    if (activeTab === 'board') renderBigBoard(container, state, { pickMode: false });
+    else if (activeTab === 'targets') renderTargets(container, state);
+    else renderOverview(container, state);
+  }
+
+  // ---- Overview tab: the scout's read, mock draft, history -------------------
+
+  function renderOverview(container, state) {
+    renderClassCard(container, state);
+    renderMock(container, state);
     renderHistory(container, state);
+  }
+
+  // ---- Targets tab: the user's flagged prospects ------------------------------
+
+  function renderTargets(container, state) {
+    const draft = state.draft;
+    const ids = draft.userBoard || [];
+    if (!ids.length) {
+      container.appendChild(U.el('div', { class: 'empty-state' },
+        'No targets flagged yet. Open a prospect from the Big Board and tap ' +
+        '"☆ Flag as Target" — targets pin to the top of your list on draft day.'));
+      return;
+    }
+    const list = U.el('div', { class: 'roster-list' });
+    for (const id of ids) {
+      const p = draft.prospects[id];
+      if (!p) continue;
+      const rank = draft.board.indexOf(p.id) + 1;
+      list.appendChild(prospectRow(state, p, rank, true, { pickMode: false }));
+    }
+    container.appendChild(list);
+    container.appendChild(U.el('p', { class: 'muted', style: { 'font-size': '11px', 'margin-top': '8px' } },
+      'Badge = consensus board rank. Tap a target to review his report or remove the flag.'));
   }
 
   // ---- Offseason / pre-May --------------------------------------------------
@@ -64,14 +124,13 @@ window.BBGM_UI_DRAFT = (function () {
     container.appendChild(card);
   }
 
-  // ---- Pre-draft class preview (13.4) -----------------------------------------
+  // ---- Pre-draft class card (13.4) ---------------------------------------------
 
-  function renderPreview(container, state) {
+  function renderClassCard(container, state) {
     const draft = state.draft;
     const today = state.meta.currentDate;
     const daysOut = Math.max(0, D.diffDays(today, D.fromYMD(draft.year, 6, 30)));
 
-    // Class card.
     const card = U.el('div', { class: 'card' });
     card.appendChild(U.el('div', { class: 'card-title' }, `${draft.year} Draft Class`));
     card.appendChild(U.el('p', { style: { 'font-size': '13px', 'margin-bottom': '8px' } },
@@ -84,9 +143,6 @@ window.BBGM_UI_DRAFT = (function () {
         slots.slice(0, 3).map((s) => `#${s.overall}`).join(', ') + ', …'));
     }
     container.appendChild(card);
-
-    renderMock(container, state);
-    renderBigBoard(container, state, { pickMode: false });
   }
 
   function renderMock(container, state) {
@@ -178,9 +234,13 @@ window.BBGM_UI_DRAFT = (function () {
   // pickMode: rows get a Draft action (user on the clock).
   function renderBigBoard(container, state, opts) {
     const draft = state.draft;
-    container.appendChild(U.el('div', { class: 'section-header' }, [
-      U.el('h3', {}, opts.pickMode ? 'Available Prospects' : 'Big Board'),
-    ]));
+    // In the room the list needs its own header; on the Big Board tab the
+    // tab label already says it.
+    if (opts.pickMode) {
+      container.appendChild(U.el('div', { class: 'section-header' }, [
+        U.el('h3', {}, 'Available Prospects'),
+      ]));
+    }
     const wrap = U.el('div');
     container.appendChild(wrap);
 
@@ -313,9 +373,9 @@ window.BBGM_UI_DRAFT = (function () {
     window.BBGM_MAIN.refresh();
   }
 
-  // ---- Draft-day landing (phase still preview on June 30) ---------------------
+  // ---- Draft-day landing card (phase still preview on June 30) -----------------
 
-  function renderDraftDayLanding(container, state) {
+  function renderDraftDayCard(container, state) {
     const draft = state.draft;
     const card = U.el('div', { class: 'card' });
     card.appendChild(U.el('div', { class: 'card-title' }, `Draft Day — ${draft.year}`));
@@ -331,8 +391,6 @@ window.BBGM_UI_DRAFT = (function () {
       }},
     }, 'Begin the Draft'));
     container.appendChild(card);
-    renderMock(container, state);
-    renderBigBoard(container, state, { pickMode: false });
   }
 
   // ---- The draft room (13.5 / 20.10) -------------------------------------------
