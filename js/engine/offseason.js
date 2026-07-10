@@ -213,6 +213,12 @@ window.BBGM_OFFSEASON = (function () {
     }
 
     // 4. Retirements (9.6). Config cleanup happens in part B's rebuild.
+    // Unemployment spells tick first — retirement odds read them (a second
+    // unsigned winter drives most careers out of the league).
+    for (const id in players) {
+      const p = players[id];
+      if (!p.retired && p.status === 'FA') p.faSeasons = (p.faSeasons || 0) + 1;
+    }
     for (const id in players) {
       const p = players[id];
       if (p.retired) continue;
@@ -379,17 +385,47 @@ window.BBGM_OFFSEASON = (function () {
       }
     }
 
-    // Backfill and top-up every org, then rebuild configs.
+    // Backfill and top-up every org, then rebuild configs. The 30-cap cut
+    // keeps whoever the org would actually keep: ceiling and youth count
+    // alongside current ability, so a raw 18-year-old draftee with a 70
+    // ceiling outranks the 27-year-old AAA depth arm he displaces (12.8).
+    const ceilBest = (p) => {
+      const c = (p.hidden && p.hidden.ceiling) || {};
+      const vals = Object.keys(c).filter((k) => k !== 'stamina').map((k) => c[k]);
+      return vals.length ? Math.max(...vals) : ROSTER().overall(p);
+    };
     for (const t of teams) {
       topUpTeam(state, t, summary);
       while ((t.minors || []).length > 30) {
         const cut = t.minors
           .map((id) => players[id])
           .filter(Boolean)
-          .sort((a, b) => (ROSTER().overall(a) + (50 - a.age)) - (ROSTER().overall(b) + (50 - b.age)))[0];
+          .sort((a, b) =>
+            (ROSTER().overall(a) * 0.7 + ceilBest(a) * 0.5 + (30 - a.age)) -
+            (ROSTER().overall(b) * 0.7 + ceilBest(b) * 0.5 + (30 - b.age)))[0];
         if (!cut) break;
         t.minors.splice(t.minors.indexOf(cut.id), 1);
-        FA().releaseToPool(state, cut, 'released');
+        // Young fringe releases leave affiliated ball entirely (indy ball,
+        // back to school) instead of accumulating in the FA pool. A cut kid
+        // who never appeared in an MLB game is deleted outright — nothing
+        // references him and keeping ~250 washouts/yr as retired players
+        // balloons the save.
+        const playedMLB = Object.keys(cut.stats || {}).some((y) => {
+          const s = cut.stats[y];
+          return s && ((s.pa || 0) > 0 || (s.ipOuts || 0) > 0);
+        });
+        if (cut.age <= 25 && ceilBest(cut) < 62) {
+          if (playedMLB) {
+            cut.retired = { year, age: cut.age, openToCoaching: false, released: true };
+            cut.status = 'retired';
+            cut.rosterStatus = 'retired';
+            cut.teamId = null;
+          } else {
+            delete players[cut.id];
+          }
+        } else {
+          FA().releaseToPool(state, cut, 'released');
+        }
       }
       rebuildTeamConfig(state, t, summary);
       t.seasonRecord = { w: 0, l: 0, rs: 0, ra: 0, lastTen: [], streak: 0 };

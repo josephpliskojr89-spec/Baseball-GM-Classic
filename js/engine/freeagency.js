@@ -99,6 +99,7 @@ window.BBGM_FA = (function () {
     p.status = 'FA';
     p.rosterStatus = 'FA';
     p.faReason = reason;
+    p.faSeasons = 0; // fresh unemployment spell (ticked each rollover)
   }
 
   // Build the market after contracts tick at rollover (offseason.js part A).

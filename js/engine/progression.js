@@ -134,9 +134,17 @@ window.BBGM_PROGRESSION = (function () {
     // carrying 30-year-old A-ball filler forever.
     if (p.status === 'minors' && age >= 29 && ovr < 45) return 0.5;
     // Unsigned free agents drift out of the game (16.8: the pool must not
-    // accumulate careers' worth of fringe veterans).
+    // accumulate careers' worth of fringe veterans). The mid-20s tier
+    // matters once the draft is the talent pipeline — farm-cap releases
+    // land here every offseason and must keep draining.
     if (p.status === 'FA' && age >= 28 && ovr < 48) return 0.6;
+    if (p.status === 'FA' && age >= 26 && ovr < 46) return 0.5;
+    if (p.status === 'FA' && age >= 30 && ovr < 50) return 0.5;
+    if (p.status === 'FA' && age >= 27 && ovr < 50) return 0.45;
     if (p.status === 'FA' && age >= 33) return 0.5;
+    // A second straight winter without a phone call ends most careers —
+    // overseas leagues, retirement, real life. Stars hold out longer.
+    if (p.status === 'FA' && (p.faSeasons || 0) >= 2) return ovr < 58 ? 0.65 : 0.35;
     if (age < 33) return 0;
     const base = { 33: 0.05, 34: 0.08, 35: 0.14, 36: 0.22, 37: 0.32, 38: 0.45, 39: 0.60, 40: 0.75, 41: 0.85 }[age];
     let prob = base != null ? base : 0.95;

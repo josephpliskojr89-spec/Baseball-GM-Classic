@@ -3952,6 +3952,34 @@ user becomes a pure GM), with hireable staff carrying mechanical effects.
 - AI teams pick reasonably based on archetypes
 - Drafted prospects appear in organization
 
+> **Status (0.11.0) — shipped, with a standalone Draft Hub.** The draft
+> got its own bottom-nav tab (a deliberate upgrade over 13.9's modal-only
+> spec — the draft is a pillar event and the hub carries the full annual
+> arc): offseason countdown + draft history, May–June class preview
+> (class-strength blurb, weekly-refreshed round-1 mock draft, filterable
+> big board with scouted ceiling bands, personal target flags), the June
+> 30 draft room (on-the-clock strip, live pick tracker, scouting
+> recommendation, tap-to-draft, quick-draft "Sim to My Pick", full
+> auto-draft), and a post-draft recap (your class, round 1 results,
+> signing fallout). Engine: ~300-prospect classes generated May 1 with
+> strength -2..+2 and best-tool ceiling bands per 6.5 (additive shift —
+> top picks have real weaknesses, not 80s across the board), 30%/70%
+> HS/college age mix with school names, reverse-standings order (13.2, no
+> lottery/comp picks), owner-archetype AI behavior incl. reaches and
+> signability seniors (13.6), slot-value bonuses and per-round signing
+> rates (13.7, late-round HS picks honor college commitments at higher
+> rates), round+age-based minors assignment (13.8), and a hidden ~5%
+> late-round gem. Signing applies a hidden "development reality" shift
+> (busts outnumber surprises; HS wider) so the scouted band on the
+> profile reads as the projection it was. The sim hard-stops on June 30
+> until the draft runs; the harness auto-drafts. Draft provenance
+> ("Drafted 2027 R1 P3 by NOR, $8.2M bonus") shows on player profiles;
+> state.draftHistory archives condensed classes. Population balance
+> reworked alongside: the farm-cap cut now values ceiling+youth, young
+> fringe releases leave the game instead of pooling, and unsigned
+> veteran FAs wash out faster. Not yet: scouting-tier-gated report
+> depth/fog (Phase 13), pick trading, draft lottery, compensation picks.
+
 ### 21.13 Phase 12: International Signings (Estimated: 1 session)
 
 **Goal:** Annual international signing window.
@@ -4051,10 +4079,12 @@ user becomes a pure GM), with hireable staff carrying mechanical effects.
 > straight to Opening Day). "Start Season" finishes the rollover:
 > remaining FA resolution, injury-clock fast-forward (10.5), minors
 > level moves + 30-cap, org backfill, config rebuild, fresh schedule.
-> Interim placeholders for later phases: org depth backfill via
-> generated signings (until Phase 11 draft), no awards voting (Phase
-> 14), no manager hiring (Phase 10), postseason injuries don't carry
-> over, prior-season game data archives to a summary.
+> Interim placeholders for later phases: no awards voting (Phase
+> 14), postseason injuries don't carry over, prior-season game data
+> archives to a summary. (Resolved since: manager hiring shipped in
+> 0.10.0; the 0.11.0 draft replaced generated-signing backfill as the
+> talent pipeline — generation remains only as a rare emergency
+> fallback when an org can't field a legal roster.)
 >
 > **Measured (12-season soak, tools/season_harness.js):** zero stat
 > invariant violations across ~29,000 games, league readiness valid
@@ -4065,6 +4095,17 @@ user becomes a pure GM), with hireable staff carrying mechanical effects.
 > the original talent tiers (the draft must supply star-tier ceilings
 > to hold the run environment), and the 26-man age-vs-overall curve
 > declines monotonically instead of peaking at 26-29.
+>
+> **Re-measured (0.11.0, 10-season soak with the draft live):** the
+> R/G watch item is resolved — the run environment holds 4.5-4.8 for
+> ten straight seasons because draft classes supply the star ceilings
+> the backfill couldn't. Talent pyramid lands near the 4.3 target
+> (~60-75 players at 60+ overall). New watch items for Phases 12-14:
+> the FA pool settles higher than pre-draft (~250-330; farm-cap
+> releases now feed it — unemployment-spell washout keeps it bounded),
+> and 34+ veterans thin out to a handful as cheap draft talent crowds
+> out the back end of aging curves (real dynamic, slightly stronger
+> than MLB; revisit when awards/legacy incentives arrive in Phase 14).
 
 ### 21.17 Phase 16: Polish and Iteration (Ongoing)
 

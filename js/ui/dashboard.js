@@ -24,6 +24,11 @@ window.BBGM_UI_DASHBOARD = (function () {
     strip.appendChild(U.el('div', { class: 'team-strip-record' }, record));
     container.appendChild(strip);
 
+    // Draft callouts (bible 13/18.12): a hero card on draft day, a quieter
+    // nudge while the class is scoutable in May-June.
+    const draftCard = renderDraftCallout(state);
+    if (draftCard) container.appendChild(draftCard);
+
     // Offseason free-agency card replaces the game-day cards (bible 18.8).
     if (state.meta.offseasonPhase === 'freeAgency') {
       container.appendChild(renderOffseasonCard(state, team));
@@ -94,6 +99,31 @@ window.BBGM_UI_DASHBOARD = (function () {
       card.appendChild(U.el('p', {}, 'Spring training opens soon.'));
     } else {
       card.appendChild(U.el('p', {}, 'No game scheduled today.'));
+    }
+    return card;
+  }
+
+  function renderDraftCallout(state) {
+    const DRAFT = window.BBGM_DRAFT;
+    const draft = state.draft;
+    const today = state.meta.currentDate;
+    if (!draft || draft.year !== today.year || draft.phase === 'complete') return null;
+    const card = U.el('div', { class: 'card' });
+    if (DRAFT.draftDayPending(state, today)) {
+      card.appendChild(U.el('div', { class: 'card-title' }, `⚾ Draft Day — ${draft.year}`));
+      card.appendChild(U.el('p', { style: { 'font-size': '13px', 'margin-bottom': '8px' } },
+        'The NABL Amateur Draft is today. The season resumes once the draft is complete.'));
+      card.appendChild(U.el('button', {
+        class: 'btn-primary btn-sm', style: { width: '100%' },
+        on: { click: () => window.BBGM_MAIN.navigate('draft') },
+      }, 'Go to the Draft Hub'));
+    } else {
+      const daysOut = D.diffDays(today, D.fromYMD(draft.year, 6, 30));
+      card.appendChild(U.el('div', { class: 'card-title' }, `${draft.year} Draft — ${daysOut} days out`));
+      card.appendChild(U.el('button', {
+        class: 'btn-secondary btn-sm', style: { width: '100%' },
+        on: { click: () => window.BBGM_MAIN.navigate('draft') },
+      }, 'Scout the Class in the Draft Hub'));
     }
     return card;
   }

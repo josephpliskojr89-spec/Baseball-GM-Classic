@@ -309,6 +309,14 @@ window.BBGM_UI_PLAYER = (function () {
         : `Free agency, ${p.acquiredVia.year}`;
       rows.push(insetRow('Acquired', how));
     }
+    if (p.draft) {
+      const state = window.BBGM_STATE.get();
+      const by = state.league.teams.find((t) => t.id === p.draft.teamId);
+      rows.push(insetRow('Drafted',
+        `${p.draft.year} R${p.draft.round} P${p.draft.pick} (#${p.draft.overall} overall)` +
+        `${by ? ' by ' + by.abbr : ''}` +
+        (p.draft.bonus ? ` • $${p.draft.bonus}M bonus` : '')));
+    }
     const grid = U.el('div', { class: 'inset-list' }, rows);
     return grid;
   }

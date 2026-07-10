@@ -36,6 +36,7 @@ const files = [
   'js/engine/trades.js',
   'js/engine/freeagency.js',
   'js/engine/staff.js',
+  'js/engine/draft.js',
   'js/engine/simulation.js',
   'js/engine/standings.js',
   'js/engine/offseason.js',
@@ -76,6 +77,7 @@ let simErrors = 0;
 const simErrorMessages = [];
 const peakFatigue = {};
 let homeWins = 0, totalGames = 0;
+const draftLines = [];
 const runsByLeague = { east: 0, west: 0 }, gamesByLeague = { east: 0, west: 0 };
 let relieverWins = 0;
 let fieldingErrors = 0;
@@ -153,6 +155,16 @@ function simOneDay(state) {
   }
   // AI trade activity (mirrors main.js).
   W.BBGM_TRADES.aiTradeTick(state, today);
+  // Amateur draft: class on May 1, auto-drafted (AI picks every team,
+  // including the "user") on June 30 (mirrors main.js + Draft Hub).
+  W.BBGM_DRAFT.ensureClass(state, today);
+  if (W.BBGM_DRAFT.draftDayPending(state, today)) {
+    const recap = W.BBGM_DRAFT.autoRunDraft(state);
+    const first = recap.round1[0];
+    draftLines.push(`  ${today.year} draft: strength ${state.draftHistory[state.draftHistory.length - 1].strength}` +
+      ` | #1 ${first ? `${first.name} (${first.pos}) to ${first.teamId}` : '?'}` +
+      ` | signed ${recap.signedCount}/300`);
+  }
   const playedToday = new Set();
   for (const g of games) {
     if (!g.played || !g.result || !g.result.box) continue;
@@ -181,6 +193,7 @@ function runSeason() {
   }
 }
 runSeason();
+while (draftLines.length) console.log(draftLines.shift());
 
 // ---- Aggregate ----
 const hitTot = S.emptyHitter(), pitTot = S.emptyPitcher(), pitcherBatTot = S.emptyHitter();
@@ -325,11 +338,14 @@ if (seasonsArg > 1) {
 
     if (si === seasonsArg) break;
     runSeason();
+    while (draftLines.length) console.log(draftLines.shift());
     const rg = (runsByLeague.east + runsByLeague.west - runsBefore) /
                Math.max(1, gamesByLeague.east + gamesByLeague.west - sgBefore);
     console.log(`  ${state.meta.currentDate.year} season: ${totalGames - gamesBefore} games` +
       ` | R/G ${rg.toFixed(2)} | IL stints ${ilStints - ilBefore}` +
-      ` | sim errors ${simErrors - errBefore} | ties ${ties - tiesBefore}`);
+      ` | sim errors ${simErrors - errBefore} | ties ${ties - tiesBefore}` +
+      ` | FA pool ${(state.freeAgents || []).length}` +
+      ` | active ${Object.keys(state.players).filter((id) => !state.players[id].retired).length}`);
   }
 
   // Franchise diagnostics.
@@ -366,6 +382,29 @@ if (seasonsArg > 1) {
   const minorsSizes = state.league.teams.map((t) => (t.minors || []).length);
   console.log('minors sizes:', Math.min(...minorsSizes), '-', Math.max(...minorsSizes),
     '| free agents pool:', (state.freeAgents || []).length);
+  // Draft pipeline health: signed draftees flowing into orgs and (after a
+  // few seasons of development) onto 26-man rosters.
+  let drafteesActive = 0, drafteesMLB = 0, drafteesRetired = 0;
+  for (const id in state.players) {
+    const p = state.players[id];
+    if (!p.draft) continue;
+    if (p.retired) { drafteesRetired++; continue; }
+    drafteesActive++;
+    if (p.rosterStatus === '26-man') drafteesMLB++;
+  }
+  console.log('draftees: active', drafteesActive, '| on 26-man rosters', drafteesMLB,
+    '| washed out', drafteesRetired, '| draft classes archived:', (state.draftHistory || []).length);
+  // Star scarcity (bible 4.3): ~60 stars league-wide, pyramid below.
+  let n65 = 0, n60 = 0, n55 = 0;
+  for (const t of state.league.teams) {
+    for (const id of t.roster) {
+      const ovr = W.BBGM_ROSTER.overall(state.players[id]);
+      if (ovr >= 65) n65++;
+      if (ovr >= 60) n60++;
+      if (ovr >= 55) n55++;
+    }
+  }
+  console.log(`26-man talent pyramid: 65+ ovr: ${n65} | 60+: ${n60} (t ~60 stars) | 55+: ${n55}`);
   console.log('total trades logged:', (state.history.trades || []).length,
     '| payroll range:', (() => {
       const ps = state.league.teams.map((t) => W.BBGM_FA.computePayroll(t, state.players));
