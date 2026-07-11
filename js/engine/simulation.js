@@ -350,6 +350,10 @@ window.BBGM_SIM = (function () {
     state.meta.gamesPlayedByTeam[home.id] = (state.meta.gamesPlayedByTeam[home.id] || 0) + 1;
     state.meta.gamesPlayedByTeam[away.id] = (state.meta.gamesPlayedByTeam[away.id] || 0) + 1;
 
+    // Notable single-game feats (achievements ledger + news): cycles,
+    // 3/4-HR games, 15-K games, no-hitters, perfect games, walk-off hits.
+    detectFeats(state, game, gameStats, teamState, year);
+
     game.played = true;
     game.result = {
       homeRuns: teamState.home.runs,
@@ -377,6 +381,71 @@ window.BBGM_SIM = (function () {
       year,
     };
     return game.result;
+  }
+
+  // ---- Notable single-game feats (achievements ledger) --------------------
+  // Cycle, 3-HR game, 4-HR game, 15-K game, no-hitter, perfect game,
+  // walk-off hit/homer. Feats append to p.achievements.feats and the big
+  // ones make the news (user-team feats always; league-wide rarities too).
+  function detectFeats(state, game, gameStats, teamState, year) {
+    const players = state.players;
+    const feats = []; // {p, type, detail, newsworthy}
+    const push = (p, type, detail, newsworthy) => feats.push({ p, type, detail, newsworthy });
+
+    for (const key in gameStats) {
+      if (key.startsWith('bat:')) continue; // pitcher batting lines: walk-offs only (handled below)
+      const p = players[key];
+      const s = gameStats[key];
+      if (!p || !s) continue;
+      if (!p.isPitcher) {
+        const singles = (s.h || 0) - (s.b2 || 0) - (s.b3 || 0) - (s.hr || 0);
+        if (singles >= 1 && (s.b2 || 0) >= 1 && (s.b3 || 0) >= 1 && (s.hr || 0) >= 1) {
+          push(p, 'cycle', 'Hit for the cycle', true);
+        }
+        if ((s.hr || 0) >= 4) push(p, 'hr4', `${s.hr}-homer game`, true);
+        else if ((s.hr || 0) === 3) push(p, 'hr3', '3-homer game', false);
+      } else {
+        // Solo complete-game gems only (combined no-hitters don't count).
+        if ((s.cg || 0) >= 1 && (s.h || 0) === 0 && (s.ipOuts || 0) >= 27) {
+          // Perfect: no hits, no walks, and exactly one batter per out
+          // (27 up, 27 down — bf equals outs recorded).
+          const perfect = (s.bb || 0) === 0 && (s.bf || 0) === (s.ipOuts || 0);
+          if (perfect) push(p, 'perfect', 'PERFECT GAME', true);
+          else push(p, 'nohitter', 'No-hitter', true);
+        } else if ((s.k || 0) >= 15) {
+          push(p, 'k15', `${s.k}-strikeout game`, false);
+        }
+      }
+    }
+
+    // Walk-off hit (bottom of the 9th or later, home side).
+    const wo = teamState.home.walkoff;
+    if (wo && wo.batterId && ['1B', '2B', '3B', 'HR'].includes(wo.code)) {
+      const p = players[wo.batterId];
+      if (p) {
+        push(p, wo.code === 'HR' ? 'walkoff_hr' : 'walkoff',
+          wo.code === 'HR' ? 'Walk-off home run' : 'Walk-off hit', wo.code === 'HR');
+      }
+    }
+
+    if (!feats.length) return;
+    const userTeamId = state.meta.userTeamId;
+    for (const f of feats) {
+      const p = f.p;
+      if (!p.achievements) p.achievements = { awards: [], allStarSelections: [], championships: [], milestones: [] };
+      if (!p.achievements.feats) p.achievements.feats = [];
+      p.achievements.feats.push({ year, type: f.type, detail: f.detail, ps: !!game.postseason });
+      // News: league-wide rarities always; anything by the user's players.
+      if (f.newsworthy || p.teamId === userTeamId) {
+        if (!state.news) state.news = [];
+        const t = state.league.teams.find((x) => x.id === p.teamId);
+        state.news.push({
+          date: { ...state.meta.currentDate },
+          body: `<strong>${p.name}</strong>${t ? ' (' + t.abbr + ')' : ''}: ${f.detail}` +
+                (game.postseason ? ' — in the playoffs!' : '!'),
+        });
+      }
+    }
   }
 
   // Append one compact game-log entry. Array layout (decoder lives in the
@@ -683,8 +752,12 @@ window.BBGM_SIM = (function () {
         }
       }
 
-      // Walkoff: home side just took the lead in the 9th or later.
-      if (walkoffLive && off.runs > def.runs) break;
+      // Walkoff: home side just took the lead in the 9th or later. Stamp
+      // who ended it and how (feeds the feats ledger — walk-off hits).
+      if (walkoffLive && off.runs > def.runs) {
+        off.walkoff = { batterId: batter ? batter.id : null, code: playCode };
+        break;
+      }
     }
     // Defensive: outs should never exceed 3 in a half-inning. If it does
     // (only via simultaneous events like CS-after-walkoff), the loop guard
@@ -1386,6 +1459,10 @@ window.BBGM_SIM = (function () {
   // ~120-140 — nobody quietly plays all 162.
   function shouldRestToday(p, mgr, fat) {
     if (!fat || p.isPitcher) return false;
+    // Iron men (rare durability trait) play every day: no scheduled rest,
+    // no streak-breaking — only critical fatigue sits them, and their
+    // recovery bonus makes that rare. The 162-game season is their feat.
+    if (fat.isIronMan && fat.isIronMan(p)) return false;
     const f = p.fatigue || 0;
     let prob;
     if (f >= fat.HIGH) prob = 0.20;          // clearly gassed — sit soon
@@ -1396,6 +1473,8 @@ window.BBGM_SIM = (function () {
     else if (p.age >= 32) prob *= 1.5;
     // Catchers get the most planned days off in baseball.
     if (p.primaryPosition === 'C') prob *= 1.4;
+    // Durable bodies need fewer maintenance days (grade 1: 1.2x → 10: 0.75x).
+    prob *= 1.25 - fat.durabilityOf(p) * 0.05;
     prob *= 1 + (((mgr && mgr.defSub) || 5) - 5) * 0.06; // 0.76x-1.30x
     // Long consecutive-start streaks get broken regardless of fatigue —
     // the 162-game iron man should be a rare feat, not the default.

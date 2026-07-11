@@ -56,13 +56,33 @@ window.BBGM_FATIGUE = (function () {
     applyRecovery(player, REC_GAME_DAY);
   }
 
+  // Hidden durability grade 1-10. Generated on new players; older saves
+  // derive it from injury proneness (fragile players aren't durable).
+  function durabilityOf(player) {
+    const h = player.hidden || {};
+    if (h.durability != null) return h.durability;
+    return Math.max(1, Math.min(10, 11 - (h.injuryProneness || 5)));
+  }
+
+  // The Cal Ripken type: top-grade durability AND sturdy health. Rare
+  // (~4-5% of position players). Managers ride them every day — they skip
+  // scheduled rest entirely and only sit at critical fatigue, which their
+  // recovery bonus makes rare. Playing 162 is their feat, not the default.
+  function isIronMan(player) {
+    return !player.isPitcher &&
+      durabilityOf(player) >= 10 &&
+      ((player.hidden && player.hidden.injuryProneness) || 5) <= 4;
+  }
+
   function applyRecovery(player, amount) {
     if (!player || player.isPitcher) return;
     if (!player.fatigue) return;
     const age = player.age || 28;
     // Linear age penalty: 1.0x at ≤25, drops 0.035 per year above. Floor
     // 0.55 so even a 38-year-old recovers (slowly).
-    const ageFactor = Math.max(0.55, 1 - Math.max(0, age - 25) * 0.035);
+    let ageFactor = Math.max(0.55, 1 - Math.max(0, age - 25) * 0.035);
+    // Durable bodies bounce back faster (0.88x at grade 1 → 1.15x at 10).
+    ageFactor *= 1 + (durabilityOf(player) - 5) * 0.03;
     // Newton's-cooling-style fatigue scale: the more fatigued a player is,
     // the more he recovers per day. A linear-rate model would either keep
     // every starter fresh (recovery > accumulation) or saturate every
@@ -116,5 +136,6 @@ window.BBGM_FATIGUE = (function () {
     accumulateForGame, recover, partialRecover,
     performancePenalty, injuryMultiplier,
     isVeryHigh, isHigh, isModerate, level,
+    durabilityOf, isIronMan,
   };
 })();

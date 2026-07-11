@@ -215,7 +215,15 @@ window.BBGM_PLAYER_GEN = (function () {
       injuryProneness: rint(rng, 1, 10),
       workEthic: rint(rng, 1, 10),
       makeupGrade: rint(rng, 1, 10),
+      // Durability: feeds fatigue recovery and rest scheduling. A 10 with
+      // sturdy health is the rare "iron man" who plays every day (10.8).
+      durability: rint(rng, 1, 10),
     };
+
+    // Bio (profile card): height/weight by role, full birthdate.
+    const heightBase = isPitcher ? 75 : (primaryPosition === 'C' ? 73 : ['2B', 'SS'].includes(primaryPosition) ? 71.5 : 73.5);
+    const heightIn = clamp(Math.round(rnormal(rng, heightBase, 1.8)), 68, 80);
+    const weightLb = clamp(Math.round((heightIn - 60) * 5.2 + 45 + rnormal(rng, 0, 14)), 160, 265);
 
     return {
       id,
@@ -223,6 +231,10 @@ window.BBGM_PLAYER_GEN = (function () {
       lastName,
       name: `${firstName} ${lastName}`,
       birthYear: C.START_YEAR - age,
+      birthMonth: rint(rng, 1, 12),
+      birthDay: rint(rng, 1, 28),
+      heightIn,
+      weightLb,
       age,
       bats,
       throws,

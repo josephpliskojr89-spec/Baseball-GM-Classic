@@ -365,6 +365,13 @@ window.BBGM_OFFSEASON = (function () {
       if (p.retired) continue;
       if (p.rosterStatus === '26-man' || p.rosterStatus === 'IL') {
         p.serviceTime.years = Math.min(20, (p.serviceTime.years || 0) + 1);
+        // Salary ledger (profile Contract tab): the MLB salary he played
+        // this season under, recorded before the contract ticks.
+        if (p.contract) {
+          if (!p.salaryHistory) p.salaryHistory = [];
+          p.salaryHistory.push({ year, salary: p.contract.annualSalary, type: p.contract.signedAt });
+          if (p.salaryHistory.length > 25) p.salaryHistory = p.salaryHistory.slice(-25);
+        }
       }
       if (p.contract && p.teamId) {
         p.contract.years = Math.max(0, (p.contract.years || 1) - 1);

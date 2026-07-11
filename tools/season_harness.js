@@ -321,19 +321,33 @@ console.log('avg PA of 400+ PA hitters: EAST', avg(paByLeague.east).toFixed(0), 
 // Rest management (10.8): lineup regulars should NOT play 162 — managers
 // give scheduled days off. Catchers rest most.
 const gpC = [], gpReg = [];
-let ironMen = 0;
+let gp160 = 0, ironTraitStarters = 0, ironTrait160 = 0;
 for (const t of league.teams) {
   for (const spot of (t.lineupRH || [])) {
     const p = players[spot.playerId];
     if (!p || p.isPitcher) continue;
     const g = (p.stats[YEAR] && p.stats[YEAR].g) || 0;
     if (spot.position === 'C') gpC.push(g); else gpReg.push(g);
-    if (g >= 160) ironMen++;
+    if (g >= 160) gp160++;
+    if (W.BBGM_FATIGUE.isIronMan(p)) {
+      ironTraitStarters++;
+      if (g >= 160) ironTrait160++;
+    }
   }
 }
 console.log('GP of lineup regulars — median C:', median(gpC).toFixed(0), '(t ~120-140)',
   '| median non-C:', median(gpReg).toFixed(0), '(t ~145-155)',
-  '| 160+ GP:', ironMen, '(t ~0-3 league-wide)');
+  '| 160+ GP:', gp160, '(t: a handful, all iron-man types)');
+console.log('iron-man trait starters:', ironTraitStarters, '| of whom played 160+:', ironTrait160);
+// Single-game feats logged this season (achievements ledger).
+const featCounts = {};
+for (const id in state.players) {
+  for (const f of ((state.players[id].achievements || {}).feats || [])) {
+    if (f.year !== YEAR) continue;
+    featCounts[f.type] = (featCounts[f.type] || 0) + 1;
+  }
+}
+console.log('feats:', Object.keys(featCounts).sort().map((k) => `${k} ${featCounts[k]}`).join(' | ') || 'none');
 
 // ---- Franchise mode: postseason + offseason rollover between seasons ----
 if (seasonsArg > 1) {

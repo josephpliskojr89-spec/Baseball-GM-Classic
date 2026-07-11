@@ -2057,6 +2057,17 @@ Measured: lineup regulars median 151-152 GP (catchers 143-144), zero
 160+ GP players league-wide (was ~45), R/G calibration unchanged, and
 bench bats now get real starts. `p.consecStarts` resets each spring.
 
+**Iron men (0.14.0).** A hidden durability grade (1-10, generated;
+older saves derive it from injury proneness) scales fatigue recovery
+(±15%) and scheduled-rest odds (durable bodies need fewer days). The
+rare combination — grade-10 durability with sturdy health — is the
+Iron Man: managers ride him every day, he skips scheduled rest and
+streak-breaking entirely, and only critical fatigue (which his
+recovery bonus makes rare) sits him. Measured: ~9 iron-man starters
+league-wide, ~8 of whom play 160+ — the 162-game season is a rare,
+name-worthy feat again instead of the roster default. The trait shows
+on the player card ("🛡 Iron Man — plays every day").
+
 **Phase dependency:**
 
 - **Phase 2:** pitcher fatigue and stat correctness only (already in)
