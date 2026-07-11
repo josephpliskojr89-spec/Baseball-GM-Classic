@@ -342,6 +342,12 @@ window.BBGM_OFFSEASON = (function () {
     const staffEvents = STAFF.runStaffOffseason(state, records, summary.retirements, year);
     summary.staffEvents = staffEvents;
 
+    // 4.6. Scouting budgets (6.9): make sure every team has a tier, then
+    // let owners react to the season (cheap owners cut after losing years).
+    const SCOUT = window.BBGM_SCOUT;
+    SCOUT.ensureTiers(state);
+    summary.scoutingEvents = SCOUT.runScoutingOffseason(state, records);
+
     // 5. Progression + aging (9.1-9.5), with org coach modifiers (9.3).
     const coachModByTeam = {};
     for (const t of teams) coachModByTeam[t.id] = STAFF.coachModsFor(state, t);

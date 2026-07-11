@@ -474,10 +474,23 @@ window.BBGM_UI_TEAM = (function () {
     info.appendChild(U.el('div', { class: 'player-row-meta' }, meta));
     row.appendChild(info);
     const stats = U.el('div', { class: 'player-row-stats' });
-    const overall = Math.round(p.isPitcher ? overallPitcher(p) : overallHitter(p));
-    const cls = U.gradeClass(overall);
-    stats.appendChild(U.el('span', { class: cls }, String(U.gradeFor(overall))));
-    stats.appendChild(U.el('span', { class: 'key' }, 'OVR'));
+    // Scouting fog (5.7): your own farm shows your scouts' band, not the
+    // true number — tighter at AAA and at higher scouting tiers.
+    const rep = window.BBGM_SCOUT.report(state, p);
+    const band = rep.ovrBand();
+    if (rep.mode === 'min') {
+      stats.appendChild(U.el('span', { class: 'muted' }, '??'));
+      stats.appendChild(U.el('span', { class: 'key' }, 'OVR'));
+    } else if (band) {
+      const mid = (band[0] + band[1]) / 2;
+      stats.appendChild(U.el('span', { class: U.gradeClass(mid), style: { 'font-size': '12px' } },
+        `${band[0]}–${band[1]}`));
+      stats.appendChild(U.el('span', { class: 'key' }, 'OVR'));
+    } else {
+      const overall = Math.round(p.isPitcher ? overallPitcher(p) : overallHitter(p));
+      stats.appendChild(U.el('span', { class: U.gradeClass(overall) }, String(U.gradeFor(overall))));
+      stats.appendChild(U.el('span', { class: 'key' }, 'OVR'));
+    }
     row.appendChild(stats);
     return row;
   }

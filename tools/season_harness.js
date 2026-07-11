@@ -36,6 +36,7 @@ const files = [
   'js/engine/trades.js',
   'js/engine/freeagency.js',
   'js/engine/staff.js',
+  'js/engine/scouting.js',
   'js/engine/draft.js',
   'js/engine/intl.js',
   'js/engine/simulation.js',
@@ -65,8 +66,10 @@ const state = {
   players,
   news: [],
 };
-// Staff the league (Phase 10) and let each manager set his lineups.
+// Staff the league (Phase 10), assign scouting tiers (Phase 13), and let
+// each manager set his lineups.
 W.BBGM_STAFF.ensureStaff(state);
+W.BBGM_SCOUT.ensureTiers(state);
 for (const t of state.league.teams) W.BBGM_ROSTER.safeRebuild(state, t);
 
 // ---- Metrics collectors ----

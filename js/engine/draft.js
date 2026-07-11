@@ -312,12 +312,18 @@ window.BBGM_DRAFT = (function () {
     if (avail.length === 0) return null;
 
     const owner = team ? team.owner : null;
-    // Window size + geometric decay: disciplined scouting stays near the
-    // consensus; aggressive/cheap owners reach further down the board.
+    // Window size + geometric decay come from the team's SCOUTING TIER
+    // (13.6 / 6.9): elite departments stay near the consensus, bare-bones
+    // ones reach. Owner quirks still layer on top.
+    const SC = window.BBGM_SCOUT;
     let window_ = 12, decay = 0.58;
-    if (owner === 'analytics') { window_ = 8; decay = 0.45; }
-    else if (owner === 'aggressive') { decay = 0.68; }
-    else if (owner === 'cheap' && round > 1) { window_ = 16; decay = 0.72; }
+    if (SC && team) {
+      const d = SC.aiDraftDiscipline(team);
+      window_ = d.window;
+      decay = d.decay;
+    }
+    if (owner === 'aggressive') decay = Math.min(0.75, decay + 0.08);
+    else if (owner === 'cheap' && round > 1) { window_ += 4; decay = Math.min(0.78, decay + 0.06); }
 
     const cands = avail.slice(0, window_).map((id, i) => {
       const p = draft.prospects[id];

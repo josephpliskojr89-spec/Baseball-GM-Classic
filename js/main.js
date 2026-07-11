@@ -190,6 +190,7 @@ window.BBGM_MAIN = (function () {
         // plus the standing unemployed pool. Then each manager sets his
         // team's lineups per his own style (Pillar 4).
         window.BBGM_STAFF.ensureStaff(state);
+        window.BBGM_SCOUT.ensureTiers(state);
         for (const t of state.league.teams) {
           window.BBGM_ROSTER.safeRebuild(state, t);
         }
@@ -290,6 +291,12 @@ window.BBGM_MAIN = (function () {
     // fresh pool so managers exist mid-save (Pillar 4).
     if (!state.staff) {
       window.BBGM_STAFF.ensureStaff(state);
+      window.BBGM_STATE.set(state);
+    }
+
+    // Migration: pre-0.15 saves have no scouting tiers (Phase 13).
+    if (state.league.teams.some((t) => !t.scoutingTier)) {
+      window.BBGM_SCOUT.ensureTiers(state);
       window.BBGM_STATE.set(state);
     }
 
@@ -675,6 +682,20 @@ window.BBGM_MAIN = (function () {
         date,
         body: `Milestone: <strong>${m.name}</strong>${t ? ` (${t.abbr})` : ''} reached ` +
               `${m.threshold.toLocaleString()} career ${m.label}.`,
+      });
+    }
+
+    // Scouting budget cuts (6.9.3) — the user should hear about rivals
+    // gutting their departments (and feel it if it's their own owner).
+    for (const ev of summary.scoutingEvents || []) {
+      const t = teamOf(ev.teamId);
+      if (!t) continue;
+      const tierName = window.BBGM_SCOUT.tierDef(ev.to).name;
+      state.news.push({
+        date,
+        body: ev.teamId === userTeamId
+          ? `<strong>Ownership cuts the scouting budget</strong> to ${tierName} after the losing season.`
+          : `${t.abbr} slash their scouting department to ${tierName}.`,
       });
     }
 

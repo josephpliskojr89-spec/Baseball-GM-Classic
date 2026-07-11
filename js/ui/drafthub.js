@@ -22,6 +22,26 @@ window.BBGM_UI_DRAFT = (function () {
 
   function teamOf(state, id) { return state.league.teams.find((t) => t.id === id); }
 
+  // Pool fog (5.7 / Phase 13): the displayed ceiling band widens or
+  // tightens with the user's scouting tier, and deep cuts drop off the
+  // report entirely. Returns [lo, hi] or null (no report).
+  function poolBand(state, p, rank, pool) {
+    const SC = window.BBGM_SCOUT;
+    const pv = SC.poolView(state, rank, pool);
+    if (!pv.visible) return null;
+    let lo = p.scout.ceilLo - pv.widen;
+    let hi = p.scout.ceilHi + pv.widen;
+    if (hi - lo < 4) { const mid = (lo + hi) / 2; lo = mid - 2; hi = mid + 2; }
+    return [Math.max(20, Math.round(lo)), Math.min(82, Math.round(hi))];
+  }
+
+  // Tool grades are a privilege of good scouting: above-average+ tiers see
+  // them across the board, everyone sees the very top of the class.
+  function toolsVisible(state, rank, pool) {
+    const team = teamOf(state, state.meta.userTeamId);
+    return window.BBGM_SCOUT.tierIdx(team) >= 2 || rank <= (pool === 'intl' ? 10 : 15);
+  }
+
   function strengthLabel(s) {
     if (s >= 1.2) return 'a generational class';
     if (s >= 0.5) return 'a deep class';
@@ -316,11 +336,16 @@ window.BBGM_UI_DRAFT = (function () {
     info.appendChild(U.el('div', { class: 'player-row-meta' },
       `${p.primaryPosition} • ${p.bats}/${p.throws} • ${p.age} • ${p.school}`));
     row.appendChild(info);
-    const mid = (p.scout.ceilLo + p.scout.ceilHi) / 2;
     const band = U.el('div', { class: 'player-row-stats' });
-    band.appendChild(U.el('div', { class: U.gradeClass(mid), style: { 'font-weight': '700' } },
-      `${p.scout.ceilLo}–${p.scout.ceilHi}`));
-    band.appendChild(U.el('div', { class: 'player-row-meta' }, 'ceiling'));
+    const b = poolBand(state, p, rank, 'draft');
+    if (b) {
+      band.appendChild(U.el('div', { class: U.gradeClass((b[0] + b[1]) / 2), style: { 'font-weight': '700' } },
+        `${b[0]}–${b[1]}`));
+      band.appendChild(U.el('div', { class: 'player-row-meta' }, 'ceiling'));
+    } else {
+      band.appendChild(U.el('div', { class: 'muted', style: { 'font-weight': '700' } }, '—'));
+      band.appendChild(U.el('div', { class: 'player-row-meta' }, 'no report'));
+    }
     row.appendChild(band);
     return row;
   }
@@ -355,16 +380,18 @@ window.BBGM_UI_DRAFT = (function () {
       cell.appendChild(U.el('div', { class: 'muted', style: { 'font-size': '10px' } }, label));
       grid.appendChild(cell);
     }
-    body.appendChild(grid);
-    const mid = (p.scout.ceilLo + p.scout.ceilHi) / 2;
-    body.appendChild(U.el('p', { style: { 'font-size': '13px' } }, [
+    if (toolsVisible(state, rank, 'draft')) body.appendChild(grid);
+    else body.appendChild(U.el('p', { class: 'muted', style: { 'font-size': '12px', 'margin-bottom': '10px' } },
+      'Tool grades are thin at your scouting tier — upgrade the department (Team → Staff) for full reports this deep in the class.'));
+    const db = poolBand(state, p, rank, 'draft');
+    body.appendChild(U.el('p', { style: { 'font-size': '13px' } }, db ? [
       'Projected ceiling: ',
-      U.el('span', { class: U.gradeClass(mid), style: { 'font-weight': '700' } },
-        `${p.scout.ceilLo}–${p.scout.ceilHi}`),
+      U.el('span', { class: U.gradeClass((db[0] + db[1]) / 2), style: { 'font-weight': '700' } },
+        `${db[0]}–${db[1]}`),
       ` on his best tool. ${p.background === 'HS'
         ? 'High schooler — wide error bars, long development runway.'
         : 'College product — tighter projection, closer to ready.'}`,
-    ]));
+    ] : 'Your scouts have no real book on him — a name on a list.'));
 
     const actions = [];
     if (opts.pickMode && DRAFT().isUserOnClock(state)) {
@@ -794,11 +821,16 @@ window.BBGM_UI_DRAFT = (function () {
     info.appendChild(U.el('div', { class: 'player-row-meta' },
       `${p.primaryPosition} • ${p.age} • ${p.origin} • ask $${p.ask}M`));
     row.appendChild(info);
-    const mid = (p.scout.ceilLo + p.scout.ceilHi) / 2;
     const band = U.el('div', { class: 'player-row-stats' });
-    band.appendChild(U.el('div', { class: U.gradeClass(mid), style: { 'font-weight': '700' } },
-      `${p.scout.ceilLo}–${p.scout.ceilHi}`));
-    band.appendChild(U.el('div', { class: 'player-row-meta' }, 'ceiling'));
+    const b = poolBand(state, p, rank, 'intl');
+    if (b) {
+      band.appendChild(U.el('div', { class: U.gradeClass((b[0] + b[1]) / 2), style: { 'font-weight': '700' } },
+        `${b[0]}–${b[1]}`));
+      band.appendChild(U.el('div', { class: 'player-row-meta' }, 'ceiling'));
+    } else {
+      band.appendChild(U.el('div', { class: 'muted', style: { 'font-weight': '700' } }, '—'));
+      band.appendChild(U.el('div', { class: 'player-row-meta' }, 'no report'));
+    }
     row.appendChild(band);
     return row;
   }
@@ -828,14 +860,16 @@ window.BBGM_UI_DRAFT = (function () {
       cell.appendChild(U.el('div', { class: 'muted', style: { 'font-size': '10px' } }, label));
       grid.appendChild(cell);
     }
-    body.appendChild(grid);
-    const mid = (p.scout.ceilLo + p.scout.ceilHi) / 2;
-    body.appendChild(U.el('p', { style: { 'font-size': '13px' } }, [
+    if (toolsVisible(state, rank, 'intl')) body.appendChild(grid);
+    else body.appendChild(U.el('p', { class: 'muted', style: { 'font-size': '12px', 'margin-bottom': '10px' } },
+      'Tool grades are thin at your scouting tier — this is where elite international scouting earns its keep.'));
+    const ib = poolBand(state, p, rank, 'intl');
+    body.appendChild(U.el('p', { style: { 'font-size': '13px' } }, ib ? [
       'Projected ceiling: ',
-      U.el('span', { class: U.gradeClass(mid), style: { 'font-weight': '700' } },
-        `${p.scout.ceilLo}–${p.scout.ceilHi}`),
+      U.el('span', { class: U.gradeClass((ib[0] + ib[1]) / 2), style: { 'font-weight': '700' } },
+        `${ib[0]}–${ib[1]}`),
       ' on his best tool. Teenage international projection — the widest error bars in scouting.',
-    ]));
+    ] : 'Sign him and hope — your scouts have nothing on him.'));
 
     const actions = [];
     const refreshAll = () => {

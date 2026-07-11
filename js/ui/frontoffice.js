@@ -400,7 +400,10 @@ window.BBGM_UI_FRONTOFFICE = (function () {
     const offseason = state.meta.offseasonPhase === 'freeAgency';
     const mgr = STAFF.managerFor(state, team);
 
-    container.appendChild(U.el('div', { class: 'card-title' }, 'Manager'));
+    // Scouting department (bible 6.9 / Phase 13).
+    renderScoutingCard(container, state, team, offseason);
+
+    container.appendChild(U.el('div', { class: 'card-title', style: { 'margin-top': '14px' } }, 'Manager'));
     if (mgr) {
       const card = U.el('div', { class: 'card' });
       card.appendChild(U.el('div', { class: 'player-row-name' }, mgr.name));
@@ -442,44 +445,23 @@ window.BBGM_UI_FRONTOFFICE = (function () {
       container.appendChild(U.el('div', { class: 'empty-state' }, 'No manager — the dugout is empty.'));
     }
 
-    // Vacancy: hire from the pool (17.6) during the offseason.
+    // Manager vacancy: interview candidates from the pool (17.6).
     if (!mgr && offseason) {
       container.appendChild(U.el('div', { class: 'card-title', style: { 'margin-top': '14px' } }, 'Managerial Candidates'));
+      container.appendChild(U.el('p', { class: 'muted', style: { 'font-size': '12px', 'margin-bottom': '8px' } },
+        'Make an offer — candidates weigh your situation. A decline is final until next winter.'));
       const cands = STAFF.poolManagers(state)
         .sort((a, b) => STAFF.managerAppeal(team, b) - STAFF.managerAppeal(team, a));
-      const list = U.el('div', { class: 'roster-list' });
       for (const c of cands.slice(0, 10)) {
-        const row = U.el('button', {
-          class: 'roster-row',
-          on: { click: () => {
-            U.showModal({
-              title: `Hire ${c.name}?`,
-              body: `${c.archetypeName} • ${c.experience} yrs experience • reputation ${c.reputation}/10.` +
-                (c.formerPlayerId ? ' Former player.' : ''),
-              actions: [
-                { label: 'Cancel', kind: 'secondary', onClick: () => true },
-                { label: 'Hire', kind: 'primary', onClick: () => {
-                  STAFF.hireManager(state, team, c.id);
-                  window.BBGM_STATE.set(state);
-                  window.BBGM_MAIN.refresh();
-                  U.showToast(`${c.name} is your new manager.`, 'success');
-                  return true;
-                }},
-              ],
-            });
-          }},
-        });
-        const info = U.el('div', { class: 'player-row-info' });
-        info.appendChild(U.el('div', { class: 'player-row-name' }, c.name));
-        info.appendChild(U.el('div', { class: 'player-row-meta' },
-          `${c.archetypeName} • Age ${c.age} • ${c.experience} yrs • Rep ${c.reputation}/10`));
-        row.appendChild(info);
-        list.appendChild(row);
+        container.appendChild(staffCandidateRow(state, team, c, 'manager', null,
+          `${c.archetypeName} • Age ${c.age} • ${c.experience} yrs exp • Rep ${c.reputation}/10` +
+          (c.formerPlayerId ? ' • Former player' : '')));
       }
-      container.appendChild(list);
     }
 
-    // Coaches (17.4).
+    // Coaches (17.4/17.6): fire opens a vacancy; vacancies fill through
+    // offers, not at-will swaps. An unfilled seat gets an owner hire at
+    // Opening Day.
     container.appendChild(U.el('div', { class: 'card-title', style: { 'margin-top': '14px' } }, 'Coaches'));
     for (const [field, label, domain] of [['hittingCoachId', 'Hitting Coach', 'hitting'], ['pitchingCoachId', 'Pitching Coach', 'pitching']]) {
       const coach = team[field] && state.staff.coaches[team[field]];
@@ -488,19 +470,39 @@ window.BBGM_UI_FRONTOFFICE = (function () {
       if (coach) {
         card.appendChild(U.el('div', { class: 'player-row-name' }, coach.name));
         const pct = Math.round(coach.devMod * 100);
-        card.appendChild(U.el('div', { class: 'player-row-meta' },
+        card.appendChild(U.el('div', { class: 'player-row-meta', style: { 'white-space': 'normal' } },
           `Development ${pct >= 0 ? '+' : ''}${pct}%` +
           (coach.specialty ? ` • ${coach.specialty}` : '') +
           ` • Rep ${coach.reputation}/10` +
           (coach.formerPlayerId ? ' • Former player' : '')));
+        if (offseason) {
+          card.appendChild(U.el('button', {
+            class: 'btn-secondary btn-sm', style: { 'margin-top': '8px' },
+            on: { click: () => {
+              U.showModal({
+                title: `Fire ${coach.name}?`,
+                body: 'He returns to the market and the seat opens. You hire a replacement by making offers — an empty seat at Opening Day gets an owner hire.',
+                actions: [
+                  { label: 'Cancel', kind: 'secondary', onClick: () => true },
+                  { label: 'Fire Coach', kind: 'danger', onClick: () => {
+                    STAFF.fireCoach(state, team, field);
+                    window.BBGM_STATE.set(state);
+                    window.BBGM_MAIN.refresh();
+                    return true;
+                  }},
+                ],
+              });
+            }},
+          }, 'Fire…'));
+        }
       } else {
         card.appendChild(U.el('div', { class: 'player-row-meta' }, 'Vacant'));
-      }
-      if (offseason) {
-        card.appendChild(U.el('button', {
-          class: 'btn-secondary btn-sm', style: { 'margin-top': '8px' },
-          on: { click: () => showCoachHire(state, team, field, domain, coach) },
-        }, coach ? 'Replace…' : 'Hire…'));
+        if (offseason) {
+          card.appendChild(U.el('button', {
+            class: 'btn-primary btn-sm', style: { 'margin-top': '8px' },
+            on: { click: () => showCoachMarket(state, team, field, domain) },
+          }, 'Interview Candidates…'));
+        }
       }
       container.appendChild(card);
     }
@@ -510,35 +512,119 @@ window.BBGM_UI_FRONTOFFICE = (function () {
     }
   }
 
-  function showCoachHire(state, team, field, domain, current) {
+  // Scouting department card (6.9): tier, cost, and the offseason budget ask.
+  function renderScoutingCard(container, state, team, offseason) {
+    const SC = window.BBGM_SCOUT;
+    const tier = SC.tierDef(SC.tierOf(team));
+    container.appendChild(U.el('div', { class: 'card-title' }, 'Scouting Department'));
+    const card = U.el('div', { class: 'card' });
+    card.appendChild(U.el('div', { class: 'player-row-name' }, `${tier.name} — $${tier.cost}M / yr`));
+    card.appendChild(U.el('p', { class: 'muted', style: { 'font-size': '12px', margin: '6px 0' } },
+      'Tier gates how clearly you see prospects: your farm, rival systems, the draft class, and the international pool. ' +
+      'The cost comes out of the same ownership budget as payroll.'));
+    if (offseason) {
+      const idx = SC.tierIdx(team);
+      const grid = U.el('div', { style: { display: 'flex', gap: '8px' } });
+      if (idx < SC.TIERS.length - 1) {
+        const up = SC.TIERS[idx + 1];
+        grid.appendChild(U.el('button', {
+          class: 'btn-primary btn-sm', style: { flex: '1' },
+          on: { click: () => {
+            const r = SC.requestTier(state, team, up.key);
+            U.showToast(r.message, r.ok ? 'success' : 'warning', 5000);
+            window.BBGM_STATE.set(state);
+            window.BBGM_MAIN.refresh();
+          }},
+        }, `Request ${up.name} ($${up.cost}M)`));
+      }
+      if (idx > 0) {
+        const down = SC.TIERS[idx - 1];
+        grid.appendChild(U.el('button', {
+          class: 'btn-secondary btn-sm', style: { flex: '1' },
+          on: { click: () => {
+            const r = SC.requestTier(state, team, down.key);
+            U.showToast(r.message, r.ok ? 'success' : 'warning', 5000);
+            window.BBGM_STATE.set(state);
+            window.BBGM_MAIN.refresh();
+          }},
+        }, `Cut to ${down.name} ($${down.cost}M)`));
+      }
+      card.appendChild(grid);
+    } else {
+      card.appendChild(U.el('p', { class: 'muted', style: { 'font-size': '11px' } },
+        'Budget review happens in the offseason.'));
+    }
+    container.appendChild(card);
+  }
+
+  // Stacked candidate row (block layout — no flex/ellipsis collapse on
+  // narrow modals). Tap for the offer flow.
+  function staffCandidateRow(state, team, cand, kind, field, metaText) {
+    const STAFF = window.BBGM_STAFF;
+    const year = state.meta.currentDate.year;
+    const declined = cand.declinedTeams && cand.declinedTeams[team.id] === year;
+    const row = U.el('button', {
+      class: 'roster-row',
+      style: { display: 'block', 'text-align': 'left' },
+      on: { click: () => {
+        if (declined) {
+          U.showToast(`${cand.name} already turned you down this winter.`, 'info');
+          return;
+        }
+        showOfferModal(state, team, cand, kind, field, metaText);
+      }},
+    });
+    row.appendChild(U.el('div', { class: 'player-row-name', style: { 'white-space': 'normal' } },
+      cand.name + (declined ? ' — declined your offer' : '')));
+    row.appendChild(U.el('div', { class: 'player-row-meta', style: { 'white-space': 'normal' } }, metaText));
+    if (!declined) {
+      row.appendChild(U.el('div', {
+        class: 'muted', style: { 'font-size': '11px', 'margin-top': '2px' },
+      }, `Outlook: ${STAFF.offerOutlook(state, team, cand)}`));
+    }
+    return row;
+  }
+
+  function showOfferModal(state, team, cand, kind, field, metaText) {
+    const STAFF = window.BBGM_STAFF;
+    U.showModal({
+      title: cand.name,
+      body: `${metaText}\n\nOutlook: ${STAFF.offerOutlook(state, team, cand)}. ` +
+            `A decline is final until next winter.`,
+      actions: [
+        { label: 'Cancel', kind: 'secondary', onClick: () => true },
+        { label: 'Offer the Job', kind: 'primary', onClick: () => {
+          const r = STAFF.offerJob(state, team, cand, kind, field);
+          window.BBGM_STATE.set(state);
+          window.BBGM_MAIN.refresh();
+          if (r.accepted) {
+            U.showToast(`${cand.name} accepts!`, 'success');
+          } else {
+            U.showToast(`${cand.name} declines — he'll listen again next winter.`, 'warning', 5000);
+          }
+          return true;
+        }},
+      ],
+    });
+  }
+
+  // Coach market for a vacant seat: block-layout rows, offer flow.
+  function showCoachMarket(state, team, field, domain) {
     const STAFF = window.BBGM_STAFF;
     const cands = STAFF.poolCoaches(state, domain).sort((a, b) => b.reputation - a.reputation);
-    const body = U.el('div', { class: 'roster-list' });
+    const body = U.el('div');
     if (!cands.length) body.appendChild(U.el('div', { class: 'empty-state' }, 'Nobody available.'));
     for (const c of cands.slice(0, 12)) {
       const pct = Math.round(c.devMod * 100);
-      const row = U.el('button', {
-        class: 'roster-row',
-        on: { click: () => {
-          if (current) { current.teamId = null; current.yearsWithTeam = 0; }
-          c.teamId = team.id;
-          c.yearsWithTeam = 0;
-          team[field] = c.id;
-          U.closeModal();
-          window.BBGM_STATE.set(state);
-          window.BBGM_MAIN.refresh();
-          U.showToast(`${c.name} hired.`, 'success');
-        }},
-      });
-      const info = U.el('div', { class: 'player-row-info' });
-      info.appendChild(U.el('div', { class: 'player-row-name' }, c.name));
-      info.appendChild(U.el('div', { class: 'player-row-meta' },
+      body.appendChild(staffCandidateRow(state, team, c, 'coach', field,
         `Dev ${pct >= 0 ? '+' : ''}${pct}% • Rep ${c.reputation}/10 • Age ${c.age}` +
         (c.specialty ? ` • ${c.specialty}` : '')));
-      row.appendChild(info);
-      body.appendChild(row);
     }
-    U.showModal({ title: 'Hire coach', body, actions: [{ label: 'Cancel', kind: 'secondary', onClick: () => true }] });
+    U.showModal({
+      title: 'Coaching Market',
+      body,
+      actions: [{ label: 'Close', kind: 'secondary', onClick: () => true }],
+    });
   }
 
   return { renderFreeAgents, renderTrades, renderStaff };

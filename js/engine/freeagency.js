@@ -7,6 +7,13 @@ window.BBGM_FA = (function () {
   const TRADES = () => window.BBGM_TRADES;
 
   function rand() { return Math.random(); }
+
+  // Scouting department cost against the ownership budget (6.9.1).
+  // Defensive: 0 when the scouting module isn't loaded (older harnesses).
+  function scoutingCost(team) {
+    const SC = window.BBGM_SCOUT;
+    return SC ? SC.tierCost(team) : 0;
+  }
   function rint(lo, hi) { return lo + Math.floor(rand() * (hi - lo + 1)); }
   function clamp(x, lo, hi) { return Math.max(lo, Math.min(hi, x)); }
 
@@ -144,7 +151,9 @@ window.BBGM_FA = (function () {
     for (const team of state.league.teams) {
       if (team.id === state.meta.userTeamId) continue;
       const payroll = computePayroll(team, players);
-      const room = team.payrollBase - payroll;
+      // The scouting department bills against the same ownership budget
+      // (6.9.1) — an elite operation leaves less for the FA market.
+      const room = team.payrollBase - scoutingCost(team) - payroll;
       if (room < entry.askAAV * 0.85) continue;
       // Need or clear upgrade (16.7).
       TRADES().setPlayersRef(players);
@@ -266,8 +275,10 @@ window.BBGM_FA = (function () {
     const userTeam = state.league.teams.find((t) => t.id === state.meta.userTeamId);
     const payroll = computePayroll(userTeam, state.players);
     const aav = total / years;
-    if (payroll + aav > userTeam.payrollBase * 1.05) {
-      return `That offer would blow the budget ($${payroll.toFixed(1)}M of $${userTeam.payrollBase}M used).`;
+    const cap = userTeam.payrollBase - scoutingCost(userTeam);
+    if (payroll + aav > cap * 1.05) {
+      return `That offer would blow the budget ($${payroll.toFixed(1)}M of $${cap.toFixed(0)}M available` +
+             (scoutingCost(userTeam) ? `; $${scoutingCost(userTeam)}M funds scouting` : '') + ').';
     }
     market.userOffers = market.userOffers.filter((o) => o.playerId !== playerId);
     market.userOffers.push({ playerId, years, total: Math.round(total * 10) / 10 });

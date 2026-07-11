@@ -51,7 +51,12 @@ window.BBGM_UI_PLAYER = (function () {
 
     const body = U.el('div');
     const ovr = Math.round(window.BBGM_ROSTER.overall(p));
-    const rarity = rarityFor(ovr);
+    // Scouting fog (bible 5.7 / Phase 13): prospects outside public view
+    // render as bands from the user's scouting report, never true numbers.
+    const rep = window.BBGM_SCOUT.report(state, p);
+    const ovrBand = rep.ovrBand();
+    const rarityBasis = ovrBand ? (ovrBand[0] + ovrBand[1]) / 2 : ovr;
+    const rarity = rep.mode === 'min' ? rarityFor(0) : rarityFor(rarityBasis);
 
     // Rarity header: name + bio line + big OVR badge.
     const header = U.el('div', {
@@ -72,10 +77,14 @@ window.BBGM_UI_PLAYER = (function () {
     }
     header.appendChild(left);
     const badge = U.el('div', { style: { 'text-align': 'center', 'min-width': '64px' } });
-    badge.appendChild(U.el('div', { style: { 'font-size': '30px', 'font-weight': '800', 'line-height': '1' } },
-      String(U.gradeFor(ovr))));
+    const badgeText = rep.mode === 'exact' ? String(U.gradeFor(ovr))
+      : rep.mode === 'min' ? '??'
+      : `${ovrBand[0]}–${ovrBand[1]}`;
+    badge.appendChild(U.el('div', {
+      style: { 'font-size': rep.mode === 'exact' ? '30px' : '20px', 'font-weight': '800', 'line-height': '1.4' },
+    }, badgeText));
     badge.appendChild(U.el('div', { style: { 'font-size': '10px', 'letter-spacing': '0.6px', 'text-transform': 'uppercase', opacity: '0.9' } },
-      rarity.label));
+      rep.mode === 'min' ? 'Unscouted' : rarity.label + (rep.mode !== 'exact' ? ' (proj.)' : '')));
     header.appendChild(badge);
     body.appendChild(header);
 
@@ -189,9 +198,20 @@ window.BBGM_UI_PLAYER = (function () {
       body.appendChild(hitterStatGrid(s));
     }
 
-    // Tool grades.
-    body.appendChild(U.el('div', { class: 'card-title', style: { 'margin-top': '16px' } }, 'Ratings'));
-    body.appendChild(p.isPitcher ? pitcherRatings(p) : hitterRatings(p));
+    // Tool grades — through the scouting fog (5.7).
+    const rep = window.BBGM_SCOUT.report(state, p);
+    body.appendChild(U.el('div', { class: 'card-title', style: { 'margin-top': '16px' } },
+      rep.mode === 'exact' ? 'Ratings' : 'Scouting Report'));
+    if (rep.mode === 'min') {
+      body.appendChild(U.el('div', { class: 'empty-state' },
+        'Your scouts have no book on him. A higher scouting tier (Team → Staff) opens up reports at this level.'));
+    } else {
+      body.appendChild(p.isPitcher ? pitcherRatings(p, rep) : hitterRatings(p, rep));
+      if (rep.mode !== 'exact') {
+        body.appendChild(U.el('p', { class: 'muted', style: { 'font-size': '11px', 'margin-top': '6px' } },
+          'Projected ranges from your scouting department — the truth may sit outside a band.'));
+      }
+    }
   }
 
   // ---- Stats: the full career ledger ---------------------------------------
@@ -357,45 +377,53 @@ window.BBGM_UI_PLAYER = (function () {
     return grid;
   }
 
-  function hitterRatings(p) {
+  // rep (optional): scouting report — band mode renders ranges instead of
+  // exact grades (5.7).
+  function ratingCell(label, value, key, rep) {
+    const cell = U.el('div', { class: 'rating-cell' });
+    cell.appendChild(U.el('div', { class: 'label' }, label));
+    const band = rep && rep.mode !== 'exact' ? rep.band(key) : null;
+    if (band) {
+      const mid = (band[0] + band[1]) / 2;
+      cell.appendChild(U.el('div', {
+        class: U.gradeClass(mid),
+        style: { 'font-weight': '700', 'font-variant-numeric': 'tabular-nums' },
+      }, `${band[0]}–${band[1]}`));
+    } else {
+      cell.appendChild(U.ratingDisplay(value));
+    }
+    return cell;
+  }
+
+  function hitterRatings(p, rep) {
     const r = p.ratings;
     const items = [
-      { label: 'Contact (R)', v: r.contactVsR },
-      { label: 'Contact (L)', v: r.contactVsL },
-      { label: 'Power (R)', v: r.powerVsR },
-      { label: 'Power (L)', v: r.powerVsL },
-      { label: 'Discipline', v: r.discipline },
-      { label: 'Speed', v: r.speed },
-      { label: 'Defense', v: r.defense },
-      { label: 'Arm', v: r.arm },
-      { label: 'Bunting', v: r.bunting },
+      ['Contact (R)', r.contactVsR, 'contactVsR'],
+      ['Contact (L)', r.contactVsL, 'contactVsL'],
+      ['Power (R)', r.powerVsR, 'powerVsR'],
+      ['Power (L)', r.powerVsL, 'powerVsL'],
+      ['Discipline', r.discipline, 'discipline'],
+      ['Speed', r.speed, 'speed'],
+      ['Defense', r.defense, 'defense'],
+      ['Arm', r.arm, 'arm'],
+      ['Bunting', r.bunting, 'bunting'],
     ];
     const grid = U.el('div', { class: 'ratings-grid' });
-    for (const it of items) {
-      const cell = U.el('div', { class: 'rating-cell' });
-      cell.appendChild(U.el('div', { class: 'label' }, it.label));
-      cell.appendChild(U.ratingDisplay(it.v));
-      grid.appendChild(cell);
-    }
+    for (const [label, v, key] of items) grid.appendChild(ratingCell(label, v, key, rep));
     return grid;
   }
 
-  function pitcherRatings(p) {
+  function pitcherRatings(p, rep) {
     const r = p.ratings;
     const items = [
-      { label: 'Stuff', v: r.stuff },
-      { label: 'Velocity', v: r.velocity },
-      { label: 'Movement', v: r.movement },
-      { label: 'Control', v: r.control },
-      { label: 'Stamina', v: r.stamina },
+      ['Stuff', r.stuff, 'stuff'],
+      ['Velocity', r.velocity, 'velocity'],
+      ['Movement', r.movement, 'movement'],
+      ['Control', r.control, 'control'],
+      ['Stamina', r.stamina, 'stamina'],
     ];
     const grid = U.el('div', { class: 'ratings-grid' });
-    for (const it of items) {
-      const cell = U.el('div', { class: 'rating-cell' });
-      cell.appendChild(U.el('div', { class: 'label' }, it.label));
-      cell.appendChild(U.ratingDisplay(it.v));
-      grid.appendChild(cell);
-    }
+    for (const [label, v, key] of items) grid.appendChild(ratingCell(label, v, key, rep));
     return grid;
   }
 

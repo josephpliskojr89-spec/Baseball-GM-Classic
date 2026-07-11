@@ -390,11 +390,67 @@ window.BBGM_STAFF = (function () {
     return v <= 3 ? 'Low' : v >= 7 ? 'High' : 'Average';
   }
 
+  // ---- Offer-based hiring (17.6): the staff market ------------------------
+  // Candidates aren't a vending machine — you make an offer and they weigh
+  // the situation: winning clubs and big markets attract; big reputations
+  // are choosier. A candidate who turns you down won't reconsider until
+  // next winter.
+
+  function offerOdds(state, team, cand) {
+    const rec = team.seasonRecord || { w: 81, l: 81 };
+    const wp = (rec.w + rec.l) > 0 ? rec.w / (rec.w + rec.l) : 0.5;
+    let odds = 0.75 + (wp - 0.5) * 0.7;
+    if (team.market === 'large') odds += 0.05;
+    else if (team.market === 'small') odds -= 0.05;
+    odds -= ((cand.reputation || 5) - 5) * 0.06;
+    return clamp(odds, 0.15, 0.95);
+  }
+
+  // Rough interest read shown to the user before they burn the offer.
+  function offerOutlook(state, team, cand) {
+    const odds = offerOdds(state, team, cand);
+    if (odds >= 0.75) return 'Likely to accept';
+    if (odds >= 0.5) return 'Interested';
+    if (odds >= 0.3) return 'Lukewarm';
+    return 'Long shot';
+  }
+
+  // kind: 'manager' | 'coach' (coach needs the team field, e.g.
+  // 'hittingCoachId'). Returns {accepted} or {accepted:false, already:true}
+  // when this candidate already declined this team this winter.
+  function offerJob(state, team, cand, kind, field) {
+    const year = state.meta.currentDate.year;
+    if (!cand.declinedTeams) cand.declinedTeams = {};
+    if (cand.declinedTeams[team.id] === year) return { accepted: false, already: true };
+    if (Math.random() < offerOdds(state, team, cand)) {
+      if (kind === 'manager') {
+        hireManager(state, team, cand.id);
+      } else {
+        const current = team[field] && state.staff.coaches[team[field]];
+        if (current) { current.teamId = null; current.yearsWithTeam = 0; }
+        cand.teamId = team.id;
+        cand.yearsWithTeam = 0;
+        team[field] = cand.id;
+      }
+      return { accepted: true };
+    }
+    cand.declinedTeams[team.id] = year;
+    return { accepted: false };
+  }
+
+  function fireCoach(state, team, field) {
+    const c = team[field] && state.staff.coaches[team[field]];
+    if (c) { c.teamId = null; c.yearsWithTeam = 0; }
+    team[field] = null;
+    return c || null;
+  }
+
   return {
     AVERAGE_TENDENCIES, MANAGER_ARCHETYPES, TENDENCY_LABELS,
     generateManager, generateCoach, ensureStaff,
     poolManagers, poolCoaches, hireManager, fireManager,
     tendenciesFor, managerFor, coachModsFor,
     runStaffOffseason, managerAppeal, tendencyLevel,
+    offerOdds, offerOutlook, offerJob, fireCoach,
   };
 })();

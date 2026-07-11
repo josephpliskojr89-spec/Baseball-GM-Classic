@@ -2975,6 +2975,17 @@ Coach hiring follows similar archetype-driven patterns but is generally less pol
 - Make offer (1-4 year contract, modest annual salary $1-5M)
 - Candidate accepts or declines based on team situation, reputation, and offer
 
+> **Status (0.15.0) — the staff market is offer-based.** Managers and
+> coaches are no longer swappable at will: firing opens a vacancy (only
+> in the offseason), and hiring means making an offer the candidate
+> weighs — winning clubs and large markets attract, big reputations are
+> choosier, and the UI shows an honest outlook ("Likely to accept" …
+> "Long shot") before you burn the offer. A decline is final until next
+> winter (tracked per candidate/team/year). Unfilled seats still get an
+> owner hire at Opening Day. Simplifications kept for now: no staff
+> contract years/salary negotiation (the modest-salary economics are
+> flavor), interviews aren't capped at 3.
+
 ### 17.7 Manager and Coach Effects on Simulation
 
 **The manager runs the day-to-day — for every team, the user's included (Pillar 4).** The player is the GM. Once the manager system ships, the manager owns:
@@ -4111,6 +4122,28 @@ user becomes a pure GM), with hireable staff carrying mechanical effects.
 - Self-scouting fog works correctly
 - Other-team prospect visibility gated appropriately
 - Owner approval mechanics function
+
+> **Status (0.15.0) — shipped.** engine/scouting.js owns the system:
+> four tiers at 6.9.2's costs, billed against the same ownership budget
+> as payroll (an elite department leaves ~$22M less FA room than bare
+> bones — the 6.9.1 trade-off is real for AI clubs too). Teams generate
+> at their owner's default tier (6.9.4); the user requests changes each
+> offseason from the Staff tab's Scouting Department card, with 6.9.3
+> approval odds by archetype (one step per winter; old-school and cheap
+> owners resist elite; cheap owners may cut the budget after losing
+> seasons — with news). Fog per 5.7: deterministic per (team, player)
+> bands that are NOT centered on truth — a bare-bones department is
+> more often wrong, not just vaguer. Applied surfaces: player-card
+> ratings/OVR render as bands (or "no book on him"), own-farm minors
+> rows show band overalls, and the draft/intl pool bands widen or
+> tighten by tier with visibility depth cutoffs (standard sees the
+> draft class thinly; bare bones sees ten names; the intl bottom-70
+> stays dark for everyone below elite). AI draft-day discipline is
+> tier-driven (13.6): elite boards pick near consensus, bare-bones
+> boards reach. MLB players, FAs, staff, and league stats stay public
+> (6.9.6). Not yet: scouting notes flavor text (5.7.4), fog-gated trade
+> evaluation UI (6.9.5 — the player card already fogs, but trade values
+> quoted by the engine are true), archetype hints at high tiers.
 
 ### 21.15 Phase 14: Awards and Hall of Fame (Estimated: 1 session)
 
