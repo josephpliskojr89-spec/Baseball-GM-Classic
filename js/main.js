@@ -392,7 +392,16 @@ window.BBGM_MAIN = (function () {
     const today = state.meta.currentDate;
     const seasonEnd = state.league.schedule.seasonEnd;
     if (D.compare(today, seasonEnd) >= 0) {
-      confirmOffseason(state);
+      // October plays on the calendar: start the bracket, advance it day
+      // by day, then open the offseason once the champion is crowned.
+      const ps = state.postseason;
+      if (!ps) {
+        confirmPostseasonStart(state);
+      } else if (ps.phase === 'complete') {
+        confirmOffseason(state);
+      } else {
+        simDays(1);
+      }
       return;
     }
     // Draft day (bible 13.1): June 30 halts the sim until the class is
@@ -444,17 +453,77 @@ window.BBGM_MAIN = (function () {
     });
   }
 
-  // ------- Postseason + interactive offseason -------
+  // ------- Postseason (day-by-day) + interactive offseason -------
+
+  function confirmPostseasonStart(state) {
+    const year = state.meta.currentDate.year;
+    U.showModal({
+      title: `${year} Postseason`,
+      body: `162 games are in the books and the seeds are locked. Twelve clubs, ` +
+            `four rounds, one champion. Wild-card games start in three days — ` +
+            `advance day by day, or sim the rest from the dashboard.`,
+      actions: [
+        { label: 'Not Yet', kind: 'secondary', onClick: () => true },
+        { label: 'Start the Postseason', kind: 'primary', onClick: () => {
+          const ps = window.BBGM_OFFSEASON.startPostseason(state);
+          pushPostseasonStartNews(state, ps);
+          window.BBGM_STATE.set(state);
+          navigate('league', { tab: 'playoffs' });
+          return true;
+        }},
+      ],
+    });
+  }
+
+  function pushPostseasonStartNews(state, ps) {
+    if (!state.news) state.news = [];
+    const date = { ...state.meta.currentDate };
+    const userTeamId = state.meta.userTeamId;
+    const inField = ps.seeds.east.concat(ps.seeds.west).includes(userTeamId);
+    const userTeam = state.league.teams.find((t) => t.id === userTeamId);
+    state.news.push({
+      date,
+      body: `<strong>The ${ps.year} postseason field is set.</strong> ` +
+            (inField
+              ? `The ${userTeam.name} are in — seed #${(ps.seeds.east.indexOf(userTeamId) + 1) || (ps.seeds.west.indexOf(userTeamId) + 1)} in the ${userTeam.league === 'east' ? U.leagueName('east') : U.leagueName('west')} League.`
+              : `The ${userTeam.name} missed the cut — scoreboard-watch October and plan the offseason.`),
+    });
+  }
+
+  function showChampionModal(state) {
+    const ps = state.postseason;
+    if (!ps) return;
+    const ws = ps.series.find((s) => s.tag === 'ws');
+    const champ = state.league.teams.find((t) => t.id === ws.winnerId);
+    const loser = state.league.teams.find((t) => t.id === ws.loserId);
+    const score = ws.hw >= ws.lw ? `${ws.hw}-${ws.lw}` : `${ws.lw}-${ws.hw}`;
+    U.showModal({
+      title: `${ps.year} World Series`,
+      body: `The ${champ.name} defeat the ${loser.name} ${score} to win the ${ps.year} ` +
+            `World Series! Begin the offseason when you're ready.`,
+      actions: [
+        { label: 'View Bracket', kind: 'secondary', onClick: () => {
+          navigate('league', { tab: 'playoffs' });
+          return true;
+        }},
+        { label: 'Begin the Offseason', kind: 'primary', onClick: () => {
+          setTimeout(() => runOffseasonPartAFlow(state), 50);
+          return true;
+        }},
+      ],
+    });
+  }
+
   function confirmOffseason(state) {
     const year = state.meta.currentDate.year;
     U.showModal({
-      title: 'Season Complete',
-      body: `The ${year} regular season is over. Play the postseason and open the offseason? ` +
+      title: 'Postseason Complete',
+      body: `The ${year} season is fully in the books. Begin the offseason? ` +
             `Retirements and player development run, then free agency opens — you'll be able ` +
             `to bid on the market before Opening Day ${year + 1}.`,
       actions: [
         { label: 'Cancel', kind: 'secondary', onClick: () => true },
-        { label: `Play Postseason`, kind: 'primary', onClick: () => {
+        { label: 'Begin the Offseason', kind: 'primary', onClick: () => {
           setTimeout(() => runOffseasonPartAFlow(state), 50);
           return true;
         }},
@@ -475,7 +544,7 @@ window.BBGM_MAIN = (function () {
   }
 
   function runOffseasonPartAFlow(state) {
-    U.showProgress('Playing postseason & opening the offseason…');
+    U.showProgress('Opening the offseason…');
     window.BBGM_STATE.setSaveBlocked(true);
     setTimeout(() => {
       try {
@@ -486,11 +555,10 @@ window.BBGM_MAIN = (function () {
         U.hideProgress();
         refresh();
         const champ = state.league.teams.find((t) => t.id === summary.postseason.champion.id);
-        const userFAs = summary.retirements.length; // headline numbers
         U.showModal({
-          title: `${summary.year} World Series`,
-          body: `The ${champ.name} win the ${summary.year} World Series! ` +
-                `${userFAs} players retired and ${summary.newFAs} hit free agency. ` +
+          title: 'The Offseason Begins',
+          body: `The ${champ.name} take home the ${summary.year} title. ` +
+                `${summary.retirements.length} players retired and ${summary.newFAs} hit free agency. ` +
                 `The market is open — work it from Team → Free Agents, advance the ` +
                 `signing period from the dashboard, and start the season when you're done.`,
           actions: [{ label: 'To the Offseason', kind: 'primary', onClick: () => true }],
@@ -678,7 +746,13 @@ window.BBGM_MAIN = (function () {
     const today = state.meta.currentDate;
     const seasonEnd = state.league.schedule.seasonEnd;
     if (D.compare(today, seasonEnd) >= 0) {
-      U.showToast('Season is already complete.', 'info');
+      // October: "sim to the end" means the rest of the bracket (the
+      // champion-crowned halt in simDays stops the run).
+      if (state.postseason && state.postseason.phase === 'active') {
+        simDays(40);
+      } else {
+        U.showToast('Season is already complete.', 'info');
+      }
       return;
     }
     const days = Math.max(1, D.diffDays(today, seasonEnd) + 1);
@@ -718,10 +792,17 @@ window.BBGM_MAIN = (function () {
         finishWithError(e);
         return;
       }
-      // If it's a season-end event, stop
+      // Champion crowned mid-run: stop and celebrate.
+      if (state.postseason && state.postseason.phase === 'complete') {
+        finish();
+        showChampionModal(state);
+        return;
+      }
+      // Season-end halt — unless an active postseason is playing out on
+      // the calendar (October days sim like any other).
       const today = state.meta.currentDate;
       const seasonEnd = state.league.schedule.seasonEnd;
-      if (D.compare(today, seasonEnd) >= 0) {
+      if (D.compare(today, seasonEnd) >= 0 && !state.postseason) {
         finish();
         return;
       }
@@ -774,6 +855,29 @@ window.BBGM_MAIN = (function () {
 
   function simOneDay(state) {
     const today = state.meta.currentDate;
+
+    // Postseason days (bible 3.4): October plays on the calendar. Series
+    // results land in the news; the champion modal fires from simDays.
+    if (state.postseason && state.postseason.phase === 'active') {
+      const psr = window.BBGM_OFFSEASON.simPostseasonDay(state, today);
+      if (!state.news) state.news = [];
+      for (const s of psr.completed) {
+        const w = state.league.teams.find((t) => t.id === s.winnerId);
+        const l = state.league.teams.find((t) => t.id === s.loserId);
+        const score = s.hw >= s.lw ? `${s.hw}-${s.lw}` : `${s.lw}-${s.hw}`;
+        const label = s.tag === 'ws' ? 'the World Series'
+          : s.tag.endsWith('lcs') ? `the ${U.leagueName(s.league)} League Championship Series`
+          : s.tag.includes('ds') ? 'their Division Series'
+          : 'their Wild Card series';
+        state.news.push({
+          date: { ...today },
+          body: s.tag === 'ws'
+            ? `<strong>${w.name}</strong> win ${label}, defeating the ${l.name} ${score}!`
+            : `<strong>${w.abbr}</strong> take ${label} over ${l.abbr}, ${score}.`,
+        });
+      }
+    }
+
     const games = state.league.schedule.games.filter((g) => !g.played && D.eq(g.date, today));
     for (const g of games) {
       try {

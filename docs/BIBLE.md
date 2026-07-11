@@ -371,6 +371,20 @@ Regenerated each offseason. Plausible-not-perfect is the goal.
 > alongside: postseason games no longer bleed into `seasonRecord` —
 > the 162-game record is untouched by playoff results (was a real bug;
 > the harness now hard-fails if any archived record ≠ 162 games).
+>
+> **Status (0.13.1) — October plays day by day.** The postseason is no
+> longer a one-shot sim: at season's end the user starts the bracket,
+> and Advance Day plays that day's playoff games on the calendar —
+> both wild-card series in parallel three days after the finale, each
+> round opening two rest days after its feeders finish. The Playoffs
+> tab renders the LIVE bracket (series leads, upcoming game dates,
+> pending matchups), Scores carries the October slate, the dashboard
+> shows the user's series status with a Sim-Rest-of-Postseason escape
+> hatch, and the champion gets a proper crowning moment before the
+> offseason opens. Reliever rest and IL recovery now tick naturally
+> through October (they couldn't in the one-shot). The harness's
+> "sim it all" path loops the same day-by-day code, so both paths
+> share identical mechanics.
 
 ### 3.5 Tiebreakers
 

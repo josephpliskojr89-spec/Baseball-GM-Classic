@@ -53,6 +53,11 @@ window.BBGM_UI_LEAGUE = (function () {
   // standings shows who'd be in if the season ended today.
 
   function renderPlayoffs(container, state) {
+    // Live bracket while October plays out day by day (0.13.1).
+    if (state.postseason) {
+      renderLiveBracket(container, state);
+      return;
+    }
     const ps = state.league.postseason;
     if (!ps) {
       renderSeedPreview(container, state);
@@ -163,6 +168,123 @@ window.BBGM_UI_LEAGUE = (function () {
     });
     U.showModal({
       title: `${label}: ${winner ? winner.abbr : '?'} ${summary.score[0]}-${summary.score[1]} ${loser ? loser.abbr : '?'}`,
+      body,
+      actions: [{ label: 'Close', kind: 'secondary', onClick: () => true }],
+    });
+  }
+
+  // ---- Live bracket (day-by-day October) -----------------------------------
+
+  const ROUND_LABEL = { wc1: 'WC', wc2: 'WC', ds1: 'DS', ds2: 'DS', lcs: 'LCS', ws: 'WS' };
+  function roundOf(tag) { return ROUND_LABEL[tag.split('_').pop()] || tag; }
+
+  function renderLiveBracket(container, state) {
+    const ps = state.postseason;
+    const done = ps.phase === 'complete';
+    const head = U.el('div', { class: 'card' });
+    head.appendChild(U.el('div', { class: 'card-title' },
+      `${ps.year} Postseason${done ? ' — Complete' : ''}`));
+    if (done) {
+      const ws = ps.series.find((s) => s.tag === 'ws');
+      const champ = state.league.teams.find((t) => t.id === ws.winnerId);
+      head.appendChild(U.el('p', { style: { 'font-size': '13px' } },
+        `The ${champ ? champ.name : '?'} are World Series champions.`));
+    } else {
+      head.appendChild(U.el('p', { class: 'muted', style: { 'font-size': '12px' } },
+        'Advance days to play the bracket. Tap a series for its games.'));
+    }
+    container.appendChild(head);
+
+    for (const lg of ['east', 'west']) {
+      const seedNo = {};
+      ps.seeds[lg].forEach((id, i) => { seedNo[id] = i + 1; });
+      container.appendChild(U.el('div', { class: 'card-title', style: { 'margin-top': '16px' } },
+        `${U.leagueName(lg)} League`));
+      const seedsCard = U.el('div', { class: 'card', style: { padding: '8px 12px' } });
+      for (const id of ps.seeds[lg]) {
+        const t = state.league.teams.find((x) => x.id === id);
+        seedsCard.appendChild(U.el('p', { style: { 'font-size': '12px', margin: '2px 0' } },
+          `#${seedNo[id]} ${t ? t.name : id} (${t.seasonRecord.w}-${t.seasonRecord.l})` +
+          (seedNo[id] <= 2 ? ' — first-round bye' : '')));
+      }
+      container.appendChild(seedsCard);
+
+      const list = U.el('div', { class: 'roster-list' });
+      for (const tag of [`${lg}_wc1`, `${lg}_wc2`, `${lg}_ds1`, `${lg}_ds2`, `${lg}_lcs`]) {
+        list.appendChild(liveSeriesRow(state, ps, ps.series.find((s) => s.tag === tag), seedNo));
+      }
+      container.appendChild(list);
+    }
+    container.appendChild(U.el('div', { class: 'card-title', style: { 'margin-top': '16px' } }, 'World Series'));
+    const wsList = U.el('div', { class: 'roster-list' });
+    wsList.appendChild(liveSeriesRow(state, ps, ps.series.find((s) => s.tag === 'ws'), {}));
+    container.appendChild(wsList);
+  }
+
+  function liveSeriesRow(state, ps, s, seedNo) {
+    const abbrOf = (id) => {
+      const t = state.league.teams.find((x) => x.id === id);
+      return t ? `${seedNo[id] ? '#' + seedNo[id] + ' ' : ''}${t.abbr}` : 'TBD';
+    };
+    const row = U.el('button', {
+      class: 'roster-row',
+      on: { click: () => { if (s.n > 0) showLiveSeriesGames(state, ps, s); } },
+    });
+    row.appendChild(U.el('span', { class: 'pos-badge' }, roundOf(s.tag)));
+    const winner = s.winnerId && state.league.teams.find((t) => t.id === s.winnerId);
+    if (winner) row.appendChild(U.teamCap(winner));
+    const info = U.el('div', { class: 'player-row-info' });
+    let name, meta;
+    if (!s.highId || !s.lowId) {
+      name = `${abbrOf(s.highId)} vs ${abbrOf(s.lowId)}`;
+      meta = 'Matchup to be determined';
+    } else if (s.winnerId) {
+      name = `${abbrOf(s.winnerId)} def. ${abbrOf(s.loserId)}`;
+      meta = 'Series complete • tap for the games';
+    } else if (s.n === 0) {
+      name = `${abbrOf(s.highId)} vs ${abbrOf(s.lowId)}`;
+      meta = s.nextDate ? `Game 1: ${D.format(s.nextDate, 'date')}` : 'Scheduled soon';
+    } else {
+      const lead = s.hw >= s.lw ? `${abbrOf(s.highId)} ${s.hw}-${s.lw}` : `${abbrOf(s.lowId)} ${s.lw}-${s.hw}`;
+      name = `${abbrOf(s.highId)} vs ${abbrOf(s.lowId)}`;
+      meta = `${s.hw === s.lw ? 'Tied' : lead + (s.hw === s.lw ? '' : ' lead')} • tap for the games`;
+    }
+    info.appendChild(U.el('div', { class: 'player-row-name' }, name));
+    info.appendChild(U.el('div', { class: 'player-row-meta' }, meta));
+    row.appendChild(info);
+    if (s.n > 0) {
+      row.appendChild(U.el('div', { class: 'player-row-stats' }, `${s.hw}-${s.lw}`));
+    }
+    return row;
+  }
+
+  function showLiveSeriesGames(state, ps, s) {
+    const games = (ps.games || []).filter((g) => g.postseason === s.tag);
+    const body = U.el('div', { class: 'roster-list' });
+    games.forEach((g, i) => {
+      if (!g.result) return;
+      const home = state.league.teams.find((t) => t.id === g.homeId);
+      const away = state.league.teams.find((t) => t.id === g.awayId);
+      const row = U.el('button', {
+        class: 'roster-row',
+        on: { click: () => {
+          U.closeModal();
+          window.BBGM_MAIN.navigate('league', { tab: 'scores', gameId: g.gameId });
+        }},
+      });
+      row.appendChild(U.el('span', { class: 'pos-badge' }, `G${i + 1}`));
+      const info = U.el('div', { class: 'player-row-info' });
+      info.appendChild(U.el('div', { class: 'player-row-name' },
+        `${away ? away.abbr : '?'} ${g.result.awayRuns} @ ${home ? home.abbr : '?'} ${g.result.homeRuns}`));
+      info.appendChild(U.el('div', { class: 'player-row-meta' },
+        D.format(g.date, 'date') + ' • tap for box score'));
+      row.appendChild(info);
+      body.appendChild(row);
+    });
+    const high = state.league.teams.find((t) => t.id === s.highId);
+    const low = state.league.teams.find((t) => t.id === s.lowId);
+    U.showModal({
+      title: `${roundOf(s.tag)}: ${high ? high.abbr : '?'} ${s.hw}-${s.lw} ${low ? low.abbr : '?'}`,
       body,
       actions: [{ label: 'Close', kind: 'secondary', onClick: () => true }],
     });

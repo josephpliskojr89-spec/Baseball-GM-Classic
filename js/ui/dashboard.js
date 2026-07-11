@@ -32,6 +32,9 @@ window.BBGM_UI_DASHBOARD = (function () {
     // Offseason free-agency card replaces the game-day cards (bible 18.8).
     if (state.meta.offseasonPhase === 'freeAgency') {
       container.appendChild(renderOffseasonCard(state, team));
+    } else if (state.postseason) {
+      // October: the live bracket drives the dashboard.
+      container.appendChild(renderPostseasonCard(state, team));
     } else {
       // Today's status card
       container.appendChild(renderTodayCard(state, team));
@@ -136,6 +139,57 @@ window.BBGM_UI_DASHBOARD = (function () {
         class: 'btn-secondary btn-sm', style: { width: '100%' },
         on: { click: () => window.BBGM_MAIN.navigate('draft') },
       }, 'Scout the Class in the Draft Hub'));
+    }
+    return card;
+  }
+
+  // Live postseason (bible 3.4, day-by-day since 0.13.1).
+  function renderPostseasonCard(state, team) {
+    const ps = state.postseason;
+    const card = U.el('div', { class: 'card' });
+    const done = ps.phase === 'complete';
+    card.appendChild(U.el('div', { class: 'card-title' },
+      done ? `${ps.year} Postseason — Complete` : `${ps.year} Postseason`));
+
+    if (done) {
+      const ws = ps.series.find((s) => s.tag === 'ws');
+      const champ = state.league.teams.find((t) => t.id === ws.winnerId);
+      card.appendChild(U.el('p', { style: { 'font-size': '13px', 'margin-bottom': '10px' } },
+        `The ${champ ? champ.name : '?'} are World Series champions. Begin the offseason when ready.`));
+      card.appendChild(U.el('button', {
+        class: 'btn-primary btn-sm', style: { width: '100%', 'margin-bottom': '8px' },
+        on: { click: () => window.BBGM_MAIN.advanceDay() },
+      }, 'Begin the Offseason'));
+    } else {
+      // User's live series, if they're still playing.
+      const mine = ps.series.find((s) => !s.winnerId &&
+        (s.highId === team.id || s.lowId === team.id));
+      const wasIn = ps.seeds.east.concat(ps.seeds.west).includes(team.id);
+      let line;
+      if (mine) {
+        const opp = state.league.teams.find((t) => t.id === (mine.highId === team.id ? mine.lowId : mine.highId));
+        const ourWins = mine.highId === team.id ? mine.hw : mine.lw;
+        const theirWins = mine.highId === team.id ? mine.lw : mine.hw;
+        line = opp
+          ? `Your series: ${ourWins}-${theirWins} vs ${opp.name}.`
+          : 'Awaiting your next opponent.';
+      } else if (wasIn) {
+        const lost = ps.series.find((s) => s.loserId === team.id);
+        line = lost ? 'Your season is over — eliminated. October plays on.' : 'You have a first-round bye — next round soon.';
+      } else {
+        line = 'You missed the field — scoreboard-watch October and plan the winter.';
+      }
+      card.appendChild(U.el('p', { style: { 'font-size': '13px', 'margin-bottom': '10px' } }, line));
+      const grid = U.el('div', { style: { display: 'flex', gap: '8px', 'flex-wrap': 'wrap' } });
+      grid.appendChild(U.el('button', {
+        class: 'btn-secondary btn-sm', style: { flex: '1 1 calc(50% - 4px)' },
+        on: { click: () => window.BBGM_MAIN.navigate('league', { tab: 'playoffs' }) },
+      }, 'View Bracket'));
+      grid.appendChild(U.el('button', {
+        class: 'btn-primary btn-sm', style: { flex: '1 1 calc(50% - 4px)' },
+        on: { click: () => window.BBGM_MAIN.simToSeasonEnd() },
+      }, 'Sim Rest of Postseason ▶▶'));
+      card.appendChild(grid);
     }
     return card;
   }

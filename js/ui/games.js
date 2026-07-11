@@ -41,6 +41,27 @@ window.BBGM_UI_GAMES = (function () {
   function renderToday(container, state) {
     const today = state.meta.currentDate;
     const games = state.league.schedule.games.filter((g) => D.eq(g.date, today));
+
+    // October: today's playoff slate (played results + upcoming series
+    // games scheduled for today).
+    if (state.postseason) {
+      const ps = state.postseason;
+      const psToday = (ps.games || []).filter((g) => D.eq(g.date, today));
+      for (const g of psToday) container.appendChild(gameCard(state, g));
+      const upcoming = (ps.series || []).filter((s) =>
+        !s.winnerId && s.highId && s.lowId && s.nextDate && D.eq(s.nextDate, today));
+      for (const s of upcoming) {
+        const high = state.league.teams.find((t) => t.id === s.highId);
+        const low = state.league.teams.find((t) => t.id === s.lowId);
+        container.appendChild(U.el('div', { class: 'card', style: { padding: '10px 12px' } },
+          `Tonight: ${high ? high.abbr : '?'} vs ${low ? low.abbr : '?'}, Game ${s.n + 1} — advance the day to play it.`));
+      }
+      if (psToday.length || upcoming.length) return;
+      container.appendChild(U.el('div', { class: 'empty-state' },
+        'Travel day — the next playoff games are days away.'));
+      return;
+    }
+
     if (games.length === 0) {
       container.appendChild(U.el('div', { class: 'empty-state' }, 'No games scheduled today.'));
       return;
@@ -59,13 +80,15 @@ window.BBGM_UI_GAMES = (function () {
 
   function renderRecent(container, state) {
     const userTeamId = state.meta.userTeamId;
-    // Postseason games (most recent completed bracket) surface here too.
-    const psGames = ((state.league.postseason && state.league.postseason.games) || [])
+    // Postseason games surface here too — the live bracket while October
+    // is being played, else the most recent completed one.
+    const psSource = state.postseason || state.league.postseason;
+    const psGames = ((psSource && psSource.games) || [])
       .filter((g) => g.played);
     const userPs = psGames.filter((g) => g.homeId === userTeamId || g.awayId === userTeamId);
     if (userPs.length) {
       container.appendChild(U.el('div', { class: 'card-title' },
-        `${state.league.postseason.year} Postseason`));
+        `${psSource.year} Postseason`));
       for (const g of userPs.slice().reverse()) container.appendChild(gameCard(state, g));
     }
     const games = state.league.schedule.games.filter((g) => g.played && (g.homeId === userTeamId || g.awayId === userTeamId));
@@ -158,6 +181,9 @@ window.BBGM_UI_GAMES = (function () {
   // by default). Opens from every completed-game tap target.
   function showBoxScore(state, gameId) {
     let game = state.league.schedule.games.find((g) => g.gameId === gameId);
+    if (!game && state.postseason) {
+      game = (state.postseason.games || []).find((g) => g.gameId === gameId);
+    }
     if (!game && state.league.postseason) {
       game = (state.league.postseason.games || []).find((g) => g.gameId === gameId);
     }

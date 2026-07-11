@@ -72,84 +72,174 @@ window.BBGM_OFFSEASON = (function () {
     7: [true, true, false, false, false, true, true], // 2-3-2
   };
 
-  function playSeries(state, high, low, bestOf, cursor, tag, games) {
-    const need = Math.floor(bestOf / 2) + 1;
-    let hw = 0, lw = 0;
-    let n = 0;
-    while (hw < need && lw < need) {
-      const highHosts = HOST[bestOf][n];
-      const g = {
-        gameId: `ps${state.meta.currentDate.year}_${tag}_${n}`,
-        date: { ...cursor.date },
-        homeId: highHosts ? high.id : low.id,
-        awayId: highHosts ? low.id : high.id,
-        played: false, result: null, postseason: tag,
-      };
-      window.BBGM_SIM.simulateGame(state, g);
-      // October injuries don't carry (simplification — result.injuries are
-      // not applied); strip the AB log to keep the save lean.
-      if (g.result) { g.result.gameLog = null; g.result.injuries = null; }
-      games.push(g);
-      const homeWon = g.result.homeRuns > g.result.awayRuns;
-      const highWon = (homeWon && highHosts) || (!homeWon && !highHosts);
-      if (highWon) hw++; else lw++;
-      n++;
-      cursor.date = D().addDays(cursor.date, 1);
+  // ---- Day-by-day bracket (0.13.1) ----------------------------------------
+  // The postseason plays on the calendar like the regular season: the two
+  // wild-card series in each league run in parallel starting three days
+  // after the season ends, each round opens two rest days after its
+  // feeders finish, and Advance Day plays exactly that day's games. The
+  // one-shot runPostseason() below loops the same day code, so the
+  // harness and "sim it all" paths exercise identical mechanics.
+
+  function startPostseason(state) {
+    const year = state.meta.currentDate.year;
+    const firstDate = D().addDays(state.league.schedule.seasonEnd, 3);
+    const mk = (tag, league, bestOf) => ({
+      tag, league, bestOf,
+      highId: null, lowId: null, hw: 0, lw: 0, n: 0,
+      nextDate: null, lastDate: null, winnerId: null, loserId: null,
+    });
+    const seedsByLeague = {};
+    const series = [];
+    for (const lg of ['east', 'west']) {
+      const seeds = seedLeague(state, lg);
+      seedsByLeague[lg] = seeds.map((t) => t.id);
+      // Wild card: 3v6, 4v5 (bo3, all at higher seed); 1 & 2 have byes.
+      const wc1 = mk(`${lg}_wc1`, lg, 3);
+      wc1.highId = seeds[2].id; wc1.lowId = seeds[5].id; wc1.nextDate = { ...firstDate };
+      const wc2 = mk(`${lg}_wc2`, lg, 3);
+      wc2.highId = seeds[3].id; wc2.lowId = seeds[4].id; wc2.nextDate = { ...firstDate };
+      // Division series: 1 vs (4/5 winner), 2 vs (3/6 winner).
+      const ds1 = mk(`${lg}_ds1`, lg, 5); ds1.highId = seeds[0].id;
+      const ds2 = mk(`${lg}_ds2`, lg, 5); ds2.highId = seeds[1].id;
+      series.push(wc1, wc2, ds1, ds2, mk(`${lg}_lcs`, lg, 7));
     }
-    cursor.date = D().addDays(cursor.date, 2); // travel/rest between rounds
-    // Score is reported from the WINNER's perspective.
-    return hw > lw
-      ? { winner: high, loser: low, score: [hw, lw] }
-      : { winner: low, loser: high, score: [lw, hw] };
+    series.push(mk('ws', null, 7));
+    state.postseason = { year, phase: 'active', seeds: seedsByLeague, series, games: [] };
+    return state.postseason;
   }
 
-  function runPostseason(state) {
-    const year = state.meta.currentDate.year;
-    S().setStatBucket('postseason');
-    const games = [];
-    const rounds = [];
-    const cursor = { date: D().addDays(state.league.schedule.seasonEnd, 3) };
-    const champions = {};
+  function findSeries(ps, tag) { return ps.series.find((s) => s.tag === tag); }
 
+  function winPctOfId(state, id) {
+    return ST().winPct(state.league.teams.find((t) => t.id === id));
+  }
+
+  // Play every playoff game scheduled for `today`. Returns the games and
+  // any series that finished; flips phase to 'complete' when the World
+  // Series is decided.
+  function simPostseasonDay(state, today) {
+    const ps = state.postseason;
+    if (!ps || ps.phase !== 'active') return { played: [], completed: [], done: false };
+    const played = [], completed = [];
+    S().setStatBucket('postseason');
     try {
-      for (const lg of ['east', 'west']) {
-        const seeds = seedLeague(state, lg);
-        // Wild card: 3v6, 4v5 (bo3, all at higher seed); 1 & 2 have byes.
-        const wc1 = playSeries(state, seeds[2], seeds[5], 3, cursor, `${lg}_wc1`, games);
-        const wc2 = playSeries(state, seeds[3], seeds[4], 3, cursor, `${lg}_wc2`, games);
-        // Division series: 1 vs (4/5 winner), 2 vs (3/6 winner).
-        const ds1 = playSeries(state, seeds[0], wc2.winner, 5, cursor, `${lg}_ds1`, games);
-        const ds2 = playSeries(state, seeds[1], wc1.winner, 5, cursor, `${lg}_ds2`, games);
-        // LCS: better regular-season record is the "high" seed.
-        const [h, l] = ST().winPct(ds1.winner) >= ST().winPct(ds2.winner)
-          ? [ds1.winner, ds2.winner] : [ds2.winner, ds1.winner];
-        const lcs = playSeries(state, h, l, 7, cursor, `${lg}_lcs`, games);
-        champions[lg] = lcs.winner;
-        rounds.push({
-          league: lg,
-          seeds: seeds.map((t) => t.id),
-          wildCard: [seriesSummary(wc1), seriesSummary(wc2)],
-          divisionSeries: [seriesSummary(ds1), seriesSummary(ds2)],
-          lcs: seriesSummary(lcs),
-        });
+      for (const s of ps.series) {
+        if (s.winnerId || !s.highId || !s.lowId || !s.nextDate || !D().eq(s.nextDate, today)) continue;
+        const highHosts = HOST[s.bestOf][s.n];
+        const g = {
+          gameId: `ps${ps.year}_${s.tag}_${s.n}`,
+          date: { ...today },
+          homeId: highHosts ? s.highId : s.lowId,
+          awayId: highHosts ? s.lowId : s.highId,
+          played: false, result: null, postseason: s.tag,
+        };
+        window.BBGM_SIM.simulateGame(state, g);
+        // October injuries don't carry (simplification — result.injuries
+        // are not applied); strip the AB log to keep the save lean.
+        if (g.result) { g.result.gameLog = null; g.result.injuries = null; }
+        ps.games.push(g);
+        played.push(g);
+        const homeWon = g.result.homeRuns > g.result.awayRuns;
+        const highWon = (homeWon && highHosts) || (!homeWon && !highHosts);
+        if (highWon) s.hw++; else s.lw++;
+        s.n++;
+        s.lastDate = { ...today };
+        const need = Math.floor(s.bestOf / 2) + 1;
+        if (s.hw === need || s.lw === need) {
+          s.winnerId = s.hw === need ? s.highId : s.lowId;
+          s.loserId = s.hw === need ? s.lowId : s.highId;
+          s.nextDate = null;
+          completed.push(s);
+          advanceBracket(state, s);
+        } else {
+          s.nextDate = D().addDays(today, 1);
+        }
       }
-      // World Series: home field by regular-season record (3.4).
-      const [h, l] = ST().winPct(champions.east) >= ST().winPct(champions.west)
-        ? [champions.east, champions.west] : [champions.west, champions.east];
-      const ws = playSeries(state, h, l, 7, cursor, 'ws', games);
-      state.meta.currentDate = { ...cursor.date };
-      return {
-        year, games, rounds,
-        worldSeries: seriesSummary(ws),
-        champion: ws.winner, runnerUp: ws.loser,
-      };
     } finally {
       S().setStatBucket(null);
     }
+    if (findSeries(ps, 'ws').winnerId) ps.phase = 'complete';
+    return { played, completed, done: ps.phase === 'complete' };
   }
 
-  function seriesSummary(s) {
-    return { winnerId: s.winner.id, loserId: s.loser.id, score: s.score.slice() };
+  // Feed winners forward and open the next round two rest days after its
+  // last feeder finishes.
+  function advanceBracket(state, s) {
+    const ps = state.postseason;
+    const lg = s.league;
+    const later = (a, b) => (D().compare(a, b) >= 0 ? a : b);
+    if (s.tag.endsWith('wc1') || s.tag.endsWith('wc2')) {
+      // ds2 takes the wc1 winner; ds1 takes the wc2 winner (3.4).
+      findSeries(ps, `${lg}_${s.tag.endsWith('wc1') ? 'ds2' : 'ds1'}`).lowId = s.winnerId;
+      const wc1 = findSeries(ps, `${lg}_wc1`), wc2 = findSeries(ps, `${lg}_wc2`);
+      if (wc1.winnerId && wc2.winnerId) {
+        const start = D().addDays(later(wc1.lastDate, wc2.lastDate), 3);
+        findSeries(ps, `${lg}_ds1`).nextDate = { ...start };
+        findSeries(ps, `${lg}_ds2`).nextDate = { ...start };
+      }
+    } else if (s.tag.endsWith('ds1') || s.tag.endsWith('ds2')) {
+      const ds1 = findSeries(ps, `${lg}_ds1`), ds2 = findSeries(ps, `${lg}_ds2`);
+      if (ds1.winnerId && ds2.winnerId) {
+        // LCS: better regular-season record is the "high" seed.
+        const lcs = findSeries(ps, `${lg}_lcs`);
+        const [h, l] = winPctOfId(state, ds1.winnerId) >= winPctOfId(state, ds2.winnerId)
+          ? [ds1.winnerId, ds2.winnerId] : [ds2.winnerId, ds1.winnerId];
+        lcs.highId = h; lcs.lowId = l;
+        lcs.nextDate = { ...D().addDays(later(ds1.lastDate, ds2.lastDate), 3) };
+      }
+    } else if (s.tag.endsWith('lcs')) {
+      const e = findSeries(ps, 'east_lcs'), w = findSeries(ps, 'west_lcs');
+      if (e.winnerId && w.winnerId) {
+        // World Series: home field by regular-season record (3.4).
+        const ws = findSeries(ps, 'ws');
+        const [h, l] = winPctOfId(state, e.winnerId) >= winPctOfId(state, w.winnerId)
+          ? [e.winnerId, w.winnerId] : [w.winnerId, e.winnerId];
+        ws.highId = h; ws.lowId = l;
+        ws.nextDate = { ...D().addDays(later(e.lastDate, w.lastDate), 3) };
+      }
+    }
+  }
+
+  // Condense the finished bracket into the archival shape (rounds/summary
+  // objects the Playoffs tab, history, and Part A consume) and clear the
+  // live object.
+  function finalizePostseason(state) {
+    const ps = state.postseason;
+    const sum = (s) => ({
+      winnerId: s.winnerId, loserId: s.loserId,
+      // Score from the WINNER's perspective (the winner has more wins).
+      score: s.hw >= s.lw ? [s.hw, s.lw] : [s.lw, s.hw],
+    });
+    const rounds = ['east', 'west'].map((lg) => ({
+      league: lg,
+      seeds: ps.seeds[lg],
+      wildCard: [sum(findSeries(ps, `${lg}_wc1`)), sum(findSeries(ps, `${lg}_wc2`))],
+      divisionSeries: [sum(findSeries(ps, `${lg}_ds1`)), sum(findSeries(ps, `${lg}_ds2`))],
+      lcs: sum(findSeries(ps, `${lg}_lcs`)),
+    }));
+    const ws = findSeries(ps, 'ws');
+    const result = {
+      year: ps.year, games: ps.games, rounds,
+      worldSeries: sum(ws),
+      champion: state.league.teams.find((t) => t.id === ws.winnerId),
+      runnerUp: state.league.teams.find((t) => t.id === ws.loserId),
+    };
+    delete state.postseason;
+    return result;
+  }
+
+  // One-shot postseason (harness, "sim rest of October"): loops the same
+  // day-by-day code, advancing the calendar until the champion is crowned.
+  function runPostseason(state) {
+    if (!state.postseason) startPostseason(state);
+    let guard = 0;
+    while (state.postseason.phase === 'active' && guard++ < 80) {
+      simPostseasonDay(state, state.meta.currentDate);
+      if (state.postseason.phase === 'active') {
+        state.meta.currentDate = D().addDays(state.meta.currentDate, 1);
+      }
+    }
+    return finalizePostseason(state);
   }
 
   // ---- Offseason part A ------------------------------------------------------
@@ -165,8 +255,11 @@ window.BBGM_OFFSEASON = (function () {
     const teams = state.league.teams;
     const summary = { year, retirements: [], milestones: [], newFAs: 0 };
 
-    // 1. Postseason.
-    const ps = runPostseason(state);
+    // 1. Postseason: consume the bracket the user played through day by
+    //    day, or sim it in one shot if they skipped straight here.
+    const ps = (state.postseason && state.postseason.phase === 'complete')
+      ? finalizePostseason(state)
+      : runPostseason(state);
     summary.postseason = ps;
     state.league.postseason = {
       year, games: ps.games, rounds: ps.rounds, worldSeries: ps.worldSeries,
@@ -630,5 +723,6 @@ window.BBGM_OFFSEASON = (function () {
   return {
     runSeasonRollover, runSeasonRolloverPartA, runSeasonRolloverPartB,
     advanceFARound, runPostseason, seedLeague,
+    startPostseason, simPostseasonDay, finalizePostseason,
   };
 })();
