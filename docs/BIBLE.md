@@ -2041,6 +2041,22 @@ Surfaced as a soft notification on the dashboard or roster screen — never a bl
 
 **Auto-rest (implemented, 0.7.0).** The engine gives rest days automatically, for every team including the user's: a starter whose fatigue crosses the critical threshold sits for the day, replaced by the best fresh bench bat eligible for his slot, and returns to his lineup spot as soon as he's recovered below the threshold. If the whole bench is also gassed (or nobody covers the position), the regular plays tired. This is what makes the "no micromanagement" promise real — before auto-rest existed, static lineups played all 162 games, and every starting catcher and 33+ regular saturated at maximum fatigue by June (measured median season-peak of 97-98/100; with auto-rest it's ~91, brushing the threshold then resting). The soft notification still fires so the user understands why their catcher sat.
 
+**Scheduled rest (0.13.2).** Critical-only rest had a visible flaw:
+non-catchers never reach the critical threshold (median season peak
+~62), so everybody but the catcher quietly played 162. Managers now
+give routine maintenance days long before fatigue turns critical —
+per-game rest odds scale with the fatigue band (1% fresh → 6% moderate
+→ 20% high), age (1.5x at 32+, 2x at 35+), catching (1.4x), and the
+manager's bench-usage tendency (defSub, Pillar 4: some skippers ride
+their regulars harder). Scheduled rest only happens when a fresh,
+position-eligible bench bat can cover the slot — with one exception:
+consecutive-start streaks force a breaker at 15+ (12%/game) and 25+
+(40%/game) even if the cover is out-of-position, so scarce-position
+regulars (SS/CF) don't iron-man by default. Nobody rests in October.
+Measured: lineup regulars median 151-152 GP (catchers 143-144), zero
+160+ GP players league-wide (was ~45), R/G calibration unchanged, and
+bench bats now get real starts. `p.consecStarts` resets each spring.
+
 **Phase dependency:**
 
 - **Phase 2:** pitcher fatigue and stat correctness only (already in)

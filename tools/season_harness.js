@@ -318,6 +318,22 @@ for (const t of league.teams) for (const id of t.roster) {
   const s = p.stats[YEAR]; if (s && s.pa > 400) paByLeague[t.league].push(s.pa);
 }
 console.log('avg PA of 400+ PA hitters: EAST', avg(paByLeague.east).toFixed(0), 'WEST', avg(paByLeague.west).toFixed(0));
+// Rest management (10.8): lineup regulars should NOT play 162 — managers
+// give scheduled days off. Catchers rest most.
+const gpC = [], gpReg = [];
+let ironMen = 0;
+for (const t of league.teams) {
+  for (const spot of (t.lineupRH || [])) {
+    const p = players[spot.playerId];
+    if (!p || p.isPitcher) continue;
+    const g = (p.stats[YEAR] && p.stats[YEAR].g) || 0;
+    if (spot.position === 'C') gpC.push(g); else gpReg.push(g);
+    if (g >= 160) ironMen++;
+  }
+}
+console.log('GP of lineup regulars — median C:', median(gpC).toFixed(0), '(t ~120-140)',
+  '| median non-C:', median(gpReg).toFixed(0), '(t ~145-155)',
+  '| 160+ GP:', ironMen, '(t ~0-3 league-wide)');
 
 // ---- Franchise mode: postseason + offseason rollover between seasons ----
 if (seasonsArg > 1) {

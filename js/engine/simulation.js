@@ -45,8 +45,11 @@ window.BBGM_SIM = (function () {
     // In no-DH games the 9th slot is a pitcher sentinel: players[i] is
     // null and positions[i] is 'P'; simHalfInning resolves it to the
     // batting team's current pitcher at each turn through the order.
-    const homeWithPos = getLineupWithPositions(home, players, awaySP, useDH);
-    const awayWithPos = getLineupWithPositions(away, players, homeSP, useDH);
+    // October: nobody rests in the playoffs — the built-in off days carry
+    // the recovery load and every regular plays.
+    const restOpts = (t) => ({ mgr: mgrFor(state, t), allowRest: !game.postseason });
+    const homeWithPos = getLineupWithPositions(home, players, awaySP, useDH, restOpts(home));
+    const awayWithPos = getLineupWithPositions(away, players, homeSP, useDH, restOpts(away));
     const homeLineup = homeWithPos.players;
     const awayLineup = awayWithPos.players;
 
@@ -1279,7 +1282,7 @@ window.BBGM_SIM = (function () {
   //  - DH game, West team: best healthy bench bat is added as DH
   // The pitcher sentinel is players[i] = null with positions[i] = 'P';
   // simHalfInning resolves it to the batting side's current pitcher.
-  function getLineupWithPositions(team, players, opposingSP, useDH) {
+  function getLineupWithPositions(team, players, opposingSP, useDH, opts = {}) {
     const vsLefty = opposingSP && opposingSP.throws === 'L';
     const preferred = vsLefty ? team.lineupLH : team.lineupRH;
     const fallback = vsLefty ? team.lineupRH : team.lineupLH;
@@ -1306,7 +1309,28 @@ window.BBGM_SIM = (function () {
       // day if a fresher bench bat can cover the slot — the engine handles
       // routine rest in the background for every team, user's included.
       // He slots straight back in once he's recovered below the threshold.
-      const needsRest = available && fat && fat.isVeryHigh(p);
+      const needsRest = available && fat && fat.isVeryHigh(p) && opts.allowRest !== false;
+      // Scheduled rest: managers also give regulars routine maintenance
+      // days LONG before fatigue turns critical — the reason nobody but
+      // the catcher was ever sitting was that critical was the only
+      // trigger. Scheduled rest only happens when a fresh position-
+      // eligible bench bat can take the slot (never an out-of-position
+      // scramble), so it costs a start, not the defense.
+      if (available && !needsRest && opts.allowRest !== false &&
+          shouldRestToday(p, opts.mgr, fat)) {
+        // Preferred cover is a fresh, position-eligible bench bat. A long
+        // consecutive-start streak gets broken even without one — real
+        // managers patch the position out-of-position for a day rather
+        // than run a regular out there 162 times.
+        const restSub = findFreshEligibleSub(team, players, spot.position, used) ||
+          ((p.consecStarts || 0) >= 20 ? findLineupSub(team, players, spot.position, used) : null);
+        if (restSub) {
+          used.add(restSub.id);
+          resultP.push(restSub);
+          resultPos.push(spot.position);
+          continue;
+        }
+      }
       if (available && !needsRest) {
         resultP.push(p);
         resultPos.push(spot.position);
@@ -1341,7 +1365,61 @@ window.BBGM_SIM = (function () {
       resultP.push(null);
       resultPos.push('P');
     }
+
+    // Consecutive-start bookkeeping (regular season only): streaks feed
+    // the scheduled-rest odds so nobody quietly starts 162.
+    if (opts.allowRest !== false) {
+      const starting = new Set(resultP.filter(Boolean).map((p) => p.id));
+      for (const id of team.roster) {
+        const rp = players[id];
+        if (!rp || rp.isPitcher) continue;
+        rp.consecStarts = starting.has(id) ? (rp.consecStarts || 0) + 1 : 0;
+      }
+    }
     return { players: resultP, positions: resultPos };
+  }
+
+  // Scheduled maintenance day (bible 10.8): probability scales with the
+  // fatigue band, age (veterans get more planned days off), and the
+  // manager's bench-usage inclination (the defSub tendency, Pillar 4).
+  // Calibration target: non-catcher regulars ~145-155 games, catchers
+  // ~120-140 — nobody quietly plays all 162.
+  function shouldRestToday(p, mgr, fat) {
+    if (!fat || p.isPitcher) return false;
+    const f = p.fatigue || 0;
+    let prob;
+    if (f >= fat.HIGH) prob = 0.20;          // clearly gassed — sit soon
+    else if (f >= fat.MODERATE) prob = 0.06; // routine rotation
+    else if (f >= 30) prob = 0.03;
+    else prob = 0.01;                        // rare "day game after a night game" off day
+    if (p.age >= 35) prob *= 2;
+    else if (p.age >= 32) prob *= 1.5;
+    // Catchers get the most planned days off in baseball.
+    if (p.primaryPosition === 'C') prob *= 1.4;
+    prob *= 1 + (((mgr && mgr.defSub) || 5) - 5) * 0.06; // 0.76x-1.30x
+    // Long consecutive-start streaks get broken regardless of fatigue —
+    // the 162-game iron man should be a rare feat, not the default.
+    const streak = p.consecStarts || 0;
+    if (streak >= 25) prob = Math.max(prob, 0.40);
+    else if (streak >= 15) prob = Math.max(prob, 0.12);
+    return Math.random() < prob;
+  }
+
+  // Rest-day cover: a FRESH, position-eligible bench bat only. If the
+  // bench can't cover the slot properly, the regular plays — scheduled
+  // rest never forces an out-of-position scramble (that ladder is
+  // reserved for injuries/critical fatigue in findLineupSub).
+  function findFreshEligibleSub(team, players, position, used) {
+    const GEN = window.BBGM_PLAYER_GEN;
+    const inj = INJ();
+    const fat = FAT();
+    const cands = team.roster
+      .map((id) => players[id])
+      .filter((p) => p && !p.isPitcher && !used.has(p.id) && inj.isAvailable(p) &&
+        GEN.canPlay(p, position) && (!fat || !fat.isModerate(p)));
+    if (!cands.length) return null;
+    cands.sort((a, b) => hitterScore(b) - hitterScore(a));
+    return cands[0];
   }
 
   function findLineupSub(team, players, position, used) {

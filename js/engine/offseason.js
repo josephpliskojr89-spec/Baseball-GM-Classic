@@ -458,6 +458,7 @@ window.BBGM_OFFSEASON = (function () {
       p.fatigue = 0;
       p._restNotified = false;
       p.consecPitchDays = 0;
+      p.consecStarts = 0;
       p.lastPitchedDate = null;
     }
     // Healed IL players rejoin their rosters; still-injured (TJ) stay on IL.
