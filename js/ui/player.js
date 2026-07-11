@@ -317,6 +317,18 @@ window.BBGM_UI_PLAYER = (function () {
         `${by ? ' by ' + by.abbr : ''}` +
         (p.draft.bonus ? ` • $${p.draft.bonus}M bonus` : '')));
     }
+    if (p.intl) {
+      rows.push(insetRow('Int’l Signing',
+        `${p.intl.year} • ${p.intl.country} • class rank #${p.intl.rank} • $${p.intl.bonus}M bonus`));
+    }
+    if (p.intlEvent) {
+      const how = p.intlEvent === 'posting' ? 'Posted from NPB (Japan)'
+        : p.intlEvent === 'defector' ? 'Cuban defector'
+        : 'KBO free agent (South Korea)';
+      rows.push(insetRow('Background', how));
+    } else if (p.origin && !p.intl) {
+      rows.push(insetRow('From', p.origin));
+    }
     const grid = U.el('div', { class: 'inset-list' }, rows);
     return grid;
   }

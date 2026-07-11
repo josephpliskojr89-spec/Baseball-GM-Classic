@@ -298,6 +298,15 @@ window.BBGM_OFFSEASON = (function () {
       }
     }
 
+    // 6.5. International (bible 14): special-event players (NPB postings,
+    // Cuban defectors, KBO declarations) join the FA pool as headline
+    // names BEFORE the market is built, and next July's signing class +
+    // pool budgets are set (14.1's November 1) so the user can scout all
+    // offseason.
+    const INTL = window.BBGM_INTL;
+    summary.intlEvents = INTL.rollOffseasonEvents(state);
+    INTL.generateClass(state, year + 1);
+
     // 7. Build the FA market and open the window (16.1: mid-November).
     FA().buildMarket(state);
     state.meta.offseasonPhase = 'freeAgency';

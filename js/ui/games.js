@@ -6,23 +6,27 @@ window.BBGM_UI_GAMES = (function () {
 
   let activeTab = 'today';
 
+  // Rendered embedded inside League → Scores (the Games bottom-nav tab was
+  // folded into League in 0.13 to free nav space). The today/recent/
+  // schedule split renders as filter chips so it doesn't read as a second
+  // tab row under League's tabs. `container` is the sub-view wrapper; the
+  // chips re-render only that wrapper.
   function render(container, state, options = {}) {
     U.clearChildren(container);
-    container.appendChild(U.el('h2', { style: { 'margin-bottom': '12px' } }, 'Games'));
 
-    const tabs = U.el('div', { class: 'tabs' });
-    const tabDefs = [
+    const chips = U.el('div', { class: 'filter-bar', style: { 'margin-bottom': '10px' } });
+    const chipDefs = [
       { key: 'today', label: 'Today' },
       { key: 'recent', label: 'Recent' },
       { key: 'schedule', label: 'Schedule' },
     ];
-    for (const t of tabDefs) {
-      tabs.appendChild(U.el('button', {
-        class: `tab${activeTab === t.key ? ' active' : ''}`,
+    for (const t of chipDefs) {
+      chips.appendChild(U.el('button', {
+        class: `filter-chip${activeTab === t.key ? ' active' : ''}`,
         on: { click: () => { activeTab = t.key; render(container, state); } }
       }, t.label));
     }
-    container.appendChild(tabs);
+    container.appendChild(chips);
 
     if (options.gameId) {
       activeTab = 'recent';

@@ -4031,7 +4031,29 @@ user becomes a pure GM), with hireable staff carrying mechanical effects.
 - User can sign prospects
 - Special events fire occasionally
 
-### 21.14 Phase 13: Scouting Budget System (Estimated: 1 session)
+> **Status (0.13.0) — shipped, living beside the draft in the hub.**
+> The Draft Hub gained an Int'l tab carrying the whole cycle: the
+> ~100-prospect class and pool budgets are set at the rollover (14.1's
+> November 1; season 1 falls back to opening day), scouted all
+> offseason and spring with wide teenage bands, country/age mix per
+> 6.7, and target flags. The sim halts July 2 — two days after the
+> draft — for the interactive three-phase window (14.3): top-10
+> bidding against AI clubs (owner-archetype appetite; patient/
+> analytics owners chase hardest), mid-tier signings at ask, bulk
+> depth, with an auto-run escape hatch. Pool budgets follow 6.10's
+> reverse-standings tiers ($9.0M→$4.0M, small-market +$0.5M / large
+> −$0.5M), automatic 25% carryover of unspent pool, and the 6.10.4
+> overspend ladder (fine → reduced pool → halved pool → 2-year
+> $300K restriction); AI teams never overspend — going over is a
+> user-only strategic choice. Signees join Rookie ball (14.5) with a
+> wider signing-day development swing than draft picks. Special
+> events (14.7) ride the FA market as offseason headliners: 0-3 NPB
+> postings (25-30, MLB-ready), 0-2 Cuban defectors (extra hidden
+> variance), 0-1 KBO declarations. Provenance shows on profiles
+> ("Int'l Signing 2027 • Dominican Republic • rank #3 • $4.1M").
+> Not yet: scouting-tier-gated pool visibility (Phase 13 — bands are
+> honest today), pool-space trading, user-chosen carryover timing,
+> posting fees as a separate cash mechanic.
 
 **Goal:** Tiered scouting affecting information visibility.
 
@@ -4133,7 +4155,11 @@ user becomes a pure GM), with hireable staff carrying mechanical effects.
 > R/G watch item is resolved — the run environment holds 4.5-4.8 for
 > ten straight seasons because draft classes supply the star ceilings
 > the backfill couldn't. Talent pyramid lands near the 4.3 target
-> (~60-75 players at 60+ overall). New watch items for Phases 12-14:
+> (~60-75 players at 60+ overall; with the 0.13.0 international
+> pipeline live it measures 57-81 across seeds — a second star source
+> runs the pyramid a touch hotter, partially offset by a bust-heavier
+> signing-day swing for intl signees; keep measuring in Phase 13/14
+> soaks). New watch items for Phases 12-14:
 > the FA pool settles higher than pre-draft (~250-330; farm-cap
 > releases now feed it — unemployment-spell washout keeps it bounded),
 > and 34+ veterans thin out to a handful as cheap draft talent crowds

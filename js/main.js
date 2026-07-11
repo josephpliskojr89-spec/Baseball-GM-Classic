@@ -341,6 +341,11 @@ window.BBGM_MAIN = (function () {
 
   // ------- Navigation -------
   function navigate(tab, options = {}) {
+    // Back-compat: the Games view folded into League → Scores (0.13).
+    if (tab === 'games') {
+      tab = 'league';
+      options = { tab: 'scores', ...options };
+    }
     currentTab = tab;
     viewOptions = options;
     refresh();
@@ -360,9 +365,8 @@ window.BBGM_MAIN = (function () {
     switch (currentTab) {
       case 'home': window.BBGM_UI_DASHBOARD.render(main, state); break;
       case 'team': window.BBGM_UI_TEAM.render(main, state, opts); break;
-      case 'league': window.BBGM_UI_LEAGUE.render(main, state); break;
+      case 'league': window.BBGM_UI_LEAGUE.render(main, state, opts); break;
       case 'draft': window.BBGM_UI_DRAFT.render(main, state, opts); break;
-      case 'games': window.BBGM_UI_GAMES.render(main, state, opts); break;
       case 'menu': window.BBGM_UI_MENU.render(main, state); break;
       default: window.BBGM_UI_DASHBOARD.render(main, state);
     }
@@ -397,7 +401,30 @@ window.BBGM_MAIN = (function () {
       showDraftDayModal(state);
       return;
     }
+    // International signing day (bible 14.1): July 2 halts the sim until
+    // the window is worked (or auto-run from the hub).
+    if (window.BBGM_INTL.windowPending(state, today)) {
+      showIntlWindowModal(state);
+      return;
+    }
     simDays(1);
+  }
+
+  function showIntlWindowModal(state) {
+    const year = state.meta.currentDate.year;
+    U.showModal({
+      title: `International Signing Day — ${year}`,
+      body: `The July 2 international signing window is open. ~100 prospects, ` +
+            `your bonus pool, and 29 rival front offices. The season resumes ` +
+            `once the window closes.`,
+      actions: [
+        { label: 'Not Yet', kind: 'secondary', onClick: () => true },
+        { label: 'Open the Signing Window', kind: 'primary', onClick: () => {
+          navigate('draft', { tab: 'intl' });
+          return true;
+        }},
+      ],
+    });
   }
 
   function showDraftDayModal(state) {
@@ -583,6 +610,21 @@ window.BBGM_MAIN = (function () {
       }
       if (body) state.news.push({ date, body });
     }
+    // International headline events (bible 14.7).
+    for (const ev of summary.intlEvents || []) {
+      let body = null;
+      if (ev.kind === 'posting') {
+        body = `NPB star <strong>${ev.name}</strong> (${ev.pos}, ${ev.age}) has been posted — ` +
+               `posting fee around $${ev.fee}M. All 30 clubs can bid on the free-agent market.`;
+      } else if (ev.kind === 'defector') {
+        body = `Cuban standout <strong>${ev.name}</strong> (${ev.pos}, ${ev.age}) has defected and ` +
+               `is on the open market. Scouts are split — the upside is real, the data is thin.`;
+      } else if (ev.kind === 'kbo') {
+        body = `KBO veteran <strong>${ev.name}</strong> (${ev.pos}, ${ev.age}) declares for free agency.`;
+      }
+      if (body) state.news.push({ date, body });
+    }
+
     const userTeamObj = teamOf(userTeamId);
     if (userTeamObj && !userTeamObj.managerId) {
       state.news.push({
@@ -658,11 +700,16 @@ window.BBGM_MAIN = (function () {
 
     const simStep = (remaining) => {
       if (remaining <= 0) { finish(); return; }
-      // Never sim past a pending draft day (Sim 7 Days / Sim Season land
-      // here without going through advanceDay's check).
+      // Never sim past a pending draft day or signing window (Sim 7 Days /
+      // Sim Season land here without going through advanceDay's check).
       if (window.BBGM_DRAFT.draftDayPending(state, state.meta.currentDate)) {
         finish();
         showDraftDayModal(state);
+        return;
+      }
+      if (window.BBGM_INTL.windowPending(state, state.meta.currentDate)) {
+        finish();
+        showIntlWindowModal(state);
         return;
       }
       try {
@@ -683,6 +730,11 @@ window.BBGM_MAIN = (function () {
       if (window.BBGM_DRAFT.draftDayPending(state, today)) {
         finish();
         showDraftDayModal(state);
+        return;
+      }
+      if (window.BBGM_INTL.windowPending(state, today)) {
+        finish();
+        showIntlWindowModal(state);
         return;
       }
       if (numDays > 5 && remaining % 7 === 0) {
@@ -756,6 +808,18 @@ window.BBGM_MAIN = (function () {
     // AI trade activity (bible 15.7): AI-AI deals and occasional
     // unsolicited offers to the user, up to the July 31 deadline.
     window.BBGM_TRADES.aiTradeTick(state, today);
+
+    // International class fallback (bible 14.1): normally generated at the
+    // rollover; season 1 has no prior rollover, so it appears on day one.
+    const intlClass = window.BBGM_INTL.ensureClass(state, today);
+    if (intlClass) {
+      if (!state.news) state.news = [];
+      state.news.push({
+        date: { ...today },
+        body: `<strong>The ${intlClass.year} international class is posted.</strong> ` +
+              `~100 prospects sign July 2 — scout the pool and your bonus budget in the Draft Hub.`,
+      });
+    }
 
     // Amateur draft class (bible 13.3): generated May 1, scouted through
     // June 30 in the Draft Hub.

@@ -7,11 +7,16 @@ window.BBGM_UI_LEAGUE = (function () {
 
   let activeTab = 'standings';
 
-  function render(container, state) {
+  function render(container, state, opts = {}) {
+    // The Games view lives here as the Scores tab (folded in 0.13 to keep
+    // the bottom nav tight). navigate('league', {tab:'scores', gameId})
+    // deep-links straight to a box score.
+    if (opts.tab) activeTab = opts.tab === 'games' ? 'scores' : opts.tab;
     U.clearChildren(container);
     container.appendChild(U.el('h2', { style: { 'margin-bottom': '12px' } }, 'League'));
     const tabs = U.el('div', { class: 'tabs' });
     const tabDefs = [
+      { key: 'scores', label: 'Scores' },
       { key: 'standings', label: 'Standings' },
       { key: 'playoffs', label: 'Playoffs' },
       { key: 'leaders', label: 'Leaders' },
@@ -26,11 +31,20 @@ window.BBGM_UI_LEAGUE = (function () {
     }
     container.appendChild(tabs);
 
-    if (activeTab === 'standings') renderStandings(container, state);
+    if (activeTab === 'scores') renderScores(container, state, opts);
+    else if (activeTab === 'standings') renderStandings(container, state);
     else if (activeTab === 'playoffs') renderPlayoffs(container, state);
     else if (activeTab === 'leaders') renderLeaders(container, state);
     else if (activeTab === 'teams') renderTeams(container, state);
     else if (activeTab === 'history') renderHistory(container, state);
+  }
+
+  // Scores: the games view, embedded. Its today/recent/schedule chips
+  // re-render only this wrapper, leaving League's tab bar in place.
+  function renderScores(container, state, opts) {
+    const wrap = U.el('div');
+    container.appendChild(wrap);
+    window.BBGM_UI_GAMES.render(wrap, state, { gameId: opts.gameId });
   }
 
   // ------- Playoffs tab: bracket + matchups (3.4) -------

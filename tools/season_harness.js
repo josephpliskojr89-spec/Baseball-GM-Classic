@@ -37,6 +37,7 @@ const files = [
   'js/engine/freeagency.js',
   'js/engine/staff.js',
   'js/engine/draft.js',
+  'js/engine/intl.js',
   'js/engine/simulation.js',
   'js/engine/standings.js',
   'js/engine/offseason.js',
@@ -164,6 +165,15 @@ function simOneDay(state) {
     draftLines.push(`  ${today.year} draft: strength ${state.draftHistory[state.draftHistory.length - 1].strength}` +
       ` | #1 ${first ? `${first.name} (${first.pos}) to ${first.teamId}` : '?'}` +
       ` | signed ${recap.signedCount}/300`);
+  }
+  // International window: class exists all year (rollover / season-1
+  // fallback), auto-run on July 2 (mirrors main.js + hub).
+  W.BBGM_INTL.ensureClass(state, today);
+  if (W.BBGM_INTL.windowPending(state, today)) {
+    const recap = W.BBGM_INTL.autoRunWindow(state);
+    const top = recap.top5[0];
+    draftLines.push(`  ${today.year} intl window: signed ${recap.signedCount}/100` +
+      ` | #1 ${top ? `${top.name} (${top.pos}, ${top.country}) $${top.bonus}M to ${top.teamId}` : '?'}`);
   }
   const playedToday = new Set();
   for (const g of games) {
@@ -404,6 +414,17 @@ if (seasonsArg > 1) {
   }
   console.log('draftees: active', drafteesActive, '| on 26-man rosters', drafteesMLB,
     '| washed out', drafteesRetired, '| draft classes archived:', (state.draftHistory || []).length);
+  let intlActive = 0, intlMLB = 0, intlEventPlayers = 0;
+  for (const id in state.players) {
+    const p = state.players[id];
+    if (p.intlEvent && !p.retired) intlEventPlayers++;
+    if (!p.intl || p.retired) continue;
+    intlActive++;
+    if (p.rosterStatus === '26-man') intlMLB++;
+  }
+  console.log('intl signees: active', intlActive, '| on 26-man', intlMLB,
+    '| event players (postings/defectors/KBO) active:', intlEventPlayers,
+    '| windows archived:', (state.intlHistory || []).length);
   // Star scarcity (bible 4.3): ~60 stars league-wide, pyramid below.
   let n65 = 0, n60 = 0, n55 = 0;
   for (const t of state.league.teams) {

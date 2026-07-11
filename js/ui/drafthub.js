@@ -30,42 +30,35 @@ window.BBGM_UI_DRAFT = (function () {
     return 'one of the weakest classes in memory';
   }
 
-  function render(container, state) {
+  function render(container, state, opts = {}) {
+    if (opts.tab) activeTab = opts.tab;
     U.clearChildren(container);
     container.appendChild(U.el('h2', { style: { 'margin-bottom': '12px' } }, 'Draft Hub'));
 
     const draft = state.draft;
     const today = state.meta.currentDate;
     const isDraftDay = DRAFT().draftDayPending(state, today);
+    const isIntlDay = window.BBGM_INTL.windowPending(state, today);
 
-    // Event views own the whole screen: the live room needs focus, the
-    // recap and offseason countdown have no board to organize.
-    if (!draft || draft.year < today.year) {
-      renderCountdown(container, state);
-      renderHistory(container, state);
-      return;
-    }
-    if (draft.phase === 'live') {
+    // The live draft room owns the whole screen (a few minutes a year).
+    if (draft && draft.phase === 'live') {
       renderDraftRoom(container, state);
       return;
     }
-    if (draft.phase === 'complete') {
-      renderRecap(container, state);
-      renderHistory(container, state);
-      return;
-    }
 
-    // Class preview (and draft-day landing): tabbed — Overview / Big
-    // Board / Targets keep the long lists off the scout's summary page.
-    // On draft day the Begin card sits ABOVE the tabs so it's visible no
-    // matter which tab the user left the hub on.
+    // Tabbed hub — Overview / Big Board / Targets for the draft class,
+    // Int'l for the July 2 signing pool (bible 14). Event hero cards sit
+    // ABOVE the tabs so they're visible no matter which tab is open.
     if (isDraftDay) renderDraftDayCard(container, state);
-    const targetCount = (draft.userBoard || []).length;
+    if (isIntlDay) renderIntlDayCard(container, state);
+
+    const targetCount = draft && draft.phase === 'preview' ? (draft.userBoard || []).length : 0;
     const tabs = U.el('div', { class: 'tabs' });
     const tabDefs = [
       { key: 'overview', label: 'Overview' },
       { key: 'board', label: 'Big Board' },
       { key: 'targets', label: targetCount ? `Targets (${targetCount})` : 'Targets' },
+      { key: 'intl', label: 'Int’l' },
     ];
     for (const t of tabDefs) {
       tabs.appendChild(U.el('button', {
@@ -75,17 +68,50 @@ window.BBGM_UI_DRAFT = (function () {
     }
     container.appendChild(tabs);
 
-    if (activeTab === 'board') renderBigBoard(container, state, { pickMode: false });
-    else if (activeTab === 'targets') renderTargets(container, state);
+    if (activeTab === 'board') renderBigBoardTab(container, state);
+    else if (activeTab === 'targets') renderTargetsTab(container, state);
+    else if (activeTab === 'intl') renderIntl(container, state);
     else renderOverview(container, state);
   }
 
-  // ---- Overview tab: the scout's read, mock draft, history -------------------
+  // ---- Overview tab: the scout's read, mock draft / recap, history ----------
 
   function renderOverview(container, state) {
-    renderClassCard(container, state);
-    renderMock(container, state);
+    const draft = state.draft;
+    const today = state.meta.currentDate;
+    if (!draft || draft.year < today.year) {
+      renderCountdown(container, state);
+    } else if (draft.phase === 'complete') {
+      renderRecap(container, state);
+    } else {
+      renderClassCard(container, state);
+      renderMock(container, state);
+    }
     renderHistory(container, state);
+  }
+
+  // Big Board / Targets only exist while a class is scoutable.
+  function classInPreview(state) {
+    return state.draft && state.draft.phase === 'preview' &&
+      state.draft.year >= state.meta.currentDate.year;
+  }
+
+  function renderBigBoardTab(container, state) {
+    if (!classInPreview(state)) {
+      container.appendChild(U.el('div', { class: 'empty-state' },
+        'No draft class on the board. Rankings release May 1.'));
+      return;
+    }
+    renderBigBoard(container, state, { pickMode: false });
+  }
+
+  function renderTargetsTab(container, state) {
+    if (!classInPreview(state)) {
+      container.appendChild(U.el('div', { class: 'empty-state' },
+        'No draft class on the board. Rankings release May 1.'));
+      return;
+    }
+    renderTargets(container, state);
   }
 
   // ---- Targets tab: the user's flagged prospects ------------------------------
@@ -642,5 +668,399 @@ window.BBGM_UI_DRAFT = (function () {
     });
   }
 
+  // ---- International tab (bible 14) -----------------------------------------
+  // The July 2 signing pool lives beside the draft: same hub, same
+  // scouting rhythms, different rules — a bonus pool instead of picks.
+
+  let intlDepth = 30;
+
+  function INTL() { return window.BBGM_INTL; }
+
+  function renderIntlDayCard(container, state) {
+    const intl = state.intl;
+    const card = U.el('div', { class: 'card' });
+    card.appendChild(U.el('div', { class: 'card-title' }, `International Signing Day — ${intl.year}`));
+    card.appendChild(U.el('p', { style: { 'font-size': '13px', 'margin-bottom': '10px' } },
+      `The window is open. Work your bonus pool against 29 rival clubs — ` +
+      `the season resumes when the window closes.`));
+    card.appendChild(U.el('button', {
+      class: 'btn-primary', style: { width: '100%' },
+      on: { click: () => {
+        INTL().openWindow(state);
+        activeTab = 'intl';
+        window.BBGM_STATE.set(state);
+        window.BBGM_MAIN.refresh();
+      }},
+    }, intl.phase === 'window' ? 'Back to the Window' : 'Open the Signing Window'));
+    container.appendChild(card);
+  }
+
+  function intlBudgetLine(state) {
+    const intl = state.intl;
+    const b = intl.budgets[state.meta.userTeamId] || { pool: 0, spent: 0, restricted: false };
+    // Standing top-tier offers count as committed money in the display.
+    let committed = 0;
+    for (const pid in intl.userOffers || {}) committed += intl.userOffers[pid];
+    const remaining = Math.round((b.pool - b.spent - committed) * 100) / 100;
+    return { b, committed, remaining };
+  }
+
+  function renderIntlBudgetCard(container, state) {
+    const intl = state.intl;
+    const today = state.meta.currentDate;
+    const { b, committed, remaining } = intlBudgetLine(state);
+    const card = U.el('div', { class: 'card' });
+    card.appendChild(U.el('div', { class: 'card-title' }, `${intl.year} International Class`));
+    const daysOut = Math.max(0, D.diffDays(today, D.fromYMD(intl.year, 7, 2)));
+    card.appendChild(U.el('p', { style: { 'font-size': '13px', 'margin-bottom': '6px' } },
+      `~100 prospects sign starting July 2` +
+      (intl.phase === 'scouting' ? ` — ${daysOut} day${daysOut !== 1 ? 's' : ''} out.` : '.')));
+    const over = remaining < 0;
+    card.appendChild(U.el('p', {
+      style: { 'font-size': '13px', 'font-weight': '700', color: over ? 'var(--danger, #f85149)' : 'inherit' },
+    }, `Bonus pool $${b.pool.toFixed(1)}M • spent $${b.spent.toFixed(2)}M` +
+       (committed ? ` • offers out $${committed.toFixed(2)}M` : '') +
+       ` • ${over ? 'OVER by $' + Math.abs(remaining).toFixed(2) + 'M' : '$' + remaining.toFixed(2) + 'M left'}`));
+    if (b.restricted) {
+      card.appendChild(U.el('p', { style: { 'font-size': '12px', color: 'var(--danger, #f85149)' } },
+        'Signing restrictions in effect: nothing over $300K this window (overspend penalty).'));
+    } else if (over) {
+      card.appendChild(U.el('p', { class: 'muted', style: { 'font-size': '11px' } },
+        'Going over the pool draws league penalties: fines, reduced future pools, and at 30%+ a two-year signing restriction.'));
+    }
+    container.appendChild(card);
+  }
+
+  function renderIntl(container, state) {
+    const intl = state.intl;
+    if (!intl) {
+      container.appendChild(U.el('div', { class: 'empty-state' },
+        'The international class posts with the offseason. Check back after the season.'));
+      return;
+    }
+    if (intl.phase === 'window') {
+      renderIntlWindow(container, state);
+      return;
+    }
+    if (intl.phase === 'complete') {
+      renderIntlRecap(container, state);
+      renderIntlHistory(container, state);
+      return;
+    }
+    renderIntlBudgetCard(container, state);
+    renderIntlPool(container, state);
+    renderIntlHistory(container, state);
+  }
+
+  // The ranked pool list. In the window, unsigned prospects get sign/offer
+  // actions via the modal; targets pin to the top.
+  function renderIntlPool(container, state) {
+    const intl = state.intl;
+    const inWindow = intl.phase === 'window';
+    const ids = inWindow ? INTL().unsignedBoard(state.intl) : intl.board;
+    const targets = new Set(intl.userTargets || []);
+    const ordered = inWindow
+      ? ids.filter((id) => targets.has(id)).concat(ids.filter((id) => !targets.has(id)))
+      : ids;
+
+    const list = U.el('div', { class: 'roster-list' });
+    let shown = 0;
+    for (const id of ordered) {
+      if (shown >= intlDepth) break;
+      const p = intl.prospects[id];
+      if (!p) continue;
+      // Window steps gate which tiers are actionable; scouting shows all.
+      shown++;
+      list.appendChild(intlProspectRow(state, p, intl.board.indexOf(id) + 1, targets.has(id)));
+    }
+    container.appendChild(list);
+    if (shown >= intlDepth && ordered.length > intlDepth) {
+      container.appendChild(U.el('button', {
+        class: 'btn-secondary btn-sm', style: { width: '100%', 'margin-top': '6px' },
+        on: { click: () => { intlDepth += 35; window.BBGM_MAIN.refresh(); } },
+      }, 'Show More'));
+    }
+  }
+
+  function intlProspectRow(state, p, rank, isTarget) {
+    const row = U.el('button', {
+      class: 'roster-row',
+      on: { click: () => showIntlProspect(state, p.id) },
+    });
+    row.appendChild(U.el('span', { class: 'pos-badge' }, String(rank)));
+    const info = U.el('div', { class: 'player-row-info' });
+    info.appendChild(U.el('div', { class: 'player-row-name' },
+      `${isTarget ? '★ ' : ''}${p.name}`));
+    info.appendChild(U.el('div', { class: 'player-row-meta' },
+      `${p.primaryPosition} • ${p.age} • ${p.origin} • ask $${p.ask}M`));
+    row.appendChild(info);
+    const mid = (p.scout.ceilLo + p.scout.ceilHi) / 2;
+    const band = U.el('div', { class: 'player-row-stats' });
+    band.appendChild(U.el('div', { class: U.gradeClass(mid), style: { 'font-weight': '700' } },
+      `${p.scout.ceilLo}–${p.scout.ceilHi}`));
+    band.appendChild(U.el('div', { class: 'player-row-meta' }, 'ceiling'));
+    row.appendChild(band);
+    return row;
+  }
+
+  function showIntlProspect(state, prospectId) {
+    const intl = state.intl;
+    const p = intl.prospects[prospectId];
+    if (!p) return;
+    const rank = intl.board.indexOf(p.id) + 1;
+    const targets = intl.userTargets || (intl.userTargets = []);
+    const isTarget = targets.includes(p.id);
+
+    const body = U.el('div');
+    body.appendChild(U.el('p', { class: 'muted', style: { 'font-size': '12px', 'margin-bottom': '8px' } },
+      `${p.primaryPosition} • Bats ${p.bats} / Throws ${p.throws} • Age ${p.age} • ${p.origin}` +
+      ` • Rank #${rank} • Ask $${p.ask}M`));
+    const toolPairs = p.isPitcher
+      ? [['VEL', p.ratings.velocity], ['STF', p.ratings.stuff], ['MOV', p.ratings.movement], ['CTL', p.ratings.control]]
+      : [['CON', (p.ratings.contactVsR + p.ratings.contactVsL) / 2],
+         ['POW', (p.ratings.powerVsR + p.ratings.powerVsL) / 2],
+         ['DIS', p.ratings.discipline], ['SPD', p.ratings.speed], ['DEF', p.ratings.defense]];
+    const grid = U.el('div', { style: { display: 'flex', gap: '12px', 'flex-wrap': 'wrap', 'margin-bottom': '10px' } });
+    for (const [label, v] of toolPairs) {
+      const cell = U.el('div', { style: { 'text-align': 'center' } });
+      cell.appendChild(U.el('div', { class: U.gradeClass(v), style: { 'font-weight': '700', 'font-size': '16px' } },
+        String(U.gradeFor(v))));
+      cell.appendChild(U.el('div', { class: 'muted', style: { 'font-size': '10px' } }, label));
+      grid.appendChild(cell);
+    }
+    body.appendChild(grid);
+    const mid = (p.scout.ceilLo + p.scout.ceilHi) / 2;
+    body.appendChild(U.el('p', { style: { 'font-size': '13px' } }, [
+      'Projected ceiling: ',
+      U.el('span', { class: U.gradeClass(mid), style: { 'font-weight': '700' } },
+        `${p.scout.ceilLo}–${p.scout.ceilHi}`),
+      ' on his best tool. Teenage international projection — the widest error bars in scouting.',
+    ]));
+
+    const actions = [];
+    const refreshAll = () => {
+      window.BBGM_STATE.set(state);
+      window.BBGM_MAIN.refresh();
+    };
+    if (intl.phase === 'window') {
+      if (intl.windowStep === 1 && rank <= 10) {
+        const cur = intl.userOffers[p.id];
+        actions.push({
+          label: cur ? `Raise to $${Math.round(p.ask * 1.3 * 100) / 100}M` : `Offer ask ($${p.ask}M)`,
+          kind: 'primary',
+          onClick: () => {
+            intl.userOffers[p.id] = cur ? Math.round(p.ask * 1.3 * 100) / 100 : p.ask;
+            refreshAll();
+            return true;
+          },
+        });
+        if (cur) {
+          actions.push({ label: 'Withdraw Offer', kind: 'secondary', onClick: () => {
+            delete intl.userOffers[p.id];
+            refreshAll();
+            return true;
+          }});
+        }
+      } else if (intl.windowStep >= 2) {
+        actions.push({
+          label: `Sign for $${p.ask}M`, kind: 'primary',
+          onClick: () => {
+            const r = INTL().userSign(state, p.id);
+            if (r.error) U.showToast(r.error, 'warning');
+            else U.showToast(`Signed ${p.name} ($${r.signing.bonus}M).`, 'success');
+            refreshAll();
+            return true;
+          },
+        });
+      }
+    }
+    actions.push({
+      label: isTarget ? '★ Remove Target' : '☆ Flag as Target', kind: 'secondary',
+      onClick: () => {
+        if (isTarget) targets.splice(targets.indexOf(p.id), 1);
+        else targets.push(p.id);
+        refreshAll();
+        return true;
+      },
+    });
+    actions.push({ label: 'Close', kind: 'secondary', onClick: () => true });
+    U.showModal({ title: p.name, body, actions });
+  }
+
+  // The signing window room: three phases, user acts first, then advances.
+  function renderIntlWindow(container, state) {
+    const intl = state.intl;
+    renderIntlBudgetCard(container, state);
+
+    const step = intl.windowStep;
+    const strip = U.el('div', { class: 'card' });
+    const stepTitle = step === 1 ? 'Phase 1 — Top Prospects (ranks 1-10)'
+      : step === 2 ? 'Phase 2 — Mid Tier (ranks 11-50)'
+      : 'Phase 3 — Depth Signings (ranks 51-100)';
+    strip.appendChild(U.el('div', { class: 'card-title' }, stepTitle));
+    strip.appendChild(U.el('p', { style: { 'font-size': '13px', 'margin-bottom': '8px' } },
+      step === 1
+        ? 'Place offers on the elite names — every club with pool money is bidding. Highest bonus wins when you resolve the tier.'
+        : step === 2
+          ? 'Sign your targets at their ask before rival clubs work the same tier.'
+          : 'Bulk depth: small bonuses on lottery tickets. Close the window when you\'re done — up to 25% of unspent pool carries over.'));
+    const advLabel = step === 1 ? 'Resolve Top-Tier Signings ▶'
+      : step === 2 ? 'Continue to Depth Phase ▶' : 'Close the Window';
+    strip.appendChild(U.el('button', {
+      class: 'btn-primary btn-sm', style: { width: '100%', 'margin-bottom': '6px' },
+      on: { click: () => {
+        const r = INTL().advanceWindow(state);
+        window.BBGM_STATE.set(state);
+        const mine = (r.results || []).filter((x) => x && x.teamId === state.meta.userTeamId);
+        if (mine.length) {
+          U.showToast(`Signed: ${mine.map((x) => x.name).join(', ')}!`, 'success', 5000);
+        } else {
+          U.showToast(`${(r.results || []).length} prospects signed league-wide.`, 'info');
+        }
+        window.BBGM_MAIN.refresh();
+      }},
+    }, advLabel));
+    strip.appendChild(U.el('button', {
+      class: 'btn-secondary btn-sm', style: { width: '100%' },
+      on: { click: () => {
+        U.showModal({
+          title: 'Auto-run the window?',
+          body: 'Your front office works the rest of the window like an AI club — bids, mid-tier targets, and depth signings within your pool.',
+          actions: [
+            { label: 'Cancel', kind: 'secondary', onClick: () => true },
+            { label: 'Auto-run', kind: 'primary', onClick: () => {
+              INTL().autoRunWindow(state);
+              window.BBGM_STATE.set(state);
+              setTimeout(() => window.BBGM_MAIN.refresh(), 0);
+              return true;
+            }},
+          ],
+        });
+      }},
+    }, 'Auto-Run Window'));
+    container.appendChild(strip);
+
+    // My signings so far.
+    const mine = intl.signings.filter((s) => s.teamId === state.meta.userTeamId);
+    if (mine.length) {
+      const card = U.el('div', { class: 'card', style: { padding: '8px 12px' } });
+      card.appendChild(U.el('div', { class: 'card-title' }, 'Your Signings'));
+      for (const s of mine) {
+        card.appendChild(U.el('p', { style: { 'font-size': '13px', margin: '4px 0' } },
+          `#${s.rank} ${s.name} — ${s.pos}, ${s.age}, ${s.country} ($${s.bonus}M)`));
+      }
+      container.appendChild(card);
+    }
+
+    container.appendChild(U.el('div', { class: 'section-header' }, [
+      U.el('h3', {}, 'Available Prospects'),
+    ]));
+    renderIntlPool(container, state);
+  }
+
+  function renderIntlRecap(container, state) {
+    const recap = state.intl.recap;
+    if (!recap) return;
+    const card = U.el('div', { class: 'card' });
+    card.appendChild(U.el('div', { class: 'card-title' }, `${recap.year} Signing Window — Closed`));
+    card.appendChild(U.el('p', { style: { 'font-size': '13px' } },
+      `${recap.signedCount} of 100 prospects signed league-wide. ` +
+      `You spent $${recap.userSpent.toFixed(2)}M of your $${recap.userPool.toFixed(1)}M pool` +
+      (recap.userSpent > recap.userPool ? ' — OVER pool; league penalties apply.' : '.')));
+    container.appendChild(card);
+
+    if (recap.userSignings.length) {
+      container.appendChild(U.el('div', { class: 'section-header' }, [
+        U.el('h3', {}, 'Your Class'),
+      ]));
+      const list = U.el('div', { class: 'roster-list' });
+      for (const s of recap.userSignings) {
+        const alive = state.players[s.prospectId];
+        const row = U.el('button', {
+          class: 'roster-row',
+          on: { click: () => { if (alive) window.BBGM_UI_PLAYER.show(s.prospectId); } },
+        });
+        row.appendChild(U.el('span', { class: 'pos-badge' }, `#${s.rank}`));
+        const info = U.el('div', { class: 'player-row-info' });
+        info.appendChild(U.el('div', { class: 'player-row-name' }, `${s.name} — ${s.pos}`));
+        info.appendChild(U.el('div', { class: 'player-row-meta' },
+          `${s.age} • ${s.country} • $${s.bonus}M bonus`));
+        row.appendChild(info);
+        list.appendChild(row);
+      }
+      container.appendChild(list);
+    }
+
+    container.appendChild(U.el('div', { class: 'section-header' }, [
+      U.el('h3', {}, 'Top of the Class'),
+    ]));
+    const card2 = U.el('div', { class: 'card', style: { padding: '8px 12px' } });
+    for (const s of recap.top5) {
+      const t = teamOf(state, s.teamId);
+      card2.appendChild(U.el('p', { style: { 'font-size': '12px', margin: '3px 0' } },
+        `#${s.rank} ${s.name} (${s.pos}, ${s.country}) — ${t ? t.abbr : '?'}, $${s.bonus}M`));
+    }
+    container.appendChild(card2);
+  }
+
+  function renderIntlHistory(container, state) {
+    const hist = (state.intlHistory || []).slice().reverse();
+    const skipYear = state.intl && state.intl.phase === 'complete' ? state.intl.year : null;
+    const rows = hist.filter((h) => h.year !== skipYear);
+    if (!rows.length) return;
+    container.appendChild(U.el('div', { class: 'section-header' }, [
+      U.el('h3', {}, 'Signing History'),
+    ]));
+    const list = U.el('div', { class: 'roster-list' });
+    for (const h of rows) {
+      const top = h.signings.find((s) => s.rank === 1) || h.signings[0];
+      const mine = h.signings.filter((s) => s.teamId === state.meta.userTeamId);
+      const row = U.el('button', {
+        class: 'roster-row',
+        on: { click: () => showIntlHistoryYear(state, h) },
+      });
+      row.appendChild(U.el('span', { class: 'pos-badge' }, String(h.year)));
+      const info = U.el('div', { class: 'player-row-info' });
+      info.appendChild(U.el('div', { class: 'player-row-name' },
+        top ? `#1: ${top.name} (${top.pos}, ${top.country})` : '—'));
+      info.appendChild(U.el('div', { class: 'player-row-meta' },
+        `You signed ${mine.length} prospect${mine.length !== 1 ? 's' : ''}`));
+      row.appendChild(info);
+      list.appendChild(row);
+    }
+    container.appendChild(list);
+  }
+
+  function showIntlHistoryYear(state, h) {
+    const body = U.el('div');
+    const section = (title, signings) => {
+      if (!signings.length) return;
+      body.appendChild(U.el('div', { style: { 'font-weight': '700', margin: '8px 0 4px' } }, title));
+      for (const s of signings) {
+        const t = state.league.teams.find((x) => x.id === s.teamId);
+        const alive = state.players[s.prospectId];
+        const line = U.el('p', { style: { 'font-size': '12px', margin: '3px 0' } });
+        const text = `#${s.rank} ${s.name} (${s.pos}, ${s.country}) — ${t ? t.abbr : '?'}, $${s.bonus}M`;
+        if (alive) {
+          line.appendChild(U.el('a', {
+            href: '#',
+            on: { click: (e) => { e.preventDefault(); U.closeModal(); window.BBGM_UI_PLAYER.show(s.prospectId); } },
+          }, text));
+        } else {
+          line.textContent = text;
+        }
+        body.appendChild(line);
+      }
+    };
+    section('Top 10', h.signings.filter((s) => s.rank <= 10));
+    section('Your Signings', h.signings.filter((s) => s.teamId === state.meta.userTeamId));
+    U.showModal({
+      title: `${h.year} International Class`,
+      body,
+      actions: [{ label: 'Close', kind: 'secondary', onClick: () => true }],
+    });
+  }
+
   return { render };
 })();
+
