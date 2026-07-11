@@ -223,7 +223,8 @@ window.BBGM_PLAYER_GEN = (function () {
     // Bio (profile card): height/weight by role, full birthdate.
     const heightBase = isPitcher ? 75 : (primaryPosition === 'C' ? 73 : ['2B', 'SS'].includes(primaryPosition) ? 71.5 : 73.5);
     const heightIn = clamp(Math.round(rnormal(rng, heightBase, 1.8)), 68, 80);
-    const weightLb = clamp(Math.round((heightIn - 60) * 5.2 + 45 + rnormal(rng, 0, 14)), 160, 265);
+    // ~197 lb at 6'0", ~+6 lb per inch (matches the modern MLB roster page).
+    const weightLb = clamp(Math.round((heightIn - 60) * 6 + 125 + rnormal(rng, 0, 12)), 165, 270);
 
     return {
       id,

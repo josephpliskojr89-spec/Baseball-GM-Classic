@@ -293,6 +293,23 @@ window.BBGM_MAIN = (function () {
       window.BBGM_STATE.set(state);
     }
 
+    // Migration: 0.14.0 shipped a bad weight formula (everyone pinned at
+    // the 160 lb clamp). Rebuild implausibly light persisted weights on
+    // the corrected scale (~197 lb at 6'0", +6/inch).
+    let fixedWeights = false;
+    for (const id in state.players) {
+      const pl = state.players[id];
+      if (pl.weightLb != null && pl.heightIn != null &&
+          pl.weightLb < (pl.heightIn - 60) * 6 + 105) {
+        let h = 0;
+        for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+        pl.weightLb = Math.max(165, Math.min(270,
+          Math.round((pl.heightIn - 60) * 6 + 125 + (h % 30) - 15)));
+        fixedWeights = true;
+      }
+    }
+    if (fixedWeights) window.BBGM_STATE.set(state);
+
     // Migration: 0.12 merged A+ into A (four-level ladder).
     let mergedAPlus = false;
     for (const id in state.players) {
