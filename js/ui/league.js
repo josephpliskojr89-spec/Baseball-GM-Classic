@@ -18,6 +18,7 @@ window.BBGM_UI_LEAGUE = (function () {
     const tabDefs = [
       { key: 'scores', label: 'Scores' },
       { key: 'standings', label: 'Standings' },
+      { key: 'stats', label: 'Stats' },
       { key: 'playoffs', label: 'Playoffs' },
       { key: 'leaders', label: 'Leaders' },
       { key: 'teams', label: 'Teams' },
@@ -31,12 +32,253 @@ window.BBGM_UI_LEAGUE = (function () {
     }
     container.appendChild(tabs);
 
+    if (opts.teamId) { viewTeamId = opts.teamId; }
+    if (opts.statsTeamId) { statsTeamId = opts.statsTeamId; }
+
     if (activeTab === 'scores') renderScores(container, state, opts);
     else if (activeTab === 'standings') renderStandings(container, state);
+    else if (activeTab === 'stats') renderStatsPage(container, state);
     else if (activeTab === 'playoffs') renderPlayoffs(container, state);
+    else if (activeTab === 'teams' && viewTeamId) renderTeamPage(container, state);
     else if (activeTab === 'leaders') renderLeaders(container, state);
     else if (activeTab === 'teams') renderTeams(container, state);
     else if (activeTab === 'history') renderHistory(container, state);
+  }
+
+  // ------- Team pages + Stats (0.15.1) -------
+  // Any club's full roster is browsable, and the Stats tab is the one-stop
+  // season table: hitting / pitching, sortable columns, any team.
+
+  let viewTeamId = null;   // team page open inside the Teams tab
+  let statsTeamId = null;  // Stats tab selection (defaults to user team)
+  let statsMode = 'hitting';
+  let statsSort = null;    // { key, dir }
+
+  function overallOf(p) { return Math.round(window.BBGM_ROSTER.overall(p)); }
+
+  function renderTeamPage(container, state) {
+    const team = state.league.teams.find((t) => t.id === viewTeamId);
+    if (!team) { viewTeamId = null; renderTeams(container, state); return; }
+    const players = state.players;
+
+    container.appendChild(U.el('button', {
+      class: 'btn-secondary btn-sm', style: { 'margin-bottom': '10px' },
+      on: { click: () => { viewTeamId = null; window.BBGM_MAIN.refresh(); } },
+    }, '← All Teams'));
+
+    const strip = U.el('div', { class: 'team-strip', style: U.teamColorVars(team) });
+    strip.appendChild(U.teamCap(team, { size: 'lg' }));
+    const info = U.el('div');
+    info.appendChild(U.el('div', { class: 'team-strip-name' }, team.name));
+    info.appendChild(U.el('div', { class: 'team-strip-meta' },
+      `${U.divisionLabel(team)} • ${team.ownerName} • ${team.competitiveWindow}`));
+    strip.appendChild(info);
+    strip.appendChild(U.el('div', { class: 'team-strip-record' },
+      `${team.seasonRecord.w}-${team.seasonRecord.l}`));
+    container.appendChild(strip);
+
+    container.appendChild(U.el('button', {
+      class: 'btn-secondary btn-sm', style: { width: '100%', margin: '10px 0' },
+      on: { click: () => {
+        statsTeamId = team.id;
+        activeTab = 'stats';
+        window.BBGM_MAIN.refresh();
+      }},
+    }, 'View Season Stats'));
+
+    container.appendChild(U.el('div', { class: 'inset-list', style: { 'margin-bottom': '4px' } }, [
+      insetRow('Ballpark', `${team.ballpark.name} (run ${team.ballpark.factors.run}, HR ${team.ballpark.factors.hr})`),
+      insetRow('Market / Payroll Base', `${team.market[0].toUpperCase() + team.market.slice(1)} • ${U.fmtMoney(team.payrollBase)}`),
+      insetRow('Run Diff', String(team.seasonRecord.rs - team.seasonRecord.ra)),
+    ]));
+
+    const roster = team.roster.map((id) => players[id]).filter(Boolean);
+    const groups = [
+      ['Hitters', roster.filter((p) => !p.isPitcher).sort((a, b) => overallOf(b) - overallOf(a))],
+      ['Pitchers', roster.filter((p) => p.isPitcher).sort((a, b) => overallOf(b) - overallOf(a))],
+    ];
+    for (const [label, list] of groups) {
+      container.appendChild(U.el('div', { class: 'card-title', style: { 'margin-top': '12px' } },
+        `${label} (${list.length})`));
+      const wrap = U.el('div', { class: 'roster-list' });
+      for (const p of list) {
+        const row = U.el('button', {
+          class: 'roster-row',
+          on: { click: () => window.BBGM_UI_PLAYER.show(p.id) },
+        });
+        row.appendChild(U.posBadge(p));
+        const pi = U.el('div', { class: 'player-row-info' });
+        pi.appendChild(U.el('div', { class: 'player-row-name' }, p.name));
+        pi.appendChild(U.el('div', { class: 'player-row-meta' },
+          `Age ${p.age} • ${p.bats}/${p.throws}` +
+          (p.currentInjury ? ' • 🤕 injured' : '')));
+        row.appendChild(pi);
+        const ovr = overallOf(p);
+        const stats = U.el('div', { class: 'player-row-stats' });
+        stats.appendChild(U.el('span', { class: U.gradeClass(ovr) }, String(U.gradeFor(ovr))));
+        stats.appendChild(U.el('span', { class: 'key' }, 'OVR'));
+        row.appendChild(stats);
+        wrap.appendChild(row);
+      }
+      container.appendChild(wrap);
+    }
+    if ((team.il || []).length) {
+      container.appendChild(U.el('div', { class: 'card-title', style: { 'margin-top': '12px' } },
+        `Injured List (${team.il.length})`));
+      const wrap = U.el('div', { class: 'roster-list' });
+      for (const id of team.il) {
+        const p = players[id];
+        if (!p) continue;
+        const row = U.el('button', {
+          class: 'roster-row',
+          on: { click: () => window.BBGM_UI_PLAYER.show(p.id) },
+        });
+        row.appendChild(U.posBadge(p));
+        const pi = U.el('div', { class: 'player-row-info' });
+        pi.appendChild(U.el('div', { class: 'player-row-name' }, p.name));
+        pi.appendChild(U.el('div', { class: 'player-row-meta' },
+          p.currentInjury ? `${p.currentInjury.type} — ${p.currentInjury.daysOut} days` : 'IL'));
+        row.appendChild(pi);
+        wrap.appendChild(row);
+      }
+      container.appendChild(wrap);
+    }
+  }
+
+  // Column specs: [key, label, value(s or p), fmt, defaultDesc]
+  const HIT_COLS = [
+    ['g', 'G', (s) => s.g || 0],
+    ['ab', 'AB', (s) => s.ab || 0],
+    ['h', 'H', (s) => s.h || 0],
+    ['hr', 'HR', (s) => s.hr || 0],
+    ['rbi', 'RBI', (s) => s.rbi || 0],
+    ['sb', 'SB', (s) => s.sb || 0],
+    ['bb', 'BB', (s) => s.bb || 0],
+    ['k', 'SO', (s) => s.k || 0],
+    ['avg', 'AVG', (s) => S.avg(s), (v) => S.fmtAvg(v)],
+    ['obp', 'OBP', (s) => S.obp(s), (v) => S.fmtAvg(v)],
+    ['slg', 'SLG', (s) => S.slg(s), (v) => S.fmtAvg(v)],
+    ['ops', 'OPS', (s) => S.ops(s), (v) => v.toFixed(3)],
+  ];
+  const PIT_COLS = [
+    ['g', 'G', (s) => s.g || 0],
+    ['gs', 'GS', (s) => s.gs || 0],
+    ['w', 'W', (s) => s.w || 0],
+    ['l', 'L', (s) => s.l || 0],
+    ['sv', 'SV', (s) => s.sv || 0],
+    ['ip', 'IP', (s) => (s.ipOuts || 0) / 3, (v, s) => S.fmtIP(s.ipOuts || 0)],
+    ['era', 'ERA', (s) => S.era(s), (v) => v.toFixed(2), 'asc'],
+    ['whip', 'WHIP', (s) => S.whip(s), (v) => v.toFixed(2), 'asc'],
+    ['k', 'K', (s) => s.k || 0],
+    ['bb', 'BB', (s) => s.bb || 0],
+    ['hr', 'HR', (s) => s.hr || 0],
+  ];
+
+  function renderStatsPage(container, state) {
+    if (!statsTeamId) statsTeamId = state.meta.userTeamId;
+    const year = state.meta.currentDate.year;
+    const players = state.players;
+
+    // Team selector: native select (mobile-friendly), NABL order.
+    const teams = state.league.teams.slice().sort((a, b) => {
+      const d = U.compareTeamsByDivision(a, b);
+      return d !== 0 ? d : a.name.localeCompare(b.name);
+    });
+    const picker = U.el('select', {
+      class: 'stats-team-picker',
+      style: {
+        width: '100%', padding: '10px 12px', 'margin-bottom': '10px',
+        background: 'var(--bg-elevated, #1c2230)', color: 'inherit',
+        border: '1px solid var(--border, #30363d)', 'border-radius': 'var(--radius-md, 8px)',
+        'font-size': '14px',
+      },
+      on: { change: (e) => { statsTeamId = e.target.value; window.BBGM_MAIN.refresh(); } },
+    });
+    for (const t of teams) {
+      const opt = U.el('option', { value: t.id },
+        `${t.name}${t.id === state.meta.userTeamId ? ' (you)' : ''}`);
+      if (t.id === statsTeamId) opt.setAttribute('selected', 'selected');
+      picker.appendChild(opt);
+    }
+    container.appendChild(picker);
+
+    // Hitting / Pitching chips. (Advanced stats get a third chip later.)
+    const chips = U.el('div', { class: 'filter-bar', style: { 'margin-bottom': '10px' } });
+    for (const m of [['hitting', 'Hitting'], ['pitching', 'Pitching']]) {
+      chips.appendChild(U.el('button', {
+        class: `filter-chip${statsMode === m[0] ? ' active' : ''}`,
+        on: { click: () => { statsMode = m[0]; statsSort = null; window.BBGM_MAIN.refresh(); } },
+      }, m[1]));
+    }
+    container.appendChild(chips);
+
+    const team = state.league.teams.find((t) => t.id === statsTeamId);
+    const pool = team.roster.concat(team.il || [])
+      .map((id) => players[id])
+      .filter(Boolean);
+    const isPitching = statsMode === 'pitching';
+    const cols = isPitching ? PIT_COLS : HIT_COLS;
+    const rows = pool
+      .filter((p) => p.isPitcher === isPitching)
+      .map((p) => ({ p, s: p.stats[year] || {} }))
+      .filter((r) => isPitching ? (r.s.g || 0) > 0 || (r.s.ipOuts || 0) > 0 : (r.s.pa || 0) > 0);
+
+    if (!rows.length) {
+      container.appendChild(U.el('div', { class: 'empty-state' },
+        `No ${statsMode} stats yet this season.`));
+      return;
+    }
+
+    // Sort: tap a column header; first tap uses the stat's natural
+    // direction (ERA/WHIP ascending, everything else descending).
+    if (!statsSort) statsSort = { key: isPitching ? 'ip' : 'ops', dir: 'desc' };
+    const sortCol = cols.find((c) => c[0] === statsSort.key) || cols[0];
+    rows.sort((a, b) => {
+      const va = sortCol[2](a.s), vb = sortCol[2](b.s);
+      return statsSort.dir === 'asc' ? va - vb : vb - va;
+    });
+
+    const wrap = U.el('div', { class: 'stats-scroll' });
+    const table = U.el('table', { class: 'stats-table' });
+    const trh = U.el('tr');
+    trh.appendChild(U.el('th', {}, 'Player'));
+    for (const c of cols) {
+      const active = statsSort.key === c[0];
+      trh.appendChild(U.el('th', {
+        style: { cursor: 'pointer', ...(active ? { color: 'var(--accent, #58a6ff)' } : {}) },
+        on: { click: () => {
+          if (statsSort.key === c[0]) {
+            statsSort.dir = statsSort.dir === 'desc' ? 'asc' : 'desc';
+          } else {
+            statsSort = { key: c[0], dir: c[4] === 'asc' ? 'asc' : 'desc' };
+          }
+          window.BBGM_MAIN.refresh();
+        }},
+      }, c[1] + (active ? (statsSort.dir === 'desc' ? ' ↓' : ' ↑') : '')));
+    }
+    const thead = U.el('thead');
+    thead.appendChild(trh);
+    table.appendChild(thead);
+
+    const tbody = U.el('tbody');
+    for (const r of rows) {
+      const tr = U.el('tr', {
+        style: { cursor: 'pointer' },
+        on: { click: () => window.BBGM_UI_PLAYER.show(r.p.id) },
+      });
+      tr.appendChild(U.el('td', { style: { 'white-space': 'nowrap' } },
+        `${r.p.name} ${r.p.primaryPosition}`));
+      for (const c of cols) {
+        const v = c[2](r.s);
+        tr.appendChild(U.el('td', {}, c[3] ? c[3](v, r.s) : String(v)));
+      }
+      tbody.appendChild(tr);
+    }
+    table.appendChild(tbody);
+    wrap.appendChild(table);
+    container.appendChild(wrap);
+    container.appendChild(U.el('p', { class: 'muted', style: { 'font-size': '11px', 'margin-top': '8px' } },
+      'Tap a column to sort, a row for the player card. Advanced stats are coming later.'));
   }
 
   // Scores: the games view, embedded. Its today/recent/schedule chips
@@ -463,7 +705,7 @@ window.BBGM_UI_LEAGUE = (function () {
       }
       const row = U.el('button', {
         class: 'roster-row',
-        on: { click: () => showTeamDetail(state, t) }
+        on: { click: () => { viewTeamId = t.id; window.BBGM_MAIN.refresh(); } }
       });
       row.appendChild(U.teamCap(t));
       const info = U.el('div', { class: 'player-row-info' });
@@ -475,29 +717,6 @@ window.BBGM_UI_LEAGUE = (function () {
       row.appendChild(stats);
       container.appendChild(row);
     }
-  }
-
-  function showTeamDetail(state, team) {
-    const body = U.el('div');
-    body.appendChild(U.el('div', { class: 'inset-list' }, [
-      insetRow('League/Division', U.divisionLabel(team)),
-      insetRow('Owner Archetype', team.ownerName),
-      insetRow('Market', team.market[0].toUpperCase() + team.market.slice(1)),
-      insetRow('Payroll Base', U.fmtMoney(team.payrollBase)),
-      insetRow('Ballpark', team.ballpark.name),
-      insetRow('Run Factor', String(team.ballpark.factors.run)),
-      insetRow('HR Factor', String(team.ballpark.factors.hr)),
-      insetRow('Window', team.competitiveWindow),
-      insetRow('Record', `${team.seasonRecord.w}-${team.seasonRecord.l}`),
-      insetRow('Run Diff', String(team.seasonRecord.rs - team.seasonRecord.ra)),
-    ]));
-    U.showModal({
-      title: team.name,
-      body,
-      actions: [
-        { label: 'Close', kind: 'primary', onClick: () => true },
-      ],
-    });
   }
 
   function insetRow(label, value) {
