@@ -1401,6 +1401,8 @@ Pitcher stamina tuning must be validated by checking full-season starter IP/star
 
 **Reliever rest (implemented, 0.7.0).** Between-game fatigue exists for relievers: an arm that has pitched three consecutive days is unavailable (except as a depleted-pen last resort), and an arm that worked yesterday is picked last within his role and pitches on a ~35% shorter leash. Appearance dates and consecutive-day counts are stamped on the player after each game.
 
+**Starter rest (implemented, 0.15.3).** Starter selection walks the rotation from today's slot, but an arm only takes the ball on normal rest — 4+ full days since his last appearance, a standard 5-man turn. Before this, a hole in the rotation (IL stint, stale ref, shrunken 4-man rotation) funneled every extra turn to whoever was healthy — including consecutive days — producing 40-66-start seasons. Fixes: (1) when a rotation starter hits the IL, the pitcher called up covers his rotation slot directly, and the returning starter reclaims it on activation; (2) rotation slots vacated for good (trade, demotion, release) backfill from the roster instead of shrinking the rotation; (3) if no rotation arm is rested, a fresh non-rotation swingman makes a spot start (SP-primary first, never the closer); a rotation arm on short rest (3 days) is preferred over a full bullpen day, and a rest-free fallback keeps games simming. Measured post-fix: league max GS 33-34 with zero pitchers above 36 (pre-fix: max 66, with 23 arms over 36 on the same seed). The season harness hard-fails any franchise season containing a GS above 36.
+
 #### 7.4.8 Pitcher Decisions (W / L / SV / HLD / BS)
 
 Decisions follow the official scoring rules, simplified:

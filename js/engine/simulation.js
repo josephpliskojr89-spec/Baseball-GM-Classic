@@ -1317,17 +1317,46 @@ window.BBGM_SIM = (function () {
   function pickStarter(team, players, state) {
     if (!team.rotation || team.rotation.length === 0) return null;
     const dayIndex = state.meta.gamesPlayedByTeam ? (state.meta.gamesPlayedByTeam[team.id] || 0) : 0;
-    // Walk the rotation starting at today's slot; the first available pitcher
-    // (healthy AND still on the roster — rotation refs can go stale between
-    // config rebuilds) starts. This lets an injured ace get skipped without
-    // forcing a permanent rotation swap.
     const inj = INJ();
+    const D = window.BBGM_DATES;
+    const today = state.meta.currentDate;
+    // Days since the arm last appeared (starts and relief outings both
+    // stamp lastPitchedDate). Never-pitched arms are fully rested.
+    const idle = (p) => (p.lastPitchedDate ? D.diffDays(p.lastPitchedDate, today) : 99);
+    const usable = (p) => p && inj.isAvailable(p) && team.roster.includes(p.id);
     const n = team.rotation.length;
+
+    // Pass 1 — rotation order on normal rest: 4+ full days since the last
+    // appearance, i.e. a standard 5-man turn. Walking from today's slot
+    // lets an injured/unavailable arm be skipped without forcing a
+    // permanent rotation swap. The rest floor is what stops rotation holes
+    // (IL stints, stale refs, shrunken 4-man rotations) from funneling
+    // every extra turn to whoever is healthy (the 50-start-season bug).
     for (let i = 0; i < n; i++) {
       const sp = players[team.rotation[(dayIndex + i) % n]];
-      if (sp && inj.isAvailable(sp) && team.roster.includes(sp.id)) return sp;
+      if (usable(sp) && idle(sp) >= 5) return sp;
     }
-    // Whole rotation unavailable — best healthy rostered arm starts
+    // Pass 2 — no rotation arm is rested: a fresh non-rotation arm makes a
+    // spot start instead, like a real club. SP-primary swingmen first,
+    // then long-relief stamina; the closer never spot-starts.
+    const spot = team.roster
+      .map((id) => players[id])
+      .filter((p) => usable(p) && p.isPitcher && p.id !== team.closer &&
+        !team.rotation.includes(p.id) && idle(p) >= 3)
+      .sort((a, b) => {
+        const sa = a.primaryPosition === 'SP' ? 0 : 1;
+        const sb = b.primaryPosition === 'SP' ? 0 : 1;
+        if (sa !== sb) return sa - sb;
+        return (b.ratings.stamina || 0) - (a.ratings.stamina || 0);
+      });
+    if (spot[0]) return spot[0];
+    // Pass 3 — rotation arm on short rest (3 days off) beats a full
+    // bullpen day.
+    for (let i = 0; i < n; i++) {
+      const sp = players[team.rotation[(dayIndex + i) % n]];
+      if (usable(sp) && idle(sp) >= 4) return sp;
+    }
+    // Last resort — best healthy rostered arm regardless of rest
     // (SP-primary preferred) so the game can sim rather than throw.
     const arms = team.roster
       .map((id) => players[id])

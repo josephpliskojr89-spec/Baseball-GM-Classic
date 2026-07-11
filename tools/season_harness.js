@@ -342,6 +342,19 @@ console.log('GP of lineup regulars — median C:', median(gpC).toFixed(0), '(t ~
   '| median non-C:', median(gpReg).toFixed(0), '(t ~145-155)',
   '| 160+ GP:', gp160, '(t: a handful, all iron-man types)');
 console.log('iron-man trait starters:', ironTraitStarters, '| of whom played 160+:', ironTrait160);
+// Starter workload (7.4): a 5-man turn tops out around 32-34 starts.
+// GS above 36 means rotation holes are funneling starts to whoever is
+// healthy (the 50-start-season bug fixed in 0.15.3).
+let maxGS = 0, gsOver36 = 0;
+const gsOffenders = [];
+for (const id in players) {
+  const s = players[id].stats && players[id].stats[YEAR];
+  const gs = (s && s.gs) || 0;
+  if (gs > maxGS) maxGS = gs;
+  if (gs > 36) { gsOver36++; gsOffenders.push(`${players[id].name} ${gs}`); }
+}
+console.log('starter workload — max GS:', maxGS, '(t <=35) | GS>36:', gsOver36,
+  gsOffenders.length ? '[' + gsOffenders.join(', ') + ']' : '');
 // Single-game feats logged this season (achievements ledger).
 const featCounts = {};
 for (const id in state.players) {
@@ -394,11 +407,24 @@ if (seasonsArg > 1) {
     while (draftLines.length) console.log(draftLines.shift());
     const rg = (runsByLeague.east + runsByLeague.west - runsBefore) /
                Math.max(1, gamesByLeague.east + gamesByLeague.west - sgBefore);
+    // Starter-workload guard every season (not just season 1): GS above 36
+    // means rotation IL holes are funneling starts again.
+    let seasonMaxGS = 0;
+    const yr = state.meta.currentDate.year;
+    for (const id in state.players) {
+      const s = state.players[id].stats && state.players[id].stats[yr];
+      if (s && (s.gs || 0) > seasonMaxGS) seasonMaxGS = s.gs;
+    }
     console.log(`  ${state.meta.currentDate.year} season: ${totalGames - gamesBefore} games` +
       ` | R/G ${rg.toFixed(2)} | IL stints ${ilStints - ilBefore}` +
       ` | sim errors ${simErrors - errBefore} | ties ${ties - tiesBefore}` +
+      ` | max GS ${seasonMaxGS}` +
       ` | FA pool ${(state.freeAgents || []).length}` +
       ` | active ${Object.keys(state.players).filter((id) => !state.players[id].retired).length}`);
+    if (seasonMaxGS > 36) {
+      console.log(`✗ STARTER OVERWORK: a pitcher made ${seasonMaxGS} starts in ${yr}`);
+      process.exit(1);
+    }
   }
 
   // Franchise diagnostics.

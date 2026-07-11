@@ -29,8 +29,36 @@ window.BBGM_ROSTER = (function () {
     const inP = inId ? players[inId] : null;
     const ri = team.rotation.indexOf(outId);
     if (ri >= 0) {
-      if (inP && inP.isPitcher) team.rotation[ri] = inId;
-      else team.rotation.splice(ri, 1);
+      if (inP && inP.isPitcher) {
+        team.rotation[ri] = inId;
+      } else {
+        // Backfill from the roster rather than shrinking — a rotation that
+        // quietly drops to 4 arms hands its survivors 40-start seasons.
+        // Best SP-primary arm not already in the rotation (never the
+        // closer); he leaves his pen role, since he now starts.
+        const cand = team.roster
+          .map((id) => players[id])
+          .filter((p) => p && p.isPitcher && p.id !== outId &&
+            p.id !== team.closer && !team.rotation.includes(p.id))
+          .sort((a, b) => {
+            const sa = a.primaryPosition === 'SP' ? 0 : 1;
+            const sb = b.primaryPosition === 'SP' ? 0 : 1;
+            if (sa !== sb) return sa - sb;
+            return (b.ratings.stamina || 0) - (a.ratings.stamina || 0);
+          })[0];
+        if (cand) {
+          team.rotation[ri] = cand.id;
+          const cbi = (team.bullpen || []).indexOf(cand.id);
+          if (cbi >= 0) team.bullpen.splice(cbi, 1);
+          const cRoles = team.bullpenRoles || {};
+          for (const role in cRoles) {
+            const cx = cRoles[role].indexOf(cand.id);
+            if (cx >= 0) cRoles[role].splice(cx, 1);
+          }
+        } else {
+          team.rotation.splice(ri, 1);
+        }
+      }
     }
     if (team.closer === outId) team.closer = (inP && inP.isPitcher) ? inId : null;
     const bi = (team.bullpen || []).indexOf(outId);
@@ -105,7 +133,13 @@ window.BBGM_ROSTER = (function () {
     if (!team.il.includes(player.id)) team.il.push(player.id);
     player.rosterStatus = 'IL';
 
-    const need = player.primaryPosition === 'C' ? 'C' : null;
+    // A rotation starter's IL stint used to leave his slot in place, and
+    // pickStarter's "first available arm" walk funneled every one of those
+    // starts to the adjacent healthy starters — 50-start seasons when a
+    // rotation carried two long-term holes. The call-up takes the injured
+    // starter's rotation turn instead, like a real team.
+    const rSlot = (team.rotation || []).indexOf(player.id);
+    const need = player.primaryPosition === 'C' ? 'C' : (rSlot >= 0 ? 'SP' : null);
     const callUp = bestCallUp(team, players, player.isPitcher, need);
     if (callUp) {
       const mi = team.minors.indexOf(callUp.id);
@@ -115,8 +149,11 @@ window.BBGM_ROSTER = (function () {
       callUp.rosterStatus = '26-man';
       // Remember who this call-up covers, so activation reverses it.
       callUp.ilCallUpFor = player.id;
-      // A called-up pitcher slots into the pen as depth.
-      if (callUp.isPitcher) {
+      if (callUp.isPitcher && rSlot >= 0) {
+        // Cover the rotation hole directly.
+        team.rotation[rSlot] = callUp.id;
+      } else if (callUp.isPitcher) {
+        // A called-up reliever slots into the pen as depth.
         if (!team.bullpen.includes(callUp.id)) team.bullpen.push(callUp.id);
         const roles = team.bullpenRoles || (team.bullpenRoles = { setup: [], middle: [], long: [], mopup: [] });
         if (!Object.values(roles).some((arr) => arr.includes(callUp.id))) roles.middle.push(callUp.id);
@@ -160,10 +197,18 @@ window.BBGM_ROSTER = (function () {
     down.status = 'minors';
     down.rosterStatus = 'AAA';
     delete down.ilCallUpFor;
-    // Scrub the demoted player from team config (he may have been slotted
-    // into the bullpen as call-up depth). The returning player needs no
-    // re-insertion: his ids never left the lineup/rotation/bullpen config
-    // during the stint — the engine simply subbed around him daily.
+    // If the demoted cover held a rotation slot (a call-up covering an
+    // IL'd starter's turn), the returning pitcher reclaims it BEFORE the
+    // scrub below — replaceRefs(…, null) would splice the slot and shrink
+    // the rotation permanently.
+    const rSlot = (team.rotation || []).indexOf(down.id);
+    if (rSlot >= 0 && player.isPitcher && !team.rotation.includes(player.id)) {
+      team.rotation[rSlot] = player.id;
+    }
+    // Scrub the demoted player from any remaining team config (he may have
+    // been slotted into the bullpen as call-up depth). The returning
+    // player's lineup/bullpen ids never left the config during the stint —
+    // the engine simply subbed around him daily.
     replaceRefs(team, players, down.id, null);
     return { sentDown: down };
   }
