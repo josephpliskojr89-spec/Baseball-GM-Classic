@@ -320,7 +320,8 @@ window.BBGM_UI_DASHBOARD = (function () {
       const t = row.team;
       const tr = U.el('div', {
         class: `standings-row${t.id === team.id ? ' highlight' : ''}`,
-        on: { click: () => window.BBGM_MAIN.navigate('league') },
+        // Deep-link straight to the club's roster page.
+        on: { click: () => window.BBGM_MAIN.navigate('league', { tab: 'standings', teamId: t.id }) },
       });
       const tc = U.el('div', { class: 'col-team' });
       tc.appendChild(U.teamCap(t));

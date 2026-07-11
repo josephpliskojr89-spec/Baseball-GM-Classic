@@ -21,13 +21,14 @@ window.BBGM_UI_LEAGUE = (function () {
       { key: 'stats', label: 'Stats' },
       { key: 'playoffs', label: 'Playoffs' },
       { key: 'leaders', label: 'Leaders' },
-      { key: 'teams', label: 'Teams' },
       { key: 'history', label: 'History' },
     ];
     for (const t of tabDefs) {
       tabs.appendChild(U.el('button', {
         class: `tab${activeTab === t.key ? ' active' : ''}`,
-        on: { click: () => { activeTab = t.key; render(container, state); } }
+        // Tab clicks always land on the tab's top view (an open team page
+        // closes rather than shadowing the standings).
+        on: { click: () => { activeTab = t.key; viewTeamId = null; render(container, state); } }
       }, t.label));
     }
     container.appendChild(tabs);
@@ -36,20 +37,20 @@ window.BBGM_UI_LEAGUE = (function () {
     if (opts.statsTeamId) { statsTeamId = opts.statsTeamId; }
 
     if (activeTab === 'scores') renderScores(container, state, opts);
+    else if (activeTab === 'standings' && viewTeamId) renderTeamPage(container, state);
     else if (activeTab === 'standings') renderStandings(container, state);
     else if (activeTab === 'stats') renderStatsPage(container, state);
     else if (activeTab === 'playoffs') renderPlayoffs(container, state);
-    else if (activeTab === 'teams' && viewTeamId) renderTeamPage(container, state);
     else if (activeTab === 'leaders') renderLeaders(container, state);
-    else if (activeTab === 'teams') renderTeams(container, state);
     else if (activeTab === 'history') renderHistory(container, state);
   }
 
   // ------- Team pages + Stats (0.15.1) -------
-  // Any club's full roster is browsable, and the Stats tab is the one-stop
+  // Any club's full roster is browsable (tap a standings row — the Teams
+  // tab folded in here in 0.15.2), and the Stats tab is the one-stop
   // season table: hitting / pitching, sortable columns, any team.
 
-  let viewTeamId = null;   // team page open inside the Teams tab
+  let viewTeamId = null;   // team page open inside the Standings tab
   let statsTeamId = null;  // Stats tab selection (defaults to user team)
   let statsMode = 'hitting';
   let statsSort = null;    // { key, dir }
@@ -58,13 +59,13 @@ window.BBGM_UI_LEAGUE = (function () {
 
   function renderTeamPage(container, state) {
     const team = state.league.teams.find((t) => t.id === viewTeamId);
-    if (!team) { viewTeamId = null; renderTeams(container, state); return; }
+    if (!team) { viewTeamId = null; renderStandings(container, state); return; }
     const players = state.players;
 
     container.appendChild(U.el('button', {
       class: 'btn-secondary btn-sm', style: { 'margin-bottom': '10px' },
       on: { click: () => { viewTeamId = null; window.BBGM_MAIN.refresh(); } },
-    }, '← All Teams'));
+    }, '← Standings'));
 
     const strip = U.el('div', { class: 'team-strip', style: U.teamColorVars(team) });
     strip.appendChild(U.teamCap(team, { size: 'lg' }));
@@ -600,8 +601,11 @@ window.BBGM_UI_LEAGUE = (function () {
 
       for (const row of block.teams) {
         const t = row.team;
+        // Tap a club for its roster page (the Teams tab folded in here).
         const tr = U.el('div', {
           class: `standings-row${t.id === userTeam.id ? ' highlight' : ''}`,
+          style: { cursor: 'pointer' },
+          on: { click: () => { viewTeamId = t.id; window.BBGM_MAIN.refresh(); } },
         });
         const tc = U.el('div', { class: 'col-team' });
         tc.appendChild(U.teamCap(t));
@@ -686,38 +690,6 @@ window.BBGM_UI_LEAGUE = (function () {
     return games * 1.0;
   }
 
-  function renderTeams(container, state) {
-    // Group by canonical NABL ordering (east before west, then division
-    // order from BBGM_DIVISIONS_BY_LEAGUE). Within each division, top
-    // standings on top.
-    const teams = state.league.teams.slice().sort((a, b) => {
-      const byDiv = U.compareTeamsByDivision(a, b);
-      if (byDiv !== 0) return byDiv;
-      return STAND.winPct(b) - STAND.winPct(a);
-    });
-
-    let lastGroup = '';
-    for (const t of teams) {
-      const grp = U.divisionLabel(t);
-      if (grp !== lastGroup) {
-        container.appendChild(U.el('div', { class: 'card-title', style: { 'margin-top': '12px' } }, grp));
-        lastGroup = grp;
-      }
-      const row = U.el('button', {
-        class: 'roster-row',
-        on: { click: () => { viewTeamId = t.id; window.BBGM_MAIN.refresh(); } }
-      });
-      row.appendChild(U.teamCap(t));
-      const info = U.el('div', { class: 'player-row-info' });
-      info.appendChild(U.el('div', { class: 'player-row-name' }, t.name));
-      info.appendChild(U.el('div', { class: 'player-row-meta' }, `${t.ownerName} • ${t.market[0].toUpperCase() + t.market.slice(1)}`));
-      row.appendChild(info);
-      const stats = U.el('div', { class: 'player-row-stats' });
-      stats.appendChild(U.el('span', {}, `${t.seasonRecord.w}-${t.seasonRecord.l}`));
-      row.appendChild(stats);
-      container.appendChild(row);
-    }
-  }
 
   function insetRow(label, value) {
     const r = U.el('div', { class: 'inset-row' });
