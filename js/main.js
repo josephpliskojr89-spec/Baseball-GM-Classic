@@ -370,6 +370,11 @@ window.BBGM_MAIN = (function () {
       tab = 'league';
       options = { tab: 'scores', ...options };
     }
+    // Back-compat: stats / leaders / awards moved from League to the
+    // Players nav tab (0.16.1) — old deep links keep working.
+    if (tab === 'league' && ['stats', 'leaders', 'awards'].includes(options.tab)) {
+      tab = 'players';
+    }
     currentTab = tab;
     viewOptions = options;
     refresh();
@@ -390,6 +395,7 @@ window.BBGM_MAIN = (function () {
       case 'home': window.BBGM_UI_DASHBOARD.render(main, state); break;
       case 'team': window.BBGM_UI_TEAM.render(main, state, opts); break;
       case 'league': window.BBGM_UI_LEAGUE.render(main, state, opts); break;
+      case 'players': window.BBGM_UI_PLAYERS.render(main, state, opts); break;
       case 'draft': window.BBGM_UI_DRAFT.render(main, state, opts); break;
       case 'menu': window.BBGM_UI_MENU.render(main, state); break;
       default: window.BBGM_UI_DASHBOARD.render(main, state);
@@ -675,7 +681,7 @@ window.BBGM_MAIN = (function () {
           state.news.push({
             date,
             body: `<strong>🏅 ${lgName} League awards:</strong> ${parts.join(' • ')}. ` +
-                  `Full results and voting in League → Awards.`,
+                  `Full results and voting in Players → Awards.`,
           });
         }
       }

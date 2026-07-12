@@ -3371,6 +3371,16 @@ A bottom navigation bar is present on every screen (mobile-standard pattern). Fi
 
 Each tab loads its own screen. Tabs persist scroll position when user navigates back. Navigation is single-tap from anywhere.
 
+> **Status (0.16.1) — the nav evolved as systems shipped.** Six tabs:
+> **Home**, **Team**, **League** (Scores — the Games tab folded in here
+> in 0.13 — plus Standings with tap-through team pages, Playoffs,
+> History), **Players** (league-wide player browsing: sortable season
+> Stats for any club, league Leaders, and the Awards wing — season
+> hardware, Hall of Fame, All-Star), **Draft** (the Draft Hub, incl. the
+> international window), and **Menu**. The Players split (0.16.1) keeps
+> League to the competition views so neither inner tab bar is cramped
+> on a phone.
+
 A persistent header at the top of every screen shows:
 - Current in-game date
 - User team's record
