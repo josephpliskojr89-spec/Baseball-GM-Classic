@@ -2198,6 +2198,18 @@ Spring training runs February-March in the in-game calendar but is not deeply in
 
 Spring training provides a brief decision phase before Opening Day but doesn't require deep engagement.
 
+> **Status (0.18.0) — shipped, abstracted per this section.** Camp runs
+> inside the Start Season step: position battles are read off the
+> manager's rebuilt configs (a starter whose margin over the runner-up
+> was a coin flip = a battle that just resolved — reported for the
+> user's team, incl. the 5th-starter fight), ~30% of clubs pick up one
+> day-to-day camp knock (2-12 days; a few linger past Opening Day as
+> the delayed-start archetype), and farm assignments are confirmed with
+> the user's moves counted. Everything lands in the Opening Day report
+> (18.13) — season projection from roster strength, key addition,
+> prospect to watch, battles, delayed starts — and in the news feed.
+> Overrides remain the normal tools (lineup editor, Move Level).
+
 ---
 
 ## 12. Minor League System
@@ -3156,6 +3168,19 @@ For players in their arbitration years (3-5 years of service time):
   - **Sign to extension** (negotiate longer-term deal in lieu of arb)
 
 The user decides each player's fate. Cheap-owner teams will non-tender more aggressively (to control payroll). Win-now teams tender almost everyone.
+
+> **Status (0.18.0) — shipped.** Arb salaries step toward market value
+> AND ratchet off the prior salary (~12%/yr — arbitration never cuts
+> pay), so a declining player's number climbs past his worth and the
+> non-tender becomes a real decision. AI clubs non-tender when the
+> salary outruns value by an owner-archetype threshold (cheap 0.95×
+> … win-now 1.35×), before the FA market builds — ~10-30 non-tenders
+> enrich the market each December, with news for the notable ones.
+> The user's arb class is tendered by default (headless sims and
+> skipped offseasons behave unchanged); every case stays open on the
+> offseason dashboard (Review Arbitration) where a non-tender releases
+> the player onto the live FA market immediately. Extensions in lieu
+> of arbitration ride the existing Contract-tab extension flow.
 
 For pre-arbitration players (under 3 years service):
 - Salary is set at league minimum (or slight raise) automatically
@@ -4315,6 +4340,25 @@ user becomes a pure GM), with hireable staff carrying mechanical effects.
 > the original talent tiers (the draft must supply star-tier ceilings
 > to hold the run environment), and the 26-man age-vs-overall curve
 > declines monotonically instead of peaking at 26-29.
+>
+> **Status (0.18.0) — Phase 15 complete.** The full offseason cycle
+> per 18.1, in the established compressed form: postseason (day-by-day
+> or one-shot) → rollover Part A (awards week, retirements, HoF vote,
+> staff + scouting windows, arbitration with AI non-tenders, intl
+> events + class, FA market build) → the interactive winter (FA rounds
+> that advance the calendar ~12 days each with parallel trade activity;
+> arbitration reviewable from the dashboard; staff/scouting/trades all
+> open) → Start Season (spring training per 11.8, Opening Day report
+> per 18.13, Part B cleanup). The dashboard carries an offseason
+> calendar card — WS result, awards week, HoF class, winter meetings,
+> arbitration (with the Review flow), FA progress, spring training —
+> and offseason news items are dated onto the real calendar (awards
+> Nov 3-8, retirements Nov 10, non-tender deadline Dec 2, HoF Jan 15)
+> so the feed reads like a winter. New interactive decision: 18.7
+> tendering. New color: 11.8 camp battles/injuries + the Opening Day
+> projection. Rollover cleanup items (AB-log pruning, injury-clock
+> fast-forward, archived game detail empty states) shipped in earlier
+> phases and are re-verified by the e2e each run.
 >
 > **Re-measured (0.11.0, 10-season soak with the draft live):** the
 > R/G watch item is resolved — the run environment holds 4.5-4.8 for

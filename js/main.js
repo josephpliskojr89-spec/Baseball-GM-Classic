@@ -671,13 +671,94 @@ window.BBGM_MAIN = (function () {
           date: { ...state.meta.currentDate },
           body: `The ${summary.newYear} season begins — spring training set the lineups and rotations league-wide.`,
         });
+
+        // ---- Opening Day report (18.13 / 11.8) --------------------------
+        const players = state.players;
+        const userTeam = state.league.teams.find((t) => t.id === state.meta.userTeamId);
+        const ST = summary.springTraining || { battles: [], injuries: [], userLevelMoves: 0 };
+        const myInjuries = ST.injuries.filter((i) => i.teamId === userTeam.id);
+
+        // Season expectation: roster strength vs the league.
+        const strengthOf = (t) => {
+          const vals = t.roster.map((id) => players[id]).filter(Boolean)
+            .map((p) => window.BBGM_ROSTER.overall(p)).sort((a, b) => b - a).slice(0, 18);
+          return vals.reduce((sum, v) => sum + v, 0) / Math.max(1, vals.length);
+        };
+        const all = state.league.teams.map(strengthOf);
+        const mean = all.reduce((s, v) => s + v, 0) / all.length;
+        const sd = Math.sqrt(all.reduce((s, v) => s + (v - mean) * (v - mean), 0) / all.length) || 1;
+        const projWins = Math.max(58, Math.min(104,
+          Math.round(81 + ((strengthOf(userTeam) - mean) / sd) * 11)));
+        const outlook = projWins >= 92 ? 'The projection says contender — October is the expectation.'
+          : projWins >= 84 ? 'The projection has you in the race — a hot month could change everything.'
+          : projWins >= 76 ? 'A scrappy season on paper — overachieve and sneak into the mix.'
+          : 'The projection calls it a building year — develop the kids and keep the powder dry.';
+
+        // Storylines: the big addition and the prospect to watch.
+        let addition = null;
+        if (state.faMarket) {
+          const mine = state.faMarket.entries
+            .filter((e) => e.signedTeamId === userTeam.id)
+            .sort((a, b) => b.askTotal - a.askTotal)[0];
+          if (mine && players[mine.playerId]) addition = players[mine.playerId];
+        }
+        let prospect = null, bestCeil = 0;
+        for (const pid of userTeam.minors || []) {
+          const p = players[pid];
+          if (!p || !p.hidden || !p.hidden.ceiling) continue;
+          const keys = Object.keys(p.hidden.ceiling).filter((k) => k !== 'stamina');
+          const c = keys.length ? Math.max(...keys.map((k) => p.hidden.ceiling[k])) : 0;
+          if (c > bestCeil) { bestCeil = c; prospect = p; }
+        }
+
+        const body = U.el('div');
+        body.appendChild(U.el('p', { style: { 'font-size': '14px', 'margin-bottom': '8px' } },
+          `The writers project the ${userTeam.name} at ` +
+          `${projWins}-${162 - projWins}. ${outlook}`));
+        const lines = [];
+        if (addition) lines.push(`Key addition: ${addition.name} (${addition.primaryPosition}).`);
+        if (prospect) lines.push(`Prospect to watch: ${prospect.name} (${prospect.primaryPosition}, ${prospect.rosterStatus}).`);
+        for (const b of ST.battles) {
+          lines.push(b.pos === 'SP5'
+            ? `Camp battle: ${b.winner} holds the last rotation spot over ${b.runnerUp}.`
+            : `Camp battle at ${b.pos}: ${b.winner} beats out ${b.runnerUp}.`);
+        }
+        for (const i of myInjuries) {
+          lines.push(`Delayed start: ${i.name} (${i.type}, ~${i.days} days).`);
+        }
+        if (ST.userLevelMoves) lines.push(`${ST.userLevelMoves} farm assignment${ST.userLevelMoves !== 1 ? 's' : ''} confirmed for the season.`);
+        if (lines.length) {
+          const ul = U.el('div', { style: { 'font-size': '13px' } });
+          for (const l of lines) ul.appendChild(U.el('p', { style: { margin: '4px 0' } }, `• ${l}`));
+          body.appendChild(ul);
+        }
+        body.appendChild(U.el('p', { class: 'muted', style: { 'font-size': '12px', 'margin-top': '8px' } },
+          'Lineups and rotations are set league-wide. Play ball!'));
+
+        // Camp results land in the feed too (11.8's notifications).
+        for (const b of ST.battles) {
+          state.news.push({
+            date: { ...state.meta.currentDate },
+            body: b.pos === 'SP5'
+              ? `Spring battle settled: <strong>${b.winner}</strong> wins the 5th-starter job over ${b.runnerUp}.`
+              : `Spring battle settled at ${b.pos}: <strong>${b.winner}</strong> beats out ${b.runnerUp}.`,
+          });
+        }
+        for (const i of myInjuries) {
+          state.news.push({
+            date: { ...state.meta.currentDate },
+            body: `<strong>${i.name}</strong> tweaked something in camp (${i.type}) — ` +
+                  `he'll miss roughly the first ${i.days} days.`,
+          });
+        }
+
         window.BBGM_STATE.setSaveBlocked(false);
         window.BBGM_STATE.saveNow();
         U.hideProgress();
         navigate('home');
         U.showModal({
           title: `Opening Day ${summary.newYear}`,
-          body: `Lineups and rotations are set league-wide. Play ball!`,
+          body,
           actions: [{ label: 'Play Ball', kind: 'primary', onClick: () => true }],
         });
       } catch (e) {
@@ -689,6 +770,13 @@ window.BBGM_MAIN = (function () {
   function pushOffseasonNews(state, summary) {
     if (!state.news) state.news = [];
     const date = { ...state.meta.currentDate };
+    // The offseason calendar (18.1): news items carry the dates the real
+    // calendar would put them on — awards week in early November, the
+    // non-tender deadline in December, the HoF vote in January — so the
+    // feed reads like a winter, not a single dump.
+    const nov = (day) => ({ year: summary.year, month: 11, day });
+    const dec = (day) => ({ year: summary.year, month: 12, day });
+    const jan = (day) => ({ year: summary.year + 1, month: 1, day });
     const teamOf = (id) => state.league.teams.find((t) => t.id === id);
     const userTeamId = state.meta.userTeamId;
 
@@ -696,7 +784,7 @@ window.BBGM_MAIN = (function () {
     const runnerUp = teamOf(summary.postseason.runnerUp.id);
     const ws = summary.postseason.worldSeries;
     state.news.push({
-      date,
+      date: { year: summary.year, month: 10, day: 30 },
       body: `<strong>${champ.name}</strong> defeat the ${runnerUp.name} ${ws.score[0]}-${ws.score[1]} ` +
             `to win the ${summary.year} World Series.`,
     });
@@ -712,7 +800,7 @@ window.BBGM_MAIN = (function () {
           line('Manager of the Year', a.moy)].filter(Boolean);
         if (parts.length) {
           state.news.push({
-            date,
+            date: nov(lg === 'east' ? 3 : 4),
             body: `<strong>🏅 ${lgName} League awards:</strong> ${parts.join(' • ')}. ` +
                   `Full results and voting in Players → Awards.`,
           });
@@ -729,9 +817,9 @@ window.BBGM_MAIN = (function () {
         }
         for (const pos in a.gg || {}) if (a.gg[pos].teamId === userTeamId) userWins.push(`${a.gg[pos].name} wins the Gold Glove (${pos})`);
         for (const pos in a.ss || {}) if (a.ss[pos].teamId === userTeamId) userWins.push(`${a.ss[pos].name} wins the Silver Slugger (${pos})`);
-        for (const w of userWins) {
-          state.news.push({ date, body: `<strong>🏅 ${w}!</strong>` });
-        }
+        userWins.forEach((w, i) => {
+          state.news.push({ date: nov(5 + (i % 4)), body: `<strong>🏅 ${w}!</strong>` });
+        });
       }
     }
 
@@ -740,7 +828,7 @@ window.BBGM_MAIN = (function () {
       const names = summary.hof.inducted.map((i) =>
         `<strong>${i.name}</strong> (${i.pos}${i.method === 'veterans' ? ', Veterans Committee' : `, ${i.pct}%`})`);
       state.news.push({
-        date,
+        date: jan(15),
         body: `🏛 <strong>Hall of Fame Class of ${summary.year + 1}:</strong> ${names.join(', ')}.`,
       });
     }
@@ -774,7 +862,7 @@ window.BBGM_MAIN = (function () {
         }
       }
       state.news.push({
-        date,
+        date: nov(10),
         body: `<strong>${r.name}</strong> (${t ? t.abbr : 'FA'}) retires at age ${r.age}.` + retro +
               (r.openToCoaching ? ' Word is he wants to stay in the game as a coach.' : ''),
       });
@@ -785,7 +873,7 @@ window.BBGM_MAIN = (function () {
       const p = state.players[m.playerId];
       const t = p && teamOf(p.teamId);
       state.news.push({
-        date,
+        date: nov(2),
         body: `Milestone: <strong>${m.name}</strong>${t ? ` (${t.abbr})` : ''} reached ` +
               `${m.threshold.toLocaleString()} career ${m.label}.`,
       });
@@ -798,7 +886,7 @@ window.BBGM_MAIN = (function () {
       if (!t) continue;
       const tierName = window.BBGM_SCOUT.tierDef(ev.to).name;
       state.news.push({
-        date,
+        date: nov(12),
         body: ev.teamId === userTeamId
           ? `<strong>Ownership cuts the scouting budget</strong> to ${tierName} after the losing season.`
           : `${t.abbr} slash their scouting department to ${tierName}.`,
@@ -820,7 +908,18 @@ window.BBGM_MAIN = (function () {
       } else if (ev.kind === 'coach-to-manager') {
         body = `<strong>${ev.name}</strong> leaves the coaching ranks to pursue managing.`;
       }
-      if (body) state.news.push({ date, body });
+      if (body) state.news.push({ date: nov(13), body });
+    }
+    // Non-tender deadline (18.7): notable AI cuts hit the wire in early
+    // December alongside the user's own decisions.
+    for (const nt of summary.nonTenders || []) {
+      if (nt.ovr < 48 && nt.salary < 4) continue;
+      const t = teamOf(nt.teamId);
+      state.news.push({
+        date: dec(2),
+        body: `Non-tendered: ${t ? t.abbr : '—'} cut <strong>${nt.name}</strong> loose ` +
+              `rather than pay a $${nt.salary}M arbitration raise.`,
+      });
     }
     // International headline events (bible 14.7).
     for (const ev of summary.intlEvents || []) {

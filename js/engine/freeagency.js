@@ -135,6 +135,25 @@ window.BBGM_FA = (function () {
     return state.faMarket;
   }
 
+  // Insert one player into an already-open market — December non-tenders
+  // (18.7) join mid-winter instead of waiting a year.
+  function addMarketEntry(state, p) {
+    if (!state.faMarket) return null;
+    if (state.faMarket.entries.some((e) => e.playerId === p.id)) return null;
+    const ask = askingPrice(p);
+    const entry = {
+      playerId: p.id,
+      askYears: ask.years, askAAV: ask.aav, askTotal: ask.total,
+      prefs: rollPreferences(p),
+      formerTeamId: p.formerTeamId || null,
+      tier: ask.aav >= 16 ? 1 : ask.aav >= 6 ? 2 : 3,
+      lastTopBid: null, signedTeamId: null,
+    };
+    state.faMarket.entries.push(entry);
+    state.faMarket.entries.sort((a, b) => b.askTotal - a.askTotal);
+    return entry;
+  }
+
   // ---- Bidding rounds (16.5 / 16.6 / 16.7) --------------------------------
 
   // Which tiers are actively signing in a given round: stars first (18.8).
@@ -347,7 +366,7 @@ window.BBGM_FA = (function () {
   return {
     TOTAL_ROUNDS,
     computePayroll, askingPrice, prefsText, prefMultiplier,
-    releaseToPool, buildMarket, resolveRound,
+    releaseToPool, buildMarket, addMarketEntry, resolveRound,
     makeUserOffer, withdrawUserOffer, signMidSeason,
     extensionAsk, offerExtension, signPlayer,
   };

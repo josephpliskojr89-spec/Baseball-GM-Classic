@@ -497,6 +497,13 @@ if (seasonsArg > 1) {
       console.log('✗ YOUTH CEILING VIOLATED');
       process.exit(1);
     }
+    // Phase 15 offseason flow: AI non-tenders feed the market each
+    // December; the user's arb class queues; camp produces battles and
+    // a sprinkling of day-to-day knocks (t ~5-13 league-wide).
+    const camp = summary.springTraining || { battles: [], injuries: [], userLevelMoves: 0 };
+    console.log(`  offseason: non-tenders ${(summary.nonTenders || []).length} (t ~10-35)` +
+      ` | user arb cases ${summary.arbCases || 0}` +
+      ` | camp battles ${camp.battles.length} | camp injuries ${camp.injuries.length}`);
 
     if (si === seasonsArg) break;
     runSeason();

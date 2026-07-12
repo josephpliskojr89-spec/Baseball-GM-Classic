@@ -197,13 +197,62 @@ window.BBGM_UI_DASHBOARD = (function () {
   function renderOffseasonCard(state, team) {
     const card = U.el('div', { class: 'card' });
     const market = state.faMarket || { round: 0, totalRounds: 8, entries: [], userOffers: [] };
+    const year = (state.arb && state.arb.year) || state.meta.currentDate.year;
     card.appendChild(U.el('div', { class: 'card-title' },
-      `Offseason — Free Agency (period ${market.round}/${market.totalRounds})`));
+      `Offseason ${year}-${String((year + 1) % 100).padStart(2, '0')}`));
+
+    // The offseason calendar (18.1): done, live, and upcoming phases.
+    const season = (state.history.seasons || [])[state.history.seasons.length - 1];
+    const champ = season && state.league.teams.find((t) => t.id === season.championId);
+    const aw = state.history.awards && state.history.awards[year];
+    const mvps = aw ? ['east', 'west']
+      .map((lg) => (aw[lg] && aw[lg].mvp ? aw[lg].mvp.winner.name : null))
+      .filter(Boolean).join(' / ') : null;
+    const hof = state.history.hof && state.history.hof[year];
+    const arb = (state.arb && state.arb.year === year && state.arb.cases.length) ? state.arb : null;
+    const tendered = arb ? arb.cases.filter((c) => c.decision === 'tendered').length : 0;
     const unsigned = market.entries.filter((e) => !e.signedTeamId).length;
+
+    const calRow = (mark, label, detail, onClick) => {
+      const row = U.el(onClick ? 'button' : 'div', {
+        class: 'inset-row', style: { width: '100%', 'text-align': 'left' },
+        ...(onClick ? { on: { click: onClick } } : {}),
+      });
+      row.appendChild(U.el('span', { class: 'label' }, `${mark} ${label}`));
+      row.appendChild(U.el('span', { class: 'value', style: { 'font-size': '12px' } }, detail));
+      return row;
+    };
+    const cal = U.el('div', { class: 'inset-list', style: { 'margin-bottom': '10px' } });
+    if (champ) cal.appendChild(calRow('✓', 'World Series', champ.abbr + ' win it all'));
+    cal.appendChild(calRow('✓', 'Awards week', mvps ? `MVPs: ${mvps}` : '—',
+      () => window.BBGM_MAIN.navigate('players', { tab: 'awards' })));
+    cal.appendChild(calRow('✓', 'Hall of Fame vote',
+      hof ? (hof.inducted.length ? hof.inducted.map((i) => i.name).join(', ') : 'no one elected') : '—',
+      () => window.BBGM_MAIN.navigate('players', { tab: 'awards' })));
+    cal.appendChild(calRow('✓', 'Winter meetings', 'staff & scouting decisions open',
+      () => window.BBGM_MAIN.navigate('gm', { tab: 'staff' })));
+    if (arb) {
+      cal.appendChild(calRow('◆', 'Arbitration',
+        `${tendered} tendered${arb.cases.length - tendered ? `, ${arb.cases.length - tendered} non-tendered` : ''}`,
+        () => showArbModal(state)));
+    }
+    cal.appendChild(calRow('◆', 'Free agency',
+      `period ${market.round}/${market.totalRounds} • ${unsigned} unsigned`,
+      () => window.BBGM_MAIN.navigate('gm', { tab: 'freeagents' })));
+    cal.appendChild(calRow('○', 'Spring training', 'position battles resolve at Opening Day'));
+    card.appendChild(cal);
+
     const payroll = window.BBGM_FA.computePayroll(team, window.BBGM_STATE.get().players);
     card.appendChild(U.el('p', { style: { 'font-size': '13px', 'margin-bottom': '10px' } },
       `${unsigned} free agents on the market • ${market.userOffers.length} offer${market.userOffers.length !== 1 ? 's' : ''} out • ` +
       `payroll $${payroll.toFixed(1)}M of $${team.payrollBase}M`));
+
+    if (arb && tendered > 0) {
+      card.appendChild(U.el('button', {
+        class: 'btn-secondary btn-sm', style: { width: '100%', 'margin-bottom': '8px' },
+        on: { click: () => showArbModal(state) },
+      }, `Review Arbitration (${arb.cases.length})`));
+    }
 
     card.appendChild(U.el('button', {
       class: 'btn-primary btn-sm', style: { width: '100%', 'margin-bottom': '8px' },
@@ -236,6 +285,67 @@ window.BBGM_UI_DASHBOARD = (function () {
     }, 'Finish Offseason & Start Season'));
     card.appendChild(grid);
     return card;
+  }
+
+  // Arbitration review (18.7): every case is tendered by default; the
+  // user can non-tender a raise he doesn't want to pay — the player joins
+  // the open FA market immediately.
+  function showArbModal(state) {
+    const S = window.BBGM_STATS;
+    const arb = state.arb;
+    if (!arb || !arb.cases.length) return;
+    const year = arb.year;
+    const body = U.el('div');
+    body.appendChild(U.el('p', { class: 'muted', style: { 'font-size': '12px', 'margin-bottom': '10px' } },
+      'Players with 3-5 years of service get automatic arbitration raises. ' +
+      'Tendered contracts stand unless you non-tender — the player becomes a free agent immediately.'));
+    const list = U.el('div', { class: 'roster-list' });
+    for (const c of arb.cases) {
+      const p = state.players[c.playerId];
+      if (!p) continue;
+      const row = U.el('div', { class: 'roster-row', style: { 'flex-wrap': 'wrap', gap: '6px' } });
+      const info = U.el('div', { class: 'player-row-info', style: { flex: '1 1 60%' } });
+      info.appendChild(U.el('div', { class: 'player-row-name' },
+        `${p.name} (${p.primaryPosition}, ${p.age})`));
+      const s = p.stats && p.stats[year];
+      let line = '';
+      if (s && p.isPitcher && (s.ipOuts || 0) > 0) {
+        line = `${s.w}-${s.l}, ${S.era(s).toFixed(2)} ERA, ${S.fmtIP(s.ipOuts)} IP`;
+      } else if (s && !p.isPitcher && (s.pa || 0) > 0) {
+        line = `${S.fmtAvg(S.avg(s))}/${s.hr} HR/${s.rbi} RBI`;
+      }
+      info.appendChild(U.el('div', { class: 'player-row-meta' },
+        `${line ? line + ' • ' : ''}arb salary $${c.salary}M`));
+      row.appendChild(info);
+      if (c.decision === 'tendered') {
+        row.appendChild(U.el('button', {
+          class: 'btn-secondary btn-sm', style: { color: 'var(--danger, #e25c5c)' },
+          on: { click: () => {
+            const result = window.BBGM_OFFSEASON.nonTenderPlayer(state, c.playerId);
+            if (!result) { U.showToast('Non-tender window has closed.', 'warning'); return; }
+            if (!state.news) state.news = [];
+            state.news.push({
+              date: { ...state.meta.currentDate },
+              body: `You non-tender <strong>${result.player.name}</strong> — ` +
+                    `he joins the free-agent market` +
+                    (result.entry ? ` seeking ${result.entry.askYears} yr / $${result.entry.askTotal}M` : '') + `.`,
+            });
+            window.BBGM_STATE.set(state);
+            U.showToast(`${result.player.name} non-tendered.`, 'info');
+            showArbModal(state); // re-render with the updated decision
+          }},
+        }, 'Non-Tender'));
+      } else {
+        row.appendChild(U.el('span', { class: 'player-row-meta' }, 'Non-tendered — on the market'));
+      }
+      list.appendChild(row);
+    }
+    body.appendChild(list);
+    U.showModal({
+      title: `Arbitration — ${arb.cases.length} case${arb.cases.length !== 1 ? 's' : ''}`,
+      body,
+      actions: [{ label: 'Done', kind: 'primary', onClick: () => { window.BBGM_MAIN.refresh(); return true; } }],
+    });
   }
 
   function renderQuickActions(state, team) {

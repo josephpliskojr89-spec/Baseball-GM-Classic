@@ -253,7 +253,8 @@ window.BBGM_OFFSEASON = (function () {
     const year = state.meta.currentDate.year;
     const players = state.players;
     const teams = state.league.teams;
-    const summary = { year, retirements: [], milestones: [], newFAs: 0 };
+    const summary = { year, retirements: [], milestones: [], newFAs: 0, nonTenders: [] };
+    const arbCases = [];
 
     // 1. Postseason: consume the bracket the user played through day by
     //    day, or sim it in one shot if they skipped straight here.
@@ -397,22 +398,59 @@ window.BBGM_OFFSEASON = (function () {
             FA().releaseToPool(state, p, 'contract-expired');
             summary.newFAs++;
           } else {
-            // Team control: renew. Arb years step toward market value.
+            // Team control: renew. Arb years step toward market value AND
+            // ratchet off the prior salary (real arbitration almost never
+            // cuts pay) — a declining player's number keeps climbing past
+            // his worth, which is what makes non-tenders a real decision.
             const ovr = ROSTER().overall(p);
+            const isArb = sv >= 3;
+            const priorSalary = p.contract.annualSalary || 0.74;
             let salary = 0.74;
-            if (sv >= 3) {
+            if (isArb) {
               const share = sv === 3 ? 0.4 : sv === 4 ? 0.6 : 0.8;
-              salary = Math.max(0.74, TRADES().expectedAAV(ovr, p.age) * share);
+              salary = Math.max(0.74, TRADES().expectedAAV(ovr, p.age) * share,
+                priorSalary * 1.12);
             }
             salary = Math.round(salary * 10) / 10;
+
+            // Non-tender decisions (18.7). AI clubs shed arb players whose
+            // raise outruns their value — cheap owners most aggressively,
+            // win-now owners almost never. Runs before buildMarket, so
+            // non-tenders enrich the FA market like real Decembers.
+            if (isArb && p.teamId !== state.meta.userTeamId) {
+              const team = teams.find((t) => t.id === p.teamId);
+              const worth = TRADES().expectedAAV(ovr, p.age);
+              const thresh = ({
+                cheap: 0.95, patient: 1.10, analytics: 1.05,
+                old_school: 1.20, aggressive: 1.15, win_now: 1.35,
+              })[team && team.owner] || 1.15;
+              if (salary > Math.max(0.9, worth) * thresh && ovr < 56) {
+                FA().releaseToPool(state, p, 'non-tendered');
+                summary.newFAs++;
+                summary.nonTenders.push({ playerId: p.id, name: p.name,
+                  teamId: team ? team.id : null, salary, ovr: Math.round(ovr) });
+                continue;
+              }
+            }
+
             p.contract = {
               years: 1, annualSalary: salary, totalValue: salary,
-              signedAt: sv >= 3 ? 'arbitration' : 'renewal',
+              signedAt: isArb ? 'arbitration' : 'renewal',
             };
+
+            // The user's arb class (18.7): tendered by default so headless
+            // runs and skipped offseasons behave exactly as before, but
+            // each case stays open for a non-tender until Opening Day.
+            if (isArb && p.teamId === state.meta.userTeamId &&
+                (p.rosterStatus === '26-man' || p.rosterStatus === 'IL')) {
+              arbCases.push({ playerId: p.id, salary, decision: 'tendered' });
+            }
           }
         }
       }
     }
+    state.arb = { year, cases: arbCases };
+    summary.arbCases = arbCases.length;
 
     // 6.5. International (bible 14): special-event players (NPB postings,
     // Cuban defectors, KBO declarations) join the FA pool as headline
@@ -503,11 +541,17 @@ window.BBGM_OFFSEASON = (function () {
       t.il = still;
     }
 
-    // Minors level reassignment + 30-cap (12.4 / 12.8).
+    // Minors level reassignment + 30-cap (12.4 / 12.8). Spring training
+    // confirms assignments (11.8) — the user's org moves are counted for
+    // the camp report.
+    let userLevelMoves = 0;
     for (const t of teams) {
       for (const pid of t.minors || []) {
         const p = players[pid];
-        if (p) MIN().reassignLevel(p);
+        if (!p) continue;
+        const before = p.rosterStatus;
+        MIN().reassignLevel(p);
+        if (t.id === state.meta.userTeamId && p.rosterStatus !== before) userLevelMoves++;
       }
     }
 
@@ -560,6 +604,57 @@ window.BBGM_OFFSEASON = (function () {
     // Any manager vacancy the user left unfilled is auto-hired at Opening
     // Day (the owner won't start a season without a skipper).
     window.BBGM_STAFF.ensureStaff(state);
+
+    // ---- Spring training (11.8 / 18.11) ----------------------------------
+    // Position battles are read off the manager's rebuilt configs: where
+    // the pick over the runner-up was a coin flip, that's a battle that
+    // just resolved in camp. Camp injuries are low-probability day-to-day
+    // knocks — a few linger past Opening Day (the delayed-start archetype)
+    // and the engine simply subs around them.
+    const ST = { battles: [], injuries: [], userLevelMoves };
+    const userTeam = teams.find((t) => t.id === state.meta.userTeamId);
+    if (userTeam) {
+      const ovr = (p) => ROSTER().overall(p);
+      const inLineup = new Set((userTeam.lineupRH || []).map((s) => s.playerId));
+      for (const spot of userTeam.lineupRH || []) {
+        const starter = players[spot.playerId];
+        if (!starter || spot.position === 'DH') continue;
+        const best = userTeam.roster
+          .map((id) => players[id])
+          .filter((q) => q && !q.isPitcher && !inLineup.has(q.id) && GEN().canPlay(q, spot.position))
+          .sort((a, b) => ovr(b) - ovr(a))[0];
+        if (best && ovr(starter) - ovr(best) <= 2.5) {
+          ST.battles.push({ pos: spot.position, winnerId: starter.id, winner: starter.name,
+            runnerUpId: best.id, runnerUp: best.name });
+        }
+      }
+      // The 5th-starter battle: last rotation arm vs the best arm left out.
+      const rot = (userTeam.rotation || []).map((id) => players[id]).filter(Boolean);
+      const last = rot[rot.length - 1];
+      const challenger = userTeam.roster
+        .map((id) => players[id])
+        .filter((q) => q && q.isPitcher && q.primaryPosition === 'SP' && !userTeam.rotation.includes(q.id))
+        .sort((a, b) => ovr(b) - ovr(a))[0];
+      if (last && challenger && ovr(last) - ovr(challenger) <= 2.5) {
+        ST.battles.push({ pos: 'SP5', winnerId: last.id, winner: last.name,
+          runnerUpId: challenger.id, runnerUp: challenger.name });
+      }
+      ST.battles = ST.battles.slice(0, 4);
+    }
+    const CAMP_KNOCKS = ['hamstring tightness', 'back stiffness', 'forearm soreness',
+      'oblique tightness', 'ankle sprain'];
+    for (const t of teams) {
+      if (rand() >= 0.30) continue;
+      const pool = t.roster.map((id) => players[id]).filter((p) => p && INJ.isAvailable(p));
+      const p = pool[rint(0, pool.length - 1)];
+      if (!p) continue;
+      const days = rint(2, 12);
+      INJ.placeOnIL(p, { type: CAMP_KNOCKS[rint(0, CAMP_KNOCKS.length - 1)], daysOut: days },
+        schedule.openingDay);
+      ST.injuries.push({ playerId: p.id, name: p.name, teamId: t.id,
+        type: p.currentInjury.type, days });
+    }
+    summary.springTraining = ST;
 
     // Fail loud if any org came out of the offseason unplayable.
     GEN().validateLeagueReadiness(state.league, players);
@@ -744,9 +839,25 @@ window.BBGM_OFFSEASON = (function () {
     ROSTER().safeRebuild(state, team);
   }
 
+  // 18.7: the user backs out of a tendered arbitration contract during
+  // the offseason. The player hits the open market immediately, with a
+  // live entry so he can sign this winter.
+  function nonTenderPlayer(state, playerId) {
+    const arb = state.arb;
+    const c = arb && (arb.cases || []).find((x) => x.playerId === playerId);
+    if (!c || c.decision !== 'tendered') return null;
+    if (state.meta.offseasonPhase !== 'freeAgency') return null;
+    const p = state.players[playerId];
+    if (!p || p.teamId !== state.meta.userTeamId) return null;
+    c.decision = 'non-tendered';
+    FA().releaseToPool(state, p, 'non-tendered');
+    const entry = FA().addMarketEntry(state, p);
+    return { player: p, entry };
+  }
+
   return {
     runSeasonRollover, runSeasonRolloverPartA, runSeasonRolloverPartB,
-    advanceFARound, runPostseason, seedLeague,
+    advanceFARound, runPostseason, seedLeague, nonTenderPlayer,
     startPostseason, simPostseasonDay, finalizePostseason,
   };
 })();
