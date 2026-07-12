@@ -21,6 +21,7 @@ window.BBGM_UI_LEAGUE = (function () {
       { key: 'stats', label: 'Stats' },
       { key: 'playoffs', label: 'Playoffs' },
       { key: 'leaders', label: 'Leaders' },
+      { key: 'awards', label: 'Awards' },
       { key: 'history', label: 'History' },
     ];
     for (const t of tabDefs) {
@@ -42,6 +43,7 @@ window.BBGM_UI_LEAGUE = (function () {
     else if (activeTab === 'stats') renderStatsPage(container, state);
     else if (activeTab === 'playoffs') renderPlayoffs(container, state);
     else if (activeTab === 'leaders') renderLeaders(container, state);
+    else if (activeTab === 'awards') renderAwards(container, state);
     else if (activeTab === 'history') renderHistory(container, state);
   }
 
@@ -551,6 +553,227 @@ window.BBGM_UI_LEAGUE = (function () {
       card.appendChild(U.el('p', { class: 'muted', style: { 'font-size': '11px', 'margin-top': '6px' } },
         `Wild card: #3 hosts #6, #4 hosts #5 (best of 3).`));
       container.appendChild(card);
+    }
+  }
+
+  // ------- Awards tab (bible 19): season hardware, Hall of Fame, All-Star ---
+
+  let awardsMode = 'season';   // 'season' | 'hof' | 'allstar'
+  let awardsYear = null;       // season-awards year picker
+  let allStarYear = null;      // all-star year picker
+
+  function playerRow(state, id, name, meta, opts = {}) {
+    const p = state.players[id];
+    const row = U.el(p ? 'button' : 'div', {
+      class: 'roster-row',
+      ...(p ? { on: { click: () => window.BBGM_UI_PLAYER.show(id) } } : {}),
+    });
+    if (opts.lead) row.appendChild(U.el('span', {
+      style: { 'font-size': '18px', 'margin-right': '8px', 'flex-shrink': '0' } }, opts.lead));
+    const info = U.el('div', { class: 'player-row-info' });
+    info.appendChild(U.el('div', { class: 'player-row-name' }, name));
+    if (meta) info.appendChild(U.el('div', { class: 'player-row-meta' }, meta));
+    row.appendChild(info);
+    if (opts.right) row.appendChild(U.el('div', { class: 'player-row-stats' },
+      U.el('span', { class: 'key' }, opts.right)));
+    return row;
+  }
+
+  function renderAwards(container, state) {
+    const chips = U.el('div', { class: 'filter-bar', style: { 'margin-bottom': '10px' } });
+    for (const m of [['season', 'Season Awards'], ['hof', 'Hall of Fame'], ['allstar', 'All-Star']]) {
+      chips.appendChild(U.el('button', {
+        class: `filter-chip${awardsMode === m[0] ? ' active' : ''}`,
+        on: { click: () => { awardsMode = m[0]; window.BBGM_MAIN.refresh(); } },
+      }, m[1]));
+    }
+    container.appendChild(chips);
+    if (awardsMode === 'season') renderSeasonAwards(container, state);
+    else if (awardsMode === 'hof') renderHof(container, state);
+    else renderAllStar(container, state);
+  }
+
+  function yearPicker(years, selected, onChange) {
+    const sel = U.el('select', { class: 'stats-team-picker', on: { change: (e) => onChange(Number(e.target.value)) } });
+    for (const y of years) {
+      sel.appendChild(U.el('option', { value: String(y), ...(y === selected ? { selected: 'selected' } : {}) }, String(y)));
+    }
+    return sel;
+  }
+
+  function renderSeasonAwards(container, state) {
+    const all = (state.history && state.history.awards) || {};
+    const years = Object.keys(all).map(Number).sort((a, b) => b - a);
+    if (!years.length) {
+      container.appendChild(U.el('div', { class: 'empty-state' },
+        'Awards are voted after each World Series. Finish a season and the hardware lands here.'));
+      return;
+    }
+    if (!awardsYear || !all[awardsYear]) awardsYear = years[0];
+    container.appendChild(yearPicker(years, awardsYear, (y) => { awardsYear = y; window.BBGM_MAIN.refresh(); }));
+    const yr = all[awardsYear];
+    const abbrOf = (tid) => {
+      const t = state.league.teams.find((x) => x.id === tid);
+      return t ? t.abbr : '—';
+    };
+
+    for (const lg of ['east', 'west']) {
+      const a = yr[lg];
+      if (!a) continue;
+      container.appendChild(U.el('div', { class: 'card-title', style: { 'margin-top': '14px' } },
+        `${U.leagueName(lg)} League`));
+      const list = U.el('div', { class: 'roster-list' });
+      const major = [
+        ['🏅', 'MVP', a.mvp], ['🔥', 'Cy Young', a.cy], ['🌱', 'Rookie of the Year', a.roy],
+        ['🧠', 'Manager of the Year', a.moy], ['🚪', 'Reliever of the Year', a.reliever],
+        ['📈', 'Comeback Player', a.comeback],
+      ];
+      for (const [icon, label, award] of major) {
+        if (!award) continue;
+        const w = award.winner;
+        const runners = (award.voting || []).slice(1, 3)
+          .map((v, i) => `${i + 2}. ${v.name} (${v.pts})`).join('  ');
+        const meta = `${label}${runners ? ` • ${runners}` : ''}`;
+        const row = playerRow(state, label === 'Manager of the Year' ? null : w.id,
+          `${w.name} (${abbrOf(w.teamId)})`, meta, { lead: icon, right: `${w.pts} pts` });
+        list.appendChild(row);
+      }
+      container.appendChild(list);
+
+      // Gold Gloves / Silver Sluggers: compact position grids.
+      for (const [title, obj] of [['Gold Gloves', a.gg], ['Silver Sluggers', a.ss]]) {
+        const poss = Object.keys(obj || {});
+        if (!poss.length) continue;
+        container.appendChild(U.el('div', { class: 'card-title', style: { 'margin-top': '10px', 'font-size': '12px' } }, title));
+        const grid = U.el('div', { style: { display: 'grid', 'grid-template-columns': '1fr 1fr', gap: '4px' } });
+        for (const pos of poss) {
+          const w = obj[pos];
+          grid.appendChild(U.el('button', {
+            class: 'roster-row', style: { padding: '6px 8px' },
+            on: { click: () => state.players[w.id] && window.BBGM_UI_PLAYER.show(w.id) },
+          }, [
+            U.el('span', { class: 'player-row-meta', style: { 'margin-right': '6px', 'flex-shrink': '0' } }, pos),
+            U.el('span', { class: 'player-row-name', style: { 'font-size': '12px' } }, w.name),
+          ]));
+        }
+        container.appendChild(grid);
+      }
+    }
+  }
+
+  function renderHof(container, state) {
+    const hof = (state.history && state.history.hof) || {};
+    const years = Object.keys(hof).map(Number).sort((a, b) => b - a);
+
+    // Every enshrined player, straight off the player pool.
+    const members = [];
+    for (const id in state.players) {
+      const p = state.players[id];
+      if (p.hof) members.push(p);
+    }
+    members.sort((a, b) => a.hof.year - b.hof.year);
+
+    if (!years.length && !members.length) {
+      container.appendChild(U.el('div', { class: 'empty-state' },
+        'The Hall opens its doors once retired greats have been eligible for five seasons. Build some legends.'));
+      return;
+    }
+
+    // Latest ballot results (19.7).
+    if (years.length) {
+      const latest = hof[years[0]];
+      container.appendChild(U.el('div', { class: 'card-title' }, `${years[0] + 1} Ballot`));
+      if (latest.inducted.length) {
+        const list = U.el('div', { class: 'roster-list' });
+        for (const i of latest.inducted) {
+          list.appendChild(playerRow(state, i.id, i.name,
+            i.method === 'veterans' ? 'Inducted — Veterans Committee' : `Inducted — ${i.pct}% of the vote`,
+            { lead: '🏛', right: i.pos }));
+        }
+        container.appendChild(list);
+      } else {
+        container.appendChild(U.el('p', { class: 'muted', style: { 'font-size': '12px' } },
+          'No one reached the 75% threshold this year.'));
+      }
+      const alsoRan = (latest.ballot || []).filter((b) => !latest.inducted.some((i) => i.id === b.id)).slice(0, 8);
+      if (alsoRan.length) {
+        container.appendChild(U.el('div', { class: 'card-title', style: { 'margin-top': '10px', 'font-size': '12px' } },
+          'On the ballot'));
+        const list = U.el('div', { class: 'roster-list' });
+        for (const b of alsoRan) {
+          list.appendChild(playerRow(state, b.id, b.name,
+            `${b.pct}% • year ${b.appearances} of 10 on the ballot`, { right: b.pos }));
+        }
+        container.appendChild(list);
+      }
+    }
+
+    // Members by position (19.7).
+    if (members.length) {
+      container.appendChild(U.el('div', { class: 'card-title', style: { 'margin-top': '14px' } },
+        `Hall of Famers (${members.length})`));
+      const order = ['C', '1B', '2B', '3B', 'SS', 'LF', 'CF', 'RF', 'DH', 'SP', 'RP', 'CP'];
+      const byPos = {};
+      for (const p of members) (byPos[p.primaryPosition] = byPos[p.primaryPosition] || []).push(p);
+      for (const pos of order) {
+        if (!byPos[pos]) continue;
+        container.appendChild(U.el('div', { class: 'card-title', style: { 'margin-top': '8px', 'font-size': '12px' } }, pos));
+        const list = U.el('div', { class: 'roster-list' });
+        for (const p of byPos[pos]) {
+          list.appendChild(playerRow(state, p.id, p.name,
+            `Class of ${p.hof.year + 1}` +
+            (p.hof.method === 'veterans' ? ' • Veterans Committee' : ` • ${p.hof.pct}%`),
+            { lead: '🏛' }));
+        }
+        container.appendChild(list);
+      }
+    }
+  }
+
+  function renderAllStar(container, state) {
+    const all = (state.history && state.history.allStar) || {};
+    const years = Object.keys(all).map(Number).sort((a, b) => b - a);
+    if (!years.length) {
+      container.appendChild(U.el('div', { class: 'empty-state' },
+        'The All-Star Game is played on the mid-July break. Rosters and results land here.'));
+      return;
+    }
+    if (!allStarYear || !all[allStarYear]) allStarYear = years[0];
+    container.appendChild(yearPicker(years, allStarYear, (y) => { allStarYear = y; window.BBGM_MAIN.refresh(); }));
+    const as = all[allStarYear];
+
+    const winName = U.leagueName(as.winner);
+    const score = `${Math.max(as.eastRuns, as.westRuns)}-${Math.min(as.eastRuns, as.westRuns)}`;
+    container.appendChild(U.el('div', { class: 'card', style: { 'margin-top': '10px' } }, [
+      U.el('div', { class: 'card-title' }, `${as.year} All-Star Game`),
+      U.el('p', { style: { 'font-size': '14px', margin: '4px 0' } },
+        `⭐ ${winName} League wins, ${score}.`),
+      U.el('p', { class: 'muted', style: { 'font-size': '12px', margin: '2px 0' } },
+        `All-Star MVP: ${as.mvp.name}`),
+    ]));
+
+    const abbrOf = (tid) => {
+      const t = state.league.teams.find((x) => x.id === tid);
+      return t ? t.abbr : '—';
+    };
+    for (const lg of ['east', 'west']) {
+      const r = as.rosters[lg];
+      if (!r) continue;
+      container.appendChild(U.el('div', { class: 'card-title', style: { 'margin-top': '14px' } },
+        `${U.leagueName(lg)} League roster`));
+      const sections = [['Starters', r.starters], ['Pitchers', r.pitchers], ['Bench', r.bench]];
+      for (const [title, arr] of sections) {
+        if (!arr || !arr.length) continue;
+        container.appendChild(U.el('div', { class: 'card-title', style: { 'margin-top': '8px', 'font-size': '12px' } }, title));
+        const list = U.el('div', { class: 'roster-list' });
+        for (const sel of arr) {
+          const isMvp = sel.id === as.mvp.id;
+          list.appendChild(playerRow(state, sel.id,
+            `${sel.name} (${abbrOf(sel.teamId)})${isMvp ? ' ⭐' : ''}`,
+            null, { right: sel.pos }));
+        }
+        container.appendChild(list);
+      }
     }
   }
 

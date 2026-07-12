@@ -39,6 +39,7 @@ const files = [
   'js/engine/scouting.js',
   'js/engine/draft.js',
   'js/engine/intl.js',
+  'js/engine/awards.js',
   'js/engine/simulation.js',
   'js/engine/standings.js',
   'js/engine/offseason.js',
@@ -177,6 +178,16 @@ function simOneDay(state) {
     const top = recap.top5[0];
     draftLines.push(`  ${today.year} intl window: signed ${recap.signedCount}/100` +
       ` | #1 ${top ? `${top.name} (${top.pos}, ${top.country}) $${top.bonus}M to ${top.teamId}` : '?'}`);
+  }
+  // All-Star Game on the mid-July break (mirrors main.js).
+  if (W.BBGM_AWARDS.allStarPending(state, today)) {
+    const as = W.BBGM_AWARDS.runAllStar(state);
+    const n = ['east', 'west'].reduce((sum, lg) => {
+      const r = as.rosters[lg];
+      return sum + r.starters.length + r.pitchers.length + r.bench.length;
+    }, 0);
+    draftLines.push(`  ${today.year} All-Star Game: ${as.winner} wins ${Math.max(as.eastRuns, as.westRuns)}-` +
+      `${Math.min(as.eastRuns, as.westRuns)} | MVP ${as.mvp.name} | ${n} selections`);
   }
   const playedToday = new Set();
   for (const g of games) {
@@ -401,6 +412,38 @@ if (seasonsArg > 1) {
       ` | staff: ${staffEv.filter((e) => e.kind === 'mgr-fired').length} fired,` +
       ` ${staffEv.filter((e) => e.kind === 'coach-enters').length} retirees→coaching` +
       ` | new org players ${summary.newPlayers}`);
+    // Awards sanity (19.1/19.2): both leagues fill the major hardware and
+    // the position awards; every winner id resolves to a real player.
+    const aw = summary.awards;
+    for (const lg of ['east', 'west']) {
+      const a = aw && aw[lg];
+      if (!a || !a.mvp || !a.cy || !a.roy || !a.reliever || !a.moy) {
+        console.log(`✗ AWARDS MISSING: ${lg} ${summary.year} — ` +
+          JSON.stringify({ mvp: !!(a && a.mvp), cy: !!(a && a.cy), roy: !!(a && a.roy),
+            reliever: !!(a && a.reliever), moy: !!(a && a.moy) }));
+        process.exit(1);
+      }
+      for (const key of ['mvp', 'cy', 'roy', 'reliever']) {
+        if (!state.players[a[key].winner.id]) {
+          console.log(`✗ AWARD WINNER MISSING FROM POOL: ${lg} ${key} ${a[key].winner.name}`);
+          process.exit(1);
+        }
+      }
+      const ggN = Object.keys(a.gg || {}).length, ssN = Object.keys(a.ss || {}).length;
+      if (ggN < 8 || ssN < 8) {
+        console.log(`✗ POSITION AWARDS THIN: ${lg} ${summary.year} — GG ${ggN}, SS ${ssN}`);
+        process.exit(1);
+      }
+    }
+    if (!state.history.allStar || !state.history.allStar[summary.year]) {
+      console.log(`✗ ALL-STAR GAME MISSING for ${summary.year}`);
+      process.exit(1);
+    }
+    const awLine = (lg) => `${aw[lg].mvp.winner.name}/${aw[lg].cy.winner.name}/${aw[lg].roy.winner.name}`;
+    const hofN = summary.hof ? summary.hof.inducted.length : 0;
+    console.log(`  awards E[MVP/Cy/RoY]: ${awLine('east')} | W: ${awLine('west')}` +
+      ` | HoF inducted: ${hofN}${hofN ? ' (' + summary.hof.inducted.map((i) => `${i.name} ${i.pct}%`).join(', ') + ')' : ''}` +
+      ` | ballot size: ${summary.hof ? summary.hof.ballot.length : 0}`);
 
     if (si === seasonsArg) break;
     runSeason();
@@ -495,6 +538,14 @@ if (seasonsArg > 1) {
     }
   }
   console.log(`26-man talent pyramid: 65+ ovr: ${n65} | 60+: ${n60} (t ~60 stars) | 55+: ${n55}`);
+  // Hall of Fame accumulation (19.9): target 2-4/yr long-run once careers
+  // complete inside the save (first ballots need retired-5yr candidates).
+  const hofMembers = Object.keys(state.players).filter((id) => state.players[id].hof);
+  const hofYears = Object.keys(state.history.hof || {}).length;
+  const asYears = Object.keys(state.history.allStar || {}).length;
+  console.log(`HoF: ${hofMembers.length} members over ${hofYears} votes` +
+    ` | All-Star Games played: ${asYears}` +
+    ` | awards years archived: ${Object.keys(state.history.awards || {}).length}`);
   console.log('total trades logged:', (state.history.trades || []).length,
     '| payroll range:', (() => {
       const ps = state.league.teams.map((t) => W.BBGM_FA.computePayroll(t, state.players));

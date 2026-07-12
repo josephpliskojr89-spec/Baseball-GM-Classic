@@ -662,14 +662,81 @@ window.BBGM_MAIN = (function () {
             `to win the ${summary.year} World Series.`,
     });
 
+    // Awards week (18.3): the marquee hardware, both leagues.
+    if (summary.awards) {
+      for (const lg of ['east', 'west']) {
+        const a = summary.awards[lg];
+        if (!a) continue;
+        const lgName = U.leagueName(lg);
+        const line = (label, w) => w ? `${label}: <strong>${w.winner.name}</strong> (${teamOf(w.winner.teamId) ? teamOf(w.winner.teamId).abbr : '—'})` : null;
+        const parts = [line('MVP', a.mvp), line('Cy Young', a.cy), line('Rookie of the Year', a.roy),
+          line('Manager of the Year', a.moy)].filter(Boolean);
+        if (parts.length) {
+          state.news.push({
+            date,
+            body: `<strong>🏅 ${lgName} League awards:</strong> ${parts.join(' • ')}. ` +
+                  `Full results and voting in League → Awards.`,
+          });
+        }
+      }
+      // User-team winners get their own headline.
+      for (const lg of ['east', 'west']) {
+        const a = summary.awards[lg];
+        if (!a) continue;
+        const userWins = [];
+        for (const [label, w] of [['MVP', a.mvp], ['Cy Young', a.cy], ['Rookie of the Year', a.roy],
+          ['Reliever of the Year', a.reliever], ['Comeback Player of the Year', a.comeback]]) {
+          if (w && w.winner.teamId === userTeamId) userWins.push(`${w.winner.name} wins ${label}`);
+        }
+        for (const pos in a.gg || {}) if (a.gg[pos].teamId === userTeamId) userWins.push(`${a.gg[pos].name} wins the Gold Glove (${pos})`);
+        for (const pos in a.ss || {}) if (a.ss[pos].teamId === userTeamId) userWins.push(`${a.ss[pos].name} wins the Silver Slugger (${pos})`);
+        for (const w of userWins) {
+          state.news.push({ date, body: `<strong>🏅 ${w}!</strong>` });
+        }
+      }
+    }
+
+    // Hall of Fame class (19.6).
+    if (summary.hof && summary.hof.inducted.length) {
+      const names = summary.hof.inducted.map((i) =>
+        `<strong>${i.name}</strong> (${i.pos}${i.method === 'veterans' ? ', Veterans Committee' : `, ${i.pct}%`})`);
+      state.news.push({
+        date,
+        body: `🏛 <strong>Hall of Fame Class of ${summary.year + 1}:</strong> ${names.join(', ')}.`,
+      });
+    }
+
     // Retirements: every user-team player, plus league-wide notables.
     for (const r of summary.retirements) {
       const notable = r.overall >= 55 || r.age >= 39;
       if (r.teamId !== userTeamId && !notable) continue;
       const t = teamOf(r.teamId);
+      // Career retrospective for user-team retirees (18.4): the news line
+      // carries the career summary; the profile keeps the full ledger.
+      let retro = '';
+      if (r.teamId === userTeamId) {
+        const p = state.players[r.playerId];
+        const c = p && p.careerStats;
+        if (c && !p.isPitcher && c.g > 0) {
+          retro = ` Career: ${c.g.toLocaleString()} games, ${c.h.toLocaleString()} hits, ` +
+                  `${c.hr} HR, ${window.BBGM_STATS.fmtAvg(window.BBGM_STATS.avg(c))} average.`;
+        } else if (c && p.isPitcher && c.g > 0) {
+          retro = ` Career: ${c.w}-${c.l}, ${window.BBGM_STATS.era(c).toFixed(2)} ERA, ` +
+                  `${c.k.toLocaleString()} strikeouts${c.sv >= 50 ? `, ${c.sv} saves` : ''}.`;
+        }
+        const ach = p && p.achievements;
+        if (ach) {
+          const extras = [];
+          if ((ach.allStarSelections || []).length) extras.push(`${ach.allStarSelections.length}× All-Star`);
+          const mvps = (ach.awards || []).filter((aw) => aw.name === 'MVP').length;
+          if (mvps) extras.push(`${mvps}× MVP`);
+          if ((ach.championships || []).length) extras.push(`${ach.championships.length}× champion`);
+          if (extras.length) retro += ` ${extras.join(', ')}.`;
+        }
+      }
       state.news.push({
         date,
-        body: `<strong>${r.name}</strong> (${t ? t.abbr : 'FA'}) retires at age ${r.age}.` +
+        body: `<strong>${r.name}</strong> (${t ? t.abbr : 'FA'}) retires at age ${r.age}.` + retro +
               (r.openToCoaching ? ' Word is he wants to stay in the game as a coach.' : ''),
       });
     }
@@ -912,6 +979,35 @@ window.BBGM_MAIN = (function () {
           body: s.tag === 'ws'
             ? `<strong>${w.name}</strong> win ${label}, defeating the ${l.name} ${score}!`
             : `<strong>${w.abbr}</strong> take ${label} over ${l.abbr}, ${score}.`,
+        });
+      }
+    }
+
+    // All-Star Game (bible 19.4): fires on the schedule's mid-July break
+    // date. Pure exhibition — no season stats, standings, or fatigue.
+    if (window.BBGM_AWARDS.allStarPending(state, today)) {
+      const as = window.BBGM_AWARDS.runAllStar(state);
+      if (!state.news) state.news = [];
+      const winName = U.leagueName(as.winner);
+      const loseName = U.leagueName(as.winner === 'east' ? 'west' : 'east');
+      const score = `${Math.max(as.eastRuns, as.westRuns)}-${Math.min(as.eastRuns, as.westRuns)}`;
+      state.news.push({
+        date: { ...today },
+        body: `<strong>⭐ ${winName} League wins the All-Star Game ${score}.</strong> ` +
+              `${as.mvp.name} takes home All-Star MVP honors.`,
+      });
+      const userTeamId = state.meta.userTeamId;
+      const mine = [];
+      for (const lg of ['east', 'west']) {
+        const r = as.rosters[lg];
+        for (const sel of r.starters.concat(r.pitchers, r.bench)) {
+          if (sel.teamId === userTeamId) mine.push(sel.name);
+        }
+      }
+      if (mine.length) {
+        state.news.push({
+          date: { ...today },
+          body: `<strong>${mine.length} of your players made the All-Star team:</strong> ${mine.join(', ')}.`,
         });
       }
     }

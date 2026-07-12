@@ -276,6 +276,25 @@ window.BBGM_UI_PLAYER = (function () {
     const ach = p.achievements || {};
     let any = false;
 
+    if (p.hof) {
+      any = true;
+      body.appendChild(U.el('div', {
+        style: {
+          'margin-top': '12px', padding: '10px 12px', 'border-radius': '10px',
+          background: 'linear-gradient(135deg, #7a5c00, #b8860b)', color: '#fff',
+          'font-weight': '600', 'font-size': '14px',
+        },
+      }, `🏛 Hall of Fame — Class of ${p.hof.year + 1}` +
+         (p.hof.method === 'veterans' ? ' (Veterans Committee)' : ` (${p.hof.pct}% of the vote)`)));
+    }
+
+    if (ach.allStarSelections && ach.allStarSelections.length) {
+      any = true;
+      body.appendChild(U.el('div', { class: 'card-title', style: { 'margin-top': '12px' } }, 'All-Star'));
+      body.appendChild(U.el('p', { style: { 'font-size': '13px', margin: '4px 0' } },
+        `⭐ ${ach.allStarSelections.length}× All-Star (${ach.allStarSelections.join(', ')})`));
+    }
+
     if (ach.awards && ach.awards.length) {
       any = true;
       body.appendChild(U.el('div', { class: 'card-title', style: { 'margin-top': '12px' } }, 'Awards'));

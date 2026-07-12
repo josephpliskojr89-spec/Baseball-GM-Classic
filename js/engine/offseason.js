@@ -290,6 +290,11 @@ window.BBGM_OFFSEASON = (function () {
       playoffSeeds: ps.rounds.map((r) => ({ league: r.league, seeds: r.seeds })),
     });
 
+    // 1.5. Awards week (18.3/19.2): voted on final regular-season stats,
+    // announced before retirements so a retiring MVP still collects his
+    // hardware. All-Star selections were stamped in July.
+    summary.awards = window.BBGM_AWARDS.runAwardsVoting(state, records, year);
+
     // 2. Minor-league season stat lines (12.2) — with the ratings the
     // players actually had this season, i.e. before progression.
     for (const id in players) {
@@ -332,6 +337,11 @@ window.BBGM_OFFSEASON = (function () {
       t.il = (t.il || []).filter((id) => !retiredIds.has(id));
     }
     state.freeAgents = (state.freeAgents || []).filter((id) => !retiredIds.has(id));
+
+    // 4.4. Hall of Fame vote (19.6): January's ballot, compressed into the
+    // rollover like the rest of the offseason calendar. Runs after
+    // retirements so this winter's retirees start their 5-year clocks.
+    summary.hof = window.BBGM_AWARDS.runHofVoting(state, year);
 
     // 4.5. Staff offseason (17.6/17.9): manager records and reputation,
     // owner-driven firings, coach churn, the retired-player coaching

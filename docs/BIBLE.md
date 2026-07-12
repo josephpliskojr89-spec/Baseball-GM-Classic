@@ -4166,7 +4166,45 @@ user becomes a pure GM), with hireable staff carrying mechanical effects.
 - All-Star Game functions
 - Long-term history accumulates
 
-### 21.16 Phase 15: Offseason Flow (Estimated: 1-2 sessions)
+> **Status (0.16.0) — shipped.** js/engine/awards.js carries all three
+> systems. **Annual awards (19.1/19.2):** simulated ballots (30 voters,
+> 14-9-8…1 points, per-ballot noise) for MVP / Cy Young / RoY per league,
+> with team-success halo and the traditional pitcher-MVP discount; smaller
+> panels for Reliever and Comeback (Comeback requires established → lost
+> year → return, so sophomore breakouts don't steal it); Manager of the
+> Year from record-vs-expectation + payroll context + reputation (winning
+> bumps the manager's rep, per 17.8); Gold Gloves from defense/arm ratings
+> per position (control proxies pitcher fielding) and Silver Sluggers from
+> offensive value — the DH league gets a DH slugger, the pitchers-bat
+> league a pitcher slugger from the batting lines. Voting runs at the
+> rollover before retirements; winners stamp p.achievements.awards and
+> archive to state.history.awards[year]. **All-Star (19.4):** fires on the
+> schedule's built-in July 14 break; 32-man rosters per league (9 fan-vote
+> starters from production + name recognition + team success, 8 SP + 4 RP
+> + bench by merit), stats-neutral exhibition result, All-Star MVP,
+> selections stamped as career achievements. **Hall of Fame (19.5/19.6):**
+> ballot = retired 5 full seasons + 10 service years, 10 years of
+> eligibility, 400-voter share from a logistic over a career score
+> (counting stats, rate stats, awards, All-Star count, rings, position
+> scarcity, ballot momentum), 75% elects, max 4/class; veterans committee
+> considers 20-years-retired dropped candidates (0-1/yr). Original-
+> generation vets carry pre-save service with no stat history, so counting
+> stats are pro-rated (capped 2.5×) toward full service length. UI:
+> League → Awards (Season Awards / Hall of Fame / All-Star views),
+> HoF banner + All-Star line on the player card, award/HoF/All-Star news,
+> career-retrospective lines in user-team retirement news.
+>
+> **Measured (16-season soak, seed 1):** every season fills MVP/Cy/RoY/
+> Reliever/MoY in both leagues plus 8-9 Gold Gloves and 9 Silver Sluggers;
+> repeat winners emerge naturally (a 4× MVP, multiple 3× Cy Youngs).
+> All-Star Game plays all 16 years (64 selections/yr). HoF: first ballots
+> form in year 6 (15 candidates), first class in year 11 once real careers
+> complete in-save, then a steady 2-3 inductees/yr (13 members by year 16,
+> pct range 75.8-100%) — inside 19.9's 2-4/yr target; the empty early-era
+> Hall is the expected cost of not fabricating pre-save careers. Zero sim
+> errors or invariant violations across the soak; probe (10 seasons)
+> verifies 32-man rosters, no double selections, single stamps, and
+> HoF eligibility invariants daily.
 
 **Goal:** Full offseason cycle integrating all systems.
 
