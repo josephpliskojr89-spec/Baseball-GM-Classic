@@ -473,8 +473,8 @@ window.BBGM_UI_TEAM = (function () {
     info.appendChild(U.el('div', { class: 'player-row-meta' }, meta));
     row.appendChild(info);
     const stats = U.el('div', { class: 'player-row-stats' });
-    // Scouting fog (5.7): your own farm shows your scouts' band, not the
-    // true number — tighter at AAA and at higher scouting tiers.
+    // Your own farm reads exact (0.16.3) — the report only bands players
+    // outside the organization (this row also serves rival-farm views).
     const rep = window.BBGM_SCOUT.report(state, p);
     const band = rep.ovrBand();
     if (rep.mode === 'min') {

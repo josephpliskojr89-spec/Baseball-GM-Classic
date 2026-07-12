@@ -520,8 +520,8 @@ window.BBGM_UI_FRONTOFFICE = (function () {
     const card = U.el('div', { class: 'card' });
     card.appendChild(U.el('div', { class: 'player-row-name' }, `${tier.name} — $${tier.cost}M / yr`));
     card.appendChild(U.el('p', { class: 'muted', style: { 'font-size': '12px', margin: '6px 0' } },
-      'Tier gates how clearly you see prospects: your farm, rival systems, the draft class, and the international pool. ' +
-      'The cost comes out of the same ownership budget as payroll.'));
+      'Tier gates how clearly you see prospects outside the organization: rival farm systems, the draft class, and the ' +
+      'international pool. Your own players are always an open book. The cost comes out of the same ownership budget as payroll.'));
     if (offseason) {
       const idx = SC.tierIdx(team);
       const grid = U.el('div', { style: { display: 'flex', gap: '8px' } });

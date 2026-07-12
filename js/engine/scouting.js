@@ -140,15 +140,14 @@ window.BBGM_SCOUT = (function () {
     if (p.retired || p.status === 'active' || p.status === 'FA' || p.rosterStatus === 'IL') return 'exact';
     if (p.status !== 'minors') return 'exact'; // safety: unknown states stay readable
 
-    const own = p.teamId === userTeamId;
-    const level = p.rosterStatus;
-    if (own) {
-      // Your own farm: your staff watches these games (5.7.2).
-      if (level === 'AAA') return 'tight';
-      if (level === 'AA') return ti >= 2 ? 'tight' : 'wide';
-      return ti >= 2 ? 'wide' : (ti === 0 && level === 'Rookie' ? 'min' : 'wide');
-    }
+    // Your own organization is never fogged (0.16.3): these are your
+    // players, your coaches, your instructional staff — the GM knows his
+    // own farm. Scouting tiers gate the OUTSIDE world: the draft and
+    // intl pools (poolView) and rival farms below.
+    if (p.teamId === userTeamId) return 'exact';
+
     // Another organization's farm.
+    const level = p.rosterStatus;
     if (level === 'AAA') return ti >= 3 ? 'tight' : (ti >= 1 ? 'wide' : 'min');
     if (level === 'AA') return ti >= 2 ? 'wide' : 'min';
     return ti >= 3 ? 'wide' : 'min';

@@ -4159,6 +4159,12 @@ user becomes a pure GM), with hireable staff carrying mechanical effects.
 > (6.9.6). Not yet: scouting notes flavor text (5.7.4), fog-gated trade
 > evaluation UI (6.9.5 — the player card already fogs, but trade values
 > quoted by the engine are true), archetype hints at high tiers.
+>
+> **Amended (0.16.3), deviating from 5.7.2 by design decision:** the
+> user's OWN organization is never fogged — a GM knows his own farm
+> (his players, his coaches, his instructional staff). Scouting tiers
+> gate only the outside world: rival farm systems, the draft class,
+> and the international pool.
 
 ### 21.15 Phase 14: Awards and Hall of Fame (Estimated: 1 session)
 
