@@ -4143,6 +4143,16 @@ user becomes a pure GM), with hireable staff carrying mechanical effects.
 > Not yet: scouting-tier-gated pool visibility (Phase 13 — bands are
 > honest today), pool-space trading, user-chosen carryover timing,
 > posting fees as a separate cash mechanic.
+>
+> **Amended (0.17.1) — country name pools.** International prospects
+> and event players draw from origin-appropriate name pools
+> (js/data/intl_name_pools.js, all-fictional combinations): a shared
+> Latin pool for the Spanish-speaking countries, plus dedicated
+> Japanese, Korean, Taiwanese, and Dutch-Caribbean (Curaçao) pools.
+> Australia keeps the default draw. Loading a save with a pending
+> class renames the unsigned pool in place; already-signed players
+> keep the names their history was written under. The harness fails
+> any signee whose name doesn't come from his country's pool.
 
 **Goal:** Tiered scouting affecting information visibility.
 

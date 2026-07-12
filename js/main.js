@@ -330,6 +330,27 @@ window.BBGM_MAIN = (function () {
     }
     if (mergedAPlus) window.BBGM_STATE.set(state);
 
+    // Migration: 0.17.1 added country name pools for international
+    // prospects. Rename the UNSIGNED pending pool in place (they have no
+    // game history yet); signed players and past classes keep the names
+    // they made their history under.
+    if (state.intl && state.intl.prospects && window.BBGM_INTL_NAMES) {
+      let renamed = false;
+      for (const id in state.intl.prospects) {
+        const pr = state.intl.prospects[id];
+        // Signed pool entries share their object with state.players —
+        // only rename prospects still on the open market.
+        if (pr.teamId || pr.status !== 'intl') continue;
+        const drawn = window.BBGM_INTL_NAMES.nameFor(pr.origin || pr.country, Math.random);
+        if (!drawn) continue;
+        pr.firstName = drawn.first;
+        pr.lastName = drawn.last;
+        pr.name = `${drawn.first} ${drawn.last}`;
+        renamed = true;
+      }
+      if (renamed) window.BBGM_STATE.set(state);
+    }
+
     if (state.meta.userTeamId) {
       document.getElementById('app').classList.remove('hidden');
       refresh();

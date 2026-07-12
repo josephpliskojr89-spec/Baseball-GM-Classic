@@ -19,6 +19,7 @@ const ROOT = path.join(__dirname, '..');
 const files = [
   'js/data/constants.js',
   'js/data/name_pools.js',
+  'js/data/intl_name_pools.js',
   'js/data/city_pools.js',
   'js/data/teams.js',
   'js/util/rng.js',
@@ -189,6 +190,27 @@ function simOneDay(state) {
     draftLines.push(`  ${today.year} intl window: signed ${recap.signedCount}/100` +
       ` | #1 ${top ? `${top.name} (${top.pos}, ${top.country}) $${top.bonus}M to ${top.teamId}` : '?'}`);
   }
+  // Intl name pools (0.17.1): every prospect from a pooled country must
+  // carry a name drawn from that country's pool, never the Anglo default.
+  if (state.intl && state.intl.phase === 'complete' && state.intl.recap && !state.intl.namesChecked) {
+    state.intl.namesChecked = true;
+    const IN = W.BBGM_INTL_NAMES;
+    let wrong = 0;
+    for (const id in state.players) {
+      const p = state.players[id];
+      if (!p.intl || p.intl.year !== today.year) continue;
+      const key = IN.COUNTRY_POOL[p.origin];
+      if (!key) continue;
+      const pool = IN.POOLS[key];
+      const first = p.name.split(' ')[0];
+      if (!pool.first.includes(first)) {
+        wrong++;
+        if (wrong <= 3) console.log(`✗ INTL NAME MISMATCH: ${p.name} from ${p.origin}`);
+      }
+    }
+    if (wrong) { console.log(`✗ ${wrong} INTL NAME MISMATCHES in ${today.year}`); process.exit(1); }
+  }
+
   // All-Star Game on the mid-July break (mirrors main.js).
   if (W.BBGM_AWARDS.allStarPending(state, today)) {
     const as = W.BBGM_AWARDS.runAllStar(state);

@@ -58,6 +58,19 @@ window.BBGM_INTL = (function () {
     return COUNTRIES[0][0];
   }
 
+  // Rename by origin: the generic pool skews Anglo, and a Dominican
+  // 16-year-old signing as "Dean Pennington" breaks the fiction. Countries
+  // without a dedicated pool (Australia) keep the default draw.
+  function applyOriginName(p) {
+    const IN = window.BBGM_INTL_NAMES;
+    if (!IN || !p.origin) return;
+    const drawn = IN.nameFor(p.origin, rand);
+    if (!drawn) return;
+    p.firstName = drawn.first;
+    p.lastName = drawn.last;
+    p.name = `${drawn.first} ${drawn.last}`;
+  }
+
   function rollAge() {
     const r = rand();
     if (r < 0.45) return 16;
@@ -117,6 +130,7 @@ window.BBGM_INTL = (function () {
     p.serviceTime = { years: 0, days: 0 };
     p.origin = rollCountry();
     p.intlClass = year;
+    applyOriginName(p);
 
     // Best tool lands in the rank band; the rest keep their spread (same
     // additive approach as the draft — no all-80 monsters).
@@ -501,6 +515,7 @@ window.BBGM_INTL = (function () {
     p.teamId = null;
     p.origin = opts.country;
     p.intlEvent = opts.event;
+    applyOriginName(p);
     p.serviceTime = { years: opts.serviceYears, days: 0 };
     p.contract = { years: 0, annualSalary: 0, totalValue: 0, signedAt: 'intl-event' };
     state.players[p.id] = p;
