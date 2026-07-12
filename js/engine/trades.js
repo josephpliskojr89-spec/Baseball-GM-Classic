@@ -291,7 +291,7 @@ window.BBGM_TRADES = (function () {
         team.roster.splice(team.roster.indexOf(weakest.id), 1);
         team.minors.push(weakest.id);
         weakest.status = 'minors';
-        weakest.rosterStatus = 'AAA';
+        weakest.rosterStatus = ROSTER().demotionLevel(weakest);
         ROSTER().replaceRefs(team, players, weakest.id, null);
       }
       while (team.roster.length < 26) {

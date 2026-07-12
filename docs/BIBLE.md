@@ -2293,6 +2293,20 @@ The user manages this tension. Aggressive promotion can damage ceiling. Conserva
 > never straight to AAA). Not yet: sustained-misplacement ceiling
 > damage (only the annual progression drag), mid-season AI promotions
 > (12.5), and the promotion-candidate notifications.
+>
+> **Amended (0.17.0) — youth ceiling.** `recommendedLevel` also caps by
+> age: 18 and under top out at A ball, 19-20 at AA, 21+ uncapped —
+> nobody plays the upper minors as a teenager no matter how loud the
+> tools (`maxLevelIdxForAge`). A prospect at his age cap reads
+> levelFitDelta 0: dominating A ball at 18 is the proper level — no
+> promotion arrow and no "held too long" development drag; promoting
+> him past the cap by hand takes the aggressive-promotion penalty as
+> usual. The cap flows everywhere recommendedLevel does: scout arrows,
+> the progression gate, AI offseason reassignment, and draft/int'l
+> assignment. Genesis age bands honor it (AAA now generates 21+).
+> Paired with rawer HS draftees (6.5 note): the elite-teenager path is
+> Rookie/A at 17-18 → AA at ~20 → AAA at ~21 → debut at 21-22, the
+> ceiling untouched — the climb takes calendar years by design.
 
 ### 12.5 Promotion Mechanics
 
@@ -4079,6 +4093,14 @@ user becomes a pure GM), with hireable staff carrying mechanical effects.
 > fringe releases leave the game instead of pooling, and unsigned
 > veteran FAs wash out faster. Not yet: scouting-tier-gated report
 > depth/fog (Phase 13), pick trading, draft lottery, compensation picks.
+>
+> **Amended (0.17.0) — HS draftees arrive raw.** The HS current-rating
+> gap off the ceiling deepened (24→29, wider variance, current tools
+> hard-capped at 48): a 17-18-year-old lands in the 30s / low 40s on
+> draft day instead of near 50, so he starts at Rookie/A instead of AA.
+> Ceilings — the thing the pick is FOR — are untouched, so draft value,
+> the star pipeline, and the talent-pyramid calibration hold. Paired
+> with 12.4's youth ceiling on level placement.
 
 ### 21.13 Phase 12: International Signings (Estimated: 1 session)
 

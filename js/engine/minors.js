@@ -135,10 +135,22 @@ window.BBGM_MINORS = (function () {
     return 'Rookie';
   }
 
+  // Youth ceiling (12.4, amended 0.17.0): nobody pitches in the upper
+  // minors as a teenager, no matter how loud the tools. A prospect at his
+  // age cap has levelFitDelta 0 — dominating A ball at 18 is exactly
+  // where he belongs, with no "left too low" development stunt and no
+  // promotion arrow. The climb takes calendar years by design.
+  function maxLevelIdxForAge(age) {
+    if (age <= 18) return 1;            // A ball at most
+    if (age <= 20) return 2;            // AA at most
+    return ORDER.length - 1;            // 21+: no cap
+  }
+
   function recommendedLevel(p) {
     let target = ORDER.indexOf(targetLevel(p));
     if (p.age >= 23) target = Math.max(target, 1);
     if (p.age >= 26) target = Math.max(target, 2);
+    target = Math.min(target, maxLevelIdxForAge(p.age));
     return ORDER[target];
   }
 
@@ -165,5 +177,5 @@ window.BBGM_MINORS = (function () {
     p.rosterStatus = ORDER[clamp(next, 0, ORDER.length - 1)];
   }
 
-  return { simSeasonLine, reassignLevel, targetLevel, recommendedLevel, levelFitDelta, placementRating, LEVELS, ORDER };
+  return { simSeasonLine, reassignLevel, targetLevel, recommendedLevel, levelFitDelta, placementRating, maxLevelIdxForAge, LEVELS, ORDER };
 })();

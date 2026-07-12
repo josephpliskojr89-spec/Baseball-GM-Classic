@@ -144,13 +144,17 @@ window.BBGM_DRAFT = (function () {
     }
 
     // Current ratings: even the class's best bat is no better than
-    // MLB-average on draft day (6.5). HS picks are far from their ceiling;
-    // college seniors are nearly done developing.
-    const gapBase = ({ HS: 24, Fr: 19, So: 16, Jr: 13, Sr: 10 })[bg.key] || 14;
+    // MLB-average on draft day (6.5). HS picks are far from their ceiling
+    // — RAW, not just young (0.17.0: gap deepened 24→29 with wider
+    // variance and a lower clamp, so a 17-year-old lands in the 30s-low
+    // 40s and starts at Rookie/A; his value is the ceiling, untouched).
+    // College seniors are nearly done developing.
+    const gapBase = ({ HS: 29, Fr: 21, So: 17, Jr: 13, Sr: 10 })[bg.key] || 14;
+    const currentCap = bg.key === 'HS' ? 48 : 56;
     for (const k of keys) {
-      const gap = Math.max(3, gapBase + rnorm(0, bg.key === 'HS' ? 4 : 2));
+      const gap = Math.max(3, gapBase + rnorm(0, bg.key === 'HS' ? 5 : 2));
       p.ratings[k] = clamp(Math.round((p.hidden.ceiling[k] - gap) * 10) / 10, 20,
-        Math.min(56, p.hidden.ceiling[k] - 2));
+        Math.min(currentCap, p.hidden.ceiling[k] - 2));
     }
     if (p.isPitcher) {
       // Stamina develops early — keep draft-day stamina near its ceiling so

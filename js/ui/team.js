@@ -589,7 +589,7 @@ window.BBGM_UI_TEAM = (function () {
       team.minors[team.minors.indexOf(minorsId)] = rosterId;
       up.rosterStatus = '26-man';
       up.status = 'active';
-      down.rosterStatus = 'AAA';
+      down.rosterStatus = window.BBGM_ROSTER.demotionLevel(down);
       down.status = 'minors';
 
       // The GM made the roster move; the manager re-sets his lineup,

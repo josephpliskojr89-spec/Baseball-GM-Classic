@@ -97,6 +97,14 @@ window.BBGM_ROSTER = (function () {
     }
   }
 
+  // Demotion landing level: the scouts' recommended level, which honors
+  // rating, age floors, AND the youth ceiling (12.4 / 0.17.0) — a
+  // 20-year-old sent down goes to AA, not AAA, no matter how good he is.
+  function demotionLevel(p) {
+    const MIN = window.BBGM_MINORS;
+    return MIN ? MIN.recommendedLevel(p) : 'AAA';
+  }
+
   // Best healthy minor leaguer of the given type, AAA preferred.
   function bestCallUp(team, players, isPitcher, positionNeed) {
     const inj = INJ();
@@ -195,7 +203,7 @@ window.BBGM_ROSTER = (function () {
     if (ri >= 0) team.roster.splice(ri, 1);
     team.minors.push(down.id);
     down.status = 'minors';
-    down.rosterStatus = 'AAA';
+    down.rosterStatus = demotionLevel(down);
     delete down.ilCallUpFor;
     // If the demoted cover held a rotation slot (a call-up covering an
     // IL'd starter's turn), the returning pitcher reclaims it BEFORE the
@@ -286,7 +294,7 @@ window.BBGM_ROSTER = (function () {
               team.roster.splice(team.roster.indexOf(down.id), 1);
               team.minors.push(down.id);
               down.status = 'minors';
-              down.rosterStatus = 'AAA';
+              down.rosterStatus = demotionLevel(down);
               replaceRefs(team, players, down.id, null);
             }
           }
@@ -308,7 +316,7 @@ window.BBGM_ROSTER = (function () {
   }
 
   return {
-    placeOnILWithMove, activateFromIL, replaceRefs, bestCallUp, overall,
+    placeOnILWithMove, activateFromIL, replaceRefs, bestCallUp, overall, demotionLevel,
     newPlayerId, safeRebuild,
   };
 })();

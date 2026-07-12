@@ -146,9 +146,11 @@ window.BBGM_PLAYER_GEN = (function () {
     return { mean, stdev, min: 21, max: 40 };
   }
 
+  // Age bands per level honor the youth ceiling (12.4 / minors.js
+  // maxLevelIdxForAge): teenagers don't populate the upper minors.
   function ageForLevel(level) {
     switch (level) {
-      case 'AAA': return { mean: 26, stdev: 2.5, min: 19, max: 35 };
+      case 'AAA': return { mean: 26, stdev: 2.5, min: 21, max: 35 };
       case 'AA': return { mean: 23, stdev: 1.5, min: 19, max: 28 };
       case 'A': return { mean: 20.5, stdev: 1.3, min: 17, max: 24 };
       case 'Rookie': return { mean: 18, stdev: 1.0, min: 16, max: 21 };

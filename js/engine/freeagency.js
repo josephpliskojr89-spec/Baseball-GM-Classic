@@ -253,7 +253,7 @@ window.BBGM_FA = (function () {
     } else {
       team.minors.push(p.id);
       p.status = 'minors';
-      p.rosterStatus = 'AAA';
+      p.rosterStatus = ROSTER().demotionLevel(p);
     }
     const fi = (state.freeAgents || []).indexOf(p.id);
     if (fi >= 0) state.freeAgents.splice(fi, 1);
@@ -298,7 +298,7 @@ window.BBGM_FA = (function () {
     p.contract = { years: 1, annualSalary: 0.74, totalValue: 0.74, signedAt: 'FA-minors' };
     p.teamId = team.id;
     p.status = 'minors';
-    p.rosterStatus = 'AAA';
+    p.rosterStatus = ROSTER().demotionLevel(p);
     p.acquiredVia = { type: 'fa', year: state.meta.currentDate.year };
     team.minors.push(p.id);
     const fi = (state.freeAgents || []).indexOf(p.id);

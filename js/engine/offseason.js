@@ -617,7 +617,7 @@ window.BBGM_OFFSEASON = (function () {
       team.roster.splice(team.roster.indexOf(down.id), 1);
       team.minors.push(down.id);
       down.status = 'minors';
-      down.rosterStatus = 'AAA';
+      down.rosterStatus = ROSTER().demotionLevel(down);
       delete down.ilCallUpFor;
       return true;
     }

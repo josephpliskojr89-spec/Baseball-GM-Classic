@@ -166,9 +166,19 @@ function simOneDay(state) {
   if (W.BBGM_DRAFT.draftDayPending(state, today)) {
     const recap = W.BBGM_DRAFT.autoRunDraft(state);
     const first = recap.round1[0];
+    // Draft-day polish (0.17.0): teenagers arrive RAW — the most polished
+    // HS signee should sit in the high 30s / low 40s, not at 50.
+    let maxTeenOvr = 0;
+    for (const id in state.players) {
+      const p = state.players[id];
+      if (p.draft && p.draft.year === today.year && p.age <= 18) {
+        maxTeenOvr = Math.max(maxTeenOvr, W.BBGM_ROSTER.overall(p));
+      }
+    }
     draftLines.push(`  ${today.year} draft: strength ${state.draftHistory[state.draftHistory.length - 1].strength}` +
       ` | #1 ${first ? `${first.name} (${first.pos}) to ${first.teamId}` : '?'}` +
-      ` | signed ${recap.signedCount}/300`);
+      ` | signed ${recap.signedCount}/300` +
+      ` | best teen signee OVR ${maxTeenOvr.toFixed(0)} (t <=45)`);
   }
   // International window: class exists all year (rollover / season-1
   // fallback), auto-run on July 2 (mirrors main.js + hub).
@@ -444,6 +454,27 @@ if (seasonsArg > 1) {
     console.log(`  awards E[MVP/Cy/RoY]: ${awLine('east')} | W: ${awLine('west')}` +
       ` | HoF inducted: ${hofN}${hofN ? ' (' + summary.hof.inducted.map((i) => `${i.name} ${i.pct}%`).join(', ') + ')' : ''}` +
       ` | ballot size: ${summary.hof ? summary.hof.ballot.length : 0}`);
+    // Youth ceiling (12.4 / 0.17.0): post-rollover, no minor leaguer sits
+    // above his age cap (AI reassignment honors it; only user moves can
+    // exceed it and the harness has no user).
+    const MINR = W.BBGM_MINORS;
+    let capViolations = 0;
+    const youngest = { AA: 99, AAA: 99 };
+    for (const id in state.players) {
+      const p = state.players[id];
+      if (p.retired || p.status !== 'minors') continue;
+      const idx = MINR.ORDER.indexOf(p.rosterStatus);
+      if (idx < 0) continue;
+      if (idx > MINR.maxLevelIdxForAge(p.age)) capViolations++;
+      if (p.rosterStatus === 'AA') youngest.AA = Math.min(youngest.AA, p.age);
+      if (p.rosterStatus === 'AAA') youngest.AAA = Math.min(youngest.AAA, p.age);
+    }
+    console.log(`  youth ceiling: violations ${capViolations} (must be 0)` +
+      ` | youngest AA ${youngest.AA} (t 19+) | youngest AAA ${youngest.AAA} (t 21+)`);
+    if (capViolations > 0) {
+      console.log('✗ YOUTH CEILING VIOLATED');
+      process.exit(1);
+    }
 
     if (si === seasonsArg) break;
     runSeason();
