@@ -1,4 +1,6 @@
-// Team view: roster, lineup, pitching, minors.
+// Team view: roster, lineup, pitching, minors — the on-field side.
+// Front-office screens (staff/trades/free agents) moved to the GM nav
+// tab in 0.16.2.
 // Phase 3: lineup/rotation/bullpen management and minors promotion are
 // interactive. Every mutation runs through mutateTeam(), which snapshots the
 // team, applies the change, re-validates readiness (BBGM_PLAYER_GEN
@@ -13,6 +15,9 @@ window.BBGM_UI_TEAM = (function () {
 
   function render(container, state, opts = {}) {
     if (opts && opts.tab) activeTab = opts.tab;
+    // Front-office keys from pre-0.16.2 links (or a stale module state)
+    // have no home here anymore — land on the roster.
+    if (!['roster', 'lineup', 'pitching', 'minors'].includes(activeTab)) activeTab = 'roster';
     U.clearChildren(container);
     const team = state.league.teams.find((t) => t.id === state.meta.userTeamId);
 
@@ -25,9 +30,6 @@ window.BBGM_UI_TEAM = (function () {
       { key: 'lineup', label: 'Lineup' },
       { key: 'pitching', label: 'Pitching' },
       { key: 'minors', label: 'Minors' },
-      { key: 'staff', label: 'Staff' },
-      { key: 'trades', label: 'Trades' },
-      { key: 'freeagents', label: 'Free Agents' },
     ];
     for (const t of tabDefs) {
       const btn = U.el('button', {
@@ -41,10 +43,7 @@ window.BBGM_UI_TEAM = (function () {
     if (activeTab === 'roster') renderRoster(container, state, team);
     else if (activeTab === 'lineup') renderLineup(container, state, team);
     else if (activeTab === 'pitching') renderPitching(container, state, team);
-    else if (activeTab === 'minors') renderMinors(container, state, team);
-    else if (activeTab === 'staff') window.BBGM_UI_FRONTOFFICE.renderStaff(container, state);
-    else if (activeTab === 'trades') window.BBGM_UI_FRONTOFFICE.renderTrades(container, state);
-    else if (activeTab === 'freeagents') window.BBGM_UI_FRONTOFFICE.renderFreeAgents(container, state);
+    else renderMinors(container, state, team);
   }
 
   // Pillar 4 byline: these screens show the manager's decisions.
@@ -53,7 +52,7 @@ window.BBGM_UI_TEAM = (function () {
     const mgr = STAFF && STAFF.managerFor(state, team);
     return U.el('p', { class: 'muted', style: { 'font-size': '12px', 'margin-bottom': '10px' } },
       mgr
-        ? `Managed by ${mgr.name} (${mgr.archetypeName}). The manager sets the lineups, rotation, and bullpen — shape the roster and hire the right skipper (Team → Staff).`
+        ? `Managed by ${mgr.name} (${mgr.archetypeName}). The manager sets the lineups, rotation, and bullpen — shape the roster and hire the right skipper (GM → Staff).`
         : 'No manager — the owner will hire one before Opening Day.');
   }
 

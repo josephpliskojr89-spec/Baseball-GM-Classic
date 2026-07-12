@@ -382,7 +382,7 @@ window.BBGM_UI_DRAFT = (function () {
     }
     if (toolsVisible(state, rank, 'draft')) body.appendChild(grid);
     else body.appendChild(U.el('p', { class: 'muted', style: { 'font-size': '12px', 'margin-bottom': '10px' } },
-      'Tool grades are thin at your scouting tier — upgrade the department (Team → Staff) for full reports this deep in the class.'));
+      'Tool grades are thin at your scouting tier — upgrade the department (GM → Staff) for full reports this deep in the class.'));
     const db = poolBand(state, p, rank, 'draft');
     body.appendChild(U.el('p', { style: { 'font-size': '13px' } }, db ? [
       'Projected ceiling: ',

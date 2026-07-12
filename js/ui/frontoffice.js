@@ -426,7 +426,7 @@ window.BBGM_UI_FRONTOFFICE = (function () {
           on: { click: () => {
             U.showModal({
               title: `Fire ${mgr.name}?`,
-              body: 'He goes to the unemployed pool and you hire a replacement from Team → Staff. If the seat is still empty at Opening Day, the owner picks someone.',
+              body: 'He goes to the unemployed pool and you hire a replacement from GM → Staff. If the seat is still empty at Opening Day, the owner picks someone.',
               actions: [
                 { label: 'Cancel', kind: 'secondary', onClick: () => true },
                 { label: 'Fire Manager', kind: 'danger', onClick: () => {

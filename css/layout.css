@@ -22,11 +22,55 @@
   border-bottom: 1px solid var(--border-subtle);
 }
 
+/* Left block stacks date over record so the centered Advance pill has
+   room on narrow phones. */
 .app-header-left {
   display: flex;
-  align-items: baseline;
-  gap: var(--sp-3);
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 0;
   min-width: 0;
+}
+
+/* The Advance pill is centered on the header's content strip (below the
+   iOS safe-area inset). The wrapper spans the full width but only the
+   button itself takes taps. */
+.app-header-center {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: var(--safe-top);
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.app-header-center > * {
+  pointer-events: auto;
+}
+
+/* Menu moved out of the bottom nav (0.16.2) to the header's top right. */
+.hdr-menu-btn {
+  position: relative;
+  z-index: 1;
+  font-size: 24px;
+  line-height: 1;
+  color: var(--text-secondary);
+  padding: 8px 10px;
+  min-width: 40px;
+  min-height: 40px;
+  border-radius: var(--radius-md);
+}
+
+.hdr-menu-btn.active {
+  color: var(--accent);
+}
+
+.hdr-menu-btn:active {
+  background: var(--bg-card);
 }
 
 .hdr-date {

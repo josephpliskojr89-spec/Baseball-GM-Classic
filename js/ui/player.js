@@ -204,7 +204,7 @@ window.BBGM_UI_PLAYER = (function () {
       rep.mode === 'exact' ? 'Ratings' : 'Scouting Report'));
     if (rep.mode === 'min') {
       body.appendChild(U.el('div', { class: 'empty-state' },
-        'Your scouts have no book on him. A higher scouting tier (Team → Staff) opens up reports at this level.'));
+        'Your scouts have no book on him. A higher scouting tier (GM → Staff) opens up reports at this level.'));
     } else {
       body.appendChild(p.isPitcher ? pitcherRatings(p, rep) : hitterRatings(p, rep));
       if (rep.mode !== 'exact') {

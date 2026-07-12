@@ -100,6 +100,9 @@ window.BBGM_MAIN = (function () {
     // Wire advance day
     document.getElementById('btnAdvance').addEventListener('click', () => advanceDay());
 
+    // Menu lives in the header's top-right (0.16.2), not the bottom nav.
+    document.getElementById('btnMenu').addEventListener('click', () => navigate('menu'));
+
     // Modal close on backdrop click
     document.getElementById('modalRoot').addEventListener('click', (e) => {
       if (e.target.id === 'modalRoot') U.closeModal();
@@ -375,13 +378,21 @@ window.BBGM_MAIN = (function () {
     if (tab === 'league' && ['stats', 'leaders', 'awards'].includes(options.tab)) {
       tab = 'players';
     }
+    // Back-compat: staff / trades / free agents moved from Team to the
+    // GM nav tab (0.16.2).
+    if (tab === 'team' && ['staff', 'trades', 'freeagents'].includes(options.tab)) {
+      tab = 'gm';
+    }
     currentTab = tab;
     viewOptions = options;
     refresh();
-    // Update nav buttons
+    // Update nav buttons (+ the header menu button, which acts as the
+    // Menu tab's nav entry).
     document.querySelectorAll('.nav-btn').forEach((b) => {
       b.classList.toggle('active', b.dataset.tab === tab);
     });
+    const menuBtn = document.getElementById('btnMenu');
+    if (menuBtn) menuBtn.classList.toggle('active', tab === 'menu');
   }
 
   function refresh() {
@@ -396,6 +407,7 @@ window.BBGM_MAIN = (function () {
       case 'team': window.BBGM_UI_TEAM.render(main, state, opts); break;
       case 'league': window.BBGM_UI_LEAGUE.render(main, state, opts); break;
       case 'players': window.BBGM_UI_PLAYERS.render(main, state, opts); break;
+      case 'gm': window.BBGM_UI_GM.render(main, state, opts); break;
       case 'draft': window.BBGM_UI_DRAFT.render(main, state, opts); break;
       case 'menu': window.BBGM_UI_MENU.render(main, state); break;
       default: window.BBGM_UI_DASHBOARD.render(main, state);
@@ -589,7 +601,7 @@ window.BBGM_MAIN = (function () {
           title: 'The Offseason Begins',
           body: `The ${champ.name} take home the ${summary.year} title. ` +
                 `${summary.retirements.length} players retired and ${summary.newFAs} hit free agency. ` +
-                `The market is open — work it from Team → Free Agents, advance the ` +
+                `The market is open — work it from GM → Free Agents, advance the ` +
                 `signing period from the dashboard, and start the season when you're done.`,
           actions: [{ label: 'To the Offseason', kind: 'primary', onClick: () => true }],
         });
@@ -808,7 +820,7 @@ window.BBGM_MAIN = (function () {
     if (userTeamObj && !userTeamObj.managerId) {
       state.news.push({
         date,
-        body: `<strong>Your manager's seat is empty.</strong> Hire a new skipper from Team → Staff before Opening Day (the owner will pick one for you otherwise).`,
+        body: `<strong>Your manager's seat is empty.</strong> Hire a new skipper from GM → Staff before Opening Day (the owner will pick one for you otherwise).`,
       });
     }
 

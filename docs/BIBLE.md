@@ -3371,15 +3371,18 @@ A bottom navigation bar is present on every screen (mobile-standard pattern). Fi
 
 Each tab loads its own screen. Tabs persist scroll position when user navigates back. Navigation is single-tap from anywhere.
 
-> **Status (0.16.1) — the nav evolved as systems shipped.** Six tabs:
-> **Home**, **Team**, **League** (Scores — the Games tab folded in here
-> in 0.13 — plus Standings with tap-through team pages, Playoffs,
-> History), **Players** (league-wide player browsing: sortable season
-> Stats for any club, league Leaders, and the Awards wing — season
-> hardware, Hall of Fame, All-Star), **Draft** (the Draft Hub, incl. the
-> international window), and **Menu**. The Players split (0.16.1) keeps
-> League to the competition views so neither inner tab bar is cramped
-> on a phone.
+> **Status (0.16.2) — the nav evolved as systems shipped.** Bottom nav
+> (six tabs): **Home**, **Team** (on-field: roster, lineup, pitching,
+> minors), **League** (Scores — the Games tab folded in here in 0.13 —
+> plus Standings with tap-through team pages, Playoffs, History),
+> **Players** (league-wide player browsing: sortable season Stats for
+> any club, league Leaders, and the Awards wing — season hardware, Hall
+> of Fame, All-Star; split out in 0.16.1), **Draft** (the Draft Hub,
+> incl. the international window), and **GM** (the front-office desk:
+> Staff, Trades, Free Agents; split from Team in 0.16.2). The header
+> carries the date/record stack on the left, the centered Advance Day
+> pill, and the Menu (settings/save) button in the top-right — Menu
+> left the bottom nav in 0.16.2 to make room for GM.
 
 A persistent header at the top of every screen shows:
 - Current in-game date

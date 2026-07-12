@@ -442,7 +442,7 @@ window.BBGM_TRADES = (function () {
     state.news.push({
       date: { ...state.meta.currentDate },
       body: `<strong>${aiTeam.abbr}</strong> called about <strong>${target.name}</strong> — ` +
-            `they're offering ${offer.map((p) => p.name).join(' and ')}. (Team → Trades)`,
+            `they're offering ${offer.map((p) => p.name).join(' and ')}. (GM → Trades)`,
     });
   }
 
