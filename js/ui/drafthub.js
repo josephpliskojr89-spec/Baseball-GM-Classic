@@ -350,6 +350,35 @@ window.BBGM_UI_DRAFT = (function () {
     return row;
   }
 
+  // Prospect bio line (0.19.2): height/weight and full birthdate, shared by
+  // the draft and intl report modals. Uses the profile card's bio fallback
+  // so both surfaces always agree.
+  function prospectBioLine(p) {
+    const bio = window.BBGM_UI_PLAYER.bioOf(p);
+    const months = window.BBGM_CONSTANTS.MONTHS;
+    return U.el('p', { class: 'muted', style: { 'font-size': '12px', 'margin-bottom': '8px' } },
+      `${window.BBGM_UI_PLAYER.fmtHeight(bio.heightIn)}, ${bio.weightLb} lb • ` +
+      `Born ${months[bio.birthMonth - 1]} ${bio.birthDay}, ${p.birthYear}`);
+  }
+
+  // "From our scouts" (0.19.2): the draft-guide blurb — the department's
+  // strengths/weaknesses read, as right or wrong as the tier that wrote it.
+  function appendScoutNotes(body, state, p, pool) {
+    const notes = window.BBGM_SCOUT.prospectNotes(state, p, { pool });
+    if (!notes.length) return;
+    const card = U.el('div', {
+      style: { 'margin-top': '10px', padding: '8px 10px', 'border-left': '3px solid var(--accent)',
+        background: 'rgba(255,255,255,0.03)', 'border-radius': '6px' },
+    });
+    card.appendChild(U.el('div', { class: 'muted',
+      style: { 'font-size': '10px', 'letter-spacing': '0.6px', 'text-transform': 'uppercase', 'margin-bottom': '4px' } },
+      'From our scouts'));
+    for (const n of notes) {
+      card.appendChild(U.el('p', { style: { 'font-size': '13px', margin: '3px 0' } }, n));
+    }
+    body.appendChild(card);
+  }
+
   // Scouting-report modal (13.4): tools now, projected ceiling band, target
   // toggle — and the Draft action when the user is on the clock.
   function showProspect(state, prospectId, opts = {}) {
@@ -364,6 +393,7 @@ window.BBGM_UI_DRAFT = (function () {
     body.appendChild(U.el('p', { class: 'muted', style: { 'font-size': '12px', 'margin-bottom': '8px' } },
       `${p.primaryPosition} • Bats ${p.bats} / Throws ${p.throws} • Age ${p.age} • ${p.school}` +
       ` • Board rank #${rank}`));
+    body.appendChild(prospectBioLine(p));
 
     const toolPairs = p.isPitcher
       ? [['VEL', p.ratings.velocity], ['STF', p.ratings.stuff], ['MOV', p.ratings.movement],
@@ -392,6 +422,7 @@ window.BBGM_UI_DRAFT = (function () {
         ? 'High schooler — wide error bars, long development runway.'
         : 'College product — tighter projection, closer to ready.'}`,
     ] : 'Your scouts have no real book on him — a name on a list.'));
+    if (db) appendScoutNotes(body, state, p, 'draft');
 
     const actions = [];
     if (opts.pickMode && DRAFT().isUserOnClock(state)) {
@@ -847,6 +878,7 @@ window.BBGM_UI_DRAFT = (function () {
     body.appendChild(U.el('p', { class: 'muted', style: { 'font-size': '12px', 'margin-bottom': '8px' } },
       `${p.primaryPosition} • Bats ${p.bats} / Throws ${p.throws} • Age ${p.age} • ${p.origin}` +
       ` • Rank #${rank} • Ask $${p.ask}M`));
+    body.appendChild(prospectBioLine(p));
     const toolPairs = p.isPitcher
       ? [['VEL', p.ratings.velocity], ['STF', p.ratings.stuff], ['MOV', p.ratings.movement], ['CTL', p.ratings.control]]
       : [['CON', (p.ratings.contactVsR + p.ratings.contactVsL) / 2],
@@ -870,6 +902,7 @@ window.BBGM_UI_DRAFT = (function () {
         `${ib[0]}–${ib[1]}`),
       ' on his best tool. Teenage international projection — the widest error bars in scouting.',
     ] : 'Sign him and hope — your scouts have nothing on him.'));
+    if (ib) appendScoutNotes(body, state, p, 'intl');
 
     const actions = [];
     const refreshAll = () => {

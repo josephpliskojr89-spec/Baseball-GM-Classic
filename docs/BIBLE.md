@@ -4468,6 +4468,27 @@ This is not a single phase but an ongoing process. Activities include:
 >   counter; a page-hide save flush for the mobile 400ms-debounce gap;
 >   safeRebuild's pitching repair trims back to 26.
 
+> **Status (0.19.2) — prospect scouting reports + birthdate fix.**
+>
+> - **Birthdate bug.** The profile card's bio fallback hashed the player
+>   id with SIGNED bit-shifts — ids hashing above 2^31 went negative and
+>   rendered "undefined -7, 2006". Fixed to unsigned (`>>>`), the same
+>   latent pattern cleaned up in the scouting fog's band math, and a
+>   one-shot 0.19.2 migration backfills persisted birthdates (and any
+>   missing height/weight) onto every player and pool prospect so the
+>   fallback is no longer load-bearing.
+> - **Draft-guide scout blurbs (6.5/13.4 amendment).** Draft and intl
+>   prospect cards now carry a bio line (height/weight, full birthdate)
+>   and a "From our scouts" note: the department's strengths/weaknesses
+>   read — carrying tool, biggest concern, starter-workload risk, and
+>   (above-average tiers and up) accurate makeup notes. Reads are the
+>   tool CEILINGS seen through tier-scaled noise, deterministic per
+>   (team, prospect): a bare-bones department regularly falls in love
+>   with the wrong tool; an elite one rarely does. Teenage international
+>   reads are the noisiest, HS next, college tightest. No true numbers
+>   leak — the blurb is scout-speak only, and it only appears when the
+>   prospect is visible at the user's tier.
+
 ### 21.18 What's Explicitly Out of Initial Build
 
 To keep scope contained, several systems are explicitly deferred:

@@ -157,10 +157,13 @@ window.BBGM_SCOUT = (function () {
   // the offset is the scout's stable error on this player.
   function bandFor(value, mode, h, salt) {
     if (mode === 'exact') return null;
-    const width = mode === 'tight' ? 5 + (h >> (salt % 13)) % 2 : 10 + (h >> (salt % 11)) % 4;
+    // Unsigned shifts: h can exceed 2^31, and a signed shift flips the
+    // modulo negative (narrower-than-spec bands; same bug family as the
+    // birthdate hash).
+    const width = mode === 'tight' ? 5 + (h >>> (salt % 13)) % 2 : 10 + (h >>> (salt % 11)) % 4;
     const offMag = mode === 'tight' ? 2 : 5;
-    const sign = ((h >> (salt % 7)) & 1) ? 1 : -1;
-    const center = value + sign * ((h >> (salt % 5)) % (offMag + 1));
+    const sign = ((h >>> (salt % 7)) & 1) ? 1 : -1;
+    const center = value + sign * ((h >>> (salt % 5)) % (offMag + 1));
     const lo = Math.max(20, Math.round(center - width));
     const hi = Math.min(80, Math.round(center + width));
     return [lo, hi];
@@ -221,8 +224,8 @@ window.BBGM_SCOUT = (function () {
     let width = widths[ti] != null ? widths[ti] : 6;
     if (mode === 'wide') width += 3;
     else if (mode === 'tight') width += 1;
-    const sign = ((h >> 3) & 1) ? 1 : -1;
-    const center = truePot + sign * ((h >> 6) % (mode === 'exact' ? 3 : 5));
+    const sign = ((h >>> 3) & 1) ? 1 : -1;
+    const center = truePot + sign * ((h >>> 6) % (mode === 'exact' ? 3 : 5));
     let lo = Math.max(20, Math.round(center - width));
     let hi = Math.min(80, Math.round(center + width));
     if (mode === 'exact') lo = Math.max(lo, Math.min(78, Math.round(ovr)));
@@ -251,6 +254,101 @@ window.BBGM_SCOUT = (function () {
     return { visible: true, widen: widenByTier[ti] + depthPenalty };
   }
 
+  // ---- Scout notes (0.19.2) -------------------------------------------------
+  // A short strengths/weaknesses read on a pool prospect, written by the
+  // USER's scouting department — the draft-guide blurb. Deterministic per
+  // (team, player), so the report never re-rolls between opens. The scouts
+  // judge each tool's CEILING through tier-scaled noise: a bare-bones
+  // department regularly falls in love with the wrong tool; an elite one
+  // rarely does. Nothing here leaks true numbers — only which tools the
+  // scouts believe in, in scout-speak.
+  //   opts: { pool: 'draft' | 'intl' }
+  // Returns an array of note strings (empty when there's no read at all).
+  function prospectNotes(state, p, opts = {}) {
+    const team = state.league.teams.find((t) => t.id === state.meta.userTeamId);
+    const ti = tierIdx(team);
+    const h = hashOf(state.meta.userTeamId, p.id);
+    const ceil = (p.hidden && p.hidden.ceiling) || {};
+    const rawKeys = p.isPitcher
+      ? ['velocity', 'stuff', 'movement', 'control']
+      : ['contactVsR', 'contactVsL', 'powerVsR', 'powerVsL', 'discipline', 'speed', 'defense', 'arm'];
+
+    // Tier-scaled read error per tool; teenage intl reads are the noisiest,
+    // HS reads next. This is where a weak department praises the wrong tool.
+    const amp = [9, 6, 4, 2][ti] + (opts.pool === 'intl' ? 3 : 0) +
+      (p.background === 'HS' ? 2 : 0);
+    const readOf = (k, v) => {
+      let salt = 0;
+      for (let i = 0; i < k.length; i++) salt += k.charCodeAt(i);
+      const off = ((h >>> (salt % 16)) % (2 * amp + 1)) - amp;
+      return (v != null ? v : 45) + off;
+    };
+    const reads = {};
+    for (const k of rawKeys) reads[k] = readOf(k, ceil[k]);
+
+    // Collapse to the tools a draft guide talks about.
+    const tools = p.isPitcher
+      ? [
+          ['the velocity', reads.velocity],
+          ['the swing-and-miss stuff', reads.stuff],
+          ['the life on his pitches', reads.movement],
+          ['the command', reads.control],
+        ]
+      : [
+          ['the hit tool', (reads.contactVsR + reads.contactVsL) / 2],
+          ['the raw power', (reads.powerVsR + reads.powerVsL) / 2],
+          ['the plate approach', reads.discipline],
+          ['the run tool', reads.speed],
+          ['the glove', reads.defense],
+          ['the arm', reads.arm],
+        ];
+    tools.sort((a, b) => b[1] - a[1]);
+    const best = tools[0];
+    const worst = tools[tools.length - 1];
+
+    const adj = (v) => v >= 74 ? 'a potential 80-grade weapon'
+      : v >= 68 ? 'plus-plus projection'
+      : v >= 62 ? 'plus projection'
+      : v >= 56 ? 'above-average projection'
+      : v >= 50 ? 'average projection'
+      : 'fringy projection';
+
+    const notes = [];
+    const strengthT = [
+      (t, a) => `Scouts love ${t} — ${a}.`,
+      (t, a) => `The carrying tool is ${t}: ${a}.`,
+      (t, a) => `${t.charAt(0).toUpperCase() + t.slice(1)} jumps off the card — ${a}.`,
+    ];
+    notes.push(strengthT[(h >>> 5) % strengthT.length](best[0], adj(best[1])));
+
+    if (worst[1] >= 58) {
+      notes.push('No glaring hole in the profile — the rare all-around prospect.');
+    } else {
+      const concernT = [
+        (t) => `The concern is ${t} — it lags well behind.`,
+        (t) => `Real questions about ${t}.`,
+        (t) => `${t.charAt(0).toUpperCase() + t.slice(1)} needs a pro program to get there.`,
+      ];
+      notes.push(concernT[(h >>> 9) % concernT.length](worst[0]));
+    }
+
+    // Role risk for starters whose frame may not hold the workload —
+    // stamina is the one read scouts get mostly right in person.
+    if (ti >= 1 && p.primaryPosition === 'SP' && ceil.stamina != null && ceil.stamina <= 44) {
+      notes.push('Bullpen risk — the frame may not carry a starter\'s workload.');
+    }
+
+    // Makeup only surfaces with a real department (above-average+), and
+    // it's accurate — background work is interviews, not projection.
+    if (ti >= 2 && p.hidden) {
+      if ((p.hidden.makeupGrade || 5) >= 8) notes.push('Plus makeup — coaches rave about the work habits.');
+      else if ((p.hidden.makeupGrade || 5) <= 2) notes.push('The background checks raise makeup questions.');
+      else if ((p.hidden.workEthic || 5) >= 9) notes.push('Relentless worker — the development staff\'s dream.');
+    }
+
+    return notes;
+  }
+
   // AI draft discipline by tier (13.6): [board window, weight decay].
   function aiDraftDiscipline(team) {
     return [
@@ -265,6 +363,6 @@ window.BBGM_SCOUT = (function () {
     TIERS, tierOf, tierIdx, tierDef, tierCost,
     defaultTierFor, ensureTiers,
     requestTier, runScoutingOffseason,
-    modeFor, report, poolView, aiDraftDiscipline, potentialBand,
+    modeFor, report, poolView, aiDraftDiscipline, potentialBand, prospectNotes,
   };
 })();

@@ -376,6 +376,38 @@ window.BBGM_MAIN = (function () {
       if (renamed) window.BBGM_STATE.set(state);
     }
 
+    // Migration: 0.19.2 backfills full birthdates (and any missing
+    // height/weight) onto players and pool prospects created by builds
+    // that predate the bio fields — persisted once so the profile and the
+    // new prospect cards never fall back at render time. Values use the
+    // same unsigned id-hash the card fallback uses, so nothing the user
+    // has already seen (post-fix) changes.
+    if (versionLt(saveVersion, '0.19.2')) {
+      let stamped = false;
+      const stampBio = (p) => {
+        if (!p || !p.id) return;
+        if (p.birthMonth != null && p.birthDay != null && p.heightIn != null && p.weightLb != null) return;
+        let h = 0;
+        for (let i = 0; i < p.id.length; i++) h = (h * 31 + p.id.charCodeAt(i)) >>> 0;
+        if (p.heightIn == null) p.heightIn = 70 + (h % 9);
+        if (p.weightLb == null) {
+          p.weightLb = Math.max(165, Math.min(270,
+            Math.round((p.heightIn - 60) * 6 + 125 + ((h >>> 4) % 30) - 15)));
+        }
+        if (p.birthMonth == null) p.birthMonth = 1 + ((h >>> 8) % 12);
+        if (p.birthDay == null) p.birthDay = 1 + ((h >>> 12) % 28);
+        stamped = true;
+      };
+      for (const id in state.players) stampBio(state.players[id]);
+      if (state.draft && state.draft.prospects) {
+        for (const id in state.draft.prospects) stampBio(state.draft.prospects[id]);
+      }
+      if (state.intl && state.intl.prospects) {
+        for (const id in state.intl.prospects) stampBio(state.intl.prospects[id]);
+      }
+      if (stamped) window.BBGM_STATE.set(state);
+    }
+
     // Stamp the save forward now that every migration has run. This is
     // what makes the versionLt gates above one-shot, and it makes the
     // Menu's "Save version" reflect the code the save actually runs under

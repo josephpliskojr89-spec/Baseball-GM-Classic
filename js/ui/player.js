@@ -30,12 +30,15 @@ window.BBGM_UI_PLAYER = (function () {
   function bioOf(p) {
     let h = 0;
     for (let i = 0; i < p.id.length; i++) h = (h * 31 + p.id.charCodeAt(i)) >>> 0;
+    // Shifts MUST be unsigned (>>>): ids hashing above 2^31 read as
+    // negative under >>, and a negative modulo gave "undefined -7, 2006"
+    // birthdates on the card.
     const heightIn = p.heightIn != null ? p.heightIn : 70 + (h % 9);
     // Same scale as generation: ~197 lb at 6'0", +6 lb per inch.
     const weightLb = p.weightLb != null ? p.weightLb
-      : Math.max(165, Math.min(270, Math.round((heightIn - 60) * 6 + 125 + ((h >> 4) % 30) - 15)));
-    const birthMonth = p.birthMonth != null ? p.birthMonth : 1 + ((h >> 8) % 12);
-    const birthDay = p.birthDay != null ? p.birthDay : 1 + ((h >> 12) % 28);
+      : Math.max(165, Math.min(270, Math.round((heightIn - 60) * 6 + 125 + ((h >>> 4) % 30) - 15)));
+    const birthMonth = p.birthMonth != null ? p.birthMonth : 1 + ((h >>> 8) % 12);
+    const birthDay = p.birthDay != null ? p.birthDay : 1 + ((h >>> 12) % 28);
     return { heightIn, weightLb, birthMonth, birthDay };
   }
   function fmtHeight(inches) {
@@ -603,5 +606,7 @@ window.BBGM_UI_PLAYER = (function () {
     return r;
   }
 
-  return { show };
+  // bioOf/fmtHeight shared with the Draft Hub's prospect cards (0.19.2) so
+  // pool modals and the profile derive identical bio fallbacks.
+  return { show, bioOf, fmtHeight };
 })();
