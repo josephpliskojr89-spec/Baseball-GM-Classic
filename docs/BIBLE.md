@@ -4434,6 +4434,40 @@ This is not a single phase but an ongoing process. Activities include:
 > zero sim errors, readiness OK every year, youth ceiling and workload
 > guards green, pyramid/FA pool/payrolls in their bands.
 
+> **Status (0.19.1) — durability pass (audit fixes).** A three-track code
+> audit (long-save durability, engine rare paths, UI/migration lifecycle)
+> found and this release fixed:
+>
+> - **Migrations are now version-gated and one-shot.** `state.version` is
+>   stamped forward to the running build after load-time migrations (it
+>   previously froze at the creation version forever), and the 0.17.1
+>   intl-name migration — which re-rolled the unsigned pool's names on
+>   EVERY load — plus the 0.14 weight repair run only for saves that
+>   predate them.
+> - **PWA cache rebuilt.** The service worker cached zero JS files (so
+>   offline never actually worked) and swallowed install failures into an
+>   empty-but-active cache. It now pre-caches the full shell including
+>   all version-stamped JS URLs, fails install atomically, and serves
+>   navigations network-first so a stale index.html can never pair with
+>   newer JS (the pre-0.16.2 `#btnMenu` crash class).
+> - **The offseason rollover is atomic.** Both rollover halves snapshot
+>   the save before mutating; an error mid-rollover restores the snapshot
+>   instead of persisting a half-consumed October that no retry could fix.
+> - **Long-save compaction.** Retirees shed their hidden development
+>   block; fringe retirees past every Hall window (16+ years retired,
+>   score below the veterans bar) are removed; draft/intl class archives
+>   keep a rolling decade.
+> - **Rare-path batch:** healed-starter rotation reclaim when the team
+>   played short; stale-ref guards on the desperation reliever/starter
+>   fallbacks; no steal attempts after a walk-off; NaN guards on old-save
+>   rating/ceiling shapes; IL clocks no longer double-heal after a
+>   day-by-day October; `ilCallUpFor` covers are cleared on the cover
+>   (not the returnee) at spring rebuild; save-import validates before it
+>   overwrites the prior save; trade proposals re-validate org membership
+>   at render and execute; intl event players use the persisted id
+>   counter; a page-hide save flush for the mobile 400ms-debounce gap;
+>   safeRebuild's pitching repair trims back to 26.
+
 ### 21.18 What's Explicitly Out of Initial Build
 
 To keep scope contained, several systems are explicitly deferred:

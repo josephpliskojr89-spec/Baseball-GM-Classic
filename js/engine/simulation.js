@@ -732,6 +732,15 @@ window.BBGM_SIM = (function () {
           outsBeforePlay, maskBeforePlay, playCode, bs.rbi - rbiBeforePlay, off, def);
       }
 
+      // Walkoff: home side just took the lead in the 9th or later. Stamp
+      // who ended it and how (feeds the feats ledger — walk-off hits).
+      // Checked BEFORE the steal block: the game ends the instant the
+      // winning run scores, so nobody attempts a stolen base after it.
+      if (walkoffLive && off.runs > def.runs) {
+        off.walkoff = { batterId: batter ? batter.id : null, code: playCode };
+        break;
+      }
+
       // Stolen base attempts after PA (only with R1, no R2 ahead).
       // Pitchers on base never attempt a steal.
       if (bases[0] && outs < 3 && !bases[1]) {
@@ -753,13 +762,6 @@ window.BBGM_SIM = (function () {
             if (log) logPlay(log, inning, isBottom, runner.id, pitcher.id, sbOuts, sbMask, 'CS', 0, off, def);
           }
         }
-      }
-
-      // Walkoff: home side just took the lead in the 9th or later. Stamp
-      // who ended it and how (feeds the feats ledger — walk-off hits).
-      if (walkoffLive && off.runs > def.runs) {
-        off.walkoff = { batterId: batter ? batter.id : null, code: playCode };
-        break;
       }
     }
     // Defensive: outs should never exceed 3 in a half-inning. If it does
@@ -1238,13 +1240,17 @@ window.BBGM_SIM = (function () {
       }
     }
     // Whole pen rested/used — allow three-straight-day arms as a fallback
-    // before handing the ball to the closer in a non-save spot.
+    // before handing the ball to the closer in a non-save spot. Roster
+    // membership still required: bullpenRoles can carry a stale id for a
+    // traded/demoted arm, and the desperation path must not field him.
     for (const role of order) {
       const cands = (roles[role] || []).filter((id) =>
-        !used.has(id) && players[id] && inj.isAvailable(players[id]));
+        !used.has(id) && players[id] && inj.isAvailable(players[id]) &&
+        team.roster.includes(id));
       if (cands.length) return players[cands[0]];
     }
-    if (closerP && !used.has(team.closer) && inj.isAvailable(closerP)) return closerP;
+    if (closerP && !used.has(team.closer) && inj.isAvailable(closerP) &&
+        team.roster.includes(team.closer)) return closerP;
     return null;
   }
 
@@ -1406,7 +1412,15 @@ window.BBGM_SIM = (function () {
         if (sa !== sb) return sa - sb;
         return (b.ratings.stamina || 0) - (a.ratings.stamina || 0);
       });
-    return arms[0] || players[team.rotation[dayIndex % n]];
+    if (arms[0]) return arms[0];
+    // Truly empty: every non-closer arm is hurt. A healthy closer opener
+    // beats sending an injured starter out — the old fallback returned the
+    // scheduled rotation arm without an availability check.
+    const anyArm = team.roster
+      .map((id) => players[id])
+      .filter((p) => p && p.isPitcher && inj.isAvailable(p))
+      .sort((a, b) => idle(b) - idle(a))[0];
+    return anyArm || players[team.rotation[dayIndex % n]] || null;
   }
 
   // Build the game-time lineup. Returns parallel { players, positions }

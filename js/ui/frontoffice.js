@@ -274,6 +274,15 @@ window.BBGM_UI_FRONTOFFICE = (function () {
   function renderTradeBuilder(container, state, userTeam) {
     const players = state.players;
     const partner = state.league.teams.find((t) => t.id === draft.teamId);
+    // The draft survives re-renders — including ones after the user sims
+    // days with the builder open. AI deals, demotions, and retirements can
+    // move a picked player in the meantime, so drop any pick who is no
+    // longer in the side's org before rendering or proposing.
+    const orgOf = (t) => new Set((t.roster || []).concat(t.minors || [], t.il || []));
+    const myOrg = orgOf(userTeam);
+    const theirOrg = orgOf(partner);
+    draft.give = draft.give.filter((id) => myOrg.has(id));
+    draft.get = draft.get.filter((id) => theirOrg.has(id));
     TRADES().setPlayersRef(players);
     const needs = TRADES().teamNeeds(partner, players);
 

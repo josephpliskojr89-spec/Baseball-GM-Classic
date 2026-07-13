@@ -510,7 +510,11 @@ window.BBGM_INTL = (function () {
   // ---- Special events (14.7) — created at rollover, sold through FA ----------
 
   function makeEventPlayer(state, opts) {
-    const id = `iev${state.meta.currentDate.year}_${Math.floor(rand() * 1e6)}`;
+    // Persisted counter, not rand(): the module RNG reseeds per load, so
+    // two same-year rollovers (or an error-retried offseason) could mint
+    // colliding random ids and silently overwrite a player.
+    if (!state.meta.nextGenId) state.meta.nextGenId = 1;
+    const id = `iev${state.meta.currentDate.year}_${state.meta.nextGenId++}`;
     const p = GEN().generateNewPlayer(rand, { id: null }, {
       slotPos: opts.slotPos, tier: opts.tier, isProspect: false,
       ageRange: { min: opts.age, max: opts.age },

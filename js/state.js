@@ -215,6 +215,22 @@ window.BBGM_STATE = (function () {
             reject(new Error('File does not look like a Baseball GM Classic save.'));
             return;
           }
+          // Validate BEFORE persisting: importing used to overwrite the
+          // existing (good) save first and only then hit the load-time
+          // gates — a structurally broken or pre-NABL file destroyed the
+          // save it replaced with nothing to fall back to.
+          if (!obj.meta || !obj.meta.currentDate || !Array.isArray(obj.league.teams) ||
+              !obj.league.teams.length || !obj.league.schedule) {
+            reject(new Error('Save file is missing required sections — import aborted, your current save is untouched.'));
+            return;
+          }
+          const v = String(obj.version).split('.').map((x) => parseInt(x, 10) || 0);
+          const preNABL = (v[0] === 0 && v[1] < 3) ||
+            obj.league.teams.some((t) => t.league === 'A' || t.league === 'B');
+          if (preNABL) {
+            reject(new Error('This save predates the fixed NABL league and cannot be imported — your current save is untouched.'));
+            return;
+          }
           state = obj;
           notify();
           // Persist BEFORE resolving: menu.js reloads the page on success,

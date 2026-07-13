@@ -344,6 +344,34 @@ window.BBGM_OFFSEASON = (function () {
     // retirements so this winter's retirees start their 5-year clocks.
     summary.hof = window.BBGM_AWARDS.runHofVoting(state, year);
 
+    // 4.45. Archive compaction (0.19.1): the retired population is the one
+    // part of the save that only ever grows. Two-stage diet, run after the
+    // HoF vote so it never touches a live candidacy:
+    //   - Every retiree sheds his hidden development block (curve state +
+    //     ceilings). Progression and scouting never read a retired player,
+    //     so it's pure dead weight — and it's the largest per-player blob.
+    //   - Fringe retirees whose Hall case is mathematically over — past
+    //     the writers' ballot window (eligible at 5 years retired, 10
+    //     appearances) and nowhere near the veterans-committee bar
+    //     (score > 6.0 to induct) — are deleted outright. Every UI that
+    //     links by player id already tolerates a missing player (the
+    //     farm-cap cut has deleted washouts since 0.16.x).
+    {
+      const hofScore = window.BBGM_AWARDS.hofScore;
+      for (const id in players) {
+        const p = players[id];
+        if (!p.retired) continue;
+        if (p.hidden) delete p.hidden;
+        if (p.hof) continue;
+        const retiredFor = year - (p.retired.year || year);
+        if (retiredFor >= 16 && hofScore(p) < 5.0) delete players[id];
+      }
+      // Draft / intl class archives: a decade of history is plenty for the
+      // hub's history tabs; each season adds ~400 rows between the two.
+      if ((state.draftHistory || []).length > 10) state.draftHistory = state.draftHistory.slice(-10);
+      if ((state.intlHistory || []).length > 10) state.intlHistory = state.intlHistory.slice(-10);
+    }
+
     // 4.5. Staff offseason (17.6/17.9): manager records and reputation,
     // owner-driven firings, coach churn, the retired-player coaching
     // pipeline, AI hiring. Runs before progression so this year's coach
@@ -505,9 +533,13 @@ window.BBGM_OFFSEASON = (function () {
     const schedule = window.BBGM_SCHEDULE.generate(rng, state.league, newYear);
 
     // Injury clocks heal on calendar time across the whole offseason —
-    // from the last day recovery actually ticked (regular-season end) to
-    // Opening Day (10.5).
-    const skippedDays = Math.max(0, D().diffDays(oldSeasonEnd, schedule.openingDay));
+    // from the last day recovery actually ticked to Opening Day (10.5).
+    // A postseason played day by day keeps ticking recovery through
+    // October (main.js stamps lastRecoveryTick), so healing from the
+    // regular-season end would count those days twice.
+    const lastTick = state.meta.lastRecoveryTick || oldSeasonEnd;
+    const healFrom = D().compare(lastTick, oldSeasonEnd) > 0 ? lastTick : oldSeasonEnd;
+    const skippedDays = Math.max(0, D().diffDays(healFrom, schedule.openingDay));
     for (const id in players) {
       const p = players[id];
       if (p.retired) continue;
@@ -533,7 +565,6 @@ window.BBGM_OFFSEASON = (function () {
           t.roster.push(pid);
           p.rosterStatus = '26-man';
           p.status = 'active';
-          delete p.ilCallUpFor;
         } else {
           still.push(pid);
         }
@@ -599,6 +630,16 @@ window.BBGM_OFFSEASON = (function () {
       }
       rebuildTeamConfig(state, t, summary);
       t.seasonRecord = { w: 0, l: 0, rs: 0, ra: 0, lastTen: [], streak: 0 };
+      // Cover bookkeeping ends with the winter: topUpTeam already used the
+      // ilCallUpFor flags to send stint covers back down first, so any flag
+      // still on a 26-man player is stale — clearing it stops him from
+      // being treated as first-out in every future roster squeeze. (The
+      // old code deleted the flag from the RETURNING player instead of his
+      // cover, so covers kept theirs forever.)
+      for (const pid of t.roster) {
+        const p = players[pid];
+        if (p && p.ilCallUpFor) delete p.ilCallUpFor;
+      }
     }
 
     // Any manager vacancy the user left unfilled is auto-hired at Opening

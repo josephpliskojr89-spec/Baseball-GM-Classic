@@ -182,7 +182,29 @@ window.BBGM_ROSTER = (function () {
     player.rosterStatus = '26-man';
     player.status = 'active';
 
-    if (team.roster.length <= 26) return { sentDown: null }; // played short — no demotion needed
+    if (team.roster.length <= 26) {
+      // Played short — no demotion needed. But if the stint's cover still
+      // holds the returning starter's rotation slot, reclaim it here too:
+      // skipping the reclaim left the healed starter on the roster but
+      // never starting again (and the cover flagged first-out forever).
+      if (player.isPitcher && !(team.rotation || []).includes(player.id)) {
+        const cover = team.roster
+          .map((id) => players[id])
+          .find((p) => p && p.ilCallUpFor === player.id);
+        if (cover) {
+          const cSlot = (team.rotation || []).indexOf(cover.id);
+          if (cSlot >= 0) {
+            team.rotation[cSlot] = player.id;
+            // The cover stays up as pen depth.
+            if (!team.bullpen.includes(cover.id)) team.bullpen.push(cover.id);
+            const roles = team.bullpenRoles || (team.bullpenRoles = { setup: [], middle: [], long: [], mopup: [] });
+            if (!Object.values(roles).some((arr) => arr.includes(cover.id))) roles.middle.push(cover.id);
+          }
+          delete cover.ilCallUpFor;
+        }
+      }
+      return { sentDown: null };
+    }
 
     // Prefer the specific call-up who covered this stint.
     let down = team.roster
@@ -309,6 +331,25 @@ window.BBGM_ROSTER = (function () {
           });
           players[p.id] = p;
           team.roster.push(p.id);
+          protectedIds.add(p.id);
+          // Make room like the lineup-hole branch does — without this,
+          // repeated pitching-side repairs left rosters above 26.
+          if (team.roster.length > 26) {
+            const roster = team.roster.map((id) => players[id]).filter(Boolean);
+            const spCount = roster.filter((q) => q.isPitcher && q.primaryPosition === 'SP').length;
+            const down = roster
+              .filter((q) => q.isPitcher && !protectedIds.has(q.id) &&
+                q.id !== team.closer &&
+                !(q.primaryPosition === 'SP' && spCount <= 5))
+              .sort((a, b) => overall(a) - overall(b))[0];
+            if (down) {
+              team.roster.splice(team.roster.indexOf(down.id), 1);
+              team.minors.push(down.id);
+              down.status = 'minors';
+              down.rosterStatus = demotionLevel(down);
+              replaceRefs(team, players, down.id, null);
+            }
+          }
         }
       }
     }

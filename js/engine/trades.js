@@ -251,6 +251,15 @@ window.BBGM_TRADES = (function () {
     const players = state.players;
     const year = state.meta.currentDate.year;
 
+    // Only move players actually in the sending team's org. A stale
+    // proposal — built before a sim ran, or a queued AI offer accepted
+    // after the player already moved — must never relocate a player from
+    // a team he isn't on.
+    const inOrg = (team, p) => [team.roster, team.minors, team.roster40, team.il]
+      .some((arr) => arr && arr.includes(p.id));
+    playersA = playersA.filter((p) => inOrg(teamA, p));
+    playersB = playersB.filter((p) => inOrg(teamB, p));
+
     function moveOut(team, list) {
       for (const p of list) {
         for (const arr of [team.roster, team.minors, team.roster40, team.il]) {

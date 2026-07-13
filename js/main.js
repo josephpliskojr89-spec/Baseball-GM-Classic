@@ -107,6 +107,15 @@ window.BBGM_MAIN = (function () {
     document.getElementById('modalRoot').addEventListener('click', (e) => {
       if (e.target.id === 'modalRoot') U.closeModal();
     });
+
+    // Flush the debounced save when the page goes away. The 400ms save
+    // debounce means a user who makes a move and immediately backgrounds
+    // or closes the tab (routine on mobile PWAs) could lose that move —
+    // pagehide/visibilitychange are the last reliable moments to write.
+    window.addEventListener('pagehide', () => { window.BBGM_STATE.saveNow(); });
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') window.BBGM_STATE.saveNow();
+    });
   }
 
   // ------- New game flow -------
@@ -275,6 +284,9 @@ window.BBGM_MAIN = (function () {
     // continuing such a save would produce broken renders and bad league
     // membership. Reject them with a clear message.
     if (savePreNABL(state)) {
+      // Keep the splash visible behind the modal — hiding it leaves the
+      // rejection dialog floating over a blank page.
+      document.getElementById('splash').classList.remove('hidden');
       U.showModal({
         title: 'Old Save Not Supported',
         body: 'This save was created with the old random-team system. The game now uses ' +
@@ -289,6 +301,13 @@ window.BBGM_MAIN = (function () {
       });
       return;
     }
+
+    // Migrations below are gated on the version the save last ran under.
+    // Captured BEFORE the stamp at the end of this block — 0.19.1 is the
+    // first release that moves state.version forward on load (previously
+    // it only ever recorded the version the save was created at, which is
+    // why ungated migrations re-ran forever).
+    const saveVersion = state.version || '0.1.0';
 
     // Migration: pre-0.10 saves have no staff — hire the league out of a
     // fresh pool so managers exist mid-save (Pillar 4).
@@ -305,8 +324,11 @@ window.BBGM_MAIN = (function () {
 
     // Migration: 0.14.0 shipped a bad weight formula (everyone pinned at
     // the 160 lb clamp). Rebuild implausibly light persisted weights on
-    // the corrected scale (~197 lb at 6'0", +6/inch).
+    // the corrected scale (~197 lb at 6'0", +6/inch). Version-gated: the
+    // predicate overlaps ~5% of legitimately light modern players, so it
+    // must not re-run on every load.
     let fixedWeights = false;
+    if (versionLt(saveVersion, '0.15.0'))
     for (const id in state.players) {
       const pl = state.players[id];
       if (pl.weightLb != null && pl.heightIn != null &&
@@ -333,8 +355,11 @@ window.BBGM_MAIN = (function () {
     // Migration: 0.17.1 added country name pools for international
     // prospects. Rename the UNSIGNED pending pool in place (they have no
     // game history yet); signed players and past classes keep the names
-    // they made their history under.
-    if (state.intl && state.intl.prospects && window.BBGM_INTL_NAMES) {
+    // they made their history under. Version-gated: pre-0.19.1 saves never
+    // stamped their version forward, so this ran on EVERY load and
+    // re-rolled the pool's names each time the game opened.
+    if (versionLt(saveVersion, '0.17.1') &&
+        state.intl && state.intl.prospects && window.BBGM_INTL_NAMES) {
       let renamed = false;
       for (const id in state.intl.prospects) {
         const pr = state.intl.prospects[id];
@@ -349,6 +374,15 @@ window.BBGM_MAIN = (function () {
         renamed = true;
       }
       if (renamed) window.BBGM_STATE.set(state);
+    }
+
+    // Stamp the save forward now that every migration has run. This is
+    // what makes the versionLt gates above one-shot, and it makes the
+    // Menu's "Save version" reflect the code the save actually runs under
+    // rather than the release it was created in.
+    if (state.version !== C.VERSION) {
+      state.version = C.VERSION;
+      window.BBGM_STATE.set(state);
     }
 
     if (state.meta.userTeamId) {
@@ -594,14 +628,33 @@ window.BBGM_MAIN = (function () {
     });
   }
 
-  function offseasonError(e) {
+  // Deep snapshot of the whole save. The rollover mutates hundreds of
+  // objects across many steps; if it throws partway, the ONLY safe state
+  // to persist is the one from before it started. State is plain JSON
+  // (it round-trips through export/import), so both clone paths are exact.
+  function snapshotState(state) {
+    try {
+      if (typeof structuredClone === 'function') return structuredClone(state);
+    } catch (e) { /* fall through to JSON */ }
+    return JSON.parse(JSON.stringify(state));
+  }
+
+  // backup: the pre-rollover snapshot to restore. Never persist the
+  // half-mutated state — an error mid-Part-A used to save a league with
+  // the postseason consumed but awards/retirements/market incomplete,
+  // which no retry could repair.
+  function offseasonError(e, backup) {
     console.error('Offseason failed:', e);
+    if (backup) window.BBGM_STATE.set(backup);
     window.BBGM_STATE.setSaveBlocked(false);
     window.BBGM_STATE.saveNow();
     U.hideProgress();
+    refresh();
     U.showModal({
       title: 'Offseason Error',
-      body: 'The offseason hit an error: ' + e.message + '\n\nOpen the browser console for details.',
+      body: 'The offseason hit an error: ' + e.message +
+            (backup ? '\n\nYour save was restored to the moment before the offseason started — nothing was lost. Trying again may succeed.' : '') +
+            '\n\nOpen the browser console for details.',
       actions: [{ label: 'OK', kind: 'primary', onClick: () => true }],
     });
   }
@@ -609,6 +662,7 @@ window.BBGM_MAIN = (function () {
   function runOffseasonPartAFlow(state) {
     U.showProgress('Opening the offseason…');
     window.BBGM_STATE.setSaveBlocked(true);
+    const backup = snapshotState(state);
     setTimeout(() => {
       try {
         const summary = window.BBGM_OFFSEASON.runSeasonRolloverPartA(state);
@@ -627,7 +681,7 @@ window.BBGM_MAIN = (function () {
           actions: [{ label: 'To the Offseason', kind: 'primary', onClick: () => true }],
         });
       } catch (e) {
-        offseasonError(e);
+        offseasonError(e, backup);
       }
     }, 50);
   }
@@ -663,6 +717,7 @@ window.BBGM_MAIN = (function () {
   function startSeasonFlow(state) {
     U.showProgress('Spring training…');
     window.BBGM_STATE.setSaveBlocked(true);
+    const backup = snapshotState(state);
     setTimeout(() => {
       try {
         const summary = window.BBGM_OFFSEASON.runSeasonRolloverPartB(state);
@@ -762,7 +817,7 @@ window.BBGM_MAIN = (function () {
           actions: [{ label: 'Play Ball', kind: 'primary', onClick: () => true }],
         });
       } catch (e) {
-        offseasonError(e);
+        offseasonError(e, backup);
       }
     }, 50);
   }
@@ -1302,6 +1357,10 @@ window.BBGM_MAIN = (function () {
     const INJ = window.BBGM_INJURIES;
     const R = window.BBGM_ROSTER;
     const userTeamId = state.meta.userTeamId;
+    // Part B heals IL clocks on calendar time from the last ticked day to
+    // Opening Day — this stamp is what keeps October days played on the
+    // calendar from being counted twice.
+    state.meta.lastRecoveryTick = { ...today };
     for (const id in state.players) {
       const p = state.players[id];
       if (!p) continue;

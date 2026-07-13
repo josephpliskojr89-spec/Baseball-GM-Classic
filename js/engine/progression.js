@@ -90,7 +90,12 @@ window.BBGM_PROGRESSION = (function () {
     if (arch.reversionLikelihood) {
       if (h.spikeAmounts && rand() < arch.reversionLikelihood) {
         for (const k of keys) {
-          if (h.spikeAmounts[k]) p.ratings[k] = clamp(p.ratings[k] - h.spikeAmounts[k], HARD_MIN, h.ceiling[k]);
+          // Same null-guards as the main loop below: a missing rating key
+          // or ceiling entry (old-save shapes) must not clamp to NaN.
+          if (h.spikeAmounts[k] && p.ratings[k] != null) {
+            p.ratings[k] = clamp(p.ratings[k] - h.spikeAmounts[k], HARD_MIN,
+              h.ceiling[k] != null ? h.ceiling[k] : 60);
+          }
         }
         h.spikeAmounts = null;
         h.spikeDone = true;
@@ -103,6 +108,7 @@ window.BBGM_PROGRESSION = (function () {
 
     for (const k of keys) {
       const cur = p.ratings[k];
+      if (cur == null) continue; // old-save shape missing this key — skip, don't NaN
       const ceil = h.ceiling[k] != null ? h.ceiling[k] : 60;
       let change = 0;
 
