@@ -4222,6 +4222,17 @@ user becomes a pure GM), with hireable staff carrying mechanical effects.
 > (his players, his coaches, his instructional staff). Scouting tiers
 > gate only the outside world: rival farm systems, the draft class,
 > and the international pool.
+>
+> **Amended (0.18.1) — potential on the player card.** The ratings
+> grid's open corner shows the scouts' development projection
+> (scouting.js `potentialBand`): a 20-80 range that is NEVER exact —
+> even your own staff is projecting — whose width tightens with the
+> scouting tier (elite ±3 → bare bones ±8, wider again on fogged
+> players; "??" where there's no book at all). The center is the
+> stable per-(team, player) offset, so it isn't centered on truth.
+> Remaining upside fades linearly from age 22 to 28 — a veteran's
+> potential reads as what he already is — and for publicly-visible
+> players the floor never dips below the current overall.
 
 ### 21.15 Phase 14: Awards and Hall of Fame (Estimated: 1 session)
 

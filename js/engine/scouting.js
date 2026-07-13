@@ -189,6 +189,47 @@ window.BBGM_SCOUT = (function () {
     };
   }
 
+  // Potential as the user's scouts project it: a band on the 20-80 scale,
+  // NEVER exact — even your own development staff is projecting. Width
+  // tightens with the scouting tier (and widens again on players you can
+  // barely see); the center is deterministically offset per (team,
+  // player) like every other band, so the projection is stable and not
+  // centered on truth. Remaining upside fades with age — by 28 the
+  // projection has converged on what the player already is — and for a
+  // player whose current ability is public, the floor never reads below
+  // what he's already shown.
+  function potentialBand(state, p) {
+    const mode = modeFor(state, p);
+    if (mode === 'min') return null; // no book on him at all
+    const team = state.league.teams.find((t) => t.id === state.meta.userTeamId);
+    const ti = tierIdx(team);
+    const ovr = window.BBGM_ROSTER.overall(p);
+
+    // True remaining-upside estimate: ceiling overall, faded by age.
+    let ceilOvr = ovr;
+    if (p.hidden && p.hidden.ceiling) {
+      ceilOvr = window.BBGM_ROSTER.overall({
+        isPitcher: p.isPitcher,
+        ratings: { ...p.ratings, ...p.hidden.ceiling },
+      });
+    }
+    const ageFade = Math.max(0, Math.min(1, (28 - p.age) / 6)); // 1 at ≤22 → 0 at 28+
+    const truePot = Math.max(ovr, ovr + (ceilOvr - ovr) * ageFade);
+
+    const h = hashOf(state.meta.userTeamId, p.id);
+    const widths = [8, 6, 4, 3]; // bare bones → elite
+    let width = widths[ti] != null ? widths[ti] : 6;
+    if (mode === 'wide') width += 3;
+    else if (mode === 'tight') width += 1;
+    const sign = ((h >> 3) & 1) ? 1 : -1;
+    const center = truePot + sign * ((h >> 6) % (mode === 'exact' ? 3 : 5));
+    let lo = Math.max(20, Math.round(center - width));
+    let hi = Math.min(80, Math.round(center + width));
+    if (mode === 'exact') lo = Math.max(lo, Math.min(78, Math.round(ovr)));
+    if (hi <= lo) hi = Math.min(80, lo + 2);
+    return [lo, hi];
+  }
+
   // Pool visibility (draft class / intl class): how deep the user's tier
   // sees, and how wide the displayed ceiling band is (5.7.2). `rank` is
   // the consensus board rank. Returns {visible, widen} — widen is added
@@ -224,6 +265,6 @@ window.BBGM_SCOUT = (function () {
     TIERS, tierOf, tierIdx, tierDef, tierCost,
     defaultTierFor, ensureTiers,
     requestTier, runScoutingOffseason,
-    modeFor, report, poolView, aiDraftDiscipline,
+    modeFor, report, poolView, aiDraftDiscipline, potentialBand,
   };
 })();

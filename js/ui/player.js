@@ -206,7 +206,8 @@ window.BBGM_UI_PLAYER = (function () {
       body.appendChild(U.el('div', { class: 'empty-state' },
         'Your scouts have no book on him. A higher scouting tier (GM → Staff) opens up reports at this level.'));
     } else {
-      body.appendChild(p.isPitcher ? pitcherRatings(p, rep) : hitterRatings(p, rep));
+      const pot = window.BBGM_SCOUT.potentialBand(state, p);
+      body.appendChild(p.isPitcher ? pitcherRatings(p, rep, pot) : hitterRatings(p, rep, pot));
       if (rep.mode !== 'exact') {
         body.appendChild(U.el('p', { class: 'muted', style: { 'font-size': '11px', 'margin-top': '6px' } },
           'Projected ranges from your scouting department — the truth may sit outside a band.'));
@@ -414,7 +415,25 @@ window.BBGM_UI_PLAYER = (function () {
     return cell;
   }
 
-  function hitterRatings(p, rep) {
+  // The scouts' development projection fills the grid's open corner —
+  // always a range on the 20-80 scale (tier-dependent width), never a
+  // hard number: nobody knows potential, not even your own staff.
+  function potentialCell(pot) {
+    const cell = U.el('div', { class: 'rating-cell' });
+    cell.appendChild(U.el('div', { class: 'label' }, 'Potential'));
+    if (!pot) {
+      cell.appendChild(U.el('div', { class: 'muted', style: { 'font-weight': '700' } }, '??'));
+    } else {
+      const mid = (pot[0] + pot[1]) / 2;
+      cell.appendChild(U.el('div', {
+        class: U.gradeClass(mid),
+        style: { 'font-weight': '700', 'font-variant-numeric': 'tabular-nums' },
+      }, `${pot[0]}–${pot[1]}`));
+    }
+    return cell;
+  }
+
+  function hitterRatings(p, rep, pot) {
     const r = p.ratings;
     const items = [
       ['Contact (R)', r.contactVsR, 'contactVsR'],
@@ -429,10 +448,11 @@ window.BBGM_UI_PLAYER = (function () {
     ];
     const grid = U.el('div', { class: 'ratings-grid' });
     for (const [label, v, key] of items) grid.appendChild(ratingCell(label, v, key, rep));
+    grid.appendChild(potentialCell(pot));
     return grid;
   }
 
-  function pitcherRatings(p, rep) {
+  function pitcherRatings(p, rep, pot) {
     const r = p.ratings;
     const items = [
       ['Stuff', r.stuff, 'stuff'],
@@ -443,6 +463,7 @@ window.BBGM_UI_PLAYER = (function () {
     ];
     const grid = U.el('div', { class: 'ratings-grid' });
     for (const [label, v, key] of items) grid.appendChild(ratingCell(label, v, key, rep));
+    grid.appendChild(potentialCell(pot));
     return grid;
   }
 
