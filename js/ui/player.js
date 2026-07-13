@@ -135,6 +135,13 @@ window.BBGM_UI_PLAYER = (function () {
       insetRow('Height / Weight', `${fmtHeight(bio.heightIn)}, ${bio.weightLb} lb`),
       insetRow('Born', `${monthName} ${bio.birthDay}, ${p.birthYear} (age ${p.age})`),
     ];
+    // Positions (0.20.0 — utility men): primary + learned secondaries,
+    // plus any active position-work assignment on the farm.
+    if (!p.isPitcher) {
+      const poss = [p.primaryPosition, ...(p.secondaryPositions || [])];
+      bioRows.push(insetRow('Positions',
+        poss.join(' • ') + (p.devPosition ? ` (learning ${p.devPosition})` : '')));
+    }
     if (p.origin) bioRows.push(insetRow('From', p.origin));
     else if (p.school) bioRows.push(insetRow('School', p.school));
     if (p.draft) {

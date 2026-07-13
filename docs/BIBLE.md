@@ -4489,6 +4489,37 @@ This is not a single phase but an ongoing process. Activities include:
 >   leak — the blurb is scout-speak only, and it only appears when the
 >   prospect is visible at the user's tier.
 
+> **Status (0.20.0) — utility men and pitcher role management (5.x/7.x/11.x
+> amendment).**
+>
+> - **Position aptitude.** Every position player carries a 20-80 aptitude
+>   at every field position: 80 primary, 68 listed secondaries,
+>   family-adjacent bases below (middle-infield swap 45, corners 45,
+>   corner-OF interchange 60, IF↔OF 35, catcher 20 — a trade, not a
+>   fill-in). Game reps at a position grow it (~1 pt / 4 games, +25 max):
+>   50 = playable in a pinch, 60 = graduates into the visible secondary
+>   list at the rollover. `canPlay` now reads aptitude (back-compatible:
+>   every previously-legal combo starts ≥50, every previously-illegal one
+>   below), and out-of-position defense is discounted by aptitude in the
+>   sim — an emergency stopgap costs ~12 points of defense, a learned
+>   utility man ~2.
+> - **Position work (Team → Minors).** Assign a minor-league hitter a
+>   development position; each winter banks a season of side work
+>   (+6 aptitude) on top of any real game reps. Catcher is excluded.
+> - **Pitcher role conversions (Team → Pitching / Minors).** The GM
+>   converts starters to relievers freely (never below five SPs on the
+>   26-man) and relievers to starters only at 55+ stamina — a one-inning
+>   frame can't hold a starter's workload. The manager still sorts the
+>   staff: a converted arm competes for a rotation spot, he isn't handed
+>   one.
+> - **Closer is a role (7.8 amendment).** Tap any relief arm → Name
+>   Closer. Naming one stamps him CP (spring rebuilds keep the job with
+>   him) and returns the old closer to the pen as an RP. League-wide, the
+>   engine already hands the ninth to the best reliever when no CP-primary
+>   arm exists, so closers keep emerging even though the draft and intl
+>   pools generate only SP/RP — closer is your best reliever, not a
+>   drafted position.
+
 ### 21.18 What's Explicitly Out of Initial Build
 
 To keep scope contained, several systems are explicitly deferred:

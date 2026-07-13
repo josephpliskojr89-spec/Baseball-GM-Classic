@@ -92,7 +92,7 @@ window.BBGM_SIM = (function () {
         sp: homeSP, currentP: homeSP, pitchCount: 0, pitchersUsed: [homeSP.id], runs: 0, hits: 0, errors: 0,
         parkFactors: home.ballpark.factors,
         catcher: findCatcher(home, players),
-        defenseAvg: lineupDefenseAvg(homeLineup),
+        defenseAvg: lineupDefenseAvg(homeLineup, homeWithPos.positions),
         mgr: mgrFor(state, home),
         entryMargins: { [homeSP.id]: 0 }, exitMargins: {},
         recordPid: null, lossPid: null,
@@ -102,7 +102,7 @@ window.BBGM_SIM = (function () {
         sp: awaySP, currentP: awaySP, pitchCount: 0, pitchersUsed: [awaySP.id], runs: 0, hits: 0, errors: 0,
         parkFactors: home.ballpark.factors, // Park factors apply to both
         catcher: findCatcher(away, players),
-        defenseAvg: lineupDefenseAvg(awayLineup),
+        defenseAvg: lineupDefenseAvg(awayLineup, awayWithPos.positions),
         mgr: mgrFor(state, away),
         entryMargins: { [awaySP.id]: 0 }, exitMargins: {},
         recordPid: null, lossPid: null,
@@ -262,6 +262,21 @@ window.BBGM_SIM = (function () {
       }
       for (let i = 0; i < awayLineup.length; i++) {
         fat.accumulateForGame(awayLineup[i], awayWithPos.positions[i], true);
+      }
+    }
+
+    // Position reps (0.20.0 — utility men): a game played away from a
+    // player's primary position teaches it. Reps feed aptitudeFor, which
+    // gates eligibility and scales the out-of-position defense penalty;
+    // learned positions graduate to the secondary list at the rollover.
+    for (const side of [homeWithPos, awayWithPos]) {
+      for (let i = 0; i < side.players.length; i++) {
+        const p = side.players[i];
+        const pos = side.positions[i];
+        if (!p || p.isPitcher || !pos || pos === 'DH' || pos === 'P') continue;
+        if (pos === p.primaryPosition) continue;
+        if (!p.posReps) p.posReps = {};
+        p.posReps[pos] = (p.posReps[pos] || 0) + 1;
       }
     }
 
@@ -809,11 +824,23 @@ window.BBGM_SIM = (function () {
 
   // Average defense rating across the game lineup (nulls are the pitcher
   // sentinel; pitchers' fielding is not modeled). Neutral 50 fallback.
-  function lineupDefenseAvg(lineup) {
+  // positions (optional, parallel to lineup): a player away from his
+  // primary position fields at a discount scaled by his aptitude there —
+  // a learned utility man (68 apt) gives up ~2 points, an emergency
+  // stopgap (35 apt) ~12. This is the defensive cost of playing someone
+  // out of position, and reps shrink it over time.
+  function lineupDefenseAvg(lineup, positions) {
+    const GEN = window.BBGM_PLAYER_GEN;
     let sum = 0, n = 0;
-    for (const p of lineup) {
+    for (let i = 0; i < lineup.length; i++) {
+      const p = lineup[i];
       if (!p || p.isPitcher) continue;
-      sum += (p.ratings.defense || 50);
+      let d = (p.ratings.defense || 50);
+      const pos = positions ? positions[i] : null;
+      if (pos && pos !== 'DH' && pos !== 'P' && pos !== p.primaryPosition && GEN.aptitudeFor) {
+        d -= Math.max(0, (74 - GEN.aptitudeFor(p, pos)) * 0.3);
+      }
+      sum += d;
       n++;
     }
     return n ? sum / n : 50;

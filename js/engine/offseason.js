@@ -399,6 +399,22 @@ window.BBGM_OFFSEASON = (function () {
       p.age++;
     }
 
+    // 5.2. Position development (0.20.0 — utility men). A minor leaguer on
+    // a position-work assignment (Team → Minors) banks a season of side
+    // work at the new spot; then every player's learned positions graduate
+    // into his visible secondary list (aptitude 60+ → the org lists him
+    // there). MLB reps accrued in games during the season already live in
+    // posReps — this is where they become permanent.
+    for (const id in players) {
+      const p = players[id];
+      if (p.retired) continue;
+      if (p.devPosition && !p.isPitcher && p.status === 'minors') {
+        if (!p.posReps) p.posReps = {};
+        p.posReps[p.devPosition] = (p.posReps[p.devPosition] || 0) + 24;
+      }
+      GEN().syncPositions(p);
+    }
+
     // 6. Service time and contract ticks. Only players with 6+ years of
     //    service reach free agency when their deal expires (bible 11.4);
     //    everyone else is under team control — renewed at the minimum

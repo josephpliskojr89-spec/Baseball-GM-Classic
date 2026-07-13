@@ -679,15 +679,78 @@ window.BBGM_PLAYER_GEN = (function () {
     return lineup;
   }
 
+  // ---- Position aptitude (0.20.0 — utility men) ---------------------------
+  // Every position player carries a 20-80 aptitude at every field position:
+  // 80 at his primary, 68 at listed secondaries, family-adjacent bases below
+  // that — and reps close the gap. Games actually played at a position
+  // (p.posReps, stamped by the sim) grow its aptitude; at 50 the position
+  // becomes playable, and a learned position graduates into
+  // secondaryPositions at 60 (syncPositions, run each rollover). This is
+  // the whole utility-man loop: a manager patching 2B with his SS for a
+  // month TEACHES the SS second base.
+  //
+  // Base aptitude before reps, by primary/secondary family:
+  //   - middle infield ↔ middle infield: 45 (the double-play pivot travels)
+  //   - any infielder → 3B/1B corners: 45; anyone → 1B: 42
+  //   - corner OF ↔ corner OF: 60 (the old LF/RF interchange, unchanged)
+  //   - CF → corners: 60; corners → CF: 42 (center is a different job)
+  //   - infield ↔ outfield: 35
+  //   - catcher: 20 from anywhere (catching is a trade, not a fill-in);
+  //     catchers themselves get 45 at 1B
+  function aptitudeFor(p, pos) {
+    if (p.isPitcher) return pos === p.primaryPosition ? 80 : 20;
+    if (pos === 'DH') return 80; // anyone can DH
+    if (p.primaryPosition === pos) return 80;
+    if ((p.secondaryPositions || []).includes(pos)) return 68;
+
+    const prim = p.primaryPosition;
+    const MI = ['2B', 'SS'];
+    const IF = ['1B', '2B', '3B', 'SS'];
+    const COF = ['LF', 'RF'];
+    let base = 30;
+    if (pos === 'C') base = 20;
+    else if (pos === '1B') base = prim === 'C' ? 45 : (IF.includes(prim) ? 45 : 42);
+    else if (MI.includes(pos) && MI.includes(prim)) base = 45;
+    else if (pos === '3B' && IF.includes(prim)) base = 45;
+    else if (MI.includes(pos) && (prim === '3B' || prim === '1B')) base = prim === '3B' ? 40 : 32;
+    else if (COF.includes(pos) && (COF.includes(prim) || prim === 'CF')) base = 60;
+    else if (pos === 'CF' && COF.includes(prim)) base = 42;
+    else if (['LF', 'CF', 'RF'].includes(pos) && IF.includes(prim)) base = 35;
+    else if (IF.includes(pos) && ['LF', 'CF', 'RF'].includes(prim)) base = 35;
+
+    // Reps: every ~4 games at the position adds a point, up to +25. A
+    // half-season of regular work makes a 45-base infielder playable (50+);
+    // a full deliberate conversion (position work + real games) can teach
+    // even an outfield/infield switch (35 base) all the way to learned (60).
+    const reps = (p.posReps && p.posReps[pos]) || 0;
+    return Math.min(72, base + Math.min(25, Math.floor(reps / 4)));
+  }
+
+  // Legality for lineup construction: playable at 50+. Backward compatible
+  // with the old binary rules — primaries, secondaries, and the corner-OF
+  // interchange all sit at 60+; everything else starts below 50 and must
+  // be EARNED with reps (or position work in the minors).
   function canPlay(p, pos) {
-    if (pos === 'DH') return true; // anyone can DH
-    if (p.primaryPosition === pos) return true;
-    if (p.secondaryPositions.includes(pos)) return true;
-    // Outfield interchange: LF/RF can sub for each other in a pinch
-    if ((pos === 'LF' || pos === 'RF') &&
-        (p.primaryPosition === 'LF' || p.primaryPosition === 'RF' || p.primaryPosition === 'CF')) return true;
-    if (pos === 'CF' && (p.primaryPosition === 'LF' || p.primaryPosition === 'RF') && p.secondaryPositions.includes('CF')) return true;
-    return false;
+    return aptitudeFor(p, pos) >= 50;
+  }
+
+  // Graduate learned positions into the visible secondary list (run at
+  // each rollover): aptitude 60+ = the org now lists him there. Clears a
+  // completed devPosition assignment.
+  function syncPositions(p) {
+    if (p.isPitcher || !p.posReps) return false;
+    let changed = false;
+    for (const pos in p.posReps) {
+      if (pos === p.primaryPosition || pos === 'DH') continue;
+      if ((p.secondaryPositions || []).includes(pos)) continue;
+      if (aptitudeFor(p, pos) >= 60) {
+        if (!p.secondaryPositions) p.secondaryPositions = [];
+        p.secondaryPositions.push(pos);
+        if (p.devPosition === pos) delete p.devPosition;
+        changed = true;
+      }
+    }
+    return changed;
   }
 
   function offensiveValue(p, vsHand) {
@@ -795,7 +858,7 @@ window.BBGM_PLAYER_GEN = (function () {
     generate, validateLeagueReadiness, assignBullpenRoles,
     // Exposed for the roster-management UI: position eligibility checks and
     // single-team readiness validation after user-driven roster moves.
-    canPlay,
+    canPlay, aptitudeFor, syncPositions,
     validateTeam: checkTeamReadiness,
     // Post-launch generation + team config rebuild (offseason rollover).
     generateNewPlayer,

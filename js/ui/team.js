@@ -354,14 +354,13 @@ window.BBGM_UI_TEAM = (function () {
   function rotationRow(state, team, p, idx) {
     const year = state.meta.currentDate.year;
     const s = p.stats[year];
-    const row = U.el('div', { class: 'roster-row' });
+    const row = U.el('button', {
+      class: 'roster-row',
+      on: { click: () => showPitcherActions(state, team, p) },
+    });
     row.appendChild(U.el('span', { class: 'pos-badge pos-pitcher' }, `SP${idx + 1}`));
 
-    const info = U.el('button', {
-      class: 'player-row-info',
-      style: { 'text-align': 'left', background: 'none', border: 'none', padding: '0', cursor: 'pointer' },
-      on: { click: () => window.BBGM_UI_PLAYER.show(p.id) },
-    });
+    const info = U.el('div', { class: 'player-row-info' });
     info.appendChild(U.el('div', { class: 'player-row-name' }, p.name));
     const desc = s && s.gs
       ? `${s.w || 0}-${s.l || 0} • ${S.era(s).toFixed(2)} ERA • ${S.fmtIP(s.ipOuts || 0)} IP`
@@ -383,14 +382,13 @@ window.BBGM_UI_TEAM = (function () {
   function bullpenRow(state, team, p, badge) {
     const year = state.meta.currentDate.year;
     const s = p.stats[year];
-    const row = U.el('div', { class: 'roster-row' });
+    const row = U.el('button', {
+      class: 'roster-row',
+      on: { click: () => showPitcherActions(state, team, p) },
+    });
     row.appendChild(U.el('span', { class: 'pos-badge pos-pitcher' }, badge));
 
-    const info = U.el('button', {
-      class: 'player-row-info',
-      style: { 'text-align': 'left', background: 'none', border: 'none', padding: '0', cursor: 'pointer' },
-      on: { click: () => window.BBGM_UI_PLAYER.show(p.id) },
-    });
+    const info = U.el('div', { class: 'player-row-info' });
     info.appendChild(U.el('div', { class: 'player-row-name' }, p.name));
     const desc = s && s.g
       ? `${s.g} G • ${S.era(s).toFixed(2)} ERA • ${s.sv || 0} SV ${s.hld || 0} HLD`
@@ -408,6 +406,118 @@ window.BBGM_UI_TEAM = (function () {
 
 
 
+
+  // ------- Pitcher role management (0.20.0) -------
+  // The GM shapes the STAFF — who closes, who starts, who relieves; the
+  // manager still sorts the rotation order and pen roles around those
+  // decisions (Pillar 4). Rules: moving to the rotation takes a 55+
+  // stamina arm (a one-inning frame can't hold a starter's workload);
+  // anyone can move to the pen, but never below five starters on the 26.
+  const SP_STAMINA_MIN = 55;
+
+  function showPitcherActions(state, team, p) {
+    const isCloser = team.closer === p.id;
+    const inRotation = (team.rotation || []).includes(p.id);
+    const actions = [];
+
+    // Closer candidates are relief-role arms. A swingman still listed as
+    // an SP converts to reliever first — otherwise next spring's rebuild
+    // would try to hand the same arm the rotation AND the ninth.
+    if (!isCloser && !inRotation && p.primaryPosition !== 'SP') {
+      actions.push({ label: 'Name Closer', kind: 'primary', onClick: () => {
+        nameCloser(state, team, p);
+        return true;
+      }});
+    }
+    if (p.primaryPosition === 'SP') {
+      actions.push({ label: 'Convert to Reliever', kind: 'secondary', onClick: () => {
+        convertPitcherRole(state, team, p, 'RP');
+        return true;
+      }});
+    } else {
+      actions.push({ label: 'Convert to Starter', kind: 'secondary', onClick: () => {
+        convertPitcherRole(state, team, p, 'SP');
+        return true;
+      }});
+    }
+    actions.push({ label: 'View Profile', kind: 'secondary', onClick: () => {
+      setTimeout(() => window.BBGM_UI_PLAYER.show(p.id), 0);
+      return true;
+    }});
+    actions.push({ label: 'Cancel', kind: 'secondary', onClick: () => true });
+
+    const staNote = p.primaryPosition === 'SP'
+      ? 'Converting to the pen lets him air it out in one-inning bursts.'
+      : p.ratings.stamina >= SP_STAMINA_MIN
+        ? `Stamina ${Math.round(p.ratings.stamina)} — he can be stretched out to start.`
+        : `Stamina ${Math.round(p.ratings.stamina)} — below the ${SP_STAMINA_MIN} a starter's workload demands.`;
+    U.showModal({
+      title: `${p.name} (${p.primaryPosition}${isCloser ? ', closer' : ''})`,
+      body: U.el('p', { class: 'muted', style: { 'font-size': '12px' } }, staNote),
+      actions,
+    });
+  }
+
+  // Closer is a role, not a position (0.20.0): your best reliever gets the
+  // ninth. Naming one converts him to CP so spring rebuilds keep the job
+  // with him; the man he replaces returns to the pen as an RP.
+  function nameCloser(state, team, p) {
+    const players = state.players;
+    const old = team.closer ? players[team.closer] : null;
+    const prevP = p.primaryPosition;
+    const prevOld = old ? old.primaryPosition : null;
+    const ok = mutateTeam(state, team, () => {
+      if (old && old.id !== p.id) {
+        if (old.primaryPosition === 'CP') old.primaryPosition = 'RP';
+        if (!team.bullpen.includes(old.id)) team.bullpen.push(old.id);
+      }
+      if (p.primaryPosition === 'RP') p.primaryPosition = 'CP';
+      team.bullpen = team.bullpen.filter((id) => id !== p.id);
+      team.closer = p.id;
+      team.bullpenRoles = GEN().assignBullpenRoles(team, players);
+    });
+    if (!ok) {
+      p.primaryPosition = prevP;
+      if (old && prevOld) old.primaryPosition = prevOld;
+      return;
+    }
+    U.showToast(`${p.name} is your new closer.`, 'success');
+    render(document.getElementById('mainView'), state);
+  }
+
+  // Shared by the MLB pitching tab and the minors action sheet. `team` is
+  // null for a minors arm — no config rebuild needed down there.
+  function convertPitcherRole(state, team, p, toPos) {
+    if (toPos === 'SP' && p.ratings.stamina < SP_STAMINA_MIN) {
+      U.showToast(`${p.name} can't hold a starter's workload (stamina ${Math.round(p.ratings.stamina)}, needs ${SP_STAMINA_MIN}+).`, 'warning', 4500);
+      return;
+    }
+    if (team && toPos !== 'SP' && p.primaryPosition === 'SP') {
+      const spCount = team.roster.map((id) => state.players[id])
+        .filter((q) => q && q.isPitcher && q.primaryPosition === 'SP').length;
+      if (spCount <= 5) {
+        U.showToast('That would leave the club under five starters — add another SP first.', 'warning', 4500);
+        return;
+      }
+    }
+    const prev = p.primaryPosition;
+    p.primaryPosition = toPos;
+    if (team) {
+      const ok = mutateTeam(state, team, () => {
+        // The manager re-sorts his staff around the new role (Pillar 4) —
+        // a converted starter competes for a rotation spot, he isn't
+        // handed one.
+        window.BBGM_ROSTER.safeRebuild(state, team);
+      });
+      if (!ok) { p.primaryPosition = prev; return; }
+    } else {
+      window.BBGM_STATE.set(state);
+    }
+    U.showToast(toPos === 'SP'
+      ? `${p.name} will be stretched out as a starter.`
+      : `${p.name} moves to the bullpen.`, 'success');
+    render(document.getElementById('mainView'), state);
+  }
 
   // ------- Minors tab (promotion) -------
 
@@ -498,30 +608,100 @@ window.BBGM_UI_TEAM = (function () {
     const MIN = window.BBGM_MINORS;
     const fit = MIN.levelFitDelta(p);
     const rec = MIN.recommendedLevel(p);
-    const note = fit > 0
+    let note = fit > 0
       ? `Scouts: he's outgrown ${p.rosterStatus} — ready for ${rec}. Leaving him down stunts his development.`
       : fit < 0
         ? `Scouts: overmatched at ${p.rosterStatus} — belongs at ${rec}. Rushing him stunts his development.`
         : `Scouts: ${p.rosterStatus} is the right level for him.`;
+    if (p.devPosition) note += ` Working out at ${p.devPosition} on the side.`;
+    const actions = [
+      { label: 'Promote to 26-man (swap)…', kind: 'primary', onClick: () => {
+        setTimeout(() => showPromoteSwap(state, team, p), 0);
+        return true;
+      }},
+      { label: 'Move Level…', kind: 'secondary', onClick: () => {
+        setTimeout(() => showLevelMove(state, team, p), 0);
+        return true;
+      }},
+    ];
+    // Role development (0.20.0): pitchers can change roles down here too
+    // (same stamina rule); hitters can be assigned position work — the
+    // farm is where conversions actually happen.
+    if (p.isPitcher) {
+      const toPos = p.primaryPosition === 'SP' ? 'RP' : 'SP';
+      actions.push({
+        label: toPos === 'SP' ? 'Convert to Starter' : 'Convert to Reliever',
+        kind: 'secondary',
+        onClick: () => { convertPitcherRole(state, null, p, toPos); return true; },
+      });
+    } else {
+      actions.push({ label: p.devPosition ? `Position work: ${p.devPosition}…` : 'Position work…',
+        kind: 'secondary',
+        onClick: () => { setTimeout(() => showPositionWork(state, p), 0); return true; },
+      });
+    }
+    actions.push({ label: 'View Profile', kind: 'secondary', onClick: () => {
+      setTimeout(() => window.BBGM_UI_PLAYER.show(p.id), 0);
+      return true;
+    }});
+    actions.push({ label: 'Cancel', kind: 'secondary', onClick: () => true });
     U.showModal({
       title: `${p.name} (${p.rosterStatus})`,
       body: U.el('p', { class: 'muted', style: { 'font-size': '12px' } }, note),
-      actions: [
-        { label: 'Promote to 26-man (swap)…', kind: 'primary', onClick: () => {
-          setTimeout(() => showPromoteSwap(state, team, p), 0);
-          return true;
-        }},
-        { label: 'Move Level…', kind: 'secondary', onClick: () => {
-          setTimeout(() => showLevelMove(state, team, p), 0);
-          return true;
-        }},
-        { label: 'View Profile', kind: 'secondary', onClick: () => {
-          setTimeout(() => window.BBGM_UI_PLAYER.show(p.id), 0);
-          return true;
-        }},
-        { label: 'Cancel', kind: 'secondary', onClick: () => true },
-      ],
+      actions,
     });
+  }
+
+  // Position work (0.20.0 — utility men): assign a minor-league hitter a
+  // second position to develop. Each offseason of work (plus any real
+  // games there) grows his aptitude: playable at 50, learned — listed as
+  // a true secondary position — at 60. Catcher can't be picked up as a
+  // side project; that's a trade learned young or never.
+  function showPositionWork(state, p) {
+    const A = GEN().aptitudeFor;
+    const body = U.el('div', { class: 'roster-list' });
+    body.appendChild(U.el('p', { class: 'muted', style: { 'font-size': '12px', 'margin-bottom': '8px' } },
+      'Pick a position for the development staff to work him at. Aptitude grows each ' +
+      'season: 50 = playable in a pinch, 60 = a listed secondary position.'));
+    const opts = ['1B', '2B', '3B', 'SS', 'LF', 'CF', 'RF']
+      .filter((pos) => pos !== p.primaryPosition && !(p.secondaryPositions || []).includes(pos));
+    for (const pos of opts) {
+      const apt = Math.round(A(p, pos));
+      const isCur = p.devPosition === pos;
+      const row = U.el('button', {
+        class: 'roster-row',
+        style: isCur ? { outline: '2px solid var(--accent)' } : {},
+        on: { click: () => {
+          U.closeModal();
+          p.devPosition = pos;
+          window.BBGM_STATE.set(state);
+          U.showToast(`${p.name} starts working out at ${pos}.`, 'success');
+          render(document.getElementById('mainView'), state);
+        }},
+      });
+      row.appendChild(U.el('span', { class: 'pos-badge' }, pos));
+      const info = U.el('div', { class: 'player-row-info' });
+      info.appendChild(U.el('div', { class: 'player-row-name' }, (isCur ? '✓ ' : '') +
+        (apt >= 60 ? 'Learned' : apt >= 50 ? 'Playable' : 'Raw')));
+      row.appendChild(info);
+      const stats = U.el('div', { class: 'player-row-stats' });
+      stats.appendChild(U.el('span', { class: U.gradeClass(apt) }, String(apt)));
+      stats.appendChild(U.el('span', { class: 'key' }, 'APT'));
+      row.appendChild(stats);
+      body.appendChild(row);
+    }
+    const actions = [];
+    if (p.devPosition) {
+      actions.push({ label: 'Stop Position Work', kind: 'secondary', onClick: () => {
+        delete p.devPosition;
+        window.BBGM_STATE.set(state);
+        U.showToast(`${p.name} goes back to full-time ${p.primaryPosition}.`, 'info');
+        render(document.getElementById('mainView'), state);
+        return true;
+      }});
+    }
+    actions.push({ label: 'Cancel', kind: 'secondary', onClick: () => true });
+    U.showModal({ title: `Position work — ${p.name}`, body, actions });
   }
 
   // Assign a minor leaguer to any level (12.4). Free to do — the cost is
