@@ -4401,6 +4401,39 @@ This is not a single phase but an ongoing process. Activities include:
 
 **The game is "done" when it's playable and enjoyable. There is no final ship date — the user iterates indefinitely.**
 
+> **Status (0.19.0) — first full balance pass.** Driven by observed
+> problems in live saves and re-measured across multi-seed soaks:
+>
+> - **Speed decoupled from the talent tier (5.6/6.4 amendment).** Tool
+>   ceilings all drew from one shared tier mean, so every star was a
+>   plus runner: measured +0.54..+0.72 speed-power correlation at every
+>   generation source, fifteen 30/30 seasons a year, and a 94-steal /
+>   45-HR league leader. Speed is now drawn independently of the tier
+>   (position-shaped, body-trait), anti-correlated with power (a ~6%
+>   true-freak escape keeps the rare 30/30 talent), and the draft/intl
+>   slot lifts raise the bat, not the legs (speed keeps its body-given
+>   draw plus a small leak, unless speed IS the carrying tool).
+>   Post-fix correlation: ~-0.1 to +0.2.
+> - **Running game recalibrated.** Convex green-light curve: average
+>   runners pick their spots, true burners run constantly. Measured
+>   ~75-100 attempts/team (down from ~170), leaders 50-70 steals who
+>   are genuine 65+ speed burners, 30/30 seasons 1-3/yr.
+> - **Sac flies** to ~40/team (tag-up conversion 0.55 → 0.82) and
+>   **pitcher-batting K%** to ~34-37% (kBase 0.285 → 0.335), both to
+>   their 7.2 targets.
+> - **Mid-30s retention** softened (34-37 base retirement rates down a
+>   step; useful regulars 53+ get a further -0.05) — the 34+ cohort was
+>   6-10 players league-wide; still lean, watch item stands.
+> - **Rotation self-heal.** The starter-overwork guard caught a rare
+>   mid-season degenerate state (a stale 1-2 arm rotation funneled 47
+>   starts to one arm). pickStarter now prunes/tops-up the rotation to
+>   five before every selection, and the last-resort fallback takes the
+>   MOST RESTED healthy arm rather than the best one.
+>
+> Steady-state after the pass (7-season soaks, two seeds): R/G 4.6-4.8,
+> zero sim errors, readiness OK every year, youth ceiling and workload
+> guards green, pyramid/FA pool/payrolls in their bands.
+
 ### 21.18 What's Explicitly Out of Initial Build
 
 To keep scope contained, several systems are explicitly deferred:

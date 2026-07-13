@@ -651,7 +651,10 @@ window.BBGM_SIM = (function () {
           // Grounder with a DP in order: strong middle-infield defense
           // turns two more often. (~0.75 GIDP/team/game league-wide.)
           isGIDP = true;
-        } else if (bases[2] && outsBefore < 2 && result.battedBall === 'fly' && Math.random() < 0.55) {
+        } else if (bases[2] && outsBefore < 2 && result.battedBall === 'fly' && Math.random() < 0.82) {
+          // A catchable fly with a runner on 3rd scores him most of the
+          // time (tag-up success ~90% in reality; 0.82 lands the 7.2
+          // target of ~40 SF/team — the old 0.55 produced ~25).
           isSF = true;
         }
 
@@ -907,7 +910,7 @@ window.BBGM_SIM = (function () {
     // K rate: 17%. Driven by stuff+velocity vs contact+discipline.
     // Pitchers batting whiff far beyond what a 20 contact grade alone
     // produces — the extra bump lands their K% near the historical ~37%.
-    const kBase = batter.isPitcher ? 0.285 : 0.176;
+    const kBase = batter.isPitcher ? 0.335 : 0.176;
     const kAdj = (grade(stuff) * 0.06) + (grade(velocity) * 0.03) - (grade(contact) * 0.05) - (grade(discipline) * 0.02);
     const kProb = clamp(kBase + kAdj, 0.04, 0.45);
 
@@ -1129,9 +1132,16 @@ window.BBGM_SIM = (function () {
 
     if (speed < 40) return Math.random() < clamp((0.01 - armDeter) * mgrMul, 0.001, 0.05);
     if (speed < 50) return Math.random() < clamp((0.042 - armDeter - holdDeter) * mgrMul, 0.005, 0.15);
-    // Base/slope tuned to ~140 attempts per team per season (bible 7.2).
-    const baseProb = (0.105 + (speed - 50) * 0.017 - armDeter - holdDeter) * mgrMul;
-    return Math.random() < clamp(baseProb, 0.02, 0.40);
+    // Phase 16: convex green-light curve. Stolen bases are a specialist's
+    // game — an average-speed regular picks his spots (the flat 50-60
+    // leg), while the rare true burner runs constantly (the steep 60+
+    // leg). The old linear curve let 56-speed sluggers rack up 50-steal
+    // seasons; paired with the speed-tier decoupling in players.js this
+    // lands ~100-120 att/team with leaders in the 40-60 range.
+    const baseProb = ((speed < 60
+      ? 0.092 + (speed - 50) * 0.009
+      : 0.182 + (speed - 60) * 0.020) - armDeter - holdDeter) * mgrMul;
+    return Math.random() < clamp(baseProb, 0.02, 0.42);
   }
 
   function resolveSB(runner, pitcher, def) {
@@ -1139,10 +1149,10 @@ window.BBGM_SIM = (function () {
     const speed = runner.ratings.speed || 50;
     const arm = catcherArm(def);
     const successProb = 0.66
-      + (speed - 50) * 0.012
-      - (arm - 50) * 0.008
+      + (speed - 50) * 0.010
+      - (arm - 50) * 0.009
       - pitcherHoldMod(pitcher);
-    return Math.random() < clamp(successProb, 0.20, 0.95) ? 'safe' : 'caught';
+    return Math.random() < clamp(successProb, 0.20, 0.92) ? 'safe' : 'caught';
   }
 
   // ---- Reliever rest (bible 7.4.6 / 10.1) --------------------------------
@@ -1314,7 +1324,33 @@ window.BBGM_SIM = (function () {
     def.pitchCount = 0;
   }
 
+  // Self-healing rotation (Phase 16): prune entries that are no longer on
+  // the roster and top back up to five arms. Configs are normally clean
+  // (this no-ops), but a mid-season degenerate state — stale refs plus
+  // stacked IL stints — used to leave a 1-2 arm rotation for months, and
+  // whoever was healthy absorbed 45+ starts.
+  function ensureRotation(team, players) {
+    const inj = INJ();
+    if (!team.rotation) team.rotation = [];
+    team.rotation = team.rotation.filter((id) => team.roster.includes(id));
+    if (team.rotation.length >= 5) return;
+    const adds = team.roster
+      .map((id) => players[id])
+      .filter((p) => p && p.isPitcher && p.id !== team.closer &&
+        !team.rotation.includes(p.id) && inj.isAvailable(p))
+      .sort((a, b) => {
+        const sa = a.primaryPosition === 'SP' ? 0 : 1;
+        const sb = b.primaryPosition === 'SP' ? 0 : 1;
+        if (sa !== sb) return sa - sb;
+        return (b.ratings.stamina || 0) - (a.ratings.stamina || 0);
+      });
+    while (team.rotation.length < 5 && adds.length) {
+      team.rotation.push(adds.shift().id);
+    }
+  }
+
   function pickStarter(team, players, state) {
+    ensureRotation(team, players);
     if (!team.rotation || team.rotation.length === 0) return null;
     const dayIndex = state.meta.gamesPlayedByTeam ? (state.meta.gamesPlayedByTeam[team.id] || 0) : 0;
     const inj = INJ();
@@ -1356,12 +1392,15 @@ window.BBGM_SIM = (function () {
       const sp = players[team.rotation[(dayIndex + i) % n]];
       if (usable(sp) && idle(sp) >= 4) return sp;
     }
-    // Last resort — best healthy rostered arm regardless of rest
-    // (SP-primary preferred) so the game can sim rather than throw.
+    // Last resort — the MOST RESTED healthy arm, not the best one, so a
+    // degenerate staff state spreads the abuse instead of funneling every
+    // start to one workhorse (the 47-start tail the harness caught).
     const arms = team.roster
       .map((id) => players[id])
-      .filter((p) => p && p.isPitcher && inj.isAvailable(p))
+      .filter((p) => p && p.isPitcher && inj.isAvailable(p) && p.id !== team.closer)
       .sort((a, b) => {
+        const ia = idle(a), ib = idle(b);
+        if (ia !== ib) return ib - ia;
         const sa = a.primaryPosition === 'SP' ? 0 : 1;
         const sb = b.primaryPosition === 'SP' ? 0 : 1;
         if (sa !== sb) return sa - sb;

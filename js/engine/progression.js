@@ -149,10 +149,14 @@ window.BBGM_PROGRESSION = (function () {
     // overseas leagues, retirement, real life. Stars hold out longer.
     if (p.status === 'FA' && (p.faSeasons || 0) >= 2) return ovr < 58 ? 0.65 : 0.35;
     if (age < 33) return 0;
-    const base = { 33: 0.05, 34: 0.08, 35: 0.14, 36: 0.22, 37: 0.32, 38: 0.45, 39: 0.60, 40: 0.75, 41: 0.85 }[age];
+    // Mid-30s base rates softened in the Phase 16 balance pass — the
+    // 26-man was carrying only ~6-10 players aged 34+ league-wide vs
+    // MLB's ~60; quality vets should stick around a bit longer.
+    const base = { 33: 0.05, 34: 0.07, 35: 0.12, 36: 0.20, 37: 0.30, 38: 0.45, 39: 0.60, 40: 0.75, 41: 0.85 }[age];
     let prob = base != null ? base : 0.95;
     if (ovr < 40) prob += 0.20;        // sub-replacement performance
     else if (ovr >= 60) prob -= 0.12;  // stars hang on
+    else if (ovr >= 53) prob -= 0.05;  // useful regulars get one more deal
     // Major injury at 33+ pushes players out (9.6).
     const majorThisYear = (p.injuryHistory || []).some((i) => i.year === year &&
       (i.severity === 'season-ending' || i.severity === '60-day'));

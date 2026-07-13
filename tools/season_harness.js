@@ -497,6 +497,20 @@ if (seasonsArg > 1) {
       console.log('✗ YOUTH CEILING VIOLATED');
       process.exit(1);
     }
+    // Phase 16 running game: leaders should be true burners in the 40-60
+    // range; 30/30 seasons are rare (t 0-3); attempts in the classic band.
+    let sbAtt = 0, sb3030 = 0, sbTop = { sb: 0, name: '—' };
+    const sbYr = summary.year;
+    for (const id in state.players) {
+      const s = state.players[id].stats && state.players[id].stats[sbYr];
+      if (!s || state.players[id].isPitcher) continue;
+      sbAtt += (s.sb || 0) + (s.cs || 0);
+      if ((s.sb || 0) >= 30 && (s.hr || 0) >= 30) sb3030++;
+      if ((s.sb || 0) > sbTop.sb) sbTop = { sb: s.sb, name: state.players[id].name };
+    }
+    console.log(`  running game: SB att/team ${(sbAtt / 30).toFixed(0)} (t ~85-125)` +
+      ` | 30/30 seasons ${sb3030} (t 0-3) | SB leader ${sbTop.name} ${sbTop.sb}`);
+
     // Phase 15 offseason flow: AI non-tenders feed the market each
     // December; the user's arb class queues; camp produces battles and
     // a sprinkling of day-to-day knocks (t ~5-13 league-wide).

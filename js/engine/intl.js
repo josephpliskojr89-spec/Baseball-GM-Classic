@@ -140,6 +140,13 @@ window.BBGM_INTL = (function () {
     for (const k of keys) if (p.hidden.ceiling[k] > p.hidden.ceiling[bestKey]) bestKey = k;
     const delta = target - p.hidden.ceiling[bestKey];
     for (const k of keys) {
+      // Rank lift raises the bat, not the legs (Phase 16 balance) —
+      // speed keeps its body-given draw unless it's the carrying tool.
+      if (!p.isPitcher && k === 'speed' && bestKey !== 'speed') {
+        p.hidden.ceiling.speed = Math.round(clamp(
+          p.hidden.ceiling.speed + Math.max(0, delta) * 0.15, 25, 80) * 10) / 10;
+        continue;
+      }
       const spread = k === bestKey ? 0 : rfloat(0, 8);
       p.hidden.ceiling[k] = Math.round(clamp(p.hidden.ceiling[k] + delta - spread, 25, 82) * 10) / 10;
     }

@@ -348,6 +348,19 @@ window.BBGM_PLAYER_GEN = (function () {
       ceiling[k] = Math.round(c * 10) / 10;
     }
 
+    // Speed is a body trait, not a talent-tier trait (Phase 16 balance):
+    // drawing it from the shared tier mean made every star a plus runner
+    // (+0.6 speed-power correlation, fifteen 30/30 seasons a year).
+    // Redraw it independent of the tier — position-shaped — and
+    // anti-correlate with power; a rare true freak (~7%) keeps both.
+    if (!isPitcher) {
+      let spd = positionAdjust(rng, primaryPosition, 'speed',
+        clamp(rnormal(rng, 51, 9), 28, 80));
+      const powC = (ceiling.powerVsR + ceiling.powerVsL) / 2;
+      if (rng() > 0.06) spd -= Math.max(0, (powC - 52) * 0.35);
+      ceiling.speed = Math.round(clamp(spd, 25, 80) * 10) / 10;
+    }
+
     // Pick archetype
     const archDefs = isPitcher ? C.PITCHER_ARCHETYPES : C.HITTER_ARCHETYPES;
     const archetype = pickWeighted(rng, archDefs, (a) => a.weight).key;

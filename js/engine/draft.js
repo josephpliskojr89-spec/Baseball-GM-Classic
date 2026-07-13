@@ -132,6 +132,14 @@ window.BBGM_DRAFT = (function () {
     for (const k of keys) if (p.hidden.ceiling[k] > p.hidden.ceiling[bestKey]) bestKey = k;
     const delta = target - p.hidden.ceiling[bestKey];
     for (const k of keys) {
+      // The slot lift raises the bat, not the legs (Phase 16 balance):
+      // speed keeps its body-given draw plus a small leak of the lift —
+      // unless speed IS the carrying tool (the burner profile).
+      if (!p.isPitcher && k === 'speed' && bestKey !== 'speed') {
+        p.hidden.ceiling.speed = Math.round(clamp(
+          p.hidden.ceiling.speed + Math.max(0, delta) * 0.15, 25, 80) * 10) / 10;
+        continue;
+      }
       const spread = k === bestKey ? 0 : rfloat(0, 7);
       p.hidden.ceiling[k] = Math.round(clamp(p.hidden.ceiling[k] + delta - spread, 25, 82) * 10) / 10;
     }
@@ -216,6 +224,11 @@ window.BBGM_DRAFT = (function () {
       for (const k of keys) if (gem.hidden.ceiling[k] > gem.hidden.ceiling[bestKey]) bestKey = k;
       const delta = target - gem.hidden.ceiling[bestKey];
       for (const k of keys) {
+        if (!gem.isPitcher && k === 'speed' && bestKey !== 'speed') {
+          gem.hidden.ceiling.speed = Math.round(clamp(
+            gem.hidden.ceiling.speed + Math.max(0, delta) * 0.15, 25, 80) * 10) / 10;
+          continue;
+        }
         const spread = k === bestKey ? 0 : rfloat(0, 7);
         gem.hidden.ceiling[k] = Math.round(clamp(gem.hidden.ceiling[k] + delta - spread, 25, 80) * 10) / 10;
       }
