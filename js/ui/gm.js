@@ -18,6 +18,7 @@ window.BBGM_UI_GM = (function () {
       { key: 'staff', label: 'Staff' },
       { key: 'trades', label: 'Trades' },
       { key: 'freeagents', label: 'Free Agents' },
+      { key: 'waivers', label: 'Waivers' },
     ];
     for (const t of tabDefs) {
       tabs.appendChild(U.el('button', {
@@ -29,6 +30,7 @@ window.BBGM_UI_GM = (function () {
 
     if (activeTab === 'staff') window.BBGM_UI_FRONTOFFICE.renderStaff(container, state);
     else if (activeTab === 'trades') window.BBGM_UI_FRONTOFFICE.renderTrades(container, state);
+    else if (activeTab === 'waivers') window.BBGM_UI_FRONTOFFICE.renderWaivers(container, state);
     else window.BBGM_UI_FRONTOFFICE.renderFreeAgents(container, state);
   }
 

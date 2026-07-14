@@ -636,5 +636,73 @@ window.BBGM_UI_FRONTOFFICE = (function () {
     });
   }
 
-  return { renderFreeAgents, renderTrades, renderStaff };
+  // ---------- Waiver wire (0.22.0) ----------
+
+  function renderWaivers(container, state) {
+    const players = state.players;
+    const W = window.BBGM_WAIVERS;
+    const userTeam = state.league.teams.find((t) => t.id === state.meta.userTeamId);
+    container.appendChild(U.el('p', { class: 'muted', style: { 'font-size': '12px', 'margin-bottom': '10px' } },
+      'In-season releases sit on waivers for 2 days. The worst record claims first, and the ' +
+      'claiming club takes on the player\'s contract. Unclaimed players become free agents.'));
+
+    // Your claim priority: how many clubs would jump you in line today.
+    const worse = state.league.teams.filter((t) =>
+      t.id !== userTeam.id && W.priority(t) < W.priority(userTeam)).length;
+    container.appendChild(U.el('p', { class: 'muted', style: { 'font-size': '12px', 'margin-bottom': '10px' } },
+      `Your claim priority today: #${worse + 1} of 30 (reverse standings).`));
+
+    const wire = state.waivers || [];
+    if (!wire.length) {
+      container.appendChild(U.el('div', { class: 'empty-state' },
+        'The wire is quiet — nobody on waivers right now.'));
+      return;
+    }
+
+    const D = window.BBGM_DATES;
+    const list = U.el('div', { class: 'roster-list' });
+    for (const e of wire) {
+      const p = players[e.playerId];
+      if (!p) continue;
+      const from = state.league.teams.find((t) => t.id === e.fromTeamId);
+      const daysLeft = Math.max(0, 2 - D.diffDays(e.placedDate, state.meta.currentDate));
+      const ovr = Math.round(ROSTER().overall(p));
+      const sal = (p.contract && p.contract.annualSalary) || 0;
+      const mine = e.fromTeamId === userTeam.id;
+
+      const row = U.el('div', { class: 'roster-row' });
+      row.appendChild(U.posBadge(p));
+      const info = U.el('button', {
+        class: 'player-row-info',
+        style: { 'text-align': 'left', background: 'none', border: 'none', padding: '0', cursor: 'pointer' },
+        on: { click: () => window.BBGM_UI_PLAYER.show(p.id) },
+      });
+      info.appendChild(U.el('div', { class: 'player-row-name' }, p.name));
+      info.appendChild(U.el('div', { class: 'player-row-meta' },
+        `Age ${p.age} • OVR ${U.gradeFor(ovr)} • $${sal.toFixed(1)}M • ` +
+        `waived by ${from ? from.abbr : '?'} • resolves in ${daysLeft} day${daysLeft !== 1 ? 's' : ''}`));
+      row.appendChild(info);
+
+      const act = U.el('div', { class: 'player-row-stats' });
+      if (mine) {
+        act.appendChild(U.el('span', { class: 'muted', style: { 'font-size': '11px' } }, 'your release'));
+      } else {
+        act.appendChild(U.el('button', {
+          class: e.userClaim ? 'btn-secondary btn-sm' : 'btn-primary btn-sm',
+          on: { click: () => {
+            W.userClaim(state, p.id, !e.userClaim);
+            window.BBGM_STATE.set(state);
+            U.showToast(e.userClaim ? `Claim on ${p.name} withdrawn.` : `Claim entered on ${p.name}.`,
+              e.userClaim ? 'info' : 'success');
+            window.BBGM_MAIN.refresh();
+          }},
+        }, e.userClaim ? '✓ Claimed' : 'Claim'));
+      }
+      row.appendChild(act);
+      list.appendChild(row);
+    }
+    container.appendChild(list);
+  }
+
+  return { renderFreeAgents, renderTrades, renderStaff, renderWaivers };
 })();

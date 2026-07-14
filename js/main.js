@@ -1477,6 +1477,54 @@ window.BBGM_MAIN = (function () {
       });
     }
 
+    // Waiver wire (0.22.0): AI clubs occasionally DFA a squeezed-out vet,
+    // and entries that have sat their 2 days resolve — worst record
+    // claims first, unclaimed players clear to free agency.
+    const wvEvents = window.BBGM_WAIVERS.dailyTick(state, today);
+    if (wvEvents.length && !state.news) state.news = [];
+    for (const ev of wvEvents) {
+      const p = state.players[ev.playerId];
+      const from = state.league.teams.find((t) => t.id === ev.fromTeamId);
+      if (!p) continue;
+      if (ev.kind === 'waived') {
+        state.news.push({ date: { ...today },
+          body: `${from ? from.abbr : '?'} designate <strong>${p.name}</strong> (${p.primaryPosition}) ` +
+                `for assignment — on waivers for 2 days.` });
+        if (stops.waiverWire && ev.ovr >= 48) {
+          queueHalt({
+            title: 'Waiver Wire',
+            body: `${from ? from.name : 'A rival club'} just waived ${p.name} ` +
+                  `(${p.primaryPosition}, ${U.gradeFor(ev.ovr)} OVR). Worst record claims first — ` +
+                  `you have 2 days to put in a claim.`,
+            actions: [{ label: 'View the Wire', kind: 'primary', onClick: () => {
+              navigate('gm', { tab: 'waivers' });
+              return true;
+            }}],
+          });
+        }
+      } else if (ev.kind === 'claimed') {
+        const by = state.league.teams.find((t) => t.id === ev.byTeamId);
+        const demoted = ev.demotedId ? state.players[ev.demotedId] : null;
+        state.news.push({ date: { ...today },
+          body: `<strong>${by ? by.abbr : '?'}</strong> claim <strong>${p.name}</strong> off waivers` +
+                (from ? ` from ${from.abbr}` : '') + '.' });
+        if (ev.userWon) {
+          queueHalt({
+            title: 'Claim Awarded',
+            body: `${p.name} is yours — your claim had priority. He takes on his existing contract` +
+                  (demoted ? `; ${demoted.name} was optioned to ${demoted.rosterStatus} to make room.` : '.'),
+          });
+        } else if (ev.userLost) {
+          state.news.push({ date: { ...today },
+            body: `You lost the claim on <strong>${p.name}</strong> to ${by ? by.name : 'a rival'} — ` +
+                  `the worse record claims first.` });
+        }
+      } else if (ev.kind === 'cleared') {
+        state.news.push({ date: { ...today },
+          body: `<strong>${p.name}</strong> clears waivers and is a free agent.` });
+      }
+    }
+
     // Trade-deadline heads-up (0.21.0): one stop per season, three days
     // out, so a deadline never slides past mid-sim.
     if (stops.deadline && today.month === 7 && today.day === 28 &&

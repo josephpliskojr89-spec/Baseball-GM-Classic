@@ -36,6 +36,7 @@ const files = [
   'js/engine/minors.js',
   'js/engine/trades.js',
   'js/engine/freeagency.js',
+  'js/engine/waivers.js',
   'js/engine/staff.js',
   'js/engine/scouting.js',
   'js/engine/draft.js',

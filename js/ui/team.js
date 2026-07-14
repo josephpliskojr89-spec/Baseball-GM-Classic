@@ -304,22 +304,40 @@ window.BBGM_UI_TEAM = (function () {
       }
     }
     const sal = (p.contract && p.contract.annualSalary) || 0;
+    // In-season 26-man releases pass through the waiver wire (0.22.0):
+    // rival clubs get 2 days to claim him and his contract, worst record
+    // first. Farm releases and offseason cuts skip the wire.
+    const viaWaivers = !fromMinors && !state.meta.offseasonPhase && window.BBGM_WAIVERS;
     U.showModal({
-      title: `Release ${p.name}?`,
-      body: `He clears waivers and becomes a free agent, eligible to sign anywhere` +
-            (sal >= 1 ? ` — and you eat the $${sal.toFixed(1)}M on his deal this season` : '') +
-            `. This can't be undone.`,
+      title: viaWaivers ? `Waive ${p.name}?` : `Release ${p.name}?`,
+      body: (viaWaivers
+        ? `He goes on waivers for 2 days — any club can claim him AND his contract ` +
+          `(worst record first). Unclaimed, he becomes a free agent` +
+          (sal >= 1 ? ` and you eat the $${sal.toFixed(1)}M on his deal` : '')
+        : `He becomes a free agent, eligible to sign anywhere` +
+          (sal >= 1 ? ` — and you eat the $${sal.toFixed(1)}M on his deal this season` : '')) +
+        `. This can't be undone.`,
       actions: [
         { label: 'Cancel', kind: 'secondary', onClick: () => true },
-        { label: 'Release Him', kind: 'danger', onClick: () => {
-          window.BBGM_FA.releaseToPool(state, p, 'released');
+        { label: viaWaivers ? 'Waive Him' : 'Release Him', kind: 'danger', onClick: () => {
           if (!state.news) state.news = [];
-          state.news.push({
-            date: { ...state.meta.currentDate },
-            body: `The <strong>${team.abbr}</strong> release <strong>${p.name}</strong> (${p.primaryPosition}).`,
-          });
+          if (viaWaivers) {
+            window.BBGM_WAIVERS.place(state, team, p);
+            state.news.push({
+              date: { ...state.meta.currentDate },
+              body: `The <strong>${team.abbr}</strong> designate <strong>${p.name}</strong> ` +
+                    `(${p.primaryPosition}) for assignment — on waivers for 2 days.`,
+            });
+            U.showToast(`${p.name} placed on waivers.`, 'info');
+          } else {
+            window.BBGM_FA.releaseToPool(state, p, 'released');
+            state.news.push({
+              date: { ...state.meta.currentDate },
+              body: `The <strong>${team.abbr}</strong> release <strong>${p.name}</strong> (${p.primaryPosition}).`,
+            });
+            U.showToast(`${p.name} released.`, 'info');
+          }
           window.BBGM_STATE.set(state);
-          U.showToast(`${p.name} released.`, 'info');
           render(document.getElementById('mainView'), state);
           return true;
         }},

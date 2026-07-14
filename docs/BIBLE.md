@@ -4545,6 +4545,27 @@ This is not a single phase but an ongoing process. Activities include:
 >   roster gets a direct "Call Up a Player" fill button (the Minors
 >   promote flow is swap-based and needs 26).
 
+> **Status (0.22.0) — waiver claim system (11.x amendment,
+> js/engine/waivers.js).**
+>
+> - **The wire.** In-season 26-man releases are now a DFA: the player
+>   leaves the roster immediately and sits on waivers for 2 days. Claim
+>   priority is reverse standings — the worst record claims first — and
+>   the claiming club takes the player AND his contract onto its 26-man
+>   (weakest player optioned to make room; closer / 2-catcher / 5-starter
+>   protected). Unclaimed players clear to free agency. Farm releases and
+>   offseason cuts skip the wire; nobody winters on it (rollover clears).
+> - **Two-sided.** AI clubs DFA a squeezed-out fringe veteran ~1-2 times
+>   a league-week (only when a clearly better farmhand takes the spot,
+>   who is called up in the same move), so the user gets claim chances.
+>   AI claims weigh the upgrade over their weakest same-type player and
+>   the owner's payroll room.
+> - **UI.** GM → Waivers lists the wire with contract, waiving club,
+>   resolution clock, the user's claim-priority rank, and Claim/Withdraw.
+>   A new "Waiver wire" sim stop (default on) halts the run when a
+>   claimable player (48+ OVR) is waived; winning a claim halts with the
+>   award notice, losing one lands in the news feed.
+
 ### 21.18 What's Explicitly Out of Initial Build
 
 To keep scope contained, several systems are explicitly deferred:

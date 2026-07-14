@@ -256,6 +256,7 @@ window.BBGM_STATE = (function () {
     dayToDay: false,   // minor day-to-day knocks (no roster move) → notice only
     tradeOffer: true,  // a rival GM sends you a trade offer
     deadline: true,    // heads-up 3 days before the July 31 trade deadline
+    waiverWire: true,  // a claimable player (48+ OVR) hits the waiver wire
   };
 
   function simStops(s) {

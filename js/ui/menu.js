@@ -12,7 +12,7 @@ window.BBGM_UI_MENU = (function () {
     // Build constant is bumped with every release so the user can tell at a
     // glance which dashboard.js the browser actually loaded. Save version
     // is the save-schema version and changes only when the schema changes.
-    const BUILD = 'v0.21.0-simstops-1';
+    const BUILD = 'v0.22.0-waivers-1';
     card.appendChild(U.el('div', { class: 'inset-list', style: { 'border': 'none' } }, [
       insetRow('Team', userTeam.name),
       insetRow('Date', window.BBGM_DATES.format(state.meta.currentDate)),
@@ -86,6 +86,7 @@ window.BBGM_UI_MENU = (function () {
       ['ilReturn', 'IL return', 'Choose who goes down when a player is ready to be activated'],
       ['tradeOffer', 'Trade offers', 'Stop when a rival club sends you a proposal'],
       ['deadline', 'Deadline heads-up', 'Stop three days before the July 31 trade deadline'],
+      ['waiverWire', 'Waiver wire', 'Stop when a claimable player (48+ OVR) is waived'],
       ['dayToDay', 'Day-to-day knocks', 'Stop for minor injuries with no roster move'],
     ];
     const toggles = U.el('div', { class: 'inset-list', style: { border: 'none' } });

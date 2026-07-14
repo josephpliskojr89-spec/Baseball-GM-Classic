@@ -253,6 +253,10 @@ window.BBGM_OFFSEASON = (function () {
     const year = state.meta.currentDate.year;
     const players = state.players;
     const teams = state.league.teams;
+
+    // 0. Waiver-wire hygiene (0.22.0): nobody winters on the wire —
+    // unresolved entries clear to free agency before anything else runs.
+    if (window.BBGM_WAIVERS) window.BBGM_WAIVERS.clearAll(state);
     const summary = { year, retirements: [], milestones: [], newFAs: 0, nonTenders: [] };
     const arbCases = [];
 
