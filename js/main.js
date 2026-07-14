@@ -510,10 +510,186 @@ window.BBGM_MAIN = (function () {
       `${team.seasonRecord.w}-${team.seasonRecord.l}`;
   }
 
+  // ------- Sim stops & pending decisions (0.21.0) -------
+  // Two mechanisms let the world wait for the GM instead of rolling on:
+  //  - state.pendingDecisions: roster calls deferred to the user (IL
+  //    call-up, IL-return send-down). These BLOCK further simming until
+  //    resolved — the roster is genuinely in limbo.
+  //  - simHalts: one-shot notices (new trade offer, deadline heads-up,
+  //    day-to-day knocks) that stop the current run so the user can act,
+  //    but don't block re-simming.
+  // Which events stop the sim is configured in Menu → Simulation Stops.
+  let simHalts = [];
+
+  function queueDecision(state, dec) {
+    if (!state.pendingDecisions) state.pendingDecisions = [];
+    state.pendingDecisions.push(dec);
+  }
+
+  function queueHalt(h) { simHalts.push(h); }
+
+  // Show queued one-shot notices, then flow into any pending decisions.
+  function showSimHalts(state) {
+    if (!simHalts.length) {
+      if ((state.pendingDecisions || []).length) showPendingDecisions(state);
+      return;
+    }
+    const h = simHalts.shift();
+    U.showModal({
+      title: h.title,
+      body: h.body,
+      actions: [
+        ...(h.actions || []),
+        { label: 'Continue', kind: h.actions && h.actions.length ? 'secondary' : 'primary', onClick: () => {
+          setTimeout(() => showSimHalts(state), 0);
+          return true;
+        }},
+      ],
+    });
+  }
+
+  // Walk the decision queue, dropping entries that went stale (player
+  // traded, released, or already handled), and show the first live one.
+  function showPendingDecisions(state) {
+    const team = state.league.teams.find((t) => t.id === state.meta.userTeamId);
+    const queue = state.pendingDecisions || [];
+    while (queue.length) {
+      const dec = queue[0];
+      const p = state.players[dec.playerId];
+      if (p && dec.kind === 'il-callup' && (team.il || []).includes(p.id) && p.teamId === team.id) {
+        showCallUpDecision(state, team, p);
+        return;
+      }
+      if (p && dec.kind === 'il-return' && (team.il || []).includes(p.id) &&
+          window.BBGM_INJURIES.isAvailable(p) && p.teamId === team.id) {
+        showReturnDecision(state, team, p);
+        return;
+      }
+      queue.shift();
+    }
+    window.BBGM_STATE.set(state);
+    refresh();
+  }
+
+  function resolveDecision(state) {
+    (state.pendingDecisions || []).shift();
+    window.BBGM_STATE.set(state);
+    refresh();
+    setTimeout(() => showPendingDecisions(state), 0);
+  }
+
+  function decisionRow(label, meta, onPick) {
+    const row = U.el('button', { class: 'roster-row', on: { click: onPick } });
+    const info = U.el('div', { class: 'player-row-info' });
+    info.appendChild(U.el('div', { class: 'player-row-name' }, label));
+    info.appendChild(U.el('div', { class: 'player-row-meta' }, meta));
+    row.appendChild(info);
+    return row;
+  }
+
+  function showCallUpDecision(state, team, p) {
+    const R = window.BBGM_ROSTER;
+    const need = R.callUpNeedFor(team, p);
+    const cands = R.callUpCandidates(team, state.players, p.isPitcher, need).slice(0, 8);
+    const inj = p.currentInjury;
+    const days = p.ilStatus ? p.ilStatus.daysRemaining : 0;
+    const body = U.el('div');
+    body.appendChild(U.el('p', { class: 'muted', style: { 'font-size': '12px', 'margin-bottom': '8px' } },
+      `${p.name} (${p.primaryPosition}) is on the ${inj ? inj.ilType + ' IL — ' + inj.type.toLowerCase() : 'IL'}, ` +
+      `out ~${days} days. Pick his replacement from the farm` +
+      (need ? ` (scouts suggest a ${need === 'C' ? 'catcher' : 'starter'} to cover his spot)` : '') + ':'));
+    const list = U.el('div', { class: 'roster-list' });
+    for (const c of cands) {
+      list.appendChild(decisionRow(
+        `${c.name} (${c.primaryPosition}, ${c.rosterStatus})`,
+        `Age ${c.age} • OVR ${U.gradeFor(R.overall(c))}`,
+        () => {
+          U.closeModal();
+          R.executeILCallUp(state, team, p, c);
+          state.news.push({ date: { ...state.meta.currentDate },
+            body: `<strong>${c.name}</strong> called up to cover ${p.name}'s IL stint.` });
+          resolveDecision(state);
+        }));
+    }
+    if (!cands.length) {
+      list.appendChild(U.el('div', { class: 'empty-state' }, 'No healthy candidates in the system.'));
+    }
+    body.appendChild(list);
+    const actions = [
+      { label: 'Let the AI Decide', kind: 'secondary', onClick: () => {
+        const pick = R.bestCallUp(team, state.players, p.isPitcher, need);
+        if (pick) {
+          R.executeILCallUp(state, team, p, pick);
+          state.news.push({ date: { ...state.meta.currentDate },
+            body: `<strong>${pick.name}</strong> called up to cover ${p.name}'s IL stint.` });
+        }
+        resolveDecision(state);
+        return true;
+      }},
+      { label: 'Play Short-Handed', kind: 'secondary', onClick: () => {
+        resolveDecision(state);
+        return true;
+      }},
+    ];
+    U.showModal({ title: `Roster decision — ${p.name} to the IL`, body, actions });
+  }
+
+  function showReturnDecision(state, team, p) {
+    const R = window.BBGM_ROSTER;
+    const INJ = window.BBGM_INJURIES;
+    const players = state.players;
+    const body = U.el('div');
+    body.appendChild(U.el('p', { class: 'muted', style: { 'font-size': '12px', 'margin-bottom': '8px' } },
+      `${p.name} (${p.primaryPosition}) is healthy and ready to come off the IL. ` +
+      `The 26-man is full — pick who goes down:`));
+    const cands = team.roster
+      .map((id) => players[id])
+      .filter((q) => q && q.id !== p.id && q.isPitcher === p.isPitcher && INJ.isAvailable(q))
+      .sort((a, b) => {
+        const ca = a.ilCallUpFor === p.id ? 0 : 1;
+        const cb = b.ilCallUpFor === p.id ? 0 : 1;
+        if (ca !== cb) return ca - cb;
+        return R.overall(a) - R.overall(b);
+      })
+      .slice(0, 8);
+    const list = U.el('div', { class: 'roster-list' });
+    for (const c of cands) {
+      list.appendChild(decisionRow(
+        `${c.name} (${c.primaryPosition})` + (c.ilCallUpFor === p.id ? ' — his IL cover' : ''),
+        `Age ${c.age} • OVR ${U.gradeFor(R.overall(c))}`,
+        () => {
+          U.closeModal();
+          const { sentDown } = R.activateFromIL(state, team, p, { downId: c.id });
+          state.news.push({ date: { ...state.meta.currentDate },
+            body: `<strong>${p.name}</strong> activated from the IL.` +
+              (sentDown ? ` <strong>${sentDown.name}</strong> optioned to ${sentDown.rosterStatus}.` : '') });
+          resolveDecision(state);
+        }));
+    }
+    body.appendChild(list);
+    const actions = [
+      { label: 'Let the AI Decide', kind: 'secondary', onClick: () => {
+        const { sentDown } = R.activateFromIL(state, team, p);
+        state.news.push({ date: { ...state.meta.currentDate },
+          body: `<strong>${p.name}</strong> activated from the IL.` +
+            (sentDown ? ` <strong>${sentDown.name}</strong> optioned to ${sentDown.rosterStatus}.` : '') });
+        resolveDecision(state);
+        return true;
+      }},
+    ];
+    U.showModal({ title: `Roster decision — ${p.name} returns`, body, actions });
+  }
+
   // ------- Sim controls -------
   function advanceDay() {
     const state = window.BBGM_STATE.get();
     if (!state) return;
+    // Unresolved roster decisions freeze the calendar (0.21.0) — the
+    // roster is in limbo until the GM makes the call (or delegates it).
+    if ((state.pendingDecisions || []).length) {
+      showPendingDecisions(state);
+      return;
+    }
     if (state.meta.offseasonPhase === 'freeAgency') {
       advanceFAPeriod();
       return;
@@ -1092,10 +1268,15 @@ window.BBGM_MAIN = (function () {
   function simDays(numDays) {
     const state = window.BBGM_STATE.get();
     if (!state) return;
+    if ((state.pendingDecisions || []).length) {
+      showPendingDecisions(state);
+      return;
+    }
     if (state.meta.offseasonPhase) {
       U.showToast('It\'s the offseason — advance the free-agency period instead.', 'info');
       return;
     }
+    simHalts = []; // stale notices from an interrupted run don't replay
     if (numDays > 1) U.showProgress(`Simulating ${numDays} days…`);
     document.getElementById('btnAdvance').disabled = true;
 
@@ -1120,6 +1301,14 @@ window.BBGM_MAIN = (function () {
         simOneDay(state);
       } catch (e) {
         finishWithError(e);
+        return;
+      }
+      // Sim stops (0.21.0): a queued roster decision or one-shot notice
+      // ends the run here — the rest of the requested days are dropped,
+      // the world waits for the GM.
+      if (simHalts.length || (state.pendingDecisions || []).length) {
+        finish();
+        showSimHalts(state);
         return;
       }
       // Champion crowned mid-run: stop and celebrate.
@@ -1270,7 +1459,38 @@ window.BBGM_MAIN = (function () {
 
     // AI trade activity (bible 15.7): AI-AI deals and occasional
     // unsolicited offers to the user, up to the July 31 deadline.
+    // A NEW offer to the user is a sim-stop event when the toggle is on.
+    const stops = window.BBGM_STATE.simStops(state);
+    const offersBefore = (state.pendingTradeOffers || []).length;
     window.BBGM_TRADES.aiTradeTick(state, today);
+    if (stops.tradeOffer && (state.pendingTradeOffers || []).length > offersBefore) {
+      const offer = state.pendingTradeOffers[state.pendingTradeOffers.length - 1];
+      const from = state.league.teams.find((t) => t.id === offer.fromTeamId);
+      queueHalt({
+        title: 'Trade Offer Received',
+        body: `${from ? from.name : 'A rival club'} sent your front office a trade proposal. ` +
+              `Offers expire after 7 days.`,
+        actions: [{ label: 'Review Offer', kind: 'primary', onClick: () => {
+          navigate('gm', { tab: 'trades' });
+          return true;
+        }}],
+      });
+    }
+
+    // Trade-deadline heads-up (0.21.0): one stop per season, three days
+    // out, so a deadline never slides past mid-sim.
+    if (stops.deadline && today.month === 7 && today.day === 28 &&
+        state.meta.deadlineNoticeYear !== today.year && !state.postseason) {
+      state.meta.deadlineNoticeYear = today.year;
+      queueHalt({
+        title: 'Trade Deadline — 3 Days Out',
+        body: 'The July 31 trade deadline is three days away. After that, rosters are locked into October — last chance to buy or sell.',
+        actions: [{ label: 'Open Trade Center', kind: 'primary', onClick: () => {
+          navigate('gm', { tab: 'trades' });
+          return true;
+        }}],
+      });
+    }
 
     // International class fallback (bible 14.1): normally generated at the
     // rollover; season 1 has no prior rollover, so it appears on day one.
@@ -1346,6 +1566,7 @@ window.BBGM_MAIN = (function () {
     const INJ = window.BBGM_INJURIES;
     const R = window.BBGM_ROSTER;
     const userTeamId = state.meta.userTeamId;
+    const stops = window.BBGM_STATE.simStops(state);
     for (const g of games) {
       if (!g.played || !g.result || !g.result.injuries) continue;
       for (const entry of g.result.injuries) {
@@ -1366,9 +1587,25 @@ window.BBGM_MAIN = (function () {
         if (entry.injury.ilType) {
           const team = state.league.teams.find((t) => t.id === p.teamId);
           if (team && team.roster.includes(p.id)) {
-            const { callUp } = R.placeOnILWithMove(state, team, p);
-            if (callUp) callUpNote = ` <strong>${callUp.name}</strong> called up from ${callUp.ilCallUpFor ? 'AAA' : 'the minors'}.`;
+            if (p.teamId === userTeamId && stops.injury) {
+              // Sim stop (0.21.0): the player hits the IL now, but the
+              // call-up is the GM's decision — queued, sim frozen.
+              R.placeOnILWithMove(state, team, p, { skipCallUp: true });
+              queueDecision(state, { kind: 'il-callup', playerId: p.id, date: { ...today } });
+              callUpNote = ' <strong>Roster decision required</strong> — choose his replacement.';
+            } else {
+              const { callUp } = R.placeOnILWithMove(state, team, p);
+              if (callUp) callUpNote = ` <strong>${callUp.name}</strong> called up from ${callUp.ilCallUpFor ? 'AAA' : 'the minors'}.`;
+            }
           }
+        } else if (p.teamId === userTeamId && stops.dayToDay) {
+          // Day-to-day knock: no roster move to make, but the user asked
+          // to be interrupted for these.
+          queueHalt({
+            title: 'Injury Update',
+            body: `${p.name} is day-to-day with a ${entry.injury.type.toLowerCase()} — expected back in ` +
+                  `${entry.injury.daysOut} day${entry.injury.daysOut !== 1 ? 's' : ''}. The manager will sub around him.`,
+          });
         }
         if (p.teamId === userTeamId) {
           if (!state.news) state.news = [];
@@ -1407,6 +1644,19 @@ window.BBGM_MAIN = (function () {
       let sentDownNote = '';
       const team = state.league.teams.find((t) => t.id === p.teamId);
       if (team && (team.il || []).includes(p.id)) {
+        const stops = window.BBGM_STATE.simStops(state);
+        if (p.teamId === userTeamId && stops.ilReturn && team.roster.length >= 26) {
+          // Sim stop (0.21.0): the send-down is the GM's call. The healthy
+          // player waits on the IL until the decision resolves (the queue
+          // freezes the calendar, so he never rots there).
+          queueDecision(state, { kind: 'il-return', playerId: p.id, date: { ...today } });
+          if (!state.news) state.news = [];
+          state.news.push({
+            date: { ...today },
+            body: `<strong>${p.name}</strong> is ready to return from the IL — <strong>roster decision required</strong>.`,
+          });
+          continue;
+        }
         const { sentDown } = R.activateFromIL(state, team, p);
         if (sentDown) sentDownNote = ` <strong>${sentDown.name}</strong> optioned to AAA.`;
       }
@@ -1639,6 +1889,7 @@ window.BBGM_MAIN = (function () {
   return {
     navigate, refresh, advanceDay, simToNextEvent, simToEndOfMonth, simToSeasonEnd,
     advanceFAPeriod, startSeasonFlow, validateCurrentSave,
+    showPendingDecisions,
   };
 })();
 

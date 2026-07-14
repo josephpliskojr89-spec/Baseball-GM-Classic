@@ -12,7 +12,7 @@ window.BBGM_UI_MENU = (function () {
     // Build constant is bumped with every release so the user can tell at a
     // glance which dashboard.js the browser actually loaded. Save version
     // is the save-schema version and changes only when the schema changes.
-    const BUILD = 'v0.20.0-roles-1';
+    const BUILD = 'v0.21.0-simstops-1';
     card.appendChild(U.el('div', { class: 'inset-list', style: { 'border': 'none' } }, [
       insetRow('Team', userTeam.name),
       insetRow('Date', window.BBGM_DATES.format(state.meta.currentDate)),
@@ -70,6 +70,51 @@ window.BBGM_UI_MENU = (function () {
     }, 'New Game (erase save)'));
 
     container.appendChild(actions);
+
+    // Simulation Stops (0.21.0): which league events halt a sim run and
+    // hand the decision to the user instead of the AI. The game is as
+    // deep as the player wants — everything off reproduces the old
+    // hands-free behavior exactly.
+    const simCard = U.el('div', { class: 'card', style: { 'margin-top': '20px' } });
+    simCard.appendChild(U.el('div', { class: 'card-title' }, 'Simulation Stops'));
+    simCard.appendChild(U.el('p', { class: 'muted', style: { 'font-size': '12px', 'margin-bottom': '8px' } },
+      'Events that pause the sim so YOU make the call instead of the AI. ' +
+      'Turn one off and the front office handles it automatically.'));
+    const stops = window.BBGM_STATE.simStops(state);
+    const STOP_DEFS = [
+      ['injury', 'Injury (IL move)', 'Choose the call-up when one of your players hits the IL'],
+      ['ilReturn', 'IL return', 'Choose who goes down when a player is ready to be activated'],
+      ['tradeOffer', 'Trade offers', 'Stop when a rival club sends you a proposal'],
+      ['deadline', 'Deadline heads-up', 'Stop three days before the July 31 trade deadline'],
+      ['dayToDay', 'Day-to-day knocks', 'Stop for minor injuries with no roster move'],
+    ];
+    const toggles = U.el('div', { class: 'inset-list', style: { border: 'none' } });
+    for (const [key, label, desc] of STOP_DEFS) {
+      const on = !!stops[key];
+      const row = U.el('button', {
+        class: 'inset-row',
+        style: { width: '100%', 'text-align': 'left', background: 'none', border: 'none', cursor: 'pointer' },
+        on: { click: () => {
+          window.BBGM_STATE.setSimStop(state, key, !on);
+          window.BBGM_STATE.set(state);
+          window.BBGM_MAIN.refresh();
+        }},
+      });
+      const left = U.el('div', { style: { flex: '1', 'min-width': '0' } });
+      left.appendChild(U.el('div', { class: 'label', style: { 'font-weight': '600' } }, label));
+      left.appendChild(U.el('div', { class: 'muted', style: { 'font-size': '11px' } }, desc));
+      row.appendChild(left);
+      row.appendChild(U.el('span', {
+        class: 'value',
+        style: {
+          'font-weight': '700', 'margin-left': '10px', 'white-space': 'nowrap',
+          color: on ? 'var(--success, #3fb950)' : 'var(--muted, #8b949e)',
+        },
+      }, on ? 'STOPS ●' : 'AI ○'));
+      toggles.appendChild(row);
+    }
+    simCard.appendChild(toggles);
+    container.appendChild(simCard);
 
     container.appendChild(U.el('div', { class: 'card', style: { 'margin-top': '20px' } }, [
       U.el('div', { class: 'card-title' }, 'About'),

@@ -222,6 +222,15 @@ window.BBGM_UI_TEAM = (function () {
       container.appendChild(ilList);
     }
 
+    // Short roster (release, or an unresolved IL call-up): offer a direct
+    // fill-up — the Minors tab's promote is swap-based and needs 26.
+    if (roster.length < 26) {
+      container.appendChild(U.el('button', {
+        class: 'btn-primary', style: { width: '100%', 'margin-top': '12px' },
+        on: { click: () => showCallUpFill(state, team) },
+      }, `Call Up a Player (${roster.length}/26)`));
+    }
+
     // Roster summary
     const card = U.el('div', { class: 'card', style: { 'margin-top': '16px' } });
     card.appendChild(U.el('div', { class: 'card-title' }, 'Roster Summary'));
@@ -237,6 +246,112 @@ window.BBGM_UI_TEAM = (function () {
     ul.appendChild(insetRow('Ballpark', team.ballpark.name));
     card.appendChild(ul);
     container.appendChild(card);
+  }
+
+  // ------- Roster actions: release / waive (0.21.0) -------
+
+  function showRosterActions(state, team, p) {
+    U.showModal({
+      title: `${p.name} (${p.primaryPosition})`,
+      body: U.el('p', { class: 'muted', style: { 'font-size': '12px' } },
+        `Age ${p.age} • $${(p.contract && p.contract.annualSalary || 0).toFixed(1)}M × ` +
+        `${(p.contract && p.contract.years) || 0}y • ${p.serviceTime ? p.serviceTime.years : 0} yrs service`),
+      actions: [
+        { label: 'View Profile', kind: 'primary', onClick: () => {
+          setTimeout(() => window.BBGM_UI_PLAYER.show(p.id), 0);
+          return true;
+        }},
+        { label: 'Release / Waive…', kind: 'danger', onClick: () => {
+          setTimeout(() => confirmRelease(state, team, p, false), 0);
+          return true;
+        }},
+        { label: 'Cancel', kind: 'secondary', onClick: () => true },
+      ],
+    });
+  }
+
+  // Pre-check mirrors the trade validator's post-move legality rules so a
+  // release can never be half-applied and reverted (releaseToPool mutates
+  // the player and the FA pool, which mutateTeam's snapshot can't undo).
+  function releaseBlocker(state, team, p) {
+    const players = state.players;
+    const rest = team.roster.map((id) => players[id]).filter((q) => q && q.id !== p.id);
+    const c = rest.filter((q) => !q.isPitcher && q.primaryPosition === 'C').length;
+    const sp = rest.filter((q) => q.isPitcher && q.primaryPosition === 'SP').length;
+    const pitchers = rest.filter((q) => q.isPitcher).length;
+    const hitters = rest.length - pitchers;
+    if (!p.isPitcher && p.primaryPosition === 'C' && c < 2) return 'that would leave you without two catchers';
+    if (p.isPitcher && p.primaryPosition === 'SP' && sp < 5) return 'that would leave you without five starters';
+    if (p.isPitcher && pitchers < 11) return 'that would leave the staff too thin';
+    if (!p.isPitcher && hitters < 11) return 'that would leave too few position players';
+    const org = rest.concat((team.minors || []).map((id) => players[id]).filter(Boolean));
+    for (const pos of ['C', '1B', '2B', '3B', 'SS', 'LF', 'CF', 'RF']) {
+      if (!org.some((q) => !q.isPitcher && GEN().canPlay(q, pos))) {
+        return `nobody left in the organization can play ${pos}`;
+      }
+    }
+    return null;
+  }
+
+  // fromMinors: releasing a farmhand needs no legality math beyond the
+  // org position coverage; a 26-man release also cleans team configs.
+  function confirmRelease(state, team, p, fromMinors) {
+    if (!fromMinors) {
+      const blocker = releaseBlocker(state, team, p);
+      if (blocker) {
+        U.showToast(`Can't release ${p.name} — ${blocker}.`, 'warning', 5000);
+        return;
+      }
+    }
+    const sal = (p.contract && p.contract.annualSalary) || 0;
+    U.showModal({
+      title: `Release ${p.name}?`,
+      body: `He clears waivers and becomes a free agent, eligible to sign anywhere` +
+            (sal >= 1 ? ` — and you eat the $${sal.toFixed(1)}M on his deal this season` : '') +
+            `. This can't be undone.`,
+      actions: [
+        { label: 'Cancel', kind: 'secondary', onClick: () => true },
+        { label: 'Release Him', kind: 'danger', onClick: () => {
+          window.BBGM_FA.releaseToPool(state, p, 'released');
+          if (!state.news) state.news = [];
+          state.news.push({
+            date: { ...state.meta.currentDate },
+            body: `The <strong>${team.abbr}</strong> release <strong>${p.name}</strong> (${p.primaryPosition}).`,
+          });
+          window.BBGM_STATE.set(state);
+          U.showToast(`${p.name} released.`, 'info');
+          render(document.getElementById('mainView'), state);
+          return true;
+        }},
+      ],
+    });
+  }
+
+  // Fill an open 26-man spot straight from the farm (no swap needed).
+  function showCallUpFill(state, team) {
+    const players = state.players;
+    const inj = window.BBGM_INJURIES;
+    const cands = (team.minors || [])
+      .map((id) => players[id])
+      .filter((p) => p && inj.isAvailable(p))
+      .sort((a, b) => (b.isPitcher ? overallPitcher(b) : overallHitter(b)) -
+                      (a.isPitcher ? overallPitcher(a) : overallHitter(a)))
+      .slice(0, 14);
+    pickerModal(state, 'Call up to the 26-man', cands,
+      (p) => `${p.primaryPosition} • ${p.rosterStatus} • Age ${p.age} • OVR ${U.gradeFor(p.isPitcher ? overallPitcher(p) : overallHitter(p))}`,
+      (p) => {
+        mutateTeam(state, team, (statuses) => {
+          statuses[p.id] = { rosterStatus: p.rosterStatus, status: p.status };
+          team.minors.splice(team.minors.indexOf(p.id), 1);
+          team.roster.push(p.id);
+          p.status = 'active';
+          p.rosterStatus = '26-man';
+          // The manager works the new man into his configs (Pillar 4).
+          window.BBGM_ROSTER.safeRebuild(state, team);
+        });
+        U.showToast(`${p.name} called up.`, 'success');
+        render(document.getElementById('mainView'), state);
+      });
   }
 
   // ------- Lineup tab (editable) -------
@@ -644,6 +759,10 @@ window.BBGM_UI_TEAM = (function () {
       setTimeout(() => window.BBGM_UI_PLAYER.show(p.id), 0);
       return true;
     }});
+    actions.push({ label: 'Release…', kind: 'danger', onClick: () => {
+      setTimeout(() => confirmRelease(state, team, p, true), 0);
+      return true;
+    }});
     actions.push({ label: 'Cancel', kind: 'secondary', onClick: () => true });
     U.showModal({
       title: `${p.name} (${p.rosterStatus})`,
@@ -782,9 +901,10 @@ window.BBGM_UI_TEAM = (function () {
 
   function playerRow(p, state, year) {
     const s = p.stats[year];
+    const team = state.league.teams.find((t) => t.id === state.meta.userTeamId);
     const row = U.el('button', {
       class: 'roster-row',
-      on: { click: () => window.BBGM_UI_PLAYER.show(p.id) }
+      on: { click: () => showRosterActions(state, team, p) }
     });
     row.appendChild(U.posBadge(p));
     const info = U.el('div', { class: 'player-row-info' });

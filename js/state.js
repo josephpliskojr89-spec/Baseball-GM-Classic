@@ -244,6 +244,31 @@ window.BBGM_STATE = (function () {
     });
   }
 
+  // ---- Simulation-stop settings (0.21.0) ----------------------------------
+  // Which league events halt a sim run and hand the decision to the user
+  // instead of the AI. Defaults are merged lazily so old saves and newly
+  // added toggles both work without a migration. The game is as deep as
+  // the player wants it: turn a stop off and the AI quietly handles that
+  // event exactly as it did before 0.21.0.
+  const SIM_STOP_DEFAULTS = {
+    injury: true,      // IL injury on your club → you choose the call-up
+    ilReturn: true,    // IL activation needing a send-down → you choose who
+    dayToDay: false,   // minor day-to-day knocks (no roster move) → notice only
+    tradeOffer: true,  // a rival GM sends you a trade offer
+    deadline: true,    // heads-up 3 days before the July 31 trade deadline
+  };
+
+  function simStops(s) {
+    const st = s || state;
+    return { ...SIM_STOP_DEFAULTS, ...((st && st.settings && st.settings.simStops) || {}) };
+  }
+
+  function setSimStop(s, key, value) {
+    if (!s.settings) s.settings = {};
+    if (!s.settings.simStops) s.settings.simStops = {};
+    s.settings.simStops[key] = !!value;
+  }
+
   // Helpers
   function getPlayer(id) {
     return state && state.players[id];
@@ -262,5 +287,6 @@ window.BBGM_STATE = (function () {
     get, set, reset, subscribe, saveNow, load, hasSave,
     exportToFile, importFromFile, setSaveBlocked, onSaveError,
     getPlayer, getTeam, userTeam,
+    simStops, setSimStop,
   };
 })();

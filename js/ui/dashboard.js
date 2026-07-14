@@ -24,6 +24,22 @@ window.BBGM_UI_DASHBOARD = (function () {
     strip.appendChild(U.el('div', { class: 'team-strip-record' }, record));
     container.appendChild(strip);
 
+    // Pending roster decisions (0.21.0): the calendar is frozen until the
+    // GM makes these calls — surface them above everything else.
+    const pending = (state.pendingDecisions || []).length;
+    if (pending) {
+      const card = U.el('div', { class: 'card', style: { 'border-left': '3px solid var(--danger, #f85149)' } });
+      card.appendChild(U.el('div', { class: 'card-title' },
+        `⚠ Roster decision${pending !== 1 ? 's' : ''} required (${pending})`));
+      card.appendChild(U.el('p', { class: 'muted', style: { 'font-size': '12px', 'margin-bottom': '8px' } },
+        'The season is paused until these are resolved — IL moves are waiting on your call.'));
+      card.appendChild(U.el('button', {
+        class: 'btn-primary', style: { width: '100%' },
+        on: { click: () => window.BBGM_MAIN.showPendingDecisions(state) },
+      }, 'Make the Call'));
+      container.appendChild(card);
+    }
+
     // Draft callouts (bible 13/18.12): a hero card on draft day, a quieter
     // nudge while the class is scoutable in May-June.
     const draftCard = renderDraftCallout(state);

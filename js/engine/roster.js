@@ -105,17 +105,18 @@ window.BBGM_ROSTER = (function () {
     return MIN ? MIN.recommendedLevel(p) : 'AAA';
   }
 
-  // Best healthy minor leaguer of the given type, AAA preferred.
-  function bestCallUp(team, players, isPitcher, positionNeed) {
+  // Healthy minor leaguers of the given type, ranked: position need first
+  // (a catcher for a catcher), then level (AAA preferred), then talent.
+  // The full list feeds the user's call-up decision modal (0.21.0);
+  // bestCallUp keeps returning the AI's top pick.
+  function callUpCandidates(team, players, isPitcher, positionNeed) {
     const inj = INJ();
     // 'A+' kept for saves loaded mid-migration (merged into A in 0.12).
     const levelRank = { AAA: 0, AA: 1, 'A+': 2, A: 2, Rookie: 3 };
     const cands = (team.minors || [])
       .map((id) => players[id])
       .filter((p) => p && p.isPitcher === isPitcher && inj.isAvailable(p));
-    if (!cands.length) return null;
     cands.sort((a, b) => {
-      // Position need first (e.g. a catcher for a catcher), then level, then talent.
       if (positionNeed) {
         const an = a.primaryPosition === positionNeed ? 0 : 1;
         const bn = b.primaryPosition === positionNeed ? 0 : 1;
@@ -126,14 +127,54 @@ window.BBGM_ROSTER = (function () {
       if (la !== lb) return la - lb;
       return overall(b) - overall(a);
     });
-    return cands[0];
+    return cands;
+  }
+
+  function bestCallUp(team, players, isPitcher, positionNeed) {
+    return callUpCandidates(team, players, isPitcher, positionNeed)[0] || null;
   }
 
   // Move an injured player from the 26-man to the team IL list and call up
   // a replacement so the roster stays at strength. Returns { callUp } (the
   // promoted player or null). Only for IL-type injuries — day-to-day
   // players stay on the roster.
-  function placeOnILWithMove(state, team, player) {
+  // What the injured player's absence needs covered: his catcher spot, or
+  // his rotation turn if he holds a slot. Shared by the AI move and the
+  // user's decision modal so both rank candidates the same way.
+  function callUpNeedFor(team, player) {
+    const rSlot = (team.rotation || []).indexOf(player.id);
+    return player.primaryPosition === 'C' ? 'C' : (rSlot >= 0 ? 'SP' : null);
+  }
+
+  // Promote a specific minors player to cover an IL'd player's spot. The
+  // second half of placeOnILWithMove, factored out so the user's deferred
+  // call-up decision (0.21.0) executes through the same code as the AI's.
+  function executeILCallUp(state, team, injured, callUp) {
+    if (!callUp) return null;
+    const rSlot = (team.rotation || []).indexOf(injured.id);
+    const mi = team.minors.indexOf(callUp.id);
+    if (mi >= 0) team.minors.splice(mi, 1);
+    team.roster.push(callUp.id);
+    callUp.status = 'active';
+    callUp.rosterStatus = '26-man';
+    // Remember who this call-up covers, so activation reverses it.
+    callUp.ilCallUpFor = injured.id;
+    if (callUp.isPitcher && rSlot >= 0) {
+      // Cover the rotation hole directly.
+      team.rotation[rSlot] = callUp.id;
+    } else if (callUp.isPitcher) {
+      // A called-up reliever slots into the pen as depth.
+      if (!team.bullpen.includes(callUp.id)) team.bullpen.push(callUp.id);
+      const roles = team.bullpenRoles || (team.bullpenRoles = { setup: [], middle: [], long: [], mopup: [] });
+      if (!Object.values(roles).some((arr) => arr.includes(callUp.id))) roles.middle.push(callUp.id);
+    }
+    return callUp;
+  }
+
+  // opts.skipCallUp (0.21.0): move the player to the IL but leave the
+  // roster spot open — the user has a sim-stop set and will choose the
+  // call-up himself (executeILCallUp), or elect to play short.
+  function placeOnILWithMove(state, team, player, opts = {}) {
     const players = state.players;
     const ri = team.roster.indexOf(player.id);
     if (ri >= 0) team.roster.splice(ri, 1);
@@ -141,32 +182,16 @@ window.BBGM_ROSTER = (function () {
     if (!team.il.includes(player.id)) team.il.push(player.id);
     player.rosterStatus = 'IL';
 
+    if (opts.skipCallUp) return { callUp: null };
+
     // A rotation starter's IL stint used to leave his slot in place, and
     // pickStarter's "first available arm" walk funneled every one of those
     // starts to the adjacent healthy starters — 50-start seasons when a
     // rotation carried two long-term holes. The call-up takes the injured
     // starter's rotation turn instead, like a real team.
-    const rSlot = (team.rotation || []).indexOf(player.id);
-    const need = player.primaryPosition === 'C' ? 'C' : (rSlot >= 0 ? 'SP' : null);
-    const callUp = bestCallUp(team, players, player.isPitcher, need);
-    if (callUp) {
-      const mi = team.minors.indexOf(callUp.id);
-      if (mi >= 0) team.minors.splice(mi, 1);
-      team.roster.push(callUp.id);
-      callUp.status = 'active';
-      callUp.rosterStatus = '26-man';
-      // Remember who this call-up covers, so activation reverses it.
-      callUp.ilCallUpFor = player.id;
-      if (callUp.isPitcher && rSlot >= 0) {
-        // Cover the rotation hole directly.
-        team.rotation[rSlot] = callUp.id;
-      } else if (callUp.isPitcher) {
-        // A called-up reliever slots into the pen as depth.
-        if (!team.bullpen.includes(callUp.id)) team.bullpen.push(callUp.id);
-        const roles = team.bullpenRoles || (team.bullpenRoles = { setup: [], middle: [], long: [], mopup: [] });
-        if (!Object.values(roles).some((arr) => arr.includes(callUp.id))) roles.middle.push(callUp.id);
-      }
-    }
+    const need = callUpNeedFor(team, player);
+    const callUp = executeILCallUp(state, team, player,
+      bestCallUp(team, players, player.isPitcher, need));
     return { callUp };
   }
 
@@ -174,7 +199,9 @@ window.BBGM_ROSTER = (function () {
   // covered the stint (or, failing that, the weakest same-type roster
   // player who has minor-league status history) goes back down.
   // Returns { sentDown } (player demoted or null if the team was short).
-  function activateFromIL(state, team, player) {
+  // opts.downId (0.21.0): the user picked who goes down — honor it instead
+  // of the default (the stint's cover, else the weakest same-type player).
+  function activateFromIL(state, team, player, opts = {}) {
     const players = state.players;
     const ii = (team.il || []).indexOf(player.id);
     if (ii >= 0) team.il.splice(ii, 1);
@@ -206,10 +233,16 @@ window.BBGM_ROSTER = (function () {
       return { sentDown: null };
     }
 
-    // Prefer the specific call-up who covered this stint.
-    let down = team.roster
-      .map((id) => players[id])
-      .find((p) => p && p.ilCallUpFor === player.id);
+    // The user's explicit pick wins; otherwise prefer the specific
+    // call-up who covered this stint.
+    let down = opts.downId && opts.downId !== player.id
+      ? team.roster.map((id) => players[id]).find((p) => p && p.id === opts.downId) || null
+      : null;
+    if (!down) {
+      down = team.roster
+        .map((id) => players[id])
+        .find((p) => p && p.ilCallUpFor === player.id);
+    }
     if (!down) {
       // Weakest healthy same-type player (never the returning player).
       const inj = INJ();
@@ -359,5 +392,6 @@ window.BBGM_ROSTER = (function () {
   return {
     placeOnILWithMove, activateFromIL, replaceRefs, bestCallUp, overall, demotionLevel,
     newPlayerId, safeRebuild,
+    callUpCandidates, callUpNeedFor, executeILCallUp,
   };
 })();

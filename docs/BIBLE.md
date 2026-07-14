@@ -4520,6 +4520,31 @@ This is not a single phase but an ongoing process. Activities include:
 >   pools generate only SP/RP — closer is your best reliever, not a
 >   drafted position.
 
+> **Status (0.21.0) — sim stops, pending decisions, release/waive (Pillar 2
+> "as deep as you want" made literal).**
+>
+> - **Simulation Stops (Menu card).** Five toggles decide which league
+>   events pause a sim run and hand the call to the GM instead of the AI:
+>   injury IL moves (default on), IL returns (on), incoming trade offers
+>   (on), a trade-deadline heads-up 3 days out (on), and day-to-day knocks
+>   (off). Everything off reproduces the old hands-free behavior exactly —
+>   the AI resolves each event precisely as it did before 0.21.0.
+> - **Two stop mechanics.** Roster decisions (state.pendingDecisions) are
+>   deferred moves that FREEZE the calendar until resolved: the injured
+>   player hits the IL immediately but the call-up choice waits (ranked
+>   candidate modal, "Let the AI Decide", or "Play Short-Handed"); an IL
+>   return waits on the send-down pick (his cover flagged first). One-shot
+>   notices (trade offer, deadline, day-to-day) just end the current run
+>   with a modal and don't block re-simming. The dashboard pins a
+>   "Roster decisions required" card while any are open.
+> - **Release / waive (11.x amendment).** Any 26-man player (Team →
+>   Roster action sheet) or minor leaguer (Minors sheet) can be released:
+>   he clears waivers into the FA pool as a free agent. A legality
+>   pre-check blocks releases that would strand the club (under 2
+>   catchers, 5 starters, 11 a side, or an uncoverable position). A short
+>   roster gets a direct "Call Up a Player" fill button (the Minors
+>   promote flow is swap-based and needs 26).
+
 ### 21.18 What's Explicitly Out of Initial Build
 
 To keep scope contained, several systems are explicitly deferred:
