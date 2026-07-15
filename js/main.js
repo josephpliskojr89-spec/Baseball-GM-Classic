@@ -578,12 +578,22 @@ window.BBGM_MAIN = (function () {
     setTimeout(() => showPendingDecisions(state), 0);
   }
 
-  function decisionRow(label, meta, onPick) {
+  // Candidate row for decision modals. Must carry the full three-column
+  // roster-row structure (badge / info / stats) — .roster-row is a grid
+  // with a fixed 32px first column, so a row with only an info child gets
+  // crushed into the badge slot.
+  function decisionRow(p, note, meta, onPick) {
     const row = U.el('button', { class: 'roster-row', on: { click: onPick } });
+    row.appendChild(U.posBadge(p));
     const info = U.el('div', { class: 'player-row-info' });
-    info.appendChild(U.el('div', { class: 'player-row-name' }, label));
+    info.appendChild(U.el('div', { class: 'player-row-name' }, p.name + (note ? ` ${note}` : '')));
     info.appendChild(U.el('div', { class: 'player-row-meta' }, meta));
     row.appendChild(info);
+    const ovr = Math.round(window.BBGM_ROSTER.overall(p));
+    const stats = U.el('div', { class: 'player-row-stats' });
+    stats.appendChild(U.el('span', { class: U.gradeClass(ovr) }, String(U.gradeFor(ovr))));
+    stats.appendChild(U.el('span', { class: 'key' }, 'OVR'));
+    row.appendChild(stats);
     return row;
   }
 
@@ -600,9 +610,8 @@ window.BBGM_MAIN = (function () {
       (need ? ` (scouts suggest a ${need === 'C' ? 'catcher' : 'starter'} to cover his spot)` : '') + ':'));
     const list = U.el('div', { class: 'roster-list' });
     for (const c of cands) {
-      list.appendChild(decisionRow(
-        `${c.name} (${c.primaryPosition}, ${c.rosterStatus})`,
-        `Age ${c.age} • OVR ${U.gradeFor(R.overall(c))}`,
+      list.appendChild(decisionRow(c, '',
+        `Age ${c.age} • ${c.rosterStatus}`,
         () => {
           U.closeModal();
           R.executeILCallUp(state, team, p, c);
@@ -654,9 +663,9 @@ window.BBGM_MAIN = (function () {
       .slice(0, 8);
     const list = U.el('div', { class: 'roster-list' });
     for (const c of cands) {
-      list.appendChild(decisionRow(
-        `${c.name} (${c.primaryPosition})` + (c.ilCallUpFor === p.id ? ' — his IL cover' : ''),
-        `Age ${c.age} • OVR ${U.gradeFor(R.overall(c))}`,
+      list.appendChild(decisionRow(c,
+        c.ilCallUpFor === p.id ? '· his IL cover' : '',
+        `Age ${c.age}`,
         () => {
           U.closeModal();
           const { sentDown } = R.activateFromIL(state, team, p, { downId: c.id });
