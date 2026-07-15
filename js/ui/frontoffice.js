@@ -207,16 +207,80 @@ window.BBGM_UI_FRONTOFFICE = (function () {
     return row;
   }
 
+  // Rich comparison row for trade surfaces (0.22.2): OVR (through the
+  // scouting fog for rival farmhands), this season's line, age/level,
+  // and the contract — everything needed to weigh a deal without hopping
+  // between team pages. Tapping opens the full profile; the offer stays
+  // pending on the Trades tab, so nothing is lost by drilling in.
+  function tradePlayerRow(state, p) {
+    const S = window.BBGM_STATS;
+    const year = state.meta.currentDate.year;
+    const s = p.stats[year];
+    const row = U.el('button', {
+      class: 'roster-row',
+      on: { click: () => window.BBGM_UI_PLAYER.show(p.id) },
+    });
+    row.appendChild(U.posBadge(p));
+    const info = U.el('div', { class: 'player-row-info' });
+    info.appendChild(U.el('div', { class: 'player-row-name' }, p.name));
+    const lvl = p.status === 'minors' ? ` • ${p.rosterStatus}` : '';
+    info.appendChild(U.el('div', { class: 'player-row-meta' },
+      `Age ${p.age}${lvl} • $${((p.contract && p.contract.annualSalary) || 0).toFixed(1)}M × ` +
+      `${(p.contract && p.contract.years) || 0}y`));
+    let statLine;
+    if (p.isPitcher) {
+      statLine = s && (s.ipOuts || 0) > 0
+        ? `${year}: ${s.w || 0}-${s.l || 0}, ${S.era(s).toFixed(2)} ERA, ${S.fmtIP(s.ipOuts)} IP, ${s.k || 0} K`
+        : 'No MLB innings this year';
+    } else {
+      statLine = s && (s.ab || 0) > 0
+        ? `${year}: ${S.fmtAvg(S.avg(s))}, ${s.hr || 0} HR, ${s.rbi || 0} RBI, ${s.sb || 0} SB`
+        : 'No MLB at-bats this year';
+    }
+    info.appendChild(U.el('div', { class: 'player-row-meta' }, statLine));
+    row.appendChild(info);
+    // OVR through the user's scouting report — a rival farmhand shows the
+    // band (or ??), never the true number.
+    const rep = window.BBGM_SCOUT.report(state, p);
+    const band = rep.ovrBand();
+    const stats = U.el('div', { class: 'player-row-stats' });
+    if (rep.mode === 'min') {
+      stats.appendChild(U.el('span', { class: 'muted', style: { 'font-weight': '700' } }, '??'));
+    } else if (band) {
+      stats.appendChild(U.el('span', {
+        class: U.gradeClass((band[0] + band[1]) / 2), style: { 'font-weight': '700', 'font-size': '13px' },
+      }, `${band[0]}–${band[1]}`));
+    } else {
+      const ovr = Math.round(ROSTER().overall(p));
+      stats.appendChild(U.el('span', {
+        class: U.gradeClass(ovr), style: { 'font-weight': '700', 'font-size': '16px' },
+      }, String(U.gradeFor(ovr))));
+    }
+    stats.appendChild(U.el('span', { class: 'key' }, 'OVR'));
+    row.appendChild(stats);
+    return row;
+  }
+
+  function tradeCompareSection(state, title, list) {
+    const wrap = U.el('div');
+    wrap.appendChild(U.el('div', { class: 'card-title', style: { 'margin-top': '8px' } }, title));
+    const rows = U.el('div', { class: 'roster-list' });
+    for (const p of list) rows.appendChild(tradePlayerRow(state, p));
+    if (!list.length) rows.appendChild(U.el('div', { class: 'empty-state' }, 'Nobody'));
+    wrap.appendChild(rows);
+    return wrap;
+  }
+
   function showIncomingOffer(state, userTeam, offer) {
     const players = state.players;
     const from = state.league.teams.find((t) => t.id === offer.fromTeamId);
     const give = offer.give.map((id) => players[id]).filter(Boolean); // they send
     const get = offer.get.map((id) => players[id]).filter(Boolean);   // they want
     const body = U.el('div');
-    body.appendChild(U.el('p', { style: { 'font-size': '13px', 'margin-bottom': '8px' } },
-      `${from.name} send: ${give.map((p) => `${p.name} (${p.primaryPosition})`).join(', ')}`));
-    body.appendChild(U.el('p', { style: { 'font-size': '13px', 'margin-bottom': '8px' } },
-      `You send: ${get.map((p) => `${p.name} (${p.primaryPosition})`).join(', ')}`));
+    body.appendChild(U.el('p', { class: 'muted', style: { 'font-size': '11px', 'margin-bottom': '4px' } },
+      'Tap a player for his full card — the offer stays open on the Trades tab.'));
+    body.appendChild(tradeCompareSection(state, `You receive from ${from.abbr}`, give));
+    body.appendChild(tradeCompareSection(state, 'You send', get));
     U.showModal({
       title: `Trade offer from ${from.abbr}`,
       body,
@@ -340,6 +404,18 @@ window.BBGM_UI_FRONTOFFICE = (function () {
     cashRow.appendChild(mkCash('Cash you send', 'cashGive'));
     cashRow.appendChild(mkCash('Cash you receive', 'cashGet'));
     container.appendChild(cashRow);
+
+    // Deal at a glance (0.22.2): the selected package, both sides, with
+    // full comparison rows — no hopping between team pages to weigh it.
+    if (draft.give.length || draft.get.length) {
+      const glance = U.el('div', { class: 'card', style: { padding: '10px 12px', 'margin-top': '10px' } });
+      glance.appendChild(U.el('div', { class: 'card-title' }, 'Deal at a Glance'));
+      glance.appendChild(tradeCompareSection(state, 'You send',
+        draft.give.map((id) => players[id]).filter(Boolean)));
+      glance.appendChild(tradeCompareSection(state, `You receive from ${partner.abbr}`,
+        draft.get.map((id) => players[id]).filter(Boolean)));
+      container.appendChild(glance);
+    }
 
     const actions = U.el('div', { style: { display: 'flex', gap: '8px', margin: '12px 0' } });
     actions.appendChild(U.el('button', {
