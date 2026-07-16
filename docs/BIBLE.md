@@ -4643,6 +4643,28 @@ This is not a single phase but an ongoing process. Activities include:
 > PA/team-game and the league-max season PA/AB against the 778/716
 > records as standing diagnostics.
 
+> **Status (0.27.0) — intentional walks (7.5 amendment).** The IBB
+> accounting plumbing existed since the original engine but nothing ever
+> issued one. Now the defense makes the classic call before the PA is
+> rolled (`shouldIntentionalWalk` in simulation.js): first base open, a
+> runner in scoring position, inning 3+, margin within ±2 from the
+> defense's side, and a clear step down to the on-deck man (the pitcher
+> due up next, in no-DH games, is the era's automatic green light; the
+> pitcher himself is never walked). Probability scales with both the
+> batter-vs-on-deck gap and the batter's absolute menace, is boosted
+> late / with two outs / with R3, and runs through the manager's
+> small-ball tendency (old-school skippers hand out more free passes).
+> Calibrated to the user-specified 2001 standard: measured 48
+> IBB/team-season (2001: ~46, 0.28/game) with single-season leaders at
+> 35 and 45 across seeds — genuine Barry Bonds room, since the menace
+> kicker scales steeply for generational monsters. An IBB counts in the
+> bb column (official scoring) plus a new `ibb` counter on both the
+> batting and pitching lines for future display; the game log shows
+> "Intentional Walk" as its own play. The unintentional walk base was
+> trimmed (bbBase 0.078 → 0.0725 for position players) so TOTAL BB%
+> stays at the 8.5% / .328 OBP 2001 targets. Harness prints IBB/team
+> and the league IBB leader every season as standing diagnostics.
+
 ### 21.18 What's Explicitly Out of Initial Build
 
 To keep scope contained, several systems are explicitly deferred:

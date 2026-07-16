@@ -378,7 +378,8 @@ window.BBGM_UI_GAMES = (function () {
   //    code, rbi, away score after, home score after]
   const PLAY_TEXT = {
     '1B': 'Single', '2B': 'Double', '3B': 'Triple', 'HR': 'Home Run',
-    'BB': 'Walk', 'HBP': 'Hit by Pitch', 'K': 'Strikeout', 'OUT': 'Out',
+    'BB': 'Walk', 'IBB': 'Intentional Walk', 'HBP': 'Hit by Pitch',
+    'K': 'Strikeout', 'OUT': 'Out',
     'SF': 'Sacrifice Fly', 'GIDP': 'Grounded into Double Play',
     'SB': 'Stolen Base', 'CS': 'Caught Stealing', 'E': 'Reached on Error',
     'SH': 'Sacrifice Bunt',

@@ -26,10 +26,13 @@ window.BBGM_STATS = (function () {
     return s.batting;
   }
 
+  // ibb (intentional walks, 0.27.0) is a subset of bb — every IBB also
+  // increments bb, so obp/avg formulas need no change. Old saves lack the
+  // field; all readers must treat it as (s.ibb || 0).
   function emptyHitter() {
     return {
       g: 0, ab: 0, pa: 0, h: 0, b2: 0, b3: 0, hr: 0,
-      r: 0, rbi: 0, sb: 0, cs: 0, bb: 0, k: 0, hbp: 0,
+      r: 0, rbi: 0, sb: 0, cs: 0, bb: 0, ibb: 0, k: 0, hbp: 0,
       sf: 0, sh: 0, gidp: 0,
     };
   }
@@ -37,7 +40,7 @@ window.BBGM_STATS = (function () {
   function emptyPitcher() {
     return {
       g: 0, gs: 0, w: 0, l: 0, sv: 0, hld: 0, bs: 0, cg: 0, sho: 0,
-      ip: 0, ipOuts: 0, h: 0, r: 0, er: 0, hr: 0, bb: 0, k: 0, bf: 0, hbp: 0,
+      ip: 0, ipOuts: 0, h: 0, r: 0, er: 0, hr: 0, bb: 0, ibb: 0, k: 0, bf: 0, hbp: 0,
     };
   }
 

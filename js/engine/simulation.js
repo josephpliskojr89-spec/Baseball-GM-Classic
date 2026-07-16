@@ -468,8 +468,8 @@ window.BBGM_SIM = (function () {
   //   [0] inning  [1] half (0 top / 1 bottom)  [2] batter/runner id
   //   [3] pitcher id  [4] outs before play  [5] base mask before play
   //       (1 = runner on 1st, 2 = on 2nd, 4 = on 3rd)
-  //   [6] result code ('1B','2B','3B','HR','BB','HBP','K','OUT','SF',
-  //       'GIDP','SB','CS')
+  //   [6] result code ('1B','2B','3B','HR','BB','IBB','HBP','K','OUT',
+  //       'SF','GIDP','SB','CS','E','SH')
   //   [7] RBI on the play  [8] away score after  [9] home score after
   function logPlay(log, inning, isBottom, playerId, pitcherId, outsBefore, baseMask, code, rbi, off, def) {
     const awayScore = isBottom ? def.runs : off.runs;
@@ -575,7 +575,15 @@ window.BBGM_SIM = (function () {
         continue;
       }
 
-      const result = resolveAtBat(batter, pitcher, off.parkFactors, def);
+      // Intentional walk (0.27.0, bible 7.5): the defense's call, made
+      // before the PA is rolled. The on-deck man is who the free pass
+      // brings up — lineupIdx has already advanced past the current
+      // batter, and null is the pitcher's-spot sentinel (no-DH games).
+      const onDeckSlot = off.lineup[off.lineupIdx];
+      const onDeck = onDeckSlot === null ? off.currentP : onDeckSlot;
+      const result = shouldIntentionalWalk(batter, onDeck, off, def, bases, outs, inning)
+        ? { kind: 'IBB' }
+        : resolveAtBat(batter, pitcher, off.parkFactors, def);
       def.pitchCount += pitchesForPA(result.kind);
 
       const bs = gsBat(batter);
@@ -613,11 +621,17 @@ window.BBGM_SIM = (function () {
       const outsBeforePlay = outs;
       const maskBeforePlay = baseMaskOf(bases);
       const rbiBeforePlay = bs.rbi;
-      let playCode = result.kind === 'IBB' ? 'BB' : result.kind;
+      let playCode = result.kind;
 
       if (result.kind === 'BB' || result.kind === 'IBB') {
+        // IBB is a subset of BB — official scoring counts it in both
+        // columns, and every rate stat (OBP etc.) reads bb.
         bs.bb++;
         ps.bb++;
+        if (result.kind === 'IBB') {
+          bs.ibb = (bs.ibb || 0) + 1;
+          ps.ibb = (ps.ibb || 0) + 1;
+        }
         const advance = forceWalk(bases, newRunner);
         bases = advance.bases;
         for (const scored of advance.runs) {
@@ -943,12 +957,16 @@ window.BBGM_SIM = (function () {
     const kAdj = (grade(stuff) * 0.06) + (grade(velocity) * 0.03) - (grade(contact) * 0.05) - (grade(discipline) * 0.02);
     const kProb = clamp(kBase + kAdj, 0.04, 0.45);
 
-    // BB rate: ~8.5% (0.26.0 — 2001 calibration: league OBP .328, 38.3
-    // PA/team-game; position players ran 9.3% BB / .344 OBP before the
-    // trim, which let leadoff iron men beat the real 778-PA record).
-    // Driven by control vs discipline. Pitchers batting walk less than
-    // their 20-grade discipline alone implies (~4-5% era rate).
-    const bbBase = batter.isPitcher ? 0.075 : 0.078;
+    // BB rate: ~8.5% TOTAL including intentional walks (0.26.0 — 2001
+    // calibration: league OBP .328, 38.3 PA/team-game; position players
+    // ran 9.3% BB / .344 OBP before the trim, which let leadoff iron men
+    // beat the real 778-PA record). This is the UNINTENTIONAL rate only —
+    // 0.27.0 added IBBs (~46/team-season ≈ +0.7pp of BB%) upstream of
+    // this roll and trimmed the hitter base 0.078 → 0.0725 to keep the
+    // total on target. Driven by control vs discipline. Pitchers batting
+    // walk less than their 20-grade discipline alone implies (~4-5% era
+    // rate) and are never walked intentionally.
+    const bbBase = batter.isPitcher ? 0.075 : 0.0725;
     const bbAdj = -(grade(control) * 0.04) + (grade(discipline) * 0.03);
     const bbProb = clamp(bbBase + bbAdj, 0.02, 0.20);
 
@@ -1151,6 +1169,44 @@ window.BBGM_SIM = (function () {
     if (margin < -2 || margin > 1) return false;
     if (hitterScore(batter) > 245) return false; // you don't bunt your stars
     return Math.random() < (mgr.smallBall - 3) * 0.05;
+  }
+
+  // Intentional walk decision (0.27.0, bible 7.5). Classic conditions:
+  // first base open, a runner in scoring position, the game close enough
+  // that the run at the plate matters, and a clear step down to the man
+  // on deck (the pitcher due up next is the era's automatic green light).
+  // Calibrated to 2001: ~46 IBB/team-season (~0.28 per team-game). The
+  // probability scales steeply with both the batter-vs-on-deck gap AND
+  // the batter's absolute menace, so a generational monster draws
+  // Bonds-type totals while an ordinary cleanup man only gets the free
+  // pass in textbook spots.
+  function shouldIntentionalWalk(batter, onDeck, off, def, bases, outs, inning) {
+    if (batter.isPitcher) return false;         // never walk the pitcher
+    if (bases[0]) return false;                 // first base must be open
+    if (!bases[1] && !bases[2]) return false;   // runner in scoring position
+    if (outs === 0 && !bases[2]) return false;  // 0-out IBB only with R3
+    if (inning < 3) return false;               // too early to play matchups
+    // Close game from the defense's side only — with a big lead the run
+    // doesn't matter, and in a big hole extra baserunners only hurt.
+    const margin = def.runs - off.runs;
+    if (margin > 2 || margin < -2) return false;
+
+    const bScore = hitterScore(batter);
+    // On-deck quality; a pitcher batting next is a floor-value bat well
+    // below any position player (lineup scores run ~210-380).
+    const oScore = (onDeck && !onDeck.isPitcher) ? hitterScore(onDeck) : 150;
+    const gap = bScore - oScore;
+    if (gap < 10) return false;                 // need a real step down
+
+    let prob = 0.15 + (gap - 10) * 0.0088 + Math.max(0, bScore - 315) * 0.0138;
+    if (inning < 7) prob *= 0.55;               // mid-innings: rarer call
+    else if (inning >= 9) prob *= 1.25;         // 9th+: set up the force
+    if (outs === 2) prob *= 1.35;
+    if (bases[2]) prob *= 1.2;                  // R3: walk can't force him in
+    // Old-school small-ball managers hand out far more free passes than
+    // matchup-agnostic ones (same tendency knob as bunting, 7.5).
+    prob *= 1 + (((def.mgr && def.mgr.smallBall) || 5) - 5) * 0.08;
+    return Math.random() < clamp(prob, 0, 0.90);
   }
 
   function shouldAttemptSB(runner, pitcher, off, def) {

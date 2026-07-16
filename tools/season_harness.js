@@ -339,6 +339,18 @@ for (const t of league.teams) {
 }
 console.log('SB att/team:', (sbAtt / 30).toFixed(0), '(t ~140) | SB%', pct(hitTot.sb / sbAtt), '(t 72%)',
   '| SF/team', (hitTot.sf / 30).toFixed(0), '(t ~40) | GIDP/team', (hitTot.gidp / 30).toFixed(0));
+// Intentional walks (0.27.0): 2001 MLB averaged ~46 IBB/team (~0.28 per
+// team-game). Leaders: a generational monster should be able to pile up
+// 25-45+ (the Bonds room); ordinary stars land in the 10-20 band.
+{
+  let maxIbb = 0, ibbName = '—';
+  for (const id in players) {
+    const s = players[id].stats && players[id].stats[YEAR];
+    if (!s || players[id].isPitcher) continue;
+    if ((s.ibb || 0) > maxIbb) { maxIbb = s.ibb; ibbName = players[id].name; }
+  }
+  console.log('IBB/team:', ((hitTot.ibb || 0) / 30).toFixed(0), '(t ~46) | IBB leader:', ibbName, maxIbb);
+}
 console.log('SH/team: EAST', (shByLeague.east / 15).toFixed(0), '| WEST', (shByLeague.west / 15).toFixed(0),
   '(t: west ~40-70 w/ pitcher bunts, east ~10-30)');
 console.log('--- Pitcher hitting (no-DH games) ---');
@@ -518,6 +530,7 @@ if (seasonsArg > 1) {
     // Phase 16 running game: leaders should be true burners in the 40-60
     // range; 30/30 seasons are rare (t 0-3); attempts in the classic band.
     let sbAtt = 0, sb3030 = 0, sbTop = { sb: 0, name: '—' };
+    let ibbTot = 0, ibbTop = { ibb: 0, name: '—' };
     const sbYr = summary.year;
     for (const id in state.players) {
       const s = state.players[id].stats && state.players[id].stats[sbYr];
@@ -525,9 +538,12 @@ if (seasonsArg > 1) {
       sbAtt += (s.sb || 0) + (s.cs || 0);
       if ((s.sb || 0) >= 30 && (s.hr || 0) >= 30) sb3030++;
       if ((s.sb || 0) > sbTop.sb) sbTop = { sb: s.sb, name: state.players[id].name };
+      ibbTot += s.ibb || 0;
+      if ((s.ibb || 0) > ibbTop.ibb) ibbTop = { ibb: s.ibb, name: state.players[id].name };
     }
     console.log(`  running game: SB att/team ${(sbAtt / 30).toFixed(0)} (t ~85-125)` +
       ` | 30/30 seasons ${sb3030} (t 0-3) | SB leader ${sbTop.name} ${sbTop.sb}`);
+    console.log(`  IBB/team ${(ibbTot / 30).toFixed(0)} (t ~46) | IBB leader ${ibbTop.name} ${ibbTop.ibb}`);
 
     // Phase 15 offseason flow: AI non-tenders feed the market each
     // December; the user's arb class queues; camp produces battles and
