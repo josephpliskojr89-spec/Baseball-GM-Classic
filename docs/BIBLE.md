@@ -4578,6 +4578,13 @@ This is not a single phase but an ongoing process. Activities include:
 > covers the prospect, the better read wins. Looks live on the class
 > (state.intl.userLooks), so the budget resets with each new class. The
 > class budget card shows trips remaining.
+>
+> **0.24.0 extension:** the same mechanic covers the DOMESTIC draft
+> class (its own separate per-class budget, same tier table). Bare-bones
+> departments see only the top 10 of the draft and standard the top 50 —
+> targeted trips are how they scout deep cuts and sleeper rounds. The
+> Big Board shows trips remaining; above-average+ tiers already see the
+> full class, so the button simply never appears for them there.
 
 ### 21.18 What's Explicitly Out of Initial Build
 

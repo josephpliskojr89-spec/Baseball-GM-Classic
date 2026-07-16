@@ -349,18 +349,22 @@ window.BBGM_SCOUT = (function () {
     return notes;
   }
 
-  // ---- Targeted international looks (0.23.0) --------------------------------
-  // The intl pool's tier coverage leaves most of the class as "??" names.
-  // A targeted look sends a scout for a closer read on ONE unscouted
-  // prospect: the department's budget caps how many trips a class gets,
+  // ---- Targeted looks (0.23.0 intl, 0.24.0 draft) ---------------------------
+  // Tier coverage leaves part of every class as "??" names — most of the
+  // intl pool at low tiers, everything past rank 10/50 in the draft for
+  // bare-bones/standard departments. A targeted look sends a scout for a
+  // closer read on ONE unscouted prospect: the department's budget caps
+  // how many trips EACH class gets (draft and intl budgets are separate),
   // and the tier caps how good the resulting report is — a bare-bones
   // look brings back a rough number and no tool grades; an elite look is
-  // nearly full coverage. Spent looks live on state.intl.userLooks, so a
-  // fresh class resets the budget each year.
-  function intlLooks(state) {
+  // nearly full coverage. Spent looks live on the class object
+  // (state.draft.userLooks / state.intl.userLooks), so a fresh class
+  // resets the budget each year.
+  function targetedLooks(state, pool) {
     const team = state.league.teams.find((t) => t.id === state.meta.userTeamId);
     const ti = tierIdx(team);
-    const used = (state.intl && state.intl.userLooks) ? state.intl.userLooks.length : 0;
+    const cls = pool === 'draft' ? state.draft : state.intl;
+    const used = (cls && cls.userLooks) ? cls.userLooks.length : 0;
     const budget = [2, 4, 6, 9][ti];
     return {
       budget,
@@ -371,8 +375,9 @@ window.BBGM_SCOUT = (function () {
     };
   }
 
-  function hasIntlLook(state, prospectId) {
-    return !!(state.intl && (state.intl.userLooks || []).includes(prospectId));
+  function hasTargetedLook(state, pool, prospectId) {
+    const cls = pool === 'draft' ? state.draft : state.intl;
+    return !!(cls && (cls.userLooks || []).includes(prospectId));
   }
 
   // AI draft discipline by tier (13.6): [board window, weight decay].
@@ -390,6 +395,6 @@ window.BBGM_SCOUT = (function () {
     defaultTierFor, ensureTiers,
     requestTier, runScoutingOffseason,
     modeFor, report, poolView, aiDraftDiscipline, potentialBand, prospectNotes,
-    intlLooks, hasIntlLook,
+    targetedLooks, hasTargetedLook,
   };
 })();
