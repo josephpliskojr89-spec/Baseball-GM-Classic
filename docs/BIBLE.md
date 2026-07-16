@@ -4628,6 +4628,21 @@ This is not a single phase but an ongoing process. Activities include:
 > carrying an orphan, and the consistency probe audits daily that every
 > healthy roster pitcher belongs to rotation/pen/closer.
 
+> **Status (0.26.0) — 2001 offense calibration (7.2 amendment).** A
+> 162-game iron-man leadoff hitter posted 720 AB / ~805 PA, beating the
+> real records (716 AB / 778 PA, both from the modern game). Cause: the
+> original .340 league OBP target ran ~9.3% position-player walks and
+> ~39+ PA/team-game. Recalibrated to the 2001 environment the user
+> specified: TARGET_OBP .340 → .328, TARGET_BB_RATE 9% → 8.5%
+> (bbBase 0.088 → 0.078 in the engine). Measured after the trim: BB%
+> 8.3-8.5, all-batter OBP ~.330, PA/team-game ~38.5 (2001: 38.3), BA
+> .265, SLG .425, R/G ~4.6-4.7. Season-volume extremes now cluster AT
+> the record book instead of past it — measured maxes 773/774/778/785
+> PA and ≤700 AB across four seasons — so a record chase is a
+> once-a-generation event, not an annual formality. The harness prints
+> PA/team-game and the league-max season PA/AB against the 778/716
+> records as standing diagnostics.
+
 ### 21.18 What's Explicitly Out of Initial Build
 
 To keep scope contained, several systems are explicitly deferred:

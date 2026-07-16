@@ -306,9 +306,26 @@ console.log('R/G per team: EAST', (runsByLeague.east / gamesByLeague.east).toFix
   'ALL', ((runsByLeague.east + runsByLeague.west) / (gamesByLeague.east + gamesByLeague.west)).toFixed(2), '(target 4.7)');
 console.log('--- League batting (position players | incl. pitcher hitting) ---');
 console.log('BA', S.avg(hitTot).toFixed(3), '|', S.avg(leagueBatTot).toFixed(3), '(t .265)',
-  '| OBP', S.obp(hitTot).toFixed(3), '|', S.obp(leagueBatTot).toFixed(3), '(t .340)',
+  '| OBP', S.obp(hitTot).toFixed(3), '|', S.obp(leagueBatTot).toFixed(3), '(t .328)',
   '| SLG', S.slg(hitTot).toFixed(3), '|', S.slg(leagueBatTot).toFixed(3), '(t .425)');
-console.log('K%', pct(hitTot.k / hitTot.pa), '(t 17%) | BB%', pct(hitTot.bb / hitTot.pa), '(t 9%) | HR%', pct(hitTot.hr / hitTot.pa), '(t 2.8%)');
+console.log('K%', pct(hitTot.k / hitTot.pa), '(t 17%) | BB%', pct(hitTot.bb / hitTot.pa), '(t 8.5%) | HR%', pct(hitTot.hr / hitTot.pa), '(t 2.8%)');
+// PA volume (0.26.0 — 2001 calibration): league PA per team-game, ALL
+// batters including pitchers hitting. 2001 MLB: 38.3. This is what caps
+// season AB/PA extremes at real-record levels (716 AB / 778 PA).
+console.log('PA/team-game:', (leagueBatTot.pa / (30 * 162)).toFixed(1), '(t 38.3)');
+// Season-volume extremes: the real record book is 778 PA / 716 AB
+// (Rollins 2007). The occasional record-flirting iron-man leadoff year
+// is fine; routine 800-PA seasons are the calibration bug 0.26.0 fixed.
+{
+  let maxPa = 0, maxAb = 0, paName = '', abName = '';
+  for (const id in players) {
+    const s = players[id].stats && players[id].stats[YEAR];
+    if (!s) continue;
+    if ((s.pa || 0) > maxPa) { maxPa = s.pa; paName = players[id].name; }
+    if ((s.ab || 0) > maxAb) { maxAb = s.ab; abName = players[id].name; }
+  }
+  console.log(`season volume max: ${maxPa} PA (${paName}) | ${maxAb} AB (${abName}) (records 778/716)`);
+}
 const sbAtt = hitTot.sb + hitTot.cs;
 // Sac bunts split by league: west (pitchers bat + bunt) should far exceed east.
 const shByLeague = { east: 0, west: 0 };

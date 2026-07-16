@@ -943,9 +943,12 @@ window.BBGM_SIM = (function () {
     const kAdj = (grade(stuff) * 0.06) + (grade(velocity) * 0.03) - (grade(contact) * 0.05) - (grade(discipline) * 0.02);
     const kProb = clamp(kBase + kAdj, 0.04, 0.45);
 
-    // BB rate: 9%. Driven by control vs discipline. Pitchers batting walk
-    // less than their 20-grade discipline alone implies (~4-5% era rate).
-    const bbBase = batter.isPitcher ? 0.075 : 0.088;
+    // BB rate: ~8.5% (0.26.0 — 2001 calibration: league OBP .328, 38.3
+    // PA/team-game; position players ran 9.3% BB / .344 OBP before the
+    // trim, which let leadoff iron men beat the real 778-PA record).
+    // Driven by control vs discipline. Pitchers batting walk less than
+    // their 20-grade discipline alone implies (~4-5% era rate).
+    const bbBase = batter.isPitcher ? 0.075 : 0.078;
     const bbAdj = -(grade(control) * 0.04) + (grade(discipline) * 0.03);
     const bbProb = clamp(bbBase + bbAdj, 0.02, 0.20);
 

@@ -3,7 +3,7 @@ window.BBGM_CONSTANTS = {
   // Single source of truth for the app/save version. main.js stamps this
   // into new saves; index.html's ?v= cache-busters and the service-worker
   // cache name must be bumped in lockstep (they can't read JS constants).
-  VERSION: '0.25.3',
+  VERSION: '0.26.0',
   START_YEAR: 2026,
   TEAMS_PER_LEAGUE: 15,
   // Two leagues, three divisions each. Internal values are lowercase for
@@ -26,11 +26,14 @@ window.BBGM_CONSTANTS = {
   ROSTER_OUTFIELDERS: 5,
 
   // League targets (per the bible 7.2)
+  // Recalibrated to the 2001 offensive environment in 0.26.0 (league
+  // OBP .328, ~38.3 PA/team-game) — the old .340 OBP era let leadoff
+  // iron men beat the real single-season PA/AB records (778/716).
   TARGET_BA: 0.265,
-  TARGET_OBP: 0.34,
+  TARGET_OBP: 0.328,
   TARGET_SLG: 0.425,
   TARGET_K_RATE: 0.17,
-  TARGET_BB_RATE: 0.09,
+  TARGET_BB_RATE: 0.085,
   TARGET_HR_RATE: 0.028,
   TARGET_RUNS_PER_GAME: 4.7,
 
