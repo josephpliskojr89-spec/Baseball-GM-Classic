@@ -1140,6 +1140,32 @@ window.BBGM_MAIN = (function () {
       });
     }
 
+    // Ceiling breakouts (0.25.0): your org's winter development stories.
+    // Phrased by tool family, never numbers — the fog holds; the potential
+    // band will simply read higher next time the scouts update it.
+    const BREAKOUT_PHRASES = {
+      velocity: 'added real velocity this winter — the development staff sees another gear',
+      stuff: 'sharpened his out-pitch this winter — the swing-and-miss ceiling just moved',
+      movement: 'found new life on his pitches this winter',
+      control: 'overhauled his delivery this winter — the command projection jumped',
+      stamina: 'built up his arm this winter — a starter\'s workload looks possible now',
+      contactVsR: 'reworked his swing this winter — the hit tool projects higher',
+      contactVsL: 'reworked his swing this winter — the hit tool projects higher',
+      powerVsR: 'transformed his body this winter — the raw power ceiling moved',
+      powerVsL: 'transformed his body this winter — the raw power ceiling moved',
+      discipline: 'rebuilt his approach this winter — the strike-zone judgment projects higher',
+      speed: 'came back visibly faster this winter',
+      defense: 'took a defensive leap this winter — the glove projects higher',
+      arm: 'showed a stronger arm this winter',
+    };
+    for (const bo of summary.breakouts || []) {
+      if (bo.teamId !== userTeamId) continue;
+      state.news.push({
+        date: jan(20 + (Math.abs(bo.playerId.length) % 8)),
+        body: `<strong>${bo.name}</strong> ${BREAKOUT_PHRASES[bo.key] || 'made a developmental leap this winter'}.`,
+      });
+    }
+
     // Milestones crossed this season.
     for (const m of summary.milestones) {
       const p = state.players[m.playerId];

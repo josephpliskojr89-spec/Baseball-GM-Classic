@@ -135,6 +135,41 @@ window.BBGM_PROGRESSION = (function () {
     }
   }
 
+  // ---- Ceiling breakouts (0.25.0 — 9.x amendment) --------------------------
+  // The ONE way potential grows after signing day: the real-world velocity
+  // jump or swing rework. Rolled once per offseason (before progression,
+  // so the same winter's development climbs toward the new lid). Rare and
+  // work-ethic-weighted — the gym rats earn their second gear: ~1% at
+  // work ethic 1, ~2.8% at 10, and only in the pre-peak window (age ≤ 26).
+  // One tool gains +3-8 ceiling, clamped at 82 and the archetype's cap
+  // (a quad-A profile stays quad-A). Speed stays body-given (Phase 16
+  // decoupling) unless it already IS the carrying tool — the same rule
+  // the draft/intl slot lifts follow. Returns {key, amount} or null.
+  function rollCeilingBreakout(p) {
+    const h = p.hidden;
+    if (!h || !h.ceiling) return null;
+    if (p.age > 26) return null;
+    const we = h.workEthic || 5;
+    if (rand() >= 0.008 + we * 0.002) return null;
+    const allKeys = p.isPitcher ? PITCHER_KEYS : HITTER_KEYS;
+    const best = Math.max(...allKeys.map((q) => (h.ceiling[q] != null ? h.ceiling[q] : 0)));
+    const keys = allKeys.filter((k) => {
+      if (h.ceiling[k] == null) return false;
+      if (k === 'bunting') return false; // nobody breaks out on bunting
+      if (k === 'speed') return h.ceiling.speed >= best;
+      return true;
+    });
+    if (!keys.length) return null;
+    const key = keys[Math.floor(rand() * keys.length)];
+    const arch = archetypeDef(p);
+    const lid = Math.min(82, arch && arch.ceilingCap ? arch.ceilingCap : 82);
+    const before = h.ceiling[key];
+    const after = Math.round(clamp(before + 3 + rand() * 5, HARD_MIN, lid) * 10) / 10;
+    if (after <= before) return null; // already at the lid — nothing happened
+    h.ceiling[key] = after;
+    return { key, amount: Math.round((after - before) * 10) / 10 };
+  }
+
   // ---- Retirement (9.6) ----
   function retirementProb(p, year) {
     const age = p.age;
@@ -191,5 +226,5 @@ window.BBGM_PROGRESSION = (function () {
     return true;
   }
 
-  return { progressPlayer, rollRetirement, retirementProb, levelPenalty };
+  return { progressPlayer, rollRetirement, retirementProb, levelPenalty, rollCeilingBreakout };
 })();

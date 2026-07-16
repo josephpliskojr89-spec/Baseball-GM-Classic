@@ -391,6 +391,21 @@ window.BBGM_OFFSEASON = (function () {
     SCOUT.ensureTiers(state);
     summary.scoutingEvents = SCOUT.runScoutingOffseason(state, records);
 
+    // 4.9. Ceiling breakouts (0.25.0): the rare offseason where a young
+    // player's POTENTIAL genuinely grows — a velocity jump, a swing
+    // rework. Rolled before progression so this same winter's development
+    // starts climbing toward the new ceiling. ~15-25 league-wide per year.
+    summary.breakouts = [];
+    for (const id in players) {
+      const p = players[id];
+      if (p.retired) continue;
+      const bo = PROG().rollCeilingBreakout(p);
+      if (bo) {
+        summary.breakouts.push({ playerId: p.id, name: p.name, teamId: p.teamId,
+          isPitcher: p.isPitcher, key: bo.key, amount: bo.amount });
+      }
+    }
+
     // 5. Progression + aging (9.1-9.5), with org coach modifiers (9.3).
     const coachModByTeam = {};
     for (const t of teams) coachModByTeam[t.id] = STAFF.coachModsFor(state, t);

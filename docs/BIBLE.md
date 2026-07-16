@@ -4601,6 +4601,21 @@ This is not a single phase but an ongoing process. Activities include:
 > (proneness 8-10) prospects get flagged — signal beats noise, but no
 > file is a guarantee.
 
+> **Status (0.25.0) — ceiling breakout events (9.x amendment).** True
+> potential was static after signing day (fixed at generation, one
+> hidden signing-day reshape, injury decay only). Now the rare upward
+> case exists: once per offseason, a player age ≤ 26 can experience a
+> CEILING BREAKOUT — the real-world velocity jump or swing rework —
+> raising ONE tool's hidden ceiling by +3-8. Work-ethic-weighted (~1% at
+> WE 1 to ~2.8% at WE 10, verified), rolled before progression so the
+> same winter's development climbs toward the new lid, ~15-25 league-wide
+> per year. Speed stays body-given unless it's already the carrying tool
+> (Phase 16 decoupling preserved), bunting never breaks out, and the
+> quad-A archetype cap holds — a quad-A profile stays quad-A. User-org
+> breakouts land in the January news in scout-speak (no numbers; the
+> potential band simply reads higher). Harness prints breakouts/yr as a
+> diagnostic.
+
 ### 21.18 What's Explicitly Out of Initial Build
 
 To keep scope contained, several systems are explicitly deferred:

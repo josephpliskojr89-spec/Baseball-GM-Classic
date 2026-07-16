@@ -518,7 +518,8 @@ if (seasonsArg > 1) {
     const camp = summary.springTraining || { battles: [], injuries: [], userLevelMoves: 0 };
     console.log(`  offseason: non-tenders ${(summary.nonTenders || []).length} (t ~10-35)` +
       ` | user arb cases ${summary.arbCases || 0}` +
-      ` | camp battles ${camp.battles.length} | camp injuries ${camp.injuries.length}`);
+      ` | camp battles ${camp.battles.length} | camp injuries ${camp.injuries.length}` +
+      ` | ceiling breakouts ${(summary.breakouts || []).length} (t ~10-30)`);
 
     if (si === seasonsArg) break;
     runSeason();
