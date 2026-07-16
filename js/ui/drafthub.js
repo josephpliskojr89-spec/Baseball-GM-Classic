@@ -349,8 +349,9 @@ window.BBGM_UI_DRAFT = (function () {
     });
     row.appendChild(U.el('span', { class: 'pos-badge' }, String(rank)));
     const info = U.el('div', { class: 'player-row-info' });
+    const med = window.BBGM_SCOUT.medicalRead(p);
     info.appendChild(U.el('div', { class: 'player-row-name' },
-      `${isTarget ? '★ ' : ''}${p.name}`));
+      `${isTarget ? '★ ' : ''}${med && med.flagged ? '⚕ ' : ''}${p.name}`));
     info.appendChild(U.el('div', { class: 'player-row-meta' },
       `${p.primaryPosition} • ${p.bats}/${p.throws} • ${p.age} • ${p.school}`));
     row.appendChild(info);
@@ -377,6 +378,18 @@ window.BBGM_UI_DRAFT = (function () {
     return U.el('p', { class: 'muted', style: { 'font-size': '12px', 'margin-bottom': '8px' } },
       `${window.BBGM_UI_PLAYER.fmtHeight(bio.heightIn)}, ${bio.weightLb} lb • ` +
       `Born ${months[bio.birthMonth - 1]} ${bio.birthDay}, ${p.birthYear}`);
+  }
+
+  // Public medical file (0.24.1): every tier sees this line — amateur
+  // medicals are league disclosure, not scouting. The file can lie
+  // (medicalRead's bait-and-switch), which is the fun of it.
+  function medicalLine(p) {
+    const med = window.BBGM_SCOUT.medicalRead(p);
+    if (!med) return null;
+    return U.el('p', {
+      style: { 'font-size': '12px', 'margin-bottom': '8px', 'font-weight': '600',
+        color: med.flagged ? 'var(--danger, #f85149)' : 'var(--success, #3fb950)' },
+    }, `⚕ ${med.label}`);
   }
 
   // "From our scouts" (0.19.2): the draft-guide blurb — the department's
@@ -412,6 +425,8 @@ window.BBGM_UI_DRAFT = (function () {
       `${p.primaryPosition} • Bats ${p.bats} / Throws ${p.throws} • Age ${p.age} • ${p.school}` +
       ` • Board rank #${rank}`));
     body.appendChild(prospectBioLine(p));
+    const medEl = medicalLine(p);
+    if (medEl) body.appendChild(medEl);
 
     const toolPairs = p.isPitcher
       ? [['VEL', p.ratings.velocity], ['STF', p.ratings.stuff], ['MOV', p.ratings.movement],
@@ -895,8 +910,9 @@ window.BBGM_UI_DRAFT = (function () {
     });
     row.appendChild(U.el('span', { class: 'pos-badge' }, String(rank)));
     const info = U.el('div', { class: 'player-row-info' });
+    const med = window.BBGM_SCOUT.medicalRead(p);
     info.appendChild(U.el('div', { class: 'player-row-name' },
-      `${isTarget ? '★ ' : ''}${p.name}`));
+      `${isTarget ? '★ ' : ''}${med && med.flagged ? '⚕ ' : ''}${p.name}`));
     info.appendChild(U.el('div', { class: 'player-row-meta' },
       `${p.primaryPosition} • ${p.age} • ${p.origin} • ask $${p.ask}M`));
     row.appendChild(info);
@@ -927,6 +943,8 @@ window.BBGM_UI_DRAFT = (function () {
       `${p.primaryPosition} • Bats ${p.bats} / Throws ${p.throws} • Age ${p.age} • ${p.origin}` +
       ` • Rank #${rank} • Ask $${p.ask}M`));
     body.appendChild(prospectBioLine(p));
+    const medEl = medicalLine(p);
+    if (medEl) body.appendChild(medEl);
     const toolPairs = p.isPitcher
       ? [['VEL', p.ratings.velocity], ['STF', p.ratings.stuff], ['MOV', p.ratings.movement], ['CTL', p.ratings.control]]
       : [['CON', (p.ratings.contactVsR + p.ratings.contactVsL) / 2],

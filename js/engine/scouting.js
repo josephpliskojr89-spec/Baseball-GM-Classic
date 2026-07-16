@@ -349,6 +349,39 @@ window.BBGM_SCOUT = (function () {
     return notes;
   }
 
+  // ---- Public medical file (0.24.1) -----------------------------------------
+  // Amateur medical histories are disclosed to every club — no scouting
+  // tier required, unlike everything else in this module. But the file is
+  // a HISTORY, not a diagnosis: the read is the hidden injuryProneness
+  // seen through deterministic noise, and roughly one file in six flat-out
+  // lies — the kid who broke a wrist at fifteen and never got hurt again,
+  // or the clean-file glass man. Public data is keyed on the player alone
+  // (no viewer team), so every club reads the same file, and it never
+  // re-rolls. Returns {grade, label, flagged} or null for the unremarkable
+  // middle (most files say nothing worth printing).
+  function medicalRead(p) {
+    const s = `med|${p.id}`;
+    let h = 2166136261;
+    for (let i = 0; i < s.length; i++) {
+      h ^= s.charCodeAt(i);
+      h = (h * 16777619) >>> 0;
+    }
+    const prone = (p.hidden && p.hidden.injuryProneness) || 5;
+    const flipped = (h % 100) < 17; // the bait-and-switch files
+    const noise = ((h >>> 8) % 5) - 2; // -2..+2
+    const read = Math.max(1, Math.min(10, (flipped ? 11 - prone : prone) + noise));
+    if (read <= 3) {
+      return { grade: read, flagged: false, label: 'Clean medical file — no amateur red flags.' };
+    }
+    if (read >= 9) {
+      return { grade: read, flagged: true, label: 'Serious medical red flags — multiple amateur injuries in the file.' };
+    }
+    if (read >= 7) {
+      return { grade: read, flagged: true, label: 'Medical flags — an amateur injury history worth a closer physical.' };
+    }
+    return null;
+  }
+
   // ---- Targeted looks (0.23.0 intl, 0.24.0 draft) ---------------------------
   // Tier coverage leaves part of every class as "??" names — most of the
   // intl pool at low tiers, everything past rank 10/50 in the draft for
@@ -395,6 +428,6 @@ window.BBGM_SCOUT = (function () {
     defaultTierFor, ensureTiers,
     requestTier, runScoutingOffseason,
     modeFor, report, poolView, aiDraftDiscipline, potentialBand, prospectNotes,
-    targetedLooks, hasTargetedLook,
+    targetedLooks, hasTargetedLook, medicalRead,
   };
 })();

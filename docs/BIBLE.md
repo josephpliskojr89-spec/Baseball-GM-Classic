@@ -4586,6 +4586,21 @@ This is not a single phase but an ongoing process. Activities include:
 > Big Board shows trips remaining; above-average+ tiers already see the
 > full class, so the button simply never appears for them there.
 
+> **Status (0.24.1) — public medical files (5.7 amendment).** Amateur
+> medical histories are league disclosure, visible at EVERY scouting
+> tier: draft and intl prospect cards carry a ⚕ line (clean file /
+> medical flags / serious red flags — the unremarkable middle prints
+> nothing, ~30% of the class), and flagged prospects get a ⚕ marker on
+> the board rows. The file is a HISTORY, not a diagnosis: the read is
+> hidden injuryProneness through deterministic per-player noise, and
+> ~1 in 6 files lies — the kid who broke a wrist at fifteen and never
+> got hurt again carries a scary file (17% of durable players flagged),
+> and some true glass men show clean medicals (15% of fragile players).
+> The read is keyed on the player alone, so every club sees the same
+> file and it never re-rolls. Verified rates: 75% of truly fragile
+> (proneness 8-10) prospects get flagged — signal beats noise, but no
+> file is a guarantee.
+
 ### 21.18 What's Explicitly Out of Initial Build
 
 To keep scope contained, several systems are explicitly deferred:
