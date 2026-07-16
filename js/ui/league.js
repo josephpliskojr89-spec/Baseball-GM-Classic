@@ -86,10 +86,20 @@ window.BBGM_UI_LEAGUE = (function () {
     ]));
 
     const roster = team.roster.map((id) => players[id]).filter(Boolean);
+    // Diamond order within each group (0.25.2), best overall first at a
+    // position — matches the user's own Roster tab.
+    const POS_SORT = { C: 0, '1B': 1, '2B': 2, '3B': 3, SS: 4, LF: 5, CF: 6, RF: 7, DH: 8, SP: 9, RP: 10, CP: 11 };
+    const byPos = (a, b) => {
+      const pa = POS_SORT[a.primaryPosition] != null ? POS_SORT[a.primaryPosition] : 12;
+      const pb = POS_SORT[b.primaryPosition] != null ? POS_SORT[b.primaryPosition] : 12;
+      if (pa !== pb) return pa - pb;
+      return overallOf(b) - overallOf(a);
+    };
     const groups = [
-      ['Hitters', roster.filter((p) => !p.isPitcher).sort((a, b) => overallOf(b) - overallOf(a))],
-      ['Pitchers', roster.filter((p) => p.isPitcher).sort((a, b) => overallOf(b) - overallOf(a))],
+      ['Hitters', roster.filter((p) => !p.isPitcher).sort(byPos)],
+      ['Pitchers', roster.filter((p) => p.isPitcher).sort(byPos)],
     ];
+    const chips = window.BBGM_UI_TEAM.ratingStrip;
     for (const [label, list] of groups) {
       container.appendChild(U.el('div', { class: 'card-title', style: { 'margin-top': '12px' } },
         `${label} (${list.length})`));
@@ -105,6 +115,13 @@ window.BBGM_UI_LEAGUE = (function () {
         pi.appendChild(U.el('div', { class: 'player-row-meta' },
           `Age ${p.age} • ${p.bats}/${p.throws}` +
           (p.currentInjury ? ' • 🤕 injured' : '')));
+        // Key tools (0.25.2): MLB players are public knowledge (6.9.6),
+        // so rival rosters read exact — same chips as your own tab.
+        const r = p.ratings;
+        pi.appendChild(p.isPitcher
+          ? chips([['VEL', r.velocity], ['STF', r.stuff], ['CTL', r.control], ['STA', r.stamina]])
+          : chips([['CON', (r.contactVsR + r.contactVsL) / 2],
+              ['POW', (r.powerVsR + r.powerVsL) / 2], ['SPD', r.speed], ['DEF', r.defense || 50]]));
         row.appendChild(pi);
         const ovr = overallOf(p);
         const stats = U.el('div', { class: 'player-row-stats' });

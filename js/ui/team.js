@@ -13,6 +13,9 @@ window.BBGM_UI_TEAM = (function () {
 
   let activeTab = 'roster';
 
+  // Diamond ordering for roster lists (0.25.2).
+  const POS_SORT = { C: 0, '1B': 1, '2B': 2, '3B': 3, SS: 4, LF: 5, CF: 6, RF: 7, DH: 8, SP: 9, RP: 10, CP: 11 };
+
   function render(container, state, opts = {}) {
     if (opts && opts.tab) activeTab = opts.tab;
     // Front-office keys from pre-0.16.2 links (or a stale module state)
@@ -179,15 +182,15 @@ window.BBGM_UI_TEAM = (function () {
     else if (filter === 'bullpen') players_filtered = roster.filter((p) => p.primaryPosition === 'RP' || p.primaryPosition === 'CP');
     else players_filtered = roster.slice();
 
-    // Sort: pitchers by SP/RP/CP, hitters by overall offensive value
+    // Sort: position order around the diamond (0.25.2) — C through DH,
+    // then the staff SP/RP/CP; best overall first within a position.
     players_filtered.sort((a, b) => {
-      if (a.isPitcher !== b.isPitcher) return a.isPitcher ? 1 : -1;
-      if (a.isPitcher && b.isPitcher) {
-        const order = { SP: 0, RP: 1, CP: 2 };
-        if (order[a.primaryPosition] !== order[b.primaryPosition]) return order[a.primaryPosition] - order[b.primaryPosition];
-        return overallPitcher(b) - overallPitcher(a);
-      }
-      return overallHitter(b) - overallHitter(a);
+      const pa = POS_SORT[a.primaryPosition] != null ? POS_SORT[a.primaryPosition] : 12;
+      const pb = POS_SORT[b.primaryPosition] != null ? POS_SORT[b.primaryPosition] : 12;
+      if (pa !== pb) return pa - pb;
+      const oa = a.isPitcher ? overallPitcher(a) : overallHitter(a);
+      const ob = b.isPitcher ? overallPitcher(b) : overallHitter(b);
+      return ob - oa;
     });
 
     const list = U.el('div', { class: 'roster-list' });
@@ -714,6 +717,15 @@ window.BBGM_UI_TEAM = (function () {
       break;
     }
     info.appendChild(U.el('div', { class: 'player-row-meta' }, meta));
+    // Key tools inline (0.25.2) — exact-mode only (your own farm); banded
+    // rival views keep the OVR band alone.
+    if (window.BBGM_SCOUT.modeFor(state, p) === 'exact') {
+      const r = p.ratings;
+      info.appendChild(p.isPitcher
+        ? ratingStrip([['VEL', r.velocity], ['STF', r.stuff], ['CTL', r.control], ['STA', r.stamina]])
+        : ratingStrip([['CON', (r.contactVsR + r.contactVsL) / 2],
+            ['POW', (r.powerVsR + r.powerVsL) / 2], ['SPD', r.speed], ['DEF', r.defense || 50]]));
+    }
     row.appendChild(info);
     const stats = U.el('div', { class: 'player-row-stats' });
     // Your own farm reads exact (0.16.3) — the report only bands players
@@ -929,6 +941,18 @@ window.BBGM_UI_TEAM = (function () {
     info.appendChild(U.el('div', { class: 'player-row-name' }, p.name));
     let meta = `Age ${p.age} • ${p.bats}/${p.throws}`;
     info.appendChild(U.el('div', { class: 'player-row-meta' }, meta));
+    // OVR + the key tools at a glance (0.25.2) — fills the row's dead
+    // space so the roster reads without opening every card.
+    const r = p.ratings;
+    info.appendChild(p.isPitcher
+      ? ratingStrip([
+          ['OVR', overallPitcher(p)], ['VEL', r.velocity], ['STF', r.stuff],
+          ['CTL', r.control], ['STA', r.stamina],
+        ])
+      : ratingStrip([
+          ['OVR', overallHitter(p)], ['CON', (r.contactVsR + r.contactVsL) / 2],
+          ['POW', (r.powerVsR + r.powerVsL) / 2], ['SPD', r.speed], ['DEF', r.defense || 50],
+        ]));
     row.appendChild(info);
     const stats = U.el('div', { class: 'player-row-stats' });
     if (p.isPitcher) {
@@ -976,5 +1000,7 @@ window.BBGM_UI_TEAM = (function () {
     return p.isPitcher ? overallPitcher(p) : overallHitter(p);
   }
 
-  return { render, overallHitter, overallPitcher };
+  // ratingStrip shared with the League tab's team pages (0.25.2) so every
+  // roster surface renders the same attribute chips.
+  return { render, overallHitter, overallPitcher, ratingStrip };
 })();
