@@ -760,7 +760,8 @@ window.BBGM_UI_TEAM = (function () {
         : `Scouts: ${p.rosterStatus} is the right level for him.`;
     if (p.devPosition) note += ` Working out at ${p.devPosition} on the side.`;
     const actions = [
-      { label: 'Promote to 26-man (swap)…', kind: 'primary', onClick: () => {
+      { label: team.roster.length < 26 ? 'Promote to 26-man' : 'Promote to 26-man (swap)…',
+        kind: 'primary', onClick: () => {
         setTimeout(() => showPromoteSwap(state, team, p), 0);
         return true;
       }},
@@ -897,7 +898,24 @@ window.BBGM_UI_TEAM = (function () {
   }
 
   function showPromoteSwap(state, team, minorsP) {
-    // Same-type swap keeps the 13 pitchers / 13 hitters split intact.
+    // Open roster spot (0.25.3): no swap needed — the call-up just takes
+    // the open chair. A waive/release earlier shouldn't force a second
+    // player down to bring someone up.
+    if (team.roster.length < 26) {
+      mutateTeam(state, team, (statuses) => {
+        statuses[minorsP.id] = { rosterStatus: minorsP.rosterStatus, status: minorsP.status };
+        team.minors.splice(team.minors.indexOf(minorsP.id), 1);
+        team.roster.push(minorsP.id);
+        minorsP.status = 'active';
+        minorsP.rosterStatus = '26-man';
+        // The manager works the new man into his configs (Pillar 4).
+        window.BBGM_ROSTER.safeRebuild(state, team);
+      });
+      U.showToast(`${minorsP.name} called up.`, 'success');
+      render(document.getElementById('mainView'), state);
+      return;
+    }
+    // Full 26-man: same-type swap keeps the 13 pitchers / 13 hitters split intact.
     const candidates = team.roster
       .map((id) => state.players[id])
       .filter((p) => p && p.isPitcher === minorsP.isPitcher)
