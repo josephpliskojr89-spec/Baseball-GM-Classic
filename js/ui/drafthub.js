@@ -28,18 +28,29 @@ window.BBGM_UI_DRAFT = (function () {
   function poolBand(state, p, rank, pool) {
     const SC = window.BBGM_SCOUT;
     const pv = SC.poolView(state, rank, pool);
-    if (!pv.visible) return null;
-    let lo = p.scout.ceilLo - pv.widen;
-    let hi = p.scout.ceilHi + pv.widen;
+    // A targeted look (0.23.0) opens a report on an otherwise-unscouted
+    // intl prospect; if the tier already covers him, the better read wins.
+    let widen = pv.visible ? pv.widen : null;
+    if (pool === 'intl' && SC.hasIntlLook(state, p.id)) {
+      const lk = SC.intlLooks(state);
+      widen = widen == null ? lk.widen : Math.min(widen, lk.widen);
+    }
+    if (widen == null) return null;
+    let lo = p.scout.ceilLo - widen;
+    let hi = p.scout.ceilHi + widen;
     if (hi - lo < 4) { const mid = (lo + hi) / 2; lo = mid - 2; hi = mid + 2; }
     return [Math.max(20, Math.round(lo)), Math.min(82, Math.round(hi))];
   }
 
   // Tool grades are a privilege of good scouting: above-average+ tiers see
-  // them across the board, everyone sees the very top of the class.
-  function toolsVisible(state, rank, pool) {
+  // them across the board, everyone sees the very top of the class, and a
+  // targeted look brings tool grades back at standard tier and up.
+  function toolsVisible(state, rank, pool, prospectId) {
     const team = teamOf(state, state.meta.userTeamId);
-    return window.BBGM_SCOUT.tierIdx(team) >= 2 || rank <= (pool === 'intl' ? 10 : 15);
+    const SC = window.BBGM_SCOUT;
+    if (SC.tierIdx(team) >= 2 || rank <= (pool === 'intl' ? 10 : 15)) return true;
+    return pool === 'intl' && prospectId && SC.hasIntlLook(state, prospectId) &&
+      SC.intlLooks(state).tools;
   }
 
   function strengthLabel(s) {
@@ -786,6 +797,12 @@ window.BBGM_UI_DRAFT = (function () {
       card.appendChild(U.el('p', { class: 'muted', style: { 'font-size': '11px' } },
         'Going over the pool draws league penalties: fines, reduced future pools, and at 30%+ a two-year signing restriction.'));
     }
+    // Targeted looks (0.23.0): the department's travel budget for closer
+    // reads on unscouted names — spent from any "??" prospect's card.
+    const looks = window.BBGM_SCOUT.intlLooks(state);
+    card.appendChild(U.el('p', { class: 'muted', style: { 'font-size': '12px', 'margin-top': '6px' } },
+      `Targeted scouting trips: ${looks.remaining} of ${looks.budget} left this class — ` +
+      `open an unscouted prospect to send a scout for a closer look.`));
     container.appendChild(card);
   }
 
@@ -892,19 +909,43 @@ window.BBGM_UI_DRAFT = (function () {
       cell.appendChild(U.el('div', { class: 'muted', style: { 'font-size': '10px' } }, label));
       grid.appendChild(cell);
     }
-    if (toolsVisible(state, rank, 'intl')) body.appendChild(grid);
+    if (toolsVisible(state, rank, 'intl', p.id)) body.appendChild(grid);
     else body.appendChild(U.el('p', { class: 'muted', style: { 'font-size': '12px', 'margin-bottom': '10px' } },
       'Tool grades are thin at your scouting tier — this is where elite international scouting earns its keep.'));
+    const SC = window.BBGM_SCOUT;
+    const looks = SC.intlLooks(state);
+    const looked = SC.hasIntlLook(state, p.id);
     const ib = poolBand(state, p, rank, 'intl');
     body.appendChild(U.el('p', { style: { 'font-size': '13px' } }, ib ? [
       'Projected ceiling: ',
       U.el('span', { class: U.gradeClass((ib[0] + ib[1]) / 2), style: { 'font-weight': '700' } },
         `${ib[0]}–${ib[1]}`),
-      ' on his best tool. Teenage international projection — the widest error bars in scouting.',
-    ] : 'Sign him and hope — your scouts have nothing on him.'));
+      looked
+        ? ' on his best tool — from your scout\'s targeted trip, one look rather than full coverage.'
+        : ' on his best tool. Teenage international projection — the widest error bars in scouting.',
+    ] : looks.remaining > 0
+      ? 'Your scouts have nothing on him — but you could send one for a closer look.'
+      : 'Sign him and hope — your scouts have nothing on him, and the travel budget for this class is spent.'));
     if (ib) appendScoutNotes(body, state, p, 'intl');
 
     const actions = [];
+    // Targeted look (0.23.0): budget-limited trips reveal a report on an
+    // unscouted name. Count and quality both scale with the scouting tier.
+    if (!ib && looks.remaining > 0) {
+      actions.push({
+        label: `Send a Scout (${looks.remaining} trip${looks.remaining !== 1 ? 's' : ''} left)`,
+        kind: 'primary',
+        onClick: () => {
+          if (!intl.userLooks) intl.userLooks = [];
+          intl.userLooks.push(p.id);
+          window.BBGM_STATE.set(state);
+          U.showToast(`Scout dispatched — report on ${p.name} is in.`, 'success');
+          window.BBGM_MAIN.refresh();
+          setTimeout(() => showIntlProspect(state, p.id), 0);
+          return true;
+        },
+      });
+    }
     const refreshAll = () => {
       window.BBGM_STATE.set(state);
       window.BBGM_MAIN.refresh();

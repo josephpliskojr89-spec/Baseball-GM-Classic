@@ -4566,6 +4566,19 @@ This is not a single phase but an ongoing process. Activities include:
 >   claimable player (48+ OVR) is waived; winning a claim halts with the
 >   award notice, losing one lands in the news feed.
 
+> **Status (0.23.0) — targeted international scouting (6.7/14.x
+> amendment).** The intl pool's tier coverage leaves most of the class as
+> "??" names. Each class, the department now gets a travel budget of
+> TARGETED LOOKS — send a scout for a closer read on any unscouted
+> prospect, spent from his card ("Send a Scout"). Both the count and the
+> quality scale with the scouting tier: bare bones gets 2 trips that
+> return a rough ceiling band and no tool grades; standard 4 trips with
+> tools; above-average 6; elite 9 near-full-coverage reads. A targeted
+> report is marked as one look, not full coverage; if the tier already
+> covers the prospect, the better read wins. Looks live on the class
+> (state.intl.userLooks), so the budget resets with each new class. The
+> class budget card shows trips remaining.
+
 ### 21.18 What's Explicitly Out of Initial Build
 
 To keep scope contained, several systems are explicitly deferred:

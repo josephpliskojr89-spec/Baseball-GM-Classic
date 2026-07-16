@@ -349,6 +349,32 @@ window.BBGM_SCOUT = (function () {
     return notes;
   }
 
+  // ---- Targeted international looks (0.23.0) --------------------------------
+  // The intl pool's tier coverage leaves most of the class as "??" names.
+  // A targeted look sends a scout for a closer read on ONE unscouted
+  // prospect: the department's budget caps how many trips a class gets,
+  // and the tier caps how good the resulting report is — a bare-bones
+  // look brings back a rough number and no tool grades; an elite look is
+  // nearly full coverage. Spent looks live on state.intl.userLooks, so a
+  // fresh class resets the budget each year.
+  function intlLooks(state) {
+    const team = state.league.teams.find((t) => t.id === state.meta.userTeamId);
+    const ti = tierIdx(team);
+    const used = (state.intl && state.intl.userLooks) ? state.intl.userLooks.length : 0;
+    const budget = [2, 4, 6, 9][ti];
+    return {
+      budget,
+      used,
+      remaining: Math.max(0, budget - used),
+      widen: [6, 3, 1, -2][ti], // band quality of a one-trip report
+      tools: ti >= 1,           // bare bones brings a number, not a toolkit
+    };
+  }
+
+  function hasIntlLook(state, prospectId) {
+    return !!(state.intl && (state.intl.userLooks || []).includes(prospectId));
+  }
+
   // AI draft discipline by tier (13.6): [board window, weight decay].
   function aiDraftDiscipline(team) {
     return [
@@ -364,5 +390,6 @@ window.BBGM_SCOUT = (function () {
     defaultTierFor, ensureTiers,
     requestTier, runScoutingOffseason,
     modeFor, report, poolView, aiDraftDiscipline, potentialBand, prospectNotes,
+    intlLooks, hasIntlLook,
   };
 })();
