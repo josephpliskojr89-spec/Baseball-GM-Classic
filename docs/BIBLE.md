@@ -4616,6 +4616,18 @@ This is not a single phase but an ongoing process. Activities include:
 > potential band simply reads higher). Harness prints breakouts/yr as a
 > diagnostic.
 
+> **Status (0.25.1) — orphaned-pitcher fix.** A pitcher activated from
+> the IL could return to the roster belonging to NO staff list — never
+> starting, never relieving. Cause: any mid-stint config rebuild (trade,
+> roster swap, role conversion, waiver claim — every safeRebuild path)
+> rebuilds from the 26-man only and purges IL'd players; activation
+> assumed his old spots survived. activateFromIL now guarantees
+> reintegration at every exit (ensureStaffIntegration: reclaim the
+> cover's rotation slot, full re-sort for a purged starter, pen chair
+> for a reliever), a one-shot 0.25.1 migration rebuilds any team already
+> carrying an orphan, and the consistency probe audits daily that every
+> healthy roster pitcher belongs to rotation/pen/closer.
+
 ### 21.18 What's Explicitly Out of Initial Build
 
 To keep scope contained, several systems are explicitly deferred:

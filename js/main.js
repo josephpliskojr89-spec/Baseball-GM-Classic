@@ -408,6 +408,36 @@ window.BBGM_MAIN = (function () {
       if (stamped) window.BBGM_STATE.set(state);
     }
 
+    // Migration: 0.25.1 heals orphaned pitchers — roster arms belonging to
+    // no rotation/bullpen/closer slot. Mid-IL-stint config rebuilds
+    // (trades, swaps, conversions, claims) purged IL'd players from the
+    // staff lists, and activation never re-added them: rostered but never
+    // used. The activation path now guarantees reintegration; this one-shot
+    // pass re-sorts any team already carrying an orphan.
+    if (versionLt(saveVersion, '0.25.1')) {
+      let healed = 0;
+      for (const t of state.league.teams) {
+        const orphaned = (t.roster || []).some((id) => {
+          const p = state.players[id];
+          return p && p.isPitcher &&
+            !(t.rotation || []).includes(id) &&
+            !(t.bullpen || []).includes(id) &&
+            t.closer !== id;
+        });
+        if (!orphaned) continue;
+        try {
+          window.BBGM_ROSTER.safeRebuild(state, t);
+          healed++;
+        } catch (e) {
+          console.error(`Orphan-heal rebuild failed for ${t.abbr}:`, e);
+        }
+      }
+      if (healed) {
+        console.log(`0.25.1 migration: rebuilt ${healed} team(s) carrying orphaned pitchers.`);
+        window.BBGM_STATE.set(state);
+      }
+    }
+
     // Stamp the save forward now that every migration has run. This is
     // what makes the versionLt gates above one-shot, and it makes the
     // Menu's "Save version" reflect the code the save actually runs under

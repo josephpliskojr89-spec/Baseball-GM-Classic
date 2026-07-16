@@ -195,6 +195,47 @@ window.BBGM_ROSTER = (function () {
     return { callUp };
   }
 
+  // A healthy roster pitcher must belong to SOMETHING — rotation, pen, or
+  // the closer's chair — or the engine never uses him (pickStarter and
+  // chooseReliever read only those lists). A returning IL pitcher's config
+  // spots normally survive his stint untouched, but any mid-stint rebuild
+  // (trade, roster swap, role conversion, waiver claim — every safeRebuild
+  // path) rebuilds configs from the 26-man only and purges IL'd players.
+  // This was a real bug: an activated starter sat on the roster for weeks
+  // belonging to no staff list. Called at every activateFromIL exit.
+  function ensureStaffIntegration(state, team, p) {
+    if (!p.isPitcher) return; // bench hitters are used via subs/rest — fine
+    const players = state.players;
+    if ((team.rotation || []).includes(p.id) ||
+        (team.bullpen || []).includes(p.id) || team.closer === p.id) return;
+    // Best case: his stint cover still holds his old rotation slot.
+    const slot = (team.rotation || []).findIndex((id) => {
+      const q = players[id];
+      return q && q.ilCallUpFor === p.id;
+    });
+    if (slot >= 0 && p.primaryPosition === 'SP') {
+      const cover = players[team.rotation[slot]];
+      team.rotation[slot] = p.id;
+      delete cover.ilCallUpFor;
+      if (team.roster.includes(cover.id) && !team.bullpen.includes(cover.id)) {
+        team.bullpen.push(cover.id);
+        const roles = team.bullpenRoles || (team.bullpenRoles = { setup: [], middle: [], long: [], mopup: [] });
+        if (!Object.values(roles).some((arr) => arr.includes(cover.id))) roles.middle.push(cover.id);
+      }
+      return;
+    }
+    if (p.primaryPosition === 'SP') {
+      // A purged starter with no cover slot to reclaim: the manager
+      // re-sorts the whole staff around him (top-5 SPs take the rotation).
+      safeRebuild(state, team);
+      return;
+    }
+    // A returning relief arm always has a pen chair.
+    if (!team.bullpen.includes(p.id)) team.bullpen.push(p.id);
+    const roles = team.bullpenRoles || (team.bullpenRoles = { setup: [], middle: [], long: [], mopup: [] });
+    if (!Object.values(roles).some((arr) => arr.includes(p.id))) roles.middle.push(p.id);
+  }
+
   // Return a recovered player from the IL to the 26-man. The call-up who
   // covered the stint (or, failing that, the weakest same-type roster
   // player who has minor-league status history) goes back down.
@@ -230,6 +271,7 @@ window.BBGM_ROSTER = (function () {
           delete cover.ilCallUpFor;
         }
       }
+      ensureStaffIntegration(state, team, player);
       return { sentDown: null };
     }
 
@@ -270,9 +312,11 @@ window.BBGM_ROSTER = (function () {
     }
     // Scrub the demoted player from any remaining team config (he may have
     // been slotted into the bullpen as call-up depth). The returning
-    // player's lineup/bullpen ids never left the config during the stint —
-    // the engine simply subbed around him daily.
+    // player's lineup/bullpen ids USUALLY survived the stint — but a
+    // mid-stint rebuild purges IL'd players, so verify he's back in the
+    // staff before finishing (ensureStaffIntegration).
     replaceRefs(team, players, down.id, null);
+    ensureStaffIntegration(state, team, player);
     return { sentDown: down };
   }
 
@@ -392,6 +436,6 @@ window.BBGM_ROSTER = (function () {
   return {
     placeOnILWithMove, activateFromIL, replaceRefs, bestCallUp, overall, demotionLevel,
     newPlayerId, safeRebuild,
-    callUpCandidates, callUpNeedFor, executeILCallUp,
+    callUpCandidates, callUpNeedFor, executeILCallUp, ensureStaffIntegration,
   };
 })();
