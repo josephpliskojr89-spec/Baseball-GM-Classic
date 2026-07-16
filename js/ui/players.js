@@ -254,8 +254,11 @@ window.BBGM_UI_PLAYERS = (function () {
       class: 'roster-row',
       ...(p ? { on: { click: () => window.BBGM_UI_PLAYER.show(id) } } : {}),
     });
-    if (opts.lead) row.appendChild(U.el('span', {
-      style: { 'font-size': '18px', 'margin-right': '8px', 'flex-shrink': '0' } }, opts.lead));
+    // .roster-row is a 32px/1fr/auto grid — the first cell is always
+    // emitted (empty when there's no lead icon) so the info block never
+    // lands in the narrow badge column and gets crushed.
+    row.appendChild(U.el('span', {
+      style: { 'font-size': '18px', 'text-align': 'center' } }, opts.lead || ''));
     const info = U.el('div', { class: 'player-row-info' });
     info.appendChild(U.el('div', { class: 'player-row-name' }, name));
     if (meta) info.appendChild(U.el('div', { class: 'player-row-meta' }, meta));

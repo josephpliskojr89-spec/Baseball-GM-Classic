@@ -319,23 +319,28 @@ window.BBGM_UI_DASHBOARD = (function () {
     for (const c of arb.cases) {
       const p = state.players[c.playerId];
       if (!p) continue;
-      const row = U.el('div', { class: 'roster-row', style: { 'flex-wrap': 'wrap', gap: '6px' } });
-      const info = U.el('div', { class: 'player-row-info', style: { flex: '1 1 60%' } });
+      // .roster-row is a 32px/1fr/auto grid — rows need badge/info/action
+      // children in that order or the info block gets crushed into the
+      // 32px badge column (the 0.22.1 IL-modal bug, same pathology).
+      const row = U.el('div', { class: 'roster-row' });
+      row.appendChild(U.posBadge(p));
+      const info = U.el('div', { class: 'player-row-info' });
       info.appendChild(U.el('div', { class: 'player-row-name' },
-        `${p.name} (${p.primaryPosition}, ${p.age})`));
+        `${p.name} (${p.age})`));
       const s = p.stats && p.stats[year];
       let line = '';
       if (s && p.isPitcher && (s.ipOuts || 0) > 0) {
         line = `${s.w}-${s.l}, ${S.era(s).toFixed(2)} ERA, ${S.fmtIP(s.ipOuts)} IP`;
       } else if (s && !p.isPitcher && (s.pa || 0) > 0) {
-        line = `${S.fmtAvg(S.avg(s))}/${s.hr} HR/${s.rbi} RBI`;
+        line = `${S.fmtAvg(S.avg(s))}, ${s.hr} HR, ${s.rbi} RBI`;
       }
       info.appendChild(U.el('div', { class: 'player-row-meta' },
-        `${line ? line + ' • ' : ''}arb salary $${c.salary}M`));
+        `${line ? line + ' • ' : ''}arb $${c.salary}M`));
       row.appendChild(info);
       if (c.decision === 'tendered') {
         row.appendChild(U.el('button', {
-          class: 'btn-secondary btn-sm', style: { color: 'var(--danger, #e25c5c)' },
+          class: 'btn-secondary btn-sm',
+          style: { color: 'var(--danger, #e25c5c)', 'white-space': 'nowrap' },
           on: { click: () => {
             const result = window.BBGM_OFFSEASON.nonTenderPlayer(state, c.playerId);
             if (!result) { U.showToast('Non-tender window has closed.', 'warning'); return; }
@@ -352,7 +357,10 @@ window.BBGM_UI_DASHBOARD = (function () {
           }},
         }, 'Non-Tender'));
       } else {
-        row.appendChild(U.el('span', { class: 'player-row-meta' }, 'Non-tendered — on the market'));
+        row.appendChild(U.el('span', {
+          class: 'player-row-meta',
+          style: { 'text-align': 'right', 'white-space': 'pre-line' },
+        }, 'Non-tendered\non the market'));
       }
       list.appendChild(row);
     }
@@ -499,5 +507,6 @@ window.BBGM_UI_DASHBOARD = (function () {
     return D.compare(today, end) > 0;
   }
 
-  return { render };
+  // showArbModal exported for the offseason calendar card (and tests).
+  return { render, showArbModal };
 })();

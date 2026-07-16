@@ -4665,6 +4665,18 @@ This is not a single phase but an ongoing process. Activities include:
 > stays at the 8.5% / .328 OBP 2001 targets. Harness prints IBB/team
 > and the league IBB leader every season as standing diagnostics.
 
+> **Status (0.27.1) — arbitration modal readability fix.** The arb
+> review rows (dashboard.js) set flex styles on `.roster-row`, but that
+> class is a 32px/1fr/auto CSS grid — the info block landed in the 32px
+> badge column (names crushed to two letters, the stat line wrapping
+> one word per line) while the Non-Tender button stretched across the
+> wide middle column. Same pathology as the 0.22.1 IL-modal fix. Rows
+> rebuilt on the standard badge/info/action grid; `playerRow` in
+> players.js had the same latent crush when called without a lead icon
+> (HoF ballot, All-Star lists) and now always emits its first cell. The
+> e2e suite synthesizes an arb window and asserts the modal rows carry
+> the full grid with an uncrushed info block.
+
 ### 21.18 What's Explicitly Out of Initial Build
 
 To keep scope contained, several systems are explicitly deferred:
