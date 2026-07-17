@@ -423,11 +423,55 @@ window.BBGM_SCOUT = (function () {
     ][tierIdx(team)];
   }
 
+  // ---- NABL Pipeline: league-wide Top 100 prospect rankings (0.29.0) ----
+  // The industry consensus list, not the user's scouts — computed from
+  // true values with small deterministic media noise so it neither leaks
+  // exact hidden ratings nor reshuffles between renders. Score is a
+  // current/ceiling blend with a slight thumb on the scale for current
+  // ability (55/45 by design): a polished near-MLB bat outranks a raw
+  // lottery ticket with the same ceiling. Recomputed live, so call-ups
+  // graduate off the list automatically and development moves players
+  // during the season.
+  function prospectRankings(state) {
+    const R = window.BBGM_ROSTER;
+    const year = state.meta.currentDate.year;
+    const out = [];
+    for (const t of state.league.teams) {
+      for (const id of (t.minors || [])) {
+        const p = state.players[id];
+        if (!p || p.retired || p.status !== 'minors') continue;
+        if (p.age > 25) continue; // aged off prospect lists
+        const cur = R.overall(p);
+        let ceil = cur;
+        if (p.hidden && p.hidden.ceiling) {
+          ceil = R.overall({ isPitcher: p.isPitcher, ratings: { ...p.ratings, ...p.hidden.ceiling } });
+        }
+        ceil = Math.max(ceil, cur);
+        // ±2.5 media noise, stable per player per season (unsigned
+        // shifts — same hash family as bandFor).
+        const h = hashOf(year, p.id);
+        const noise = (((h >>> 4) % 51) - 25) * 0.1;
+        out.push({ id, teamId: t.id, score: cur * 0.55 + ceil * 0.45 + noise });
+      }
+    }
+    out.sort((a, b) => b.score - a.score);
+    return out.slice(0, 100);
+  }
+
+  // Rank of one player on the current Top 100, or null. Cheap enough to
+  // compute on demand for a profile view.
+  function pipelineRank(state, playerId) {
+    const list = prospectRankings(state);
+    const i = list.findIndex((e) => e.id === playerId);
+    return i >= 0 ? i + 1 : null;
+  }
+
   return {
     TIERS, tierOf, tierIdx, tierDef, tierCost,
     defaultTierFor, ensureTiers,
     requestTier, runScoutingOffseason,
     modeFor, report, poolView, aiDraftDiscipline, potentialBand, prospectNotes,
     targetedLooks, hasTargetedLook, medicalRead,
+    prospectRankings, pipelineRank,
   };
 })();

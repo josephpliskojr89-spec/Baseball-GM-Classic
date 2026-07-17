@@ -91,6 +91,7 @@ window.BBGM_UI_DRAFT = (function () {
       { key: 'board', label: 'Big Board' },
       { key: 'targets', label: targetCount ? `Targets (${targetCount})` : 'Targets' },
       { key: 'intl', label: 'Int’l' },
+      { key: 'top100', label: 'Top 100' },
     ];
     for (const t of tabDefs) {
       tabs.appendChild(U.el('button', {
@@ -103,7 +104,74 @@ window.BBGM_UI_DRAFT = (function () {
     if (activeTab === 'board') renderBigBoardTab(container, state);
     else if (activeTab === 'targets') renderTargetsTab(container, state);
     else if (activeTab === 'intl') renderIntl(container, state);
+    else if (activeTab === 'top100') renderTop100(container, state);
     else renderOverview(container, state);
+  }
+
+  // ---- NABL Pipeline Top 100 (0.29.0) --------------------------------------
+  // League-wide prospect rankings, MLB-Pipeline style: signed minor
+  // leaguers only (draft/intl pool players aren't ranked until they're in
+  // an org), one list for the whole league. The consensus leans slightly
+  // toward current ability over raw ceiling, so polished near-MLB talent
+  // sits above lottery tickets. The band on the right is the user's own
+  // scouts' potential read (fog rules unchanged).
+  let top100Depth = 35;
+
+  function renderTop100(container, state) {
+    const SCOUT = window.BBGM_SCOUT;
+    const list = SCOUT.prospectRankings(state);
+    const userTeamId = state.meta.userTeamId;
+    const mine = list.filter((e) => e.teamId === userTeamId).length;
+
+    const intro = U.el('div', { class: 'card', style: { 'margin-bottom': '10px' } });
+    intro.appendChild(U.el('div', { class: 'card-title' }, 'NABL Pipeline — Top 100 Prospects'));
+    intro.appendChild(U.el('p', { class: 'muted', style: { 'font-size': '12px' } },
+      'The industry consensus on the best talent in the minors, updated live. ' +
+      'Rankings weigh current ability a shade over projection — call-ups graduate off the list. ' +
+      `Your organization has ${mine} player${mine === 1 ? '' : 's'} ranked.`));
+    container.appendChild(intro);
+
+    if (!list.length) {
+      container.appendChild(U.el('div', { class: 'empty-state' }, 'No ranked prospects.'));
+      return;
+    }
+
+    const rows = U.el('div', { class: 'roster-list card', style: { padding: '0' } });
+    let shown = 0;
+    for (let i = 0; i < list.length && shown < top100Depth; i++, shown++) {
+      const e = list[i];
+      const p = state.players[e.id];
+      if (!p) continue;
+      const t = state.league.teams.find((x) => x.id === e.teamId);
+      const isUser = e.teamId === userTeamId;
+      const row = U.el('button', {
+        class: 'roster-row',
+        style: isUser ? { border: '1px solid var(--accent, #58a6ff)' } : {},
+        on: { click: () => window.BBGM_UI_PLAYER.show(p.id) },
+      });
+      row.appendChild(U.el('span', { class: 'pos-badge' }, String(i + 1)));
+      const info = U.el('div', { class: 'player-row-info' });
+      info.appendChild(U.el('div', { class: 'player-row-name' },
+        `${p.name} (${p.age})`));
+      info.appendChild(U.el('div', { class: 'player-row-meta' },
+        `${p.primaryPosition} • ${p.rosterStatus} • ${t ? t.abbr : '—'}${isUser ? ' (you)' : ''}`));
+      row.appendChild(info);
+      const band = SCOUT.potentialBand(state, p);
+      const stats = U.el('div', { class: 'player-row-stats' });
+      stats.appendChild(U.el('span', {
+        style: { 'font-weight': '700', color: band ? 'var(--success, #3fb950)' : 'var(--text-muted, #8b949e)' },
+      }, band ? `${band[0]}–${band[1]}` : '—'));
+      stats.appendChild(U.el('span', { class: 'key' }, 'POT'));
+      row.appendChild(stats);
+      rows.appendChild(row);
+    }
+    container.appendChild(rows);
+    if (shown < list.length) {
+      container.appendChild(U.el('button', {
+        class: 'btn-secondary btn-sm', style: { width: '100%', 'margin-top': '8px' },
+        on: { click: () => { top100Depth += 35; window.BBGM_MAIN.refresh(); } },
+      }, 'Show More'));
+    }
   }
 
   // ---- Overview tab: the scout's read, mock draft / recap, history ----------

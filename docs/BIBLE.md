@@ -4695,6 +4695,24 @@ This is not a single phase but an ongoing process. Activities include:
 > Rookie at the next offseason. Verified over 7-season soaks: star
 > pyramid stable, zero youth-ceiling violations.
 
+> **Status (0.29.0) — NABL Pipeline Top 100 (new, 6.9 adjunct).**
+> League-wide prospect rankings a la MLB Pipeline: one Top 100 across
+> all thirty organizations, no per-team lists. Eligibility is signed
+> minor leaguers age ≤ 25 (draft/intl pool players rank only after they
+> join an org; call-ups graduate off automatically since the list is
+> recomputed live). Score = 55% current overall + 45% ceiling overall —
+> the user-specified slight extra weight on current ability, so
+> polished near-MLB talent outranks raw lottery tickets — plus ±2.5
+> deterministic per-player/per-season media noise (unsigned-shift hash)
+> so the public list neither leaks exact hidden ratings nor reshuffles
+> between renders. This is the industry consensus, NOT the user's
+> scouts: it can disagree with the user's fogged reads, which is
+> intended signal (like real Pipeline lists). UI: Draft Hub → Top 100
+> tab (35 rows + Show More, user-org rows highlighted with "(you)",
+> potential-band chip per row honoring existing fog), and a "Pipeline:
+> #N on the NABL Top 100" bio row on ranked players' cards. Unit-tested
+> (sorted/deterministic/graduation/org spread) plus e2e coverage.
+
 ### 21.18 What's Explicitly Out of Initial Build
 
 To keep scope contained, several systems are explicitly deferred:

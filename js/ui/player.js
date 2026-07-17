@@ -158,6 +158,12 @@ window.BBGM_UI_PLAYER = (function () {
     if (FAT && FAT.isIronMan && FAT.isIronMan(p)) {
       bioRows.push(insetRow('Makeup', '🛡 Iron Man — plays every day'));
     }
+    // NABL Pipeline rank (0.29.0): only minor leaguers appear; the list
+    // is recomputed live so this stays honest through the season.
+    if (p.status === 'minors' && window.BBGM_SCOUT.pipelineRank) {
+      const rank = window.BBGM_SCOUT.pipelineRank(state, p.id);
+      if (rank) bioRows.push(insetRow('Pipeline', `#${rank} on the NABL Top 100`));
+    }
     body.appendChild(U.el('div', { class: 'inset-list', style: { 'margin-top': '10px' } }, bioRows));
 
     // Injury banner.
