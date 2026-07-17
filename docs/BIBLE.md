@@ -4677,6 +4677,24 @@ This is not a single phase but an ongoing process. Activities include:
 > e2e suite synthesizes an arb window and asserts the modal rows carry
 > the full grid with an uncrushed info block.
 
+> **Status (0.28.0) — teenage prospects: rawer currents, no A ball at
+> 17 (6.7/12.4 amendment).** International signees were showing mid-40s
+> current tools at 17 — near-MLB polish on a kid who should read as a
+> project — and the level ladder allowed (and scouts recommended) A-ball
+> assignments at 17. Three changes: (1) intl current-rating gaps widened
+> (16: 30→36, 17: 27→33, 18: 24→29, 19+: 18→22) and the polish cap
+> dropped 52→46, with teenage pitcher stamina capped at 50 — measured
+> pool currents now average low-20s at 16-17 with the best tools maxing
+> 46, so the potential band carries the value story; (2)
+> maxLevelIdxForAge tightened — 17-and-under is Rookie complex only (18:
+> A, 19-20: AA, 21+: uncapped), which silences the promotion arrow and
+> AI reassignment for 17-year-olds; (3) draft assignment (levelFor) now
+> clamps to the age cap too, so a 17-year-old HS first-rounder opens in
+> Rookie ball instead of the round's A-ball base. Existing saves
+> self-heal: reassignment walks any 17-year-old already in A back to
+> Rookie at the next offseason. Verified over 7-season soaks: star
+> pyramid stable, zero youth-ceiling violations.
+
 ### 21.18 What's Explicitly Out of Initial Build
 
 To keep scope contained, several systems are explicitly deferred:

@@ -152,15 +152,19 @@ window.BBGM_INTL = (function () {
     }
 
     // Current ratings: a 16-year-old is YEARS from his ceiling — rawer
-    // than any draft pick (6.7's higher variance).
-    const gapBase = age <= 16 ? 30 : age <= 17 ? 27 : age <= 18 ? 24 : 18;
+    // than any draft pick (6.7's higher variance). 0.28.0: gaps widened
+    // and the polish cap dropped 52 → 46 — teenagers were showing
+    // mid-40s current tools (near-MLB polish at 17); a signee's value is
+    // the ceiling, and the currents should read like a project.
+    const gapBase = age <= 16 ? 36 : age <= 17 ? 33 : age <= 18 ? 29 : 22;
     for (const k of keys) {
-      const gap = Math.max(6, gapBase + rnorm(0, 5));
+      const gap = Math.max(10, gapBase + rnorm(0, 5));
       p.ratings[k] = clamp(Math.round((p.hidden.ceiling[k] - gap) * 10) / 10, 20,
-        Math.min(52, p.hidden.ceiling[k] - 4));
+        Math.min(46, p.hidden.ceiling[k] - 4));
     }
     if (p.isPitcher) {
-      p.ratings.stamina = clamp(Math.round((p.hidden.ceiling.stamina - rfloat(8, 14)) * 10) / 10, 28, 60);
+      // A teenage arm hasn't built a starter's tank yet either.
+      p.ratings.stamina = clamp(Math.round((p.hidden.ceiling.stamina - rfloat(12, 20)) * 10) / 10, 25, 50);
     }
 
     // Scouting view: wider bands than the draft (teenagers, thin data).

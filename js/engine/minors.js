@@ -141,6 +141,7 @@ window.BBGM_MINORS = (function () {
   // where he belongs, with no "left too low" development stunt and no
   // promotion arrow. The climb takes calendar years by design.
   function maxLevelIdxForAge(age) {
+    if (age <= 17) return 0;            // 17: Rookie complex only (0.28.0)
     if (age <= 18) return 1;            // A ball at most
     if (age <= 20) return 2;            // AA at most
     return ORDER.length - 1;            // 21+: no cap

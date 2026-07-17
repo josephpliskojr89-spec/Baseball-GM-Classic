@@ -502,6 +502,9 @@ window.BBGM_DRAFT = (function () {
     const rec = MIN.ORDER.indexOf(MIN.recommendedLevel(p));
     idx = Math.max(idx, Math.min(rec, MIN.ORDER.indexOf('AA')));
     if (p.age >= 23) idx = Math.max(idx, 1);
+    // Youth ceiling applies at signing too (0.28.0): a 17-year-old HS
+    // first-rounder opens in Rookie ball no matter the round's base.
+    idx = Math.min(idx, MIN.maxLevelIdxForAge(p.age));
     return MIN.ORDER[idx];
   }
 
