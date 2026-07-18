@@ -4728,6 +4728,10 @@ This is not a single phase but an ongoing process. Activities include:
 > an accent "fills need" flag using the exact AI match rule
 > (pitchers only ever fill SP). Unit-tested (9 checks: threshold
 > agreement, vacancy, shortfall, departed filters) + e2e assertions.
+> 0.30.1 extends it to the Trade Center: the same card on the landing
+> view, and inside the trade builder a "You need:" line in the header
+> right under the partner's "looking for" read — both sides of the
+> shopping list visible while a deal is built.
 
 ### 21.18 What's Explicitly Out of Initial Build
 

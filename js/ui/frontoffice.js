@@ -241,6 +241,12 @@ window.BBGM_UI_FRONTOFFICE = (function () {
       return;
     }
 
+    // Same Team Needs read as the FA screen (0.30.1) — the shopping
+    // list applies whether you fill a hole with a signing or a swap.
+    // The builder view gets a compact "your needs" line in its header
+    // instead of the full card.
+    renderTeamNeeds(container, state, userTeam);
+
     container.appendChild(U.el('button', {
       class: 'btn-primary', style: { width: '100%', margin: '12px 0' },
       on: { click: () => pickTradePartner(state) },
@@ -415,6 +421,13 @@ window.BBGM_UI_FRONTOFFICE = (function () {
     head.appendChild(U.el('div', { class: 'muted', style: { 'font-size': '12px' } },
       `${partner.competitiveWindow} • ${partner.ownerName}` +
       (needs.length ? ` • looking for: ${needs.join(', ')}` : '')));
+    // Your side of the shopping list, right next to theirs (0.30.1).
+    const myNeeds = TRADES().teamNeeds(userTeam, players);
+    if (myNeeds.length) {
+      head.appendChild(U.el('div', {
+        style: { 'font-size': '12px', color: 'var(--accent, #58a6ff)', 'margin-top': '2px' },
+      }, `You need: ${myNeeds.join(', ')}`));
+    }
     container.appendChild(head);
 
     const section = (title, team, listIds, mine) => {
