@@ -144,6 +144,64 @@ window.BBGM_TRADES = (function () {
     return needs.slice(0, 3);
   }
 
+  // Detailed front-office needs read (0.30.0) — the user-facing version
+  // of teamNeeds, built on the SAME thresholds so what the user sees is
+  // exactly what AI bidders act on. faMarket is optional (offseason
+  // only); pass null in-season.
+  function needsReport(team, players, faMarket) {
+    const C = window.BBGM_CONSTANTS;
+    const report = {
+      needs: teamNeeds(team, players),
+      weakStarters: [], rotationDepth: null, shortfalls: [], departed: [],
+    };
+    if (!players) return report;
+
+    // Weak or vacated starting spots (same <46 rule as teamNeeds; a slot
+    // left empty by a departure is the loudest need of all).
+    for (const spot of team.lineupRH || []) {
+      if (spot.position === 'DH') continue;
+      const p = spot.playerId ? players[spot.playerId] : null;
+      if (!p) report.weakStarters.push({ pos: spot.position, playerId: null, name: null, ovr: null });
+      else {
+        const ovr = ROSTER().overall(p);
+        if (ovr < 46) report.weakStarters.push({ pos: spot.position, playerId: p.id, name: p.name, ovr: Math.round(ovr) });
+      }
+    }
+
+    // Rotation depth: the 4th starter's grade (same rule as teamNeeds).
+    const rotOvr = (team.rotation || []).map((id) => players[id]).filter(Boolean)
+      .map((p) => ROSTER().overall(p)).sort((a, b) => b - a);
+    if (rotOvr.length) {
+      const ovr = rotOvr[Math.min(3, rotOvr.length - 1)];
+      report.rotationDepth = { ovr: Math.round(ovr), need: ovr < 46 };
+    }
+
+    // Count-vs-floor gaps (the safeRebuild/releaseBlocker floors).
+    const roster = (team.roster || []).map((id) => players[id]).filter(Boolean);
+    const catchers = roster.filter((p) => !p.isPitcher && p.primaryPosition === 'C').length;
+    const spCount = roster.filter((p) => p.isPitcher && p.primaryPosition === 'SP').length;
+    const pitchers = roster.filter((p) => p.isPitcher).length;
+    if (catchers < C.ROSTER_CATCHERS) {
+      report.shortfalls.push({ label: `Only ${catchers} catcher${catchers === 1 ? '' : 's'} on the 26-man (floor ${C.ROSTER_CATCHERS})` });
+    }
+    if (spCount < 5) {
+      report.shortfalls.push({ label: `Only ${spCount} starting pitcher${spCount === 1 ? '' : 's'} on the 26-man (floor 5)` });
+    }
+    if (pitchers < C.ROSTER_PITCHERS) {
+      report.shortfalls.push({ label: `${pitchers} pitchers on the 26-man (target ${C.ROSTER_PITCHERS})` });
+    }
+
+    // The team's own free agents still unsigned on the open market.
+    if (faMarket && faMarket.entries) {
+      for (const e of faMarket.entries) {
+        if (e.formerTeamId !== team.id || e.signedTeamId) continue;
+        const p = players[e.playerId];
+        if (p && !p.retired) report.departed.push({ name: p.name, pos: p.primaryPosition });
+      }
+    }
+    return report;
+  }
+
   // ---- Trade legality / shape checks ---------------------------------------
 
   function tradesAllowed(state) {
@@ -456,7 +514,7 @@ window.BBGM_TRADES = (function () {
   }
 
   return {
-    tradeValue, teamValueOf, teamNeeds, expectedAAV, setPlayersRef,
+    tradeValue, teamValueOf, teamNeeds, needsReport, expectedAAV, setPlayersRef,
     evaluateProposal, suggestAddition, executeTrade, tradeNews,
     validateTradeShape, tradesAllowed, aiTradeTick,
   };

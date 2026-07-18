@@ -22,11 +22,57 @@ window.BBGM_UI_FRONTOFFICE = (function () {
       `Payroll $${payroll.toFixed(1)}M of $${userTeam.payrollBase}M budget`));
     container.appendChild(bar);
 
+    renderTeamNeeds(container, state, userTeam);
+
     if (state.meta.offseasonPhase === 'freeAgency' && state.faMarket) {
       renderMarket(container, state, userTeam);
     } else {
       renderInSeasonPool(container, state, userTeam);
     }
+  }
+
+  // Team Needs card (0.30.0): the front office's read on the roster's
+  // holes, computed by the same thresholds the AI uses when it bids
+  // (trades.needsReport). Shown on both the offseason market and the
+  // in-season pool — same screen, same shopping list.
+  function renderTeamNeeds(container, state, userTeam) {
+    const rep = TRADES().needsReport(userTeam, state.players,
+      state.meta.offseasonPhase === 'freeAgency' ? state.faMarket : null);
+    const card = U.el('div', { class: 'card', style: { 'margin-bottom': '10px' } });
+    card.appendChild(U.el('div', { class: 'card-title' }, 'Team Needs'));
+
+    const lines = [];
+    for (const w of rep.weakStarters) {
+      lines.push(w.name
+        ? `${w.pos} — starter grades ${w.ovr} (${w.name})`
+        : `${w.pos} — no starter penciled in`);
+    }
+    if (rep.rotationDepth && rep.rotationDepth.need) {
+      lines.push(`Rotation — 4th starter grades ${rep.rotationDepth.ovr}`);
+    }
+    for (const s of rep.shortfalls) lines.push(s.label);
+
+    if (!lines.length) {
+      card.appendChild(U.el('p', { class: 'muted', style: { 'font-size': '12px' } },
+        'No glaring holes — the front office likes the roster as built.'));
+    } else {
+      for (const l of lines) {
+        card.appendChild(U.el('div', { style: { 'font-size': '13px', padding: '2px 0' } }, `• ${l}`));
+      }
+    }
+    if (rep.departed.length) {
+      card.appendChild(U.el('p', { class: 'muted', style: { 'font-size': '11px', 'margin-top': '6px' } },
+        'Hitting the market: ' + rep.departed.map((d) => `${d.name} (${d.pos})`).join(', ')));
+    }
+    container.appendChild(card);
+  }
+
+  // "Fills need" match — identical rule to the AI's isNeed check in
+  // freeagency.js: pitchers only ever fill an SP need.
+  function fillsNeed(needSet, p) {
+    return p.isPitcher
+      ? needSet.has('SP') && p.primaryPosition === 'SP'
+      : needSet.has(p.primaryPosition);
   }
 
   function renderMarket(container, state, userTeam) {
@@ -38,6 +84,7 @@ window.BBGM_UI_FRONTOFFICE = (function () {
       return;
     }
     const myOffers = new Set(market.userOffers.map((o) => o.playerId));
+    const needSet = new Set(TRADES().teamNeeds(userTeam, players));
     const list = U.el('div', { class: 'roster-list' });
     for (const entry of open.slice(0, 80)) {
       const p = players[entry.playerId];
@@ -51,7 +98,13 @@ window.BBGM_UI_FRONTOFFICE = (function () {
         p.name + (myOffers.has(p.id) ? '  📝' : '')));
       let meta = `Age ${p.age} • OVR ${U.gradeFor(ROSTER().overall(p))} • asking ${entry.askYears} yr / $${entry.askTotal}M`;
       if (entry.offersThisRound) meta += ` • ${entry.offersThisRound} team${entry.offersThisRound > 1 ? 's' : ''} in`;
-      info.appendChild(U.el('div', { class: 'player-row-meta' }, meta));
+      const metaEl = U.el('div', { class: 'player-row-meta' }, meta);
+      if (fillsNeed(needSet, p)) {
+        metaEl.appendChild(U.el('span', {
+          style: { color: 'var(--accent, #58a6ff)', 'font-weight': '600' },
+        }, ' • fills need'));
+      }
+      info.appendChild(metaEl);
       row.appendChild(info);
       list.appendChild(row);
     }
@@ -120,6 +173,7 @@ window.BBGM_UI_FRONTOFFICE = (function () {
     }
     container.appendChild(U.el('p', { class: 'muted', style: { 'font-size': '12px', 'margin-bottom': '8px' } },
       'In-season signings are minor-league deals — the player reports to AAA (bible 16.9).'));
+    const needSet = new Set(TRADES().teamNeeds(userTeam, state.players));
     const list = U.el('div', { class: 'roster-list' });
     for (const p of pool.slice(0, 50)) {
       const row = U.el('button', {
@@ -143,8 +197,14 @@ window.BBGM_UI_FRONTOFFICE = (function () {
       row.appendChild(U.posBadge(p));
       const info = U.el('div', { class: 'player-row-info' });
       info.appendChild(U.el('div', { class: 'player-row-name' }, p.name));
-      info.appendChild(U.el('div', { class: 'player-row-meta' },
-        `Age ${p.age} • OVR ${U.gradeFor(ROSTER().overall(p))}`));
+      const metaEl = U.el('div', { class: 'player-row-meta' },
+        `Age ${p.age} • OVR ${U.gradeFor(ROSTER().overall(p))}`);
+      if (fillsNeed(needSet, p)) {
+        metaEl.appendChild(U.el('span', {
+          style: { color: 'var(--accent, #58a6ff)', 'font-weight': '600' },
+        }, ' • fills need'));
+      }
+      info.appendChild(metaEl);
       row.appendChild(info);
       list.appendChild(row);
     }

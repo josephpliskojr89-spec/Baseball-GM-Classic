@@ -4713,6 +4713,22 @@ This is not a single phase but an ongoing process. Activities include:
 > #N on the NABL Top 100" bio row on ranked players' cards. Unit-tested
 > (sorted/deterministic/graduation/org spread) plus e2e coverage.
 
+> **Status (0.30.0) — Team Needs on the FA screen (20.11 amendment).**
+> The AI has read `teamNeeds` (trades.js — starters under 46 OVR plus
+> 4th-starter depth) when bidding since 16.7, but the user never saw
+> his own. New `needsReport(team, players, faMarket)` in trades.js is
+> the user-facing version built on the SAME thresholds: weak or
+> vacated lineup spots (with the incumbent's grade), rotation depth,
+> count-vs-floor shortfalls (2 C / 5 SP / 13 P), and the team's own
+> unsigned free agents still on the market. Rendered as a Team Needs
+> card at the top of GM → Free Agents — offseason market and in-season
+> pool both, since contract expiries rebuild rosters BEFORE the market
+> opens (releaseToPool → replaceRefs → buildMarket), the read reflects
+> departures. Market and pool rows whose position matches a need carry
+> an accent "fills need" flag using the exact AI match rule
+> (pitchers only ever fill SP). Unit-tested (9 checks: threshold
+> agreement, vacancy, shortfall, departed filters) + e2e assertions.
+
 ### 21.18 What's Explicitly Out of Initial Build
 
 To keep scope contained, several systems are explicitly deferred:
