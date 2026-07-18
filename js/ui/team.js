@@ -103,9 +103,21 @@ window.BBGM_UI_TEAM = (function () {
       lineupLH: JSON.parse(JSON.stringify(team.lineupLH)),
     };
     const statuses = {};
+    // Pre-move floors (0.30.2): an offseason roster can legally sit
+    // below the in-game floors (expired contracts walked). Validate
+    // "no worse than before" so the user can climb back one move at a
+    // time — a team already at the strict floors is still held to them.
+    const preRoster = snap.roster.map((id) => state.players[id]).filter(Boolean);
+    const preFloors = {
+      minRoster: snap.roster.length,
+      minPitchers: preRoster.filter((p) => p.isPitcher).length,
+      minHitters: preRoster.filter((p) => !p.isPitcher).length,
+      minRotation: snap.rotation.length,
+      minBullpen: snap.bullpen.length,
+    };
     try {
       fn(statuses);
-      GEN().validateTeam(team, state.players);
+      GEN().validateTeam(team, state.players, preFloors);
       commit(state);
       return true;
     } catch (e) {

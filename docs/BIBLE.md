@@ -4733,6 +4733,21 @@ This is not a single phase but an ongoing process. Activities include:
 > right under the partner's "looking for" read — both sides of the
 > shopping list visible while a deal is built.
 
+> **Status (0.30.2) — short-roster call-up lockout fix.** An offseason
+> roster can legally sit below the 24-man game floor (expired contracts
+> walked; a 60-day IL stint doesn't count against the active list), but
+> every user roster move validates through checkTeamReadiness's strict
+> 24-26 window — so at 22 men, the call-up TO 23 was rejected as "size
+> 23, expected 24-26": the validator blocked the exact move that climbs
+> back toward legal. Fix: checkTeamReadiness accepts optional pre-move
+> floors (roster size, pitcher/hitter counts, rotation/bullpen sizes),
+> each capped at its strict value, and mutateTeam passes its snapshot's
+> counts — the rule becomes "no worse than before": improving and
+> same-size moves pass from any shortfall, regressions still fail, and
+> a team already at the strict floors is held to them exactly. The
+> load-time league validation keeps its strict defaults. e2e regression:
+> a synthesized 22-man roster accepts a call-up to 23.
+
 ### 21.18 What's Explicitly Out of Initial Build
 
 To keep scope contained, several systems are explicitly deferred:

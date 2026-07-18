@@ -773,17 +773,26 @@ window.BBGM_PLAYER_GEN = (function () {
     return { valid: true, teamsChecked: league.teams.length };
   }
 
-  function checkTeamReadiness(team, players) {
+  // opts (0.30.2): optional pre-move floors for user roster moves. An
+  // offseason roster can legally sit below the 24-man game floor
+  // (expired contracts walked), and the strict window was rejecting the
+  // very call-up that climbs back toward it. Passing the PRE-move
+  // counts relaxes each floor to "no worse than before" — every floor
+  // is still capped at its strict value, so a team that already meets
+  // the rules is held to them.
+  function checkTeamReadiness(team, players, opts = {}) {
     const tag = `${team.abbr || team.id} (${team.league || '?'} ${team.division || '?'})`;
     function fail(msg) {
       throw new Error(`Team ${tag} not ready: ${msg}`);
     }
+    const floor = (strict, pre) => pre != null ? Math.min(strict, pre) : strict;
 
     // 26 is full strength; a team may play short (24-25) while an IL stint
     // lacks a call-up (bible 10.5 "play short-handed — legal but unwise").
     // Over 26 is never legal.
-    if (!Array.isArray(team.roster) || team.roster.length < 24 || team.roster.length > 26) {
-      fail(`active roster size ${team.roster ? team.roster.length : 0}, expected 24-26`);
+    const minRoster = floor(24, opts.minRoster);
+    if (!Array.isArray(team.roster) || team.roster.length < minRoster || team.roster.length > 26) {
+      fail(`active roster size ${team.roster ? team.roster.length : 0}, expected ${minRoster}-26`);
     }
 
     // Every roster id must reference a real player.
@@ -794,12 +803,15 @@ window.BBGM_PLAYER_GEN = (function () {
     const roster = team.roster.map((id) => players[id]);
     const pitchers = roster.filter((p) => p.isPitcher);
     const hitters = roster.filter((p) => !p.isPitcher);
-    if (pitchers.length < 11) fail(`only ${pitchers.length} pitchers, expected at least 11`);
-    if (hitters.length < 11) fail(`only ${hitters.length} hitters, expected at least 11`);
+    const minP = floor(11, opts.minPitchers);
+    const minH = floor(11, opts.minHitters);
+    if (pitchers.length < minP) fail(`only ${pitchers.length} pitchers, expected at least ${minP}`);
+    if (hitters.length < minH) fail(`only ${hitters.length} hitters, expected at least ${minH}`);
 
     // Rotation: must be exactly 5 valid SP-eligible pitchers.
-    if (!Array.isArray(team.rotation) || team.rotation.length < 5) {
-      fail(`rotation size ${team.rotation ? team.rotation.length : 0}, expected at least 5`);
+    const minRot = floor(5, opts.minRotation);
+    if (!Array.isArray(team.rotation) || team.rotation.length < minRot) {
+      fail(`rotation size ${team.rotation ? team.rotation.length : 0}, expected at least ${minRot}`);
     }
     for (const id of team.rotation) {
       const p = players[id];
@@ -809,8 +821,9 @@ window.BBGM_PLAYER_GEN = (function () {
 
     // Bullpen: at least 6 arms plus the closer (the bible 11.2 12-pitcher
     // config is 5 SP + closer + 6 pen), all valid.
-    if (!Array.isArray(team.bullpen) || team.bullpen.length < 6) {
-      fail(`bullpen size ${team.bullpen ? team.bullpen.length : 0}, expected at least 6`);
+    const minPen = floor(6, opts.minBullpen);
+    if (!Array.isArray(team.bullpen) || team.bullpen.length < minPen) {
+      fail(`bullpen size ${team.bullpen ? team.bullpen.length : 0}, expected at least ${minPen}`);
     }
     for (const id of team.bullpen) {
       const p = players[id];
