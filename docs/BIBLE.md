@@ -4765,6 +4765,25 @@ This is not a single phase but an ongoing process. Activities include:
 > assertion + full send-down flow (roster 26 → 25, AAA assignment,
 > restore).
 
+> **Status (0.31.1) — 26-man cap fixes + Minors card-first taps.** The
+> user reported a 27-man roster after a trade. executeTrade was NOT
+> the leak (its trim loop is airtight — verified across 2-for-1,
+> minors-for-actives, IL-player, and full-roster shapes); TWO other
+> roster doors had no cap: (1) FA signings — signPlayer pushed MLB
+> deals onto the roster with no trim, so signing at a full 26 quietly
+> ran 27; (2) the rollover IL sweep — healed IL players were pushed
+> back with no trim, so a full roster plus a healed 60-day stint
+> started the new season at 27. Both now demote the weakest man to
+> make room (same rule as executeTrade), a version-gated migration
+> (<0.31.1) trims any save already carrying an over-cap roster and
+> rebuilds its configs, and the consistency probe audits roster ≤ 26
+> daily. Also: Minors tab rows now open the player card directly —
+> the farm actions (Promote/swap, Move Level, Convert or Position
+> work, Release) moved to the bottom of the card via
+> minorsCardActions, with the scouts' level-fit note rendered under
+> the bio (minorsScoutNote) — completing the 0.31.0 card-first
+> pattern across both org tabs.
+
 ### 21.18 What's Explicitly Out of Initial Build
 
 To keep scope contained, several systems are explicitly deferred:

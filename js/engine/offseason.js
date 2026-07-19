@@ -605,6 +605,19 @@ window.BBGM_OFFSEASON = (function () {
         }
       }
       t.il = still;
+      // 26-man cap (0.31.1): a healed IL return on top of a full roster
+      // must displace the weakest man — this sweep used to push without
+      // a trim and run 27-man rosters into the new season. Configs are
+      // rebuilt later in Part B, so a straight demote suffices here.
+      while (t.roster.length > 26) {
+        const weakest = t.roster.map((id) => players[id]).filter(Boolean)
+          .sort((a, b) => ROSTER().overall(a) - ROSTER().overall(b))[0];
+        if (!weakest) break;
+        t.roster.splice(t.roster.indexOf(weakest.id), 1);
+        t.minors.push(weakest.id);
+        weakest.status = 'minors';
+        weakest.rosterStatus = ROSTER().demotionLevel(weakest);
+      }
     }
 
     // Minors level reassignment + 30-cap (12.4 / 12.8). Spring training

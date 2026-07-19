@@ -709,7 +709,10 @@ window.BBGM_UI_TEAM = (function () {
   function prospectRow(p, state, team) {
     const row = U.el('button', {
       class: 'roster-row',
-      on: { click: () => showMinorsActions(state, team, p) }
+      // Straight to the player card (0.31.1) — the farm transactions
+      // (Promote, Move Level, role/position work, Release) live at the
+      // bottom of the profile now, same as the 26-man roster.
+      on: { click: () => window.BBGM_UI_PLAYER.show(p.id) }
     });
     row.appendChild(U.posBadge(p));
     const info = U.el('div', { class: 'player-row-info' });
@@ -776,7 +779,11 @@ window.BBGM_UI_TEAM = (function () {
     return row;
   }
 
-  function showMinorsActions(state, team, p) {
+  // Farm transactions for the player card (0.31.1) — the old minors
+  // action sheet, rebuilt as exported pieces so the profile carries them
+  // directly. minorsScoutNote feeds the card's bio; minorsCardActions
+  // returns the modal-action list (caller appends its own Close).
+  function minorsScoutNote(p) {
     const MIN = window.BBGM_MINORS;
     const fit = MIN.levelFitDelta(p);
     const rec = MIN.recommendedLevel(p);
@@ -786,6 +793,10 @@ window.BBGM_UI_TEAM = (function () {
         ? `Scouts: overmatched at ${p.rosterStatus} — belongs at ${rec}. Rushing him stunts his development.`
         : `Scouts: ${p.rosterStatus} is the right level for him.`;
     if (p.devPosition) note += ` Working out at ${p.devPosition} on the side.`;
+    return note;
+  }
+
+  function minorsCardActions(state, team, p) {
     const actions = [
       { label: team.roster.length < 26 ? 'Promote to 26-man' : 'Promote to 26-man (swap)…',
         kind: 'primary', onClick: () => {
@@ -813,20 +824,11 @@ window.BBGM_UI_TEAM = (function () {
         onClick: () => { setTimeout(() => showPositionWork(state, p), 0); return true; },
       });
     }
-    actions.push({ label: 'View Profile', kind: 'secondary', onClick: () => {
-      setTimeout(() => window.BBGM_UI_PLAYER.show(p.id), 0);
-      return true;
-    }});
     actions.push({ label: 'Release…', kind: 'danger', onClick: () => {
       setTimeout(() => confirmRelease(state, team, p, true), 0);
       return true;
     }});
-    actions.push({ label: 'Cancel', kind: 'secondary', onClick: () => true });
-    U.showModal({
-      title: `${p.name} (${p.rosterStatus})`,
-      body: U.el('p', { class: 'muted', style: { 'font-size': '12px' } }, note),
-      actions,
-    });
+    return actions;
   }
 
   // Position work (0.20.0 — utility men): assign a minor-league hitter a
@@ -1050,5 +1052,6 @@ window.BBGM_UI_TEAM = (function () {
 
   // ratingStrip shared with the League tab's team pages (0.25.2) so every
   // roster surface renders the same attribute chips.
-  return { render, overallHitter, overallPitcher, ratingStrip, confirmSendDown, confirmRelease };
+  return { render, overallHitter, overallPitcher, ratingStrip,
+    confirmSendDown, confirmRelease, minorsCardActions, minorsScoutNote };
 })();

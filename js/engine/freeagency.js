@@ -269,6 +269,21 @@ window.BBGM_FA = (function () {
       team.roster.push(p.id);
       p.status = 'active';
       p.rosterStatus = '26-man';
+      // 26-man cap (0.31.1): FA signings were the one roster door with
+      // no trim — signing at a full 26 quietly ran a 27-man roster into
+      // the season. The manager demotes the weakest to make room, same
+      // as executeTrade (never the man just signed).
+      while (team.roster.length > 26) {
+        const weakest = team.roster.map((id) => state.players[id])
+          .filter((q) => q && q.id !== p.id)
+          .sort((a, b) => ROSTER().overall(a) - ROSTER().overall(b))[0];
+        if (!weakest) break;
+        team.roster.splice(team.roster.indexOf(weakest.id), 1);
+        team.minors.push(weakest.id);
+        weakest.status = 'minors';
+        weakest.rosterStatus = ROSTER().demotionLevel(weakest);
+        ROSTER().replaceRefs(team, state.players, weakest.id, null);
+      }
     } else {
       team.minors.push(p.id);
       p.status = 'minors';

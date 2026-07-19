@@ -132,6 +132,11 @@ window.BBGM_UI_PLAYER = (function () {
         setTimeout(() => TEAM.confirmRelease(state, userTeam, p, false), 0);
         return true;
       }});
+    } else if (TEAM && TEAM.minorsCardActions && userTeam && p.teamId === userTeam.id &&
+        !p.retired && (userTeam.minors || []).includes(p.id)) {
+      // Farm transactions (0.31.1): promote / level / development /
+      // release, straight from the card — same treatment as the 26-man.
+      actions.push(...TEAM.minorsCardActions(state, userTeam, p));
     }
     actions.push({ label: 'Close', kind: 'primary', onClick: () => true });
 
@@ -183,7 +188,21 @@ window.BBGM_UI_PLAYER = (function () {
       const rank = window.BBGM_SCOUT.pipelineRank(state, p.id);
       if (rank) bioRows.push(insetRow('Pipeline', `#${rank} on the NABL Top 100`));
     }
+    // Farm level-fit note (0.31.1): the old minors action sheet carried
+    // the scouts' assignment read — it renders under the bio now.
+    let farmNote = null;
+    {
+      const TEAM0 = window.BBGM_UI_TEAM;
+      const ut = state.league.teams.find((t) => t.id === state.meta.userTeamId);
+      if (TEAM0 && TEAM0.minorsScoutNote && ut && p.teamId === ut.id &&
+          (ut.minors || []).includes(p.id)) {
+        farmNote = TEAM0.minorsScoutNote(p);
+      }
+    }
     body.appendChild(U.el('div', { class: 'inset-list', style: { 'margin-top': '10px' } }, bioRows));
+    if (farmNote) {
+      body.appendChild(U.el('p', { class: 'muted', style: { 'font-size': '12px', 'margin-top': '6px' } }, farmNote));
+    }
 
     // Injury banner.
     if (p.currentInjury) {

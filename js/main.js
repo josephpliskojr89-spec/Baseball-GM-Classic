@@ -438,6 +438,35 @@ window.BBGM_MAIN = (function () {
       }
     }
 
+    // Migration: 0.31.1 trims over-cap rosters. Two doors let a 27th man
+    // on (FA signings and the rollover IL sweep, both since fixed); any
+    // save already carrying an oversized roster gets the weakest men
+    // demoted and the configs rebuilt.
+    if (versionLt(saveVersion, '0.31.1')) {
+      let trimmed = 0;
+      const R = window.BBGM_ROSTER;
+      for (const t of state.league.teams) {
+        if (!Array.isArray(t.roster) || t.roster.length <= 26) continue;
+        while (t.roster.length > 26) {
+          const weakest = t.roster.map((id) => state.players[id]).filter(Boolean)
+            .sort((a, b) => R.overall(a) - R.overall(b))[0];
+          if (!weakest) break;
+          t.roster.splice(t.roster.indexOf(weakest.id), 1);
+          t.minors.push(weakest.id);
+          weakest.status = 'minors';
+          weakest.rosterStatus = R.demotionLevel(weakest);
+        }
+        try { R.safeRebuild(state, t); } catch (e) {
+          console.error(`Over-cap trim rebuild failed for ${t.abbr}:`, e);
+        }
+        trimmed++;
+      }
+      if (trimmed) {
+        console.log(`0.31.1 migration: trimmed ${trimmed} over-cap roster(s) to 26.`);
+        window.BBGM_STATE.set(state);
+      }
+    }
+
     // Stamp the save forward now that every migration has run. This is
     // what makes the versionLt gates above one-shot, and it makes the
     // Menu's "Save version" reflect the code the save actually runs under
