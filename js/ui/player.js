@@ -114,12 +114,31 @@ window.BBGM_UI_PLAYER = (function () {
     else if (activeTab === 'achievements') renderAchievementsTab(content, state, p);
     else renderOverviewTab(content, state, p);
 
+    // Transaction actions (0.31.0): the user's own 26-man players carry
+    // their roster moves right on the card — no intermediate action
+    // sheet. Everyone else's card stays read-only.
+    const actions = [];
+    const TEAM = window.BBGM_UI_TEAM;
+    const userTeam = state.league.teams.find((t) => t.id === state.meta.userTeamId);
+    // Membership in team.roster is the real test — an IL player keeps
+    // status 'active' but is off the 26-man and can't be moved from here.
+    if (TEAM && TEAM.confirmSendDown && userTeam && p.teamId === userTeam.id &&
+        !p.retired && userTeam.roster.includes(p.id)) {
+      actions.push({ label: 'Send Down…', kind: 'secondary', onClick: () => {
+        setTimeout(() => TEAM.confirmSendDown(state, userTeam, p), 0);
+        return true;
+      }});
+      actions.push({ label: 'Release / Waive…', kind: 'danger', onClick: () => {
+        setTimeout(() => TEAM.confirmRelease(state, userTeam, p, false), 0);
+        return true;
+      }});
+    }
+    actions.push({ label: 'Close', kind: 'primary', onClick: () => true });
+
     U.showModal({
       title: '',
       body,
-      actions: [
-        { label: 'Close', kind: 'primary', onClick: () => true },
-      ],
+      actions,
     });
   }
 

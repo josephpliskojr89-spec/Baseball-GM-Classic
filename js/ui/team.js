@@ -265,22 +265,37 @@ window.BBGM_UI_TEAM = (function () {
 
   // ------- Roster actions: release / waive (0.21.0) -------
 
-  function showRosterActions(state, team, p) {
+  // Send a 26-man player to the minors (0.31.0). The catcher floor is
+  // the one rule the post-move validator doesn't cover; everything else
+  // (roster 24-26 window, 11-a-side, rotation/bullpen shape) rides
+  // mutateTeam's validation with pre-move floors.
+  function confirmSendDown(state, team, p) {
+    const players = state.players;
+    const rest = team.roster.map((id) => players[id]).filter((q) => q && q.id !== p.id);
+    const c = rest.filter((q) => !q.isPitcher && q.primaryPosition === 'C').length;
+    if (!p.isPitcher && p.primaryPosition === 'C' && c < 2) {
+      U.showToast(`Can't send ${p.name} down — that would leave you without two catchers.`, 'warning', 5000);
+      return;
+    }
     U.showModal({
-      title: `${p.name} (${p.primaryPosition})`,
-      body: U.el('p', { class: 'muted', style: { 'font-size': '12px' } },
-        `Age ${p.age} • $${(p.contract && p.contract.annualSalary || 0).toFixed(1)}M × ` +
-        `${(p.contract && p.contract.years) || 0}y • ${p.serviceTime ? p.serviceTime.years : 0} yrs service`),
+      title: `Send ${p.name} down?`,
+      body: U.el('p', { style: { 'font-size': '13px' } },
+        'He reports to AAA and stays in your organization. ' +
+        'The manager reworks the lineups and staff around the move.'),
       actions: [
-        { label: 'View Profile', kind: 'primary', onClick: () => {
-          setTimeout(() => window.BBGM_UI_PLAYER.show(p.id), 0);
-          return true;
-        }},
-        { label: 'Release / Waive…', kind: 'danger', onClick: () => {
-          setTimeout(() => confirmRelease(state, team, p, false), 0);
-          return true;
-        }},
         { label: 'Cancel', kind: 'secondary', onClick: () => true },
+        { label: 'Send to AAA', kind: 'danger', onClick: () => {
+          const ok = mutateTeam(state, team, (statuses) => {
+            statuses[p.id] = { rosterStatus: p.rosterStatus, status: p.status };
+            team.roster.splice(team.roster.indexOf(p.id), 1);
+            team.minors.push(p.id);
+            p.status = 'minors';
+            p.rosterStatus = 'AAA';
+            window.BBGM_ROSTER.safeRebuild(state, team);
+          });
+          if (ok) U.showToast(`${p.name} optioned to AAA.`, 'info');
+          return true;
+        }},
       ],
     });
   }
@@ -962,9 +977,12 @@ window.BBGM_UI_TEAM = (function () {
   function playerRow(p, state, year) {
     const s = p.stats[year];
     const team = state.league.teams.find((t) => t.id === state.meta.userTeamId);
+    // Straight to the player card (0.31.0) — the transaction options
+    // (Send Down, Release/Waive) live at the bottom of the profile now,
+    // so the old intermediate action sheet is gone.
     const row = U.el('button', {
       class: 'roster-row',
-      on: { click: () => showRosterActions(state, team, p) }
+      on: { click: () => window.BBGM_UI_PLAYER.show(p.id) }
     });
     row.appendChild(U.posBadge(p));
     const info = U.el('div', { class: 'player-row-info' });
@@ -1032,5 +1050,5 @@ window.BBGM_UI_TEAM = (function () {
 
   // ratingStrip shared with the League tab's team pages (0.25.2) so every
   // roster surface renders the same attribute chips.
-  return { render, overallHitter, overallPitcher, ratingStrip };
+  return { render, overallHitter, overallPitcher, ratingStrip, confirmSendDown, confirmRelease };
 })();

@@ -4748,6 +4748,23 @@ This is not a single phase but an ongoing process. Activities include:
 > load-time league validation keeps its strict defaults. e2e regression:
 > a synthesized 22-man roster accepts a call-up to 23.
 
+> **Status (0.31.0) — send-downs + card-first roster taps (11.5/20.6
+> amendment).** Two gaps the user hit at once: no way to option a
+> 26-man player to the minors, and the Roster tab's intermediate
+> action sheet (View Profile / Release / Cancel) was a wasted tap.
+> Roster rows now open the player card DIRECTLY, and the card carries
+> the transactions at the bottom for the user's own 26-man players:
+> Send Down… (new — confirm modal, demote to AAA through mutateTeam
+> with the 0.30.2 pre-move floors plus a two-catcher pre-check, then
+> safeRebuild so the manager reworks lineups/staff) and Release/
+> Waive… (the existing 0.21.0/0.22.0 flow, now reachable from the
+> card). Rival and FA cards stay read-only; IL players are excluded
+> via roster membership (not status — an IL stint keeps status
+> 'active'). The Pitching and Minors tabs keep their specialized
+> action sheets (roles, conversions, position work). e2e: direct-open
+> assertion + full send-down flow (roster 26 → 25, AAA assignment,
+> restore).
+
 ### 21.18 What's Explicitly Out of Initial Build
 
 To keep scope contained, several systems are explicitly deferred:
