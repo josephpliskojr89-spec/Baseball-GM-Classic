@@ -856,6 +856,7 @@ window.BBGM_UI_DRAFT = (function () {
   // scouting rhythms, different rules — a bonus pool instead of picks.
 
   let intlDepth = 30;
+  let recapDepth = 35;
 
   function INTL() { return window.BBGM_INTL; }
 
@@ -946,10 +947,16 @@ window.BBGM_UI_DRAFT = (function () {
   function renderIntlPool(container, state) {
     const intl = state.intl;
     const inWindow = intl.phase === 'window';
-    const ids = inWindow ? INTL().unsignedBoard(state.intl) : intl.board;
+    // Signed prospects stay ON the board with their destination (0.32.0)
+    // — they used to vanish, so there was no way to see where the class
+    // went. Unsigned targets still pin to the top during the window.
+    const signedBy = {};
+    for (const s of intl.signings || []) signedBy[s.prospectId] = s;
+    const ids = intl.board;
     const targets = new Set(intl.userTargets || []);
+    const pinned = (id) => targets.has(id) && !signedBy[id];
     const ordered = inWindow
-      ? ids.filter((id) => targets.has(id)).concat(ids.filter((id) => !targets.has(id)))
+      ? ids.filter(pinned).concat(ids.filter((id) => !pinned(id)))
       : ids;
 
     const list = U.el('div', { class: 'roster-list' });
@@ -960,7 +967,7 @@ window.BBGM_UI_DRAFT = (function () {
       if (!p) continue;
       // Window steps gate which tiers are actionable; scouting shows all.
       shown++;
-      list.appendChild(intlProspectRow(state, p, intl.board.indexOf(id) + 1, targets.has(id)));
+      list.appendChild(intlProspectRow(state, p, intl.board.indexOf(id) + 1, targets.has(id), signedBy[id]));
     }
     container.appendChild(list);
     if (shown >= intlDepth && ordered.length > intlDepth) {
@@ -971,18 +978,28 @@ window.BBGM_UI_DRAFT = (function () {
     }
   }
 
-  function intlProspectRow(state, p, rank, isTarget) {
+  function intlProspectRow(state, p, rank, isTarget, signedRec) {
     const row = U.el('button', {
       class: 'roster-row',
-      on: { click: () => showIntlProspect(state, p.id) },
+      style: signedRec ? { opacity: '0.65' } : {},
+      on: { click: () => {
+        // Once signed he's a real player — open the full card.
+        if (signedRec && state.players[p.id]) window.BBGM_UI_PLAYER.show(p.id);
+        else showIntlProspect(state, p.id);
+      } },
     });
     row.appendChild(U.el('span', { class: 'pos-badge' }, String(rank)));
     const info = U.el('div', { class: 'player-row-info' });
     const med = window.BBGM_SCOUT.medicalRead(p);
     info.appendChild(U.el('div', { class: 'player-row-name' },
       `${isTarget ? '★ ' : ''}${med && med.flagged ? '⚕ ' : ''}${p.name}`));
+    const signedTeam = signedRec
+      ? state.league.teams.find((t) => t.id === signedRec.teamId) : null;
     info.appendChild(U.el('div', { class: 'player-row-meta' },
-      `${p.primaryPosition} • ${p.age} • ${p.origin} • ask $${p.ask}M`));
+      signedRec
+        ? `${p.primaryPosition} • ${p.age} • signed: ${signedTeam ? signedTeam.abbr : '?'} $${signedRec.bonus}M` +
+          (signedRec.teamId === state.meta.userTeamId ? ' (you)' : '')
+        : `${p.primaryPosition} • ${p.age} • ${p.origin} • ask $${p.ask}M`));
     row.appendChild(info);
     const band = U.el('div', { class: 'player-row-stats' });
     const b = poolBand(state, p, rank, 'intl');
@@ -1010,6 +1027,11 @@ window.BBGM_UI_DRAFT = (function () {
     body.appendChild(U.el('p', { class: 'muted', style: { 'font-size': '12px', 'margin-bottom': '8px' } },
       `${p.primaryPosition} • Bats ${p.bats} / Throws ${p.throws} • Age ${p.age} • ${p.origin}` +
       ` • Rank #${rank} • Ask $${p.ask}M`));
+    if (intl.phase === 'window' && intl.windowStep === 1 && (intl.userOffers || {})[p.id]) {
+      body.appendChild(U.el('p', {
+        style: { 'font-size': '12px', color: 'var(--accent, #58a6ff)', 'font-weight': '600', 'margin-bottom': '6px' },
+      }, `Your standing offer: $${intl.userOffers[p.id]}M`));
+    }
     body.appendChild(prospectBioLine(p));
     const medEl = medicalLine(p);
     if (medEl) body.appendChild(medEl);
@@ -1069,18 +1091,33 @@ window.BBGM_UI_DRAFT = (function () {
     };
     if (intl.phase === 'window') {
       if (intl.windowStep === 1 && rank <= 10) {
+        // Offer ladder (0.32.0): explicit premium tiers with honest odds
+        // labels — the old two-step (ask, then a hidden 1.3× raise) left
+        // ask offers losing ~97% with no explanation. Rival clubs bid
+        // 0.85-1.3× ask (a few chase to 1.35×), so the premium is what
+        // wins bidding wars; overspending the pool still draws penalties.
         const cur = intl.userOffers[p.id];
-        actions.push({
-          label: cur ? `Raise to $${Math.round(p.ask * 1.3 * 100) / 100}M` : `Offer ask ($${p.ask}M)`,
-          kind: 'primary',
-          onClick: () => {
-            intl.userOffers[p.id] = cur ? Math.round(p.ask * 1.3 * 100) / 100 : p.ask;
-            refreshAll();
-            return true;
-          },
-        });
+        const amt = (mul) => Math.round(p.ask * mul * 100) / 100;
+        const tiers = [
+          [1.0, `Offer ask ($${amt(1)}M) — longshot`, 'secondary'],
+          [1.15, `Offer +15% ($${amt(1.15)}M) — underdog`, 'secondary'],
+          [1.3, `Offer +30% ($${amt(1.3)}M) — usually wins`, 'primary'],
+          [1.5, `Blow him away ($${amt(1.5)}M)`, 'primary'],
+        ];
+        for (const [mul, label, kind] of tiers) {
+          if (cur === amt(mul)) continue; // already standing at this number
+          actions.push({
+            label, kind,
+            onClick: () => {
+              intl.userOffers[p.id] = amt(mul);
+              U.showToast(`Offer in: $${amt(mul)}M for ${p.name}.`, 'success');
+              refreshAll();
+              return true;
+            },
+          });
+        }
         if (cur) {
-          actions.push({ label: 'Withdraw Offer', kind: 'secondary', onClick: () => {
+          actions.push({ label: `Withdraw Offer ($${cur}M)`, kind: 'secondary', onClick: () => {
             delete intl.userOffers[p.id];
             refreshAll();
             return true;
@@ -1125,7 +1162,9 @@ window.BBGM_UI_DRAFT = (function () {
     strip.appendChild(U.el('div', { class: 'card-title' }, stepTitle));
     strip.appendChild(U.el('p', { style: { 'font-size': '13px', 'margin-bottom': '8px' } },
       step === 1
-        ? 'Place offers on the elite names — every club with pool money is bidding. Highest bonus wins when you resolve the tier.'
+        ? 'Place offers on the elite names — highest bonus wins when you resolve the tier. ' +
+          'Rivals bid past the ask on kids they want, so an ask-only offer rarely survives; ' +
+          'a premium usually gets your man, and overspending the pool draws penalties.'
         : step === 2
           ? 'Sign your targets at their ask before rival clubs work the same tier.'
           : 'Bulk depth: small bonuses on lottery tickets. Close the window when you\'re done — up to 25% of unspent pool carries over.'));
@@ -1137,7 +1176,30 @@ window.BBGM_UI_DRAFT = (function () {
         const r = INTL().advanceWindow(state);
         window.BBGM_STATE.set(state);
         const mine = (r.results || []).filter((x) => x && x.teamId === state.meta.userTeamId);
-        if (mine.length) {
+        if (r.step === 1) {
+          // Top-tier results in full (0.32.0): where every elite kid
+          // landed, with honest outbid feedback on your losing offers.
+          const body = U.el('div');
+          for (const x of (r.results || []).sort((a, b) => a.rank - b.rank)) {
+            const t = teamOf(state, x.teamId);
+            const won = x.teamId === state.meta.userTeamId;
+            const line = `#${x.rank} ${x.name} (${x.pos}) — ${t ? t.abbr : '?'}, $${x.bonus}M`;
+            body.appendChild(U.el('p', {
+              style: { 'font-size': '13px', margin: '4px 0',
+                ...(won ? { color: 'var(--success, #3fb950)', 'font-weight': '600' } : {}) },
+            }, won ? `${line} — YOURS`
+              : x.userOffer ? `${line} — outbid (your $${x.userOffer}M)` : line));
+          }
+          if (!(r.results || []).length) {
+            body.appendChild(U.el('p', { class: 'muted', style: { 'font-size': '13px' } },
+              'No top-tier signings — the elite names slide to the mid-tier phase.'));
+          }
+          U.showModal({
+            title: 'Top-Tier Signings',
+            body,
+            actions: [{ label: 'Continue', kind: 'primary', onClick: () => true }],
+          });
+        } else if (mine.length) {
           U.showToast(`Signed: ${mine.map((x) => x.name).join(', ')}!`, 'success', 5000);
         } else {
           U.showToast(`${(r.results || []).length} prospects signed league-wide.`, 'info');
@@ -1226,6 +1288,52 @@ window.BBGM_UI_DRAFT = (function () {
         `#${s.rank} ${s.name} (${s.pos}, ${s.country}) — ${t ? t.abbr : '?'}, $${s.bonus}M`));
     }
     container.appendChild(card2);
+
+    // Full destinations (0.32.0): every signing in rank order, plus the
+    // kids who went unsigned — the whole class, accounted for.
+    const signings = (state.intl.signings || []).slice().sort((a, b) => a.rank - b.rank);
+    if (signings.length) {
+      container.appendChild(U.el('div', { class: 'section-header' }, [
+        U.el('h3', {}, 'Where the Class Landed'),
+      ]));
+      const list = U.el('div', { class: 'roster-list card', style: { padding: '0' } });
+      let shown = 0;
+      for (const s of signings) {
+        if (shown >= recapDepth) break;
+        shown++;
+        const t = teamOf(state, s.teamId);
+        const isUser = s.teamId === state.meta.userTeamId;
+        const alive = state.players[s.prospectId];
+        const row = U.el('button', {
+          class: 'roster-row',
+          style: isUser ? { border: '1px solid var(--accent, #58a6ff)' } : {},
+          on: { click: () => { if (alive) window.BBGM_UI_PLAYER.show(s.prospectId); } },
+        });
+        row.appendChild(U.el('span', { class: 'pos-badge' }, `#${s.rank}`));
+        const info = U.el('div', { class: 'player-row-info' });
+        info.appendChild(U.el('div', { class: 'player-row-name' }, s.name));
+        info.appendChild(U.el('div', { class: 'player-row-meta' },
+          `${s.pos} • ${s.age} • ${s.country}${isUser ? ' • (you)' : ''}`));
+        row.appendChild(info);
+        const stats = U.el('div', { class: 'player-row-stats' });
+        stats.appendChild(U.el('span', { style: { 'font-weight': '700' } }, t ? t.abbr : '?'));
+        stats.appendChild(U.el('span', { class: 'key' }, `$${s.bonus}M`));
+        row.appendChild(stats);
+        list.appendChild(row);
+      }
+      container.appendChild(list);
+      if (shown < signings.length) {
+        container.appendChild(U.el('button', {
+          class: 'btn-secondary btn-sm', style: { width: '100%', 'margin-top': '6px' },
+          on: { click: () => { recapDepth += 35; window.BBGM_MAIN.refresh(); } },
+        }, 'Show More'));
+      }
+      const unsignedN = state.intl.board.length - signings.length;
+      if (unsignedN > 0) {
+        container.appendChild(U.el('p', { class: 'muted', style: { 'font-size': '11px', 'margin-top': '6px' } },
+          `${unsignedN} prospect${unsignedN === 1 ? '' : 's'} went unsigned — pool money ran dry league-wide.`));
+      }
+    }
   }
 
   function renderIntlHistory(container, state) {

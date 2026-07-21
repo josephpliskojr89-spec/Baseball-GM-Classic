@@ -340,14 +340,26 @@ window.BBGM_INTL = (function () {
         if (b.restricted) continue;
         const remaining = remainingFor(intl, t.id);
         if (remaining < p.ask * 0.8) continue;
-        if (rand() > 0.28 * aiAppetite(t)) continue; // not every team chases every kid
-        const amount = Math.min(remaining, p.ask * rfloat(0.85, 1.3));
+        // 0.32.0: participation cut 0.28 → 0.12. Real July 2 classes run
+        // on long-standing handshake deals — each elite kid draws 3-4
+        // serious suitors, not nine. With ~9 bidders the old market made
+        // every user offer below a max-raise a ~3% lottery, which read
+        // as "I can never win" (it nearly was). The offer ladder now has
+        // legible odds: ask ~5%, +15% ~25%, +30% ~90%, +50% a lock.
+        if (rand() > 0.12 * aiAppetite(t)) continue;
+        // Most clubs bid inside the expected range; a few chase hard —
+        // the aggressive tail keeps a +30% offer from being a guarantee.
+        const mul = rand() < 0.15 ? rfloat(0.85, 1.35) : rfloat(0.85, 1.3);
+        const amount = Math.min(remaining, p.ask * mul);
         bids.push({ teamId: t.id, amount: Math.floor(amount * 100) / 100 });
       }
       if (!bids.length) continue; // stays on the board for phase 2
       bids.sort((a, b) => b.amount - a.amount);
       const win = bids[0];
-      results.push({ ...signProspect(state, pid, win.teamId, win.amount), user: !!win.user, bidders: bids.length });
+      // userOffer rides along so the UI can show honest outbid feedback
+      // ("SFG paid $7.1M — your $5.5M") on kids the user bid on and lost.
+      results.push({ ...signProspect(state, pid, win.teamId, win.amount),
+        user: !!win.user, bidders: bids.length, userOffer: userOffer || null });
     }
     intl.windowStep = 2;
     return results;

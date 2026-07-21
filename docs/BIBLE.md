@@ -4784,6 +4784,29 @@ This is not a single phase but an ongoing process. Activities include:
 > the bio (minorsScoutNote) — completing the 0.31.0 card-first
 > pattern across both org tabs.
 
+> **Status (0.32.0) — international bidding overhaul (14.3
+> amendment).** The user reported never winning a top-10 bid despite
+> trying every year. Measured: no bug — but the market was a UX trap.
+> ~9 AI bidders per elite kid each drew 0.85-1.3× ask, so an ask
+> offer won 3-5% of the time, while the UI's hidden second tap
+> ("raise to 1.3×") won 100% — opaque both ways. Redesign: (1) AI
+> participation cut 0.28 → 0.12 per team (real July 2 classes run on
+> handshake deals — 3-4 serious suitors per kid, not nine), with an
+> aggressive tail (15% of bids draw up to 1.35×) so no offer short of
+> a blow-away is a guarantee; (2) the two-step offer replaced by an
+> explicit ladder with honest odds labels — ask (~10-15%,
+> "longshot"), +15% (~45%, "underdog"), +30% (~99%, "usually wins"),
+> +50% ("blow him away") — measured at 16/45/99/100% over 120-trial
+> runs; (3) step-1 resolution now shows a full results modal: every
+> top-10 destination, your wins highlighted, and honest outbid lines
+> ("SFG paid $7.1M — your $5.5M") via userOffer carried on the
+> results; (4) signed prospects STAY on the window board annotated
+> "signed: ABBR $X.XM" (they used to vanish), tapping through to the
+> real player card; (5) the closed-window recap gains "Where the
+> Class Landed" — all 100 signings in rank order with team and bonus,
+> plus an unsigned count. The standing offer shows on the prospect
+> card, and the phase-1 copy explains the market honestly.
+
 ### 21.18 What's Explicitly Out of Initial Build
 
 To keep scope contained, several systems are explicitly deferred:
