@@ -406,6 +406,27 @@ window.BBGM_OFFSEASON = (function () {
       }
     }
 
+    // 4.95. Ratings history (0.33.0): snapshot every living player's
+    // current tools AS the season just played, right before progression
+    // rewrites them. Feeds the attribute-history charts on the player
+    // card — the raw material for archetype detective work. Ints only;
+    // storage is bounded because washout retirees are deleted outright
+    // in the 4.45 compaction above.
+    {
+      const HKEYS = ['contactVsR', 'contactVsL', 'powerVsR', 'powerVsL', 'discipline', 'speed', 'defense', 'arm', 'bunting'];
+      const PKEYS = ['stuff', 'velocity', 'movement', 'control', 'stamina'];
+      for (const id in players) {
+        const p = players[id];
+        if (p.retired) continue;
+        if (!p.ratingsHistory) p.ratingsHistory = {};
+        const snap = {};
+        for (const k of (p.isPitcher ? PKEYS : HKEYS)) {
+          if (p.ratings[k] != null) snap[k] = Math.round(p.ratings[k]);
+        }
+        p.ratingsHistory[year] = snap;
+      }
+    }
+
     // 5. Progression + aging (9.1-9.5), with org coach modifiers (9.3).
     const coachModByTeam = {};
     for (const t of teams) coachModByTeam[t.id] = STAFF.coachModsFor(state, t);

@@ -13,7 +13,7 @@
 //     cached zero JS files, so "offline support" never actually worked),
 //     and FAILS if any asset can't be fetched — a half-populated cache
 //     must not activate and shadow the previous good one.
-const VERSION = '0.32.0';
+const VERSION = '0.33.0';
 const CACHE_NAME = `bbgm-classic-v${VERSION}`;
 
 const JS_FILES = [

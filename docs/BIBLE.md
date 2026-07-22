@@ -4807,6 +4807,25 @@ This is not a single phase but an ongoing process. Activities include:
 > plus an unsigned count. The standing offer shows on the prospect
 > card, and the phase-1 copy explains the market honestly.
 
+> **Status (0.33.0) — attribute history charts (9.x adjunct, user
+> request).** Tap any exact-mode rating on the player card to see its
+> full year-over-year history: an inline SVG curve on the 20-80 scale
+> with the peak marked green, a "Peak 60 at age 27 • now 55" summary,
+> and per-season rows. The point is archetype detective work — the
+> game never names a player's development curve, but the shape (early
+> spike, long plateau, steady slide, late bloom) is now readable
+> player by player. Mechanics: offseason Part A snapshots every
+> living player's tools as-played (ints, keyed by season) into
+> p.ratingsHistory immediately BEFORE progression rewrites them; the
+> chart appends the live value as "now". Fogged cells (rival
+> farmhands in band mode) stay untouched — no history taps through
+> the fog. Storage stays bounded because washout retirees are deleted
+> outright by the 4.45 compaction; kept legends retain their curves
+> for posterity. History accumulates from this version forward —
+> existing saves start their charts at the next rollover. Exact cells
+> with history grow a "›" affordance; "Back to Card" returns to the
+> profile.
+
 ### 21.18 What's Explicitly Out of Initial Build
 
 To keep scope contained, several systems are explicitly deferred:

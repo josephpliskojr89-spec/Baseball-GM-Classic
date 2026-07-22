@@ -261,7 +261,7 @@ window.BBGM_UI_PLAYER = (function () {
         'Your scouts have no book on him. A higher scouting tier (GM → Staff) opens up reports at this level.'));
     } else {
       const pot = window.BBGM_SCOUT.potentialBand(state, p);
-      body.appendChild(p.isPitcher ? pitcherRatings(p, rep, pot) : hitterRatings(p, rep, pot));
+      body.appendChild(p.isPitcher ? pitcherRatings(state, p, rep, pot) : hitterRatings(state, p, rep, pot));
       if (rep.mode !== 'exact') {
         body.appendChild(U.el('p', { class: 'muted', style: { 'font-size': '11px', 'margin-top': '6px' } },
           'Projected ranges from your scouting department — the truth may sit outside a band.'));
@@ -452,11 +452,20 @@ window.BBGM_UI_PLAYER = (function () {
   }
 
   // rep (optional): scouting report — band mode renders ranges instead of
-  // exact grades (5.7).
-  function ratingCell(label, value, key, rep) {
-    const cell = U.el('div', { class: 'rating-cell' });
-    cell.appendChild(U.el('div', { class: 'label' }, label));
+  // exact grades (5.7). Exact cells with accumulated history are tappable
+  // (0.33.0): the year-over-year chart is the archetype detective tool.
+  function ratingCell(state, p, label, value, key, rep) {
     const band = rep && rep.mode !== 'exact' ? rep.band(key) : null;
+    const hist = !band && p.ratingsHistory &&
+      Object.keys(p.ratingsHistory).some((y) => p.ratingsHistory[y][key] != null);
+    const cell = U.el(hist ? 'button' : 'div', {
+      class: 'rating-cell',
+      ...(hist ? {
+        style: { cursor: 'pointer', 'text-align': 'inherit' },
+        on: { click: () => { U.closeModal(); setTimeout(() => showRatingHistory(state, p, key, label), 0); } },
+      } : {}),
+    });
+    cell.appendChild(U.el('div', { class: 'label' }, label + (hist ? ' ›' : '')));
     if (band) {
       const mid = (band[0] + band[1]) / 2;
       cell.appendChild(U.el('div', {
@@ -467,6 +476,77 @@ window.BBGM_UI_PLAYER = (function () {
       cell.appendChild(U.ratingDisplay(value));
     }
     return cell;
+  }
+
+  // Year-over-year attribute chart (0.33.0): rollover snapshots plus the
+  // live value, drawn on the 20-80 scale with the peak marked. Reading
+  // the shape — early spike, long plateau, steady slide — is how you
+  // profile a player's archetype without ever being told it.
+  function showRatingHistory(state, p, key, label) {
+    const hist = p.ratingsHistory || {};
+    const years = Object.keys(hist)
+      .filter((y) => hist[y][key] != null)
+      .map(Number).sort((a, b) => a - b);
+    const pts = years.map((y) => ({ year: y, age: y - p.birthYear, value: hist[y][key] }));
+    const curYear = state.meta.currentDate.year;
+    if (!p.retired && (!pts.length || pts[pts.length - 1].year < curYear)) {
+      pts.push({ year: curYear, age: p.age, value: Math.round(p.ratings[key]), now: true });
+    }
+
+    const body = U.el('div');
+    const peak = pts.reduce((a, b) => (b.value > a.value ? b : a), pts[0]);
+    const cur = pts[pts.length - 1];
+    body.appendChild(U.el('p', { class: 'muted', style: { 'font-size': '12px', 'margin-bottom': '8px' } },
+      `Peak ${peak.value} at age ${peak.age} • ${p.retired ? 'final' : 'now'} ${cur.value} at age ${cur.age}`));
+
+    // Inline SVG line chart, 20-80 domain.
+    const W = 300, H = 130, L = 26, R = 8, T = 10, B = 22;
+    const x = (i) => pts.length === 1 ? W / 2 : L + i * ((W - L - R) / (pts.length - 1));
+    const y = (v) => T + (80 - Math.max(20, Math.min(80, v))) * ((H - T - B) / 60);
+    let svg = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block">`;
+    for (const g of [20, 40, 60, 80]) {
+      svg += `<line x1="${L}" y1="${y(g)}" x2="${W - R}" y2="${y(g)}" stroke="rgba(139,148,158,0.25)" stroke-width="1"/>`;
+      svg += `<text x="${L - 4}" y="${y(g) + 3}" font-size="9" fill="#8b949e" text-anchor="end">${g}</text>`;
+    }
+    if (pts.length > 1) {
+      svg += `<polyline fill="none" stroke="#58a6ff" stroke-width="2" points="${pts.map((pt, i) => `${x(i)},${y(pt.value)}`).join(' ')}"/>`;
+    }
+    pts.forEach((pt, i) => {
+      const isPeak = pt === peak;
+      svg += `<circle cx="${x(i)}" cy="${y(pt.value)}" r="${isPeak ? 4 : 2.5}" fill="${isPeak ? '#3fb950' : '#58a6ff'}"/>`;
+    });
+    svg += `<text x="${x(0)}" y="${H - 6}" font-size="9" fill="#8b949e" text-anchor="middle">age ${pts[0].age}</text>`;
+    if (pts.length > 1) {
+      svg += `<text x="${x(pts.length - 1)}" y="${H - 6}" font-size="9" fill="#8b949e" text-anchor="middle">age ${cur.age}</text>`;
+    }
+    svg += '</svg>';
+    body.appendChild(U.el('div', { class: 'card', style: { padding: '8px' }, html: svg }));
+
+    // Compact year rows under the chart.
+    const list = U.el('div', { style: { 'font-size': '12px', 'margin-top': '8px', 'max-height': '180px', 'overflow-y': 'auto' } });
+    for (const pt of pts) {
+      list.appendChild(U.el('div', {
+        style: { display: 'flex', 'justify-content': 'space-between', padding: '2px 4px',
+          ...(pt === peak ? { color: 'var(--success, #3fb950)', 'font-weight': '600' } : {}) },
+      }, [
+        U.el('span', { class: pt === peak ? '' : 'muted' }, `${pt.year} — age ${pt.age}${pt.now ? ' (now)' : ''}`),
+        U.el('span', { style: { 'font-variant-numeric': 'tabular-nums' } }, String(pt.value)),
+      ]));
+    }
+    body.appendChild(list);
+    if (pts.length <= 2) {
+      body.appendChild(U.el('p', { class: 'muted', style: { 'font-size': '11px', 'margin-top': '6px' } },
+        'History accumulates at each season rollover — check back as his career unfolds.'));
+    }
+
+    U.showModal({
+      title: `${label} — ${p.name}`,
+      body,
+      actions: [{ label: 'Back to Card', kind: 'primary', onClick: () => {
+        setTimeout(() => show(p.id), 0);
+        return true;
+      }}],
+    });
   }
 
   // The scouts' development projection fills the grid's open corner —
@@ -487,7 +567,7 @@ window.BBGM_UI_PLAYER = (function () {
     return cell;
   }
 
-  function hitterRatings(p, rep, pot) {
+  function hitterRatings(state, p, rep, pot) {
     const r = p.ratings;
     const items = [
       ['Contact (R)', r.contactVsR, 'contactVsR'],
@@ -501,12 +581,12 @@ window.BBGM_UI_PLAYER = (function () {
       ['Bunting', r.bunting, 'bunting'],
     ];
     const grid = U.el('div', { class: 'ratings-grid' });
-    for (const [label, v, key] of items) grid.appendChild(ratingCell(label, v, key, rep));
+    for (const [label, v, key] of items) grid.appendChild(ratingCell(state, p, label, v, key, rep));
     grid.appendChild(potentialCell(pot));
     return grid;
   }
 
-  function pitcherRatings(p, rep, pot) {
+  function pitcherRatings(state, p, rep, pot) {
     const r = p.ratings;
     const items = [
       ['Stuff', r.stuff, 'stuff'],
@@ -516,7 +596,7 @@ window.BBGM_UI_PLAYER = (function () {
       ['Stamina', r.stamina, 'stamina'],
     ];
     const grid = U.el('div', { class: 'ratings-grid' });
-    for (const [label, v, key] of items) grid.appendChild(ratingCell(label, v, key, rep));
+    for (const [label, v, key] of items) grid.appendChild(ratingCell(state, p, label, v, key, rep));
     grid.appendChild(potentialCell(pot));
     return grid;
   }
