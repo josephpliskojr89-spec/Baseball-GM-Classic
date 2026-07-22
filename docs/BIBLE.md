@@ -2357,7 +2357,16 @@ The user has full control. Notifications surface promotion candidates ("Player X
 > letter (once per player per season); turning the stop off hands the
 > calls to the front office like every other stop. A monthly
 > development report (inbox, 1st of Jun–Sep) names the org's biggest
-> risers and faders since last month. Companion: the `bust` archetype
+> risers and faders since last month. **Amended (0.38.1):** the user's
+> Send Down lands the player at his age-capped recommended level (a
+> 19-year-old goes to AA, not AAA), auto-calls-up a covering catcher
+> or starter when his departure would break those floors, rebuilds the
+> configs BEFORE he joins the farm list (the repair pass used to patch
+> the lineup hole with the best minors player at the position — the
+> very man just optioned, silently undoing the move for anyone who was
+> his position's only real option), and stamps the 21-day cooldown so
+> the merit sweep never reverses a deliberate development stash.
+> User promote-swaps stamp the same cooldown. Companion: the `bust` archetype
 > (8% of both lists, riseRate 0.02) — the prospect who simply never
 > develops, with normal seductive scouted ceilings (scouting never
 > reads archetypes); HS draftees carry extra bust exposure. The only

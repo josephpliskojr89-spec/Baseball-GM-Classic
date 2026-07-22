@@ -546,7 +546,7 @@ window.BBGM_ROSTER = (function () {
 
   return {
     placeOnILWithMove, activateFromIL, replaceRefs, bestCallUp, overall, demotionLevel,
-    newPlayerId, safeRebuild, midSeasonMoves,
+    newPlayerId, safeRebuild, midSeasonMoves, msDayIndex: dayIndex,
     callUpCandidates, callUpNeedFor, executeILCallUp, ensureStaffIntegration,
   };
 })();

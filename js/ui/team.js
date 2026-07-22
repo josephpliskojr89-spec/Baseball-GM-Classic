@@ -265,35 +265,66 @@ window.BBGM_UI_TEAM = (function () {
 
   // ------- Roster actions: release / waive (0.21.0) -------
 
-  // Send a 26-man player to the minors (0.31.0). The catcher floor is
-  // the one rule the post-move validator doesn't cover; everything else
-  // (roster 24-26 window, 11-a-side, rotation/bullpen shape) rides
-  // mutateTeam's validation with pre-move floors.
+  // Send a 26-man player to the minors (0.31.0, reworked 0.38.1). He
+  // lands at the scouts' recommended level (youth age caps included — a
+  // 19-year-old goes to AA, not AAA). If his departure would break a
+  // hard floor (last-but-one catcher, a rotation turn / the 5-SP floor),
+  // the best same-position farmhand gets the call as part of the move
+  // instead of a flat refusal. Everything else (roster window,
+  // 11-a-side, staff shape) rides mutateTeam's validation.
   function confirmSendDown(state, team, p) {
     const players = state.players;
+    const R = window.BBGM_ROSTER;
+    const lvl = R.demotionLevel(p);
     const rest = team.roster.map((id) => players[id]).filter((q) => q && q.id !== p.id);
-    const c = rest.filter((q) => !q.isPitcher && q.primaryPosition === 'C').length;
-    if (!p.isPitcher && p.primaryPosition === 'C' && c < 2) {
-      U.showToast(`Can't send ${p.name} down — that would leave you without two catchers.`, 'warning', 5000);
-      return;
+    // Floors his departure would break → cover them with a call-up.
+    let need = null;
+    if (!p.isPitcher && p.primaryPosition === 'C' &&
+        rest.filter((q) => !q.isPitcher && q.primaryPosition === 'C').length < 2) need = 'C';
+    if (p.isPitcher && ((team.rotation || []).includes(p.id) ||
+        (p.primaryPosition === 'SP' &&
+         rest.filter((q) => q.isPitcher && q.primaryPosition === 'SP').length < 5))) need = 'SP';
+    let cover = null;
+    if (need) {
+      cover = R.bestCallUp(team, players, p.isPitcher, need);
+      if (!cover || cover.primaryPosition !== need) {
+        U.showToast(`Can't send ${p.name} down — no ${need === 'C' ? 'catcher' : 'starter'} ` +
+          `in the minors to take his place.`, 'warning', 5000);
+        return;
+      }
     }
     U.showModal({
       title: `Send ${p.name} down?`,
       body: U.el('p', { style: { 'font-size': '13px' } },
-        'He reports to AAA and stays in your organization. ' +
+        `He reports to ${lvl} and stays in your organization. ` +
+        (cover ? `${cover.name} (${cover.primaryPosition}, ${cover.rosterStatus}) gets the call to cover his spot. ` : '') +
         'The manager reworks the lineups and staff around the move.'),
       actions: [
         { label: 'Cancel', kind: 'secondary', onClick: () => true },
-        { label: 'Send to AAA', kind: 'danger', onClick: () => {
+        { label: `Send to ${lvl}`, kind: 'danger', onClick: () => {
           const ok = mutateTeam(state, team, (statuses) => {
             statuses[p.id] = { rosterStatus: p.rosterStatus, status: p.status };
             team.roster.splice(team.roster.indexOf(p.id), 1);
-            team.minors.push(p.id);
             p.status = 'minors';
-            p.rosterStatus = 'AAA';
-            window.BBGM_ROSTER.safeRebuild(state, team);
+            p.rosterStatus = lvl;
+            if (cover) {
+              statuses[cover.id] = { rosterStatus: cover.rosterStatus, status: cover.status };
+              team.minors.splice(team.minors.indexOf(cover.id), 1);
+              team.roster.push(cover.id);
+              cover.status = 'active';
+              cover.rosterStatus = '26-man';
+            }
+            // Rebuild BEFORE he joins the farm list — safeRebuild patches
+            // lineup holes with the best minors player at the position,
+            // which was the man being sent down himself: the move silently
+            // un-did itself for anyone who was his position's only option.
+            R.safeRebuild(state, team);
+            team.minors.push(p.id);
+            // The AI merit sweep honors a deliberate development stash —
+            // no bounce-back promotion for three weeks.
+            p.msMoved = R.msDayIndex(state.meta.currentDate);
           });
-          if (ok) U.showToast(`${p.name} optioned to AAA.`, 'info');
+          if (ok) U.showToast(`${p.name} optioned to ${lvl}.`, 'info');
           return true;
         }},
       ],
@@ -937,6 +968,7 @@ window.BBGM_UI_TEAM = (function () {
         team.roster.push(minorsP.id);
         minorsP.status = 'active';
         minorsP.rosterStatus = '26-man';
+        minorsP.msMoved = window.BBGM_ROSTER.msDayIndex(state.meta.currentDate);
         // The manager works the new man into his configs (Pillar 4).
         window.BBGM_ROSTER.safeRebuild(state, team);
       });
@@ -962,15 +994,23 @@ window.BBGM_UI_TEAM = (function () {
       statuses[rosterId] = { rosterStatus: down.rosterStatus, status: down.status };
 
       team.roster[team.roster.indexOf(rosterId)] = minorsId;
-      team.minors[team.minors.indexOf(minorsId)] = rosterId;
+      team.minors.splice(team.minors.indexOf(minorsId), 1);
       up.rosterStatus = '26-man';
       up.status = 'active';
       down.rosterStatus = window.BBGM_ROSTER.demotionLevel(down);
       down.status = 'minors';
 
       // The GM made the roster move; the manager re-sets his lineup,
-      // rotation, and bullpen around the new 26-man (Pillar 4).
+      // rotation, and bullpen around the new 26-man (Pillar 4). The
+      // demoted man joins the farm list only AFTER the rebuild, so a
+      // lineup-hole repair can't promote him right back (0.38.1).
       window.BBGM_ROSTER.safeRebuild(state, team);
+      team.minors.push(rosterId);
+      // User moves stamp the same cooldown the AI merit sweep uses —
+      // the front office doesn't reverse a deliberate call within 3 weeks.
+      const stamp = window.BBGM_ROSTER.msDayIndex(state.meta.currentDate);
+      up.msMoved = stamp;
+      down.msMoved = stamp;
     });
   }
 
