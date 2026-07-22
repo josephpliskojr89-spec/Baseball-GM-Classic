@@ -295,10 +295,39 @@ window.BBGM_TRADES = (function () {
     return check(teamA, giveA, giveB) || check(teamB, giveB, giveA);
   }
 
+  // Int'l pool-space trade legality (0.36.0, 6.10 rules): pool moves
+  // only while the current class is LIVE (before its window closes); a
+  // sender can't move more than his unspent pool; a receiver can't
+  // acquire more than +60% of his base pool per class and can't be
+  // under signing restrictions. Returns an error string or null.
+  function poolTradeBlocker(state, fromId, toId, amount) {
+    if (!amount) return null;
+    const intl = state.intl;
+    if (!intl || intl.phase === 'complete') {
+      return 'the signing window is closed — pool space trades again with the next class';
+    }
+    const from = intl.budgets[fromId];
+    const to = intl.budgets[toId];
+    if (!from || !to) return 'no pool ledger for that club';
+    if (to.restricted) return 'a club under signing restrictions can\'t acquire pool space';
+    const remaining = Math.round((from.pool - from.spent) * 100) / 100;
+    if (amount > remaining) return `only $${remaining.toFixed(2)}M of unspent pool is available on that side`;
+    // Back-compat: budgets built before 0.36.0 carry no base/acquired —
+    // treat the current pool as the base the first time it matters.
+    if (to.base == null) to.base = to.pool;
+    if (to.acquired == null) to.acquired = 0;
+    const headroom = Math.round((to.base * 0.6 - to.acquired) * 100) / 100;
+    if (amount > headroom) {
+      return `pool acquisitions cap at +60% of the base pool ($${Math.max(0, headroom).toFixed(2)}M of headroom left)`;
+    }
+    return null;
+  }
+
   // ---- Evaluation (15.6) ----------------------------------------------------
   // give = players the PROPOSER sends; get = players the AI team sends.
-  // cashGive/cashGet in $M (max 20 per side, 15.2).
-  function evaluateProposal(state, aiTeam, give, get, cashGive, cashGet) {
+  // cashGive/cashGet in $M (max 20 per side, 15.2); poolGive/poolGet is
+  // int'l bonus pool space in $M (0.36.0).
+  function evaluateProposal(state, aiTeam, give, get, cashGive, cashGet, poolGive, poolGet) {
     setPlayersRef(state.players);
     if (!tradesAllowed(state)) {
       return { verdict: 'reject', feedback: 'The trade deadline has passed — talk to us in November.' };
@@ -306,11 +335,19 @@ window.BBGM_TRADES = (function () {
     const userTeam = state.league.teams.find((t) => t.id === state.meta.userTeamId);
     const shapeIssue = validateTradeShape(state, userTeam, give, aiTeam, get);
     if (shapeIssue) return { verdict: 'reject', feedback: `Can't make that work: ${shapeIssue}.` };
+    const poolIssue = poolTradeBlocker(state, userTeam.id, aiTeam.id, poolGive || 0) ||
+      poolTradeBlocker(state, aiTeam.id, userTeam.id, poolGet || 0);
+    if (poolIssue) return { verdict: 'reject', feedback: `Can't make that work: ${poolIssue}.` };
 
     // Cash converts at ~0.6 TV per $M (cash is fungible but capped).
+    // Pool space is premium currency — it buys elite teenage upside the
+    // open market can't, so it converts at 1.5 TV per $M.
     const CASH_TV = 0.6;
-    const incoming = give.reduce((s, p) => s + teamValueOf(aiTeam, p), 0) + (cashGive || 0) * CASH_TV;
-    const outgoing = get.reduce((s, p) => s + teamValueOf(aiTeam, p), 0) + (cashGet || 0) * CASH_TV;
+    const POOL_TV = 1.5;
+    const incoming = give.reduce((s, p) => s + teamValueOf(aiTeam, p), 0) +
+      (cashGive || 0) * CASH_TV + (poolGive || 0) * POOL_TV;
+    const outgoing = get.reduce((s, p) => s + teamValueOf(aiTeam, p), 0) +
+      (cashGet || 0) * CASH_TV + (poolGet || 0) * POOL_TV;
 
     if (outgoing <= 0.01) return { verdict: 'reject', feedback: 'They aren\'t interested in moving nothing.' };
     const ratio = incoming / outgoing;
@@ -357,9 +394,36 @@ window.BBGM_TRADES = (function () {
 
   // ---- Execution (15.11 history, roster reconciliation) --------------------
 
-  function executeTrade(state, teamA, playersA, teamB, playersB, cashA, cashB) {
+  function executeTrade(state, teamA, playersA, teamB, playersB, cashA, cashB, poolA, poolB) {
     const players = state.players;
     const year = state.meta.currentDate.year;
+
+    // Cash considerations are PAYROLL money (0.36.0): what a club sends
+    // adds to its effective payroll this season, what it receives
+    // offsets it (computePayroll reads the ledger). Books reset at the
+    // rollover.
+    for (const [team, sent, received] of [[teamA, cashA || 0, cashB || 0], [teamB, cashB || 0, cashA || 0]]) {
+      if (!team.tradeCash) team.tradeCash = { in: 0, out: 0 };
+      team.tradeCash.out = Math.round((team.tradeCash.out + sent) * 10) / 10;
+      team.tradeCash.in = Math.round((team.tradeCash.in + received) * 10) / 10;
+    }
+
+    // Int'l pool space moves on the live class's ledger (legality was
+    // checked at proposal time; clamp defensively here).
+    if ((poolA || poolB) && state.intl && state.intl.phase !== 'complete') {
+      const budgets = state.intl.budgets;
+      const move = (fromId, toId, amt) => {
+        const from = budgets[fromId], to = budgets[toId];
+        if (!from || !to || !amt) return;
+        const x = Math.min(amt, Math.max(0, from.pool - from.spent));
+        from.pool = Math.round((from.pool - x) * 100) / 100;
+        to.pool = Math.round((to.pool + x) * 100) / 100;
+        if (to.base == null) to.base = to.pool - x;
+        to.acquired = Math.round(((to.acquired || 0) + x) * 100) / 100;
+      };
+      move(teamA.id, teamB.id, poolA || 0);
+      move(teamB.id, teamA.id, poolB || 0);
+    }
 
     // Only move players actually in the sending team's org. A stale
     // proposal — built before a sim ran, or a queued AI offer accepted
@@ -435,6 +499,7 @@ window.BBGM_TRADES = (function () {
       playersA: playersA.map((p) => ({ id: p.id, name: p.name })),
       playersB: playersB.map((p) => ({ id: p.id, name: p.name })),
       cashA: cashA || 0, cashB: cashB || 0,
+      poolA: poolA || 0, poolB: poolB || 0,
     };
     state.history.trades.push(entry);
     if (state.history.trades.length > 300) state.history.trades = state.history.trades.slice(-300);
@@ -449,8 +514,10 @@ window.BBGM_TRADES = (function () {
     if (!state.news) state.news = [];
     state.news.push({
       date: { ...state.meta.currentDate },
-      body: `<strong>TRADE:</strong> ${a.abbr} send ${namesA}${entry.cashA ? ` (+$${entry.cashA}M)` : ''} ` +
-            `to ${b.abbr} for ${namesB}${entry.cashB ? ` (+$${entry.cashB}M)` : ''}.`,
+      body: `<strong>TRADE:</strong> ${a.abbr} send ${namesA}` +
+            `${entry.cashA ? ` (+$${entry.cashA}M cash)` : ''}${entry.poolA ? ` (+$${entry.poolA}M int'l pool)` : ''} ` +
+            `to ${b.abbr} for ${namesB}` +
+            `${entry.cashB ? ` (+$${entry.cashB}M cash)` : ''}${entry.poolB ? ` (+$${entry.poolB}M int'l pool)` : ''}.`,
     });
   }
 
@@ -566,7 +633,8 @@ window.BBGM_TRADES = (function () {
   }
 
   return {
-    tradeValue, teamValueOf, teamNeeds, needsReport, findAvailable, expectedAAV, setPlayersRef,
+    tradeValue, teamValueOf, teamNeeds, needsReport, findAvailable, poolTradeBlocker,
+    expectedAAV, setPlayersRef,
     evaluateProposal, suggestAddition, executeTrade, tradeNews,
     validateTradeShape, tradesAllowed, aiTradeTick,
   };

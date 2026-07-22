@@ -216,6 +216,10 @@ window.BBGM_INTL = (function () {
       }
       budgets[t.id] = {
         pool: Math.round((pool + carry) * 10) / 10,
+        // base/acquired (0.36.0): pool-space trades cap acquisitions at
+        // +60% of the base pool per class.
+        base: Math.round((pool + carry) * 10) / 10,
+        acquired: 0,
         spent: 0,
         restricted: !!(prev && prev.restrictedYears > 0),
       };

@@ -4866,6 +4866,27 @@ This is not a single phase but an ongoing process. Activities include:
 > counts show in each section header and scroll resets on page
 > change.
 
+> **Status (0.36.0) — trade money made real (15.2 amendment, user
+> request).** Trade cash previously did NOTHING mechanical — the AI
+> priced it (0.6 TV/$M) and the news mentioned it, but it touched no
+> budget on either side. Now: (1) cash is PAYROLL money — each club
+> carries a tradeCash {in, out} ledger updated by executeTrade;
+> computePayroll counts the net (sent burdens the books, received
+> offsets them), so cash-in genuinely frees FA budget room; the
+> ledger resets every rollover. Builder steppers move in $1M (was a
+> misleading $5M), carry an explainer, and page 2 shows a live
+> payroll-impact line. (2) Int'l bonus pool space is now tradeable
+> under real rules (6.10): $0.25M steps; only while the current
+> class's window hasn't closed; the sender can move only unspent
+> pool; acquisitions cap at +60% of a club's base pool per class
+> (budgets carry base/acquired); clubs under signing restrictions
+> can't acquire. Legality is enforced at proposal time
+> (poolTradeBlocker), defensively re-clamped at execution, and the
+> AI prices pool space at 1.5 TV/$M — premium currency. News and
+> history entries distinguish cash from pool money. Unit-tested
+> (12 checks: ledger math, payroll effect, all four legality rules,
+> transfer bookkeeping, AI valuation).
+
 ### 21.18 What's Explicitly Out of Initial Build
 
 To keep scope contained, several systems are explicitly deferred:

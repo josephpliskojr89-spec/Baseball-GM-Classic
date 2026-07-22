@@ -27,6 +27,12 @@ window.BBGM_FA = (function () {
       const p = players[id];
       if (p && p.contract) total += p.contract.annualSalary || 0;
     }
+    // Trade cash considerations (0.36.0): money sent in trades burdens
+    // this season's books, money received offsets them. The ledger
+    // resets each rollover.
+    if (team.tradeCash) {
+      total += (team.tradeCash.out || 0) - (team.tradeCash.in || 0);
+    }
     return Math.round(total * 10) / 10;
   }
 

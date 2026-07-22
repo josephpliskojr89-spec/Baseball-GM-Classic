@@ -536,15 +536,38 @@ window.BBGM_UI_FRONTOFFICE = (function () {
       container.appendChild(list);
     };
 
-    // Cash stepper builder (up to $20M each way, 15.2) — each page shows
-    // only its own direction.
-    const mkCash = (label, key) => {
+    // Money steppers (0.36.0). Cash is PAYROLL money in $1M steps (cap
+    // $20M each way, 15.2); int'l pool space moves in $0.25M steps under
+    // the signing rules, only while the current class is live.
+    if (draft.poolGive == null) { draft.poolGive = 0; draft.poolGet = 0; }
+    const poolOpen = state.intl && state.intl.phase !== 'complete';
+    const mkStepper = (label, key, step, max, onUp) => {
       const wrap = U.el('div', { style: { display: 'flex', 'align-items': 'center', gap: '8px', 'margin-bottom': '6px' } });
-      wrap.appendChild(U.el('span', { style: { 'font-size': '12px', flex: '1' } }, `${label}: $${draft[key]}M`));
-      wrap.appendChild(U.el('button', { class: 'btn-secondary btn-sm', on: { click: () => { draft[key] = Math.max(0, draft[key] - 5); window.BBGM_MAIN.refresh(); } } }, '−5'));
-      wrap.appendChild(U.el('button', { class: 'btn-secondary btn-sm', on: { click: () => { draft[key] = Math.min(20, draft[key] + 5); window.BBGM_MAIN.refresh(); } } }, '+5'));
+      wrap.appendChild(U.el('span', { style: { 'font-size': '12px', flex: '1' } },
+        `${label}: $${(draft[key] || 0).toFixed(step < 1 ? 2 : 0)}M`));
+      wrap.appendChild(U.el('button', { class: 'btn-secondary btn-sm', on: { click: () => {
+        draft[key] = Math.max(0, Math.round((draft[key] - step) * 100) / 100);
+        window.BBGM_MAIN.refresh();
+      } } }, `−${step}`));
+      wrap.appendChild(U.el('button', { class: 'btn-secondary btn-sm', on: { click: () => {
+        const next = Math.min(max, Math.round((draft[key] + step) * 100) / 100);
+        if (onUp && next > draft[key]) {
+          const err = onUp(next);
+          if (err) { U.showToast(`Can't add pool space — ${err}.`, 'warning', 4500); return; }
+        }
+        draft[key] = next;
+        window.BBGM_MAIN.refresh();
+      } } }, `+${step}`));
       return wrap;
     };
+    const cashNote = () => U.el('p', { class: 'muted', style: { 'font-size': '11px', 'margin-top': '4px' } },
+      'Cash is payroll money: what you receive offsets this season\'s payroll, ' +
+      'what you send adds to it. The books reset each winter.');
+    const poolNote = () => U.el('p', { class: 'muted', style: { 'font-size': '11px', 'margin-top': '4px' } },
+      poolOpen
+        ? 'Int\'l pool space trades under signing rules: unspent pool only, ' +
+          'acquisitions cap at +60% of a club\'s base pool, and restricted clubs can\'t buy in.'
+        : 'Int\'l pool space trades reopen with the next signing class.');
     const discardBtn = () => U.el('button', {
       class: 'btn-secondary', style: { flex: '1' },
       on: { click: () => { draft = null; window.BBGM_MAIN.refresh(); } },
@@ -555,7 +578,13 @@ window.BBGM_UI_FRONTOFFICE = (function () {
       section(`You receive (${draft.get.length} picked)`, partner,
         partner.roster.concat(partner.minors || []), false);
       const cashRow = U.el('div', { class: 'card', style: { padding: '10px 12px', 'margin-top': '10px' } });
-      cashRow.appendChild(mkCash('Cash you receive', 'cashGet'));
+      cashRow.appendChild(mkStepper('Cash you receive', 'cashGet', 1, 20));
+      cashRow.appendChild(cashNote());
+      if (poolOpen) {
+        cashRow.appendChild(mkStepper('Int\'l pool space you receive', 'poolGet', 0.25, 10,
+          (next) => TRADES().poolTradeBlocker(state, partner.id, userTeam.id, next)));
+      }
+      cashRow.appendChild(poolNote());
       container.appendChild(cashRow);
 
       const actions = U.el('div', { style: { display: 'flex', gap: '8px', margin: '12px 0' } });
@@ -577,7 +606,23 @@ window.BBGM_UI_FRONTOFFICE = (function () {
     section(`You send (${draft.give.length} picked)`, userTeam,
       userTeam.roster.concat(userTeam.minors || []), true);
     const cashRow = U.el('div', { class: 'card', style: { padding: '10px 12px', 'margin-top': '10px' } });
-    cashRow.appendChild(mkCash('Cash you send', 'cashGive'));
+    cashRow.appendChild(mkStepper('Cash you send', 'cashGive', 1, 20));
+    cashRow.appendChild(cashNote());
+    if (poolOpen) {
+      cashRow.appendChild(mkStepper('Int\'l pool space you send', 'poolGive', 0.25, 10,
+        (next) => TRADES().poolTradeBlocker(state, userTeam.id, partner.id, next)));
+    }
+    cashRow.appendChild(poolNote());
+    // Live payroll impact of the money in this deal (0.36.0).
+    const netCash = (draft.cashGive || 0) - (draft.cashGet || 0);
+    if (netCash !== 0) {
+      const payroll = FA().computePayroll(userTeam, players);
+      cashRow.appendChild(U.el('p', {
+        style: { 'font-size': '12px', 'font-weight': '600', 'margin-top': '4px',
+          color: netCash > 0 ? 'var(--danger, #e25c5c)' : 'var(--success, #3fb950)' },
+      }, `Payroll impact: ${netCash > 0 ? '+' : '−'}$${Math.abs(netCash)}M this season ` +
+         `($${payroll.toFixed(1)}M now, $${(payroll + netCash).toFixed(1)}M after)`));
+    }
     container.appendChild(cashRow);
 
     // Deal at a glance (0.22.2): the selected package, both sides, with
@@ -589,6 +634,15 @@ window.BBGM_UI_FRONTOFFICE = (function () {
         draft.give.map((id) => players[id]).filter(Boolean)));
       glance.appendChild(tradeCompareSection(state, `You receive from ${partner.abbr}`,
         draft.get.map((id) => players[id]).filter(Boolean)));
+      const money = [];
+      if (draft.cashGive) money.push(`$${draft.cashGive}M cash out`);
+      if (draft.cashGet) money.push(`$${draft.cashGet}M cash in`);
+      if (draft.poolGive) money.push(`$${draft.poolGive.toFixed(2)}M pool out`);
+      if (draft.poolGet) money.push(`$${draft.poolGet.toFixed(2)}M pool in`);
+      if (money.length) {
+        glance.appendChild(U.el('p', { class: 'muted', style: { 'font-size': '12px', 'margin-top': '4px' } },
+          'Money in the deal: ' + money.join(' • ')));
+      }
       container.appendChild(glance);
     }
 
@@ -609,10 +663,11 @@ window.BBGM_UI_FRONTOFFICE = (function () {
     const players = state.players;
     const give = draft.give.map((id) => players[id]).filter(Boolean);
     const get = draft.get.map((id) => players[id]).filter(Boolean);
-    if (!give.length && !draft.cashGive) { U.showToast('You have to send something.', 'warning'); return; }
+    if (!give.length && !draft.cashGive && !draft.poolGive) { U.showToast('You have to send something.', 'warning'); return; }
     if (!get.length) { U.showToast('Pick at least one player to receive.', 'warning'); return; }
 
-    const result = TRADES().evaluateProposal(state, partner, give, get, draft.cashGive, draft.cashGet);
+    const result = TRADES().evaluateProposal(state, partner, give, get,
+      draft.cashGive, draft.cashGet, draft.poolGive, draft.poolGet);
     if (result.verdict === 'accept') {
       U.showModal({
         title: `${partner.abbr} accept!`,
@@ -620,7 +675,8 @@ window.BBGM_UI_FRONTOFFICE = (function () {
         actions: [
           { label: 'Cancel', kind: 'secondary', onClick: () => true },
           { label: 'Finalize Trade', kind: 'primary', onClick: () => {
-            const entry = TRADES().executeTrade(state, userTeam, give, partner, get, draft.cashGive, draft.cashGet);
+            const entry = TRADES().executeTrade(state, userTeam, give, partner, get,
+              draft.cashGive, draft.cashGet, draft.poolGive, draft.poolGet);
             TRADES().tradeNews(state, entry);
             draft = null;
             window.BBGM_STATE.set(state);

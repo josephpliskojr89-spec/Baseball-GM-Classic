@@ -610,6 +610,10 @@ window.BBGM_OFFSEASON = (function () {
       p.consecStarts = 0;
       p.lastPitchedDate = null;
     }
+    // Trade-cash books close with the season (0.36.0): the payroll
+    // ledger of cash sent/received in trades resets every winter.
+    for (const t of teams) t.tradeCash = { in: 0, out: 0 };
+
     // Healed IL players rejoin their rosters; still-injured (TJ) stay on IL.
     const INJ = window.BBGM_INJURIES;
     for (const t of teams) {
