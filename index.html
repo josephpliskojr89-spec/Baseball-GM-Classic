@@ -30,7 +30,7 @@
                 <button id="btnImportGame" class="btn-tertiary">Import Save</button>
                 <input type="file" id="fileImport" accept=".json" hidden>
             </div>
-            <p class="version">v0.39.0</p>
+            <p class="version">v0.39.1</p>
         </div>
     </div>
 
@@ -104,47 +104,100 @@
     <!-- Version-stamped script imports. Browsers (and CDNs) cache JS by URL,
          so changing ?v=... forces a fresh fetch on next load. Bump the
          BBGM_BUILD value below whenever a JS file changes. -->
-    <script src="js/data/constants.js?v=0.39.0"></script>
-    <script src="js/data/name_pools.js?v=0.39.0"></script>
-    <script src="js/data/intl_name_pools.js?v=0.39.0"></script>
-    <script src="js/data/city_pools.js?v=0.39.0"></script>
-    <script src="js/data/teams.js?v=0.39.0"></script>
-    <script src="js/util/rng.js?v=0.39.0"></script>
-    <script src="js/util/dates.js?v=0.39.0"></script>
-    <script src="js/state.js?v=0.39.0"></script>
-    <script src="js/generation/ballparks.js?v=0.39.0"></script>
-    <script src="js/generation/league.js?v=0.39.0"></script>
-    <script src="js/generation/players.js?v=0.39.0"></script>
-    <script src="js/engine/schedule.js?v=0.39.0"></script>
-    <script src="js/engine/stats.js?v=0.39.0"></script>
-    <script src="js/engine/injuries.js?v=0.39.0"></script>
-    <script src="js/engine/fatigue.js?v=0.39.0"></script>
-    <script src="js/engine/roster.js?v=0.39.0"></script>
-    <script src="js/engine/progression.js?v=0.39.0"></script>
-    <script src="js/engine/minors.js?v=0.39.0"></script>
-    <script src="js/engine/trades.js?v=0.39.0"></script>
-    <script src="js/engine/freeagency.js?v=0.39.0"></script>
-    <script src="js/engine/waivers.js?v=0.39.0"></script>
-    <script src="js/engine/inbox.js?v=0.39.0"></script>
-    <script src="js/engine/staff.js?v=0.39.0"></script>
-    <script src="js/engine/scouting.js?v=0.39.0"></script>
-    <script src="js/engine/draft.js?v=0.39.0"></script>
-    <script src="js/engine/intl.js?v=0.39.0"></script>
-    <script src="js/engine/awards.js?v=0.39.0"></script>
-    <script src="js/engine/simulation.js?v=0.39.0"></script>
-    <script src="js/engine/standings.js?v=0.39.0"></script>
-    <script src="js/engine/offseason.js?v=0.39.0"></script>
-    <script src="js/ui/common.js?v=0.39.0"></script>
-    <script src="js/ui/dashboard.js?v=0.39.0"></script>
-    <script src="js/ui/team.js?v=0.39.0"></script>
-    <script src="js/ui/league.js?v=0.39.0"></script>
-    <script src="js/ui/players.js?v=0.39.0"></script>
-    <script src="js/ui/games.js?v=0.39.0"></script>
-    <script src="js/ui/frontoffice.js?v=0.39.0"></script>
-    <script src="js/ui/gm.js?v=0.39.0"></script>
-    <script src="js/ui/drafthub.js?v=0.39.0"></script>
-    <script src="js/ui/menu.js?v=0.39.0"></script>
-    <script src="js/ui/player.js?v=0.39.0"></script>
-    <script src="js/main.js?v=0.39.0"></script>
+    <script src="js/data/constants.js?v=0.39.1"></script>
+    <script src="js/data/name_pools.js?v=0.39.1"></script>
+    <script src="js/data/intl_name_pools.js?v=0.39.1"></script>
+    <script src="js/data/city_pools.js?v=0.39.1"></script>
+    <script src="js/data/teams.js?v=0.39.1"></script>
+    <script src="js/util/rng.js?v=0.39.1"></script>
+    <script src="js/util/dates.js?v=0.39.1"></script>
+    <script src="js/state.js?v=0.39.1"></script>
+    <script src="js/generation/ballparks.js?v=0.39.1"></script>
+    <script src="js/generation/league.js?v=0.39.1"></script>
+    <script src="js/generation/players.js?v=0.39.1"></script>
+    <script src="js/engine/schedule.js?v=0.39.1"></script>
+    <script src="js/engine/stats.js?v=0.39.1"></script>
+    <script src="js/engine/injuries.js?v=0.39.1"></script>
+    <script src="js/engine/fatigue.js?v=0.39.1"></script>
+    <script src="js/engine/roster.js?v=0.39.1"></script>
+    <script src="js/engine/progression.js?v=0.39.1"></script>
+    <script src="js/engine/minors.js?v=0.39.1"></script>
+    <script src="js/engine/trades.js?v=0.39.1"></script>
+    <script src="js/engine/freeagency.js?v=0.39.1"></script>
+    <script src="js/engine/waivers.js?v=0.39.1"></script>
+    <script src="js/engine/inbox.js?v=0.39.1"></script>
+    <script src="js/engine/staff.js?v=0.39.1"></script>
+    <script src="js/engine/scouting.js?v=0.39.1"></script>
+    <script src="js/engine/draft.js?v=0.39.1"></script>
+    <script src="js/engine/intl.js?v=0.39.1"></script>
+    <script src="js/engine/awards.js?v=0.39.1"></script>
+    <script src="js/engine/simulation.js?v=0.39.1"></script>
+    <script src="js/engine/standings.js?v=0.39.1"></script>
+    <script src="js/engine/offseason.js?v=0.39.1"></script>
+    <script src="js/ui/common.js?v=0.39.1"></script>
+    <script src="js/ui/dashboard.js?v=0.39.1"></script>
+    <script src="js/ui/team.js?v=0.39.1"></script>
+    <script src="js/ui/league.js?v=0.39.1"></script>
+    <script src="js/ui/players.js?v=0.39.1"></script>
+    <script src="js/ui/games.js?v=0.39.1"></script>
+    <script src="js/ui/frontoffice.js?v=0.39.1"></script>
+    <script src="js/ui/gm.js?v=0.39.1"></script>
+    <script src="js/ui/drafthub.js?v=0.39.1"></script>
+    <script src="js/ui/menu.js?v=0.39.1"></script>
+    <script src="js/ui/player.js?v=0.39.1"></script>
+    <script src="js/main.js?v=0.39.1"></script>
+    <!-- Boot integrity guard (0.39.1). A PWA mid-update can fetch the new
+         index.html while one of the version-stamped scripts above fails to
+         download (flaky mobile network; the old service worker's cache
+         can't serve the new URLs). The app then half-boots: screens render
+         until they touch the missing module, and the sim halts mid-day
+         with a confusing error. Verify every module registered; if any
+         are missing, retry the load once automatically, then say plainly
+         what happened instead of limping. Inline so it can never itself
+         be the script that fails to arrive. -->
+    <script>
+    (function () {
+      var REQUIRED_MODULES = ['BBGM_CONSTANTS', 'BBGM_NAMES', 'BBGM_INTL_NAMES',
+        'BBGM_CITIES', 'BBGM_TEAMS', 'BBGM_RNG', 'BBGM_DATES', 'BBGM_STATE',
+        'BBGM_BALLPARKS', 'BBGM_LEAGUE_GEN', 'BBGM_PLAYER_GEN', 'BBGM_SCHEDULE',
+        'BBGM_STATS', 'BBGM_INJURIES', 'BBGM_FATIGUE', 'BBGM_ROSTER',
+        'BBGM_PROGRESSION', 'BBGM_MINORS', 'BBGM_TRADES', 'BBGM_FA',
+        'BBGM_WAIVERS', 'BBGM_INBOX', 'BBGM_STAFF', 'BBGM_SCOUT', 'BBGM_DRAFT',
+        'BBGM_INTL', 'BBGM_AWARDS', 'BBGM_SIM', 'BBGM_STANDINGS',
+        'BBGM_OFFSEASON', 'BBGM_UI', 'BBGM_UI_DASHBOARD', 'BBGM_UI_TEAM',
+        'BBGM_UI_LEAGUE', 'BBGM_UI_PLAYERS', 'BBGM_UI_GAMES',
+        'BBGM_UI_FRONTOFFICE', 'BBGM_UI_GM', 'BBGM_UI_DRAFT', 'BBGM_UI_MENU',
+        'BBGM_UI_PLAYER', 'BBGM_MAIN'];
+      var missing = [];
+      for (var i = 0; i < REQUIRED_MODULES.length; i++) {
+        if (!window[REQUIRED_MODULES[i]]) missing.push(REQUIRED_MODULES[i]);
+      }
+      if (!missing.length) {
+        window.__BBGM_BOOT_OK = true;
+        try { sessionStorage.removeItem('bbgm-boot-retry'); } catch (e) {}
+        return;
+      }
+      console.error('BBGM boot incomplete — missing modules:', missing.join(', '));
+      var retried = false;
+      try { retried = !!sessionStorage.getItem('bbgm-boot-retry'); } catch (e) {}
+      if (!retried) {
+        try { sessionStorage.setItem('bbgm-boot-retry', '1'); } catch (e) {}
+        location.reload();
+        return;
+      }
+      // Second failed boot in a row: stop and say so. The save is untouched.
+      document.body.innerHTML =
+        '<div style="max-width:420px;margin:80px auto;padding:24px;font-family:sans-serif;' +
+        'color:#e6edf3;background:#161b22;border-radius:12px;line-height:1.5">' +
+        '<h2 style="margin:0 0 10px;font-size:18px">Update didn\'t finish downloading</h2>' +
+        '<p style="margin:0 0 8px;font-size:14px">Part of the game failed to load ' +
+        '(' + missing.length + ' of ' + REQUIRED_MODULES.length + ' modules missing). ' +
+        'This happens on a spotty connection during an app update. Your save is safe.</p>' +
+        '<p style="margin:0 0 16px;font-size:14px">Check your connection and reload.</p>' +
+        '<button onclick="try{sessionStorage.removeItem(\'bbgm-boot-retry\')}catch(e){};location.reload()" ' +
+        'style="padding:10px 18px;font-size:15px;border:none;border-radius:8px;' +
+        'background:#c9302c;color:#fff;font-weight:600">Reload</button></div>';
+    })();
+    </script>
 </body>
 </html>

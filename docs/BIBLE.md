@@ -4486,6 +4486,19 @@ This is not a single phase but an ongoing process. Activities include:
 >   all version-stamped JS URLs, fails install atomically, and serves
 >   navigations network-first so a stale index.html can never pair with
 >   newer JS (the pre-0.16.2 `#btnMenu` crash class).
+>   **Amended (0.39.1) — boot integrity guard.** One gap remained: fresh
+>   HTML can load while the OLD worker is still active, so the new ?v=
+>   JS URLs miss its cache and each fetch independently races a flaky
+>   mobile network — one lost script and the app half-boots (screens
+>   render until they touch the missing module; the sim halts mid-day
+>   on a confusing error like `emptyPitcher`, the field report that
+>   prompted this). An inline script after the last module tag now
+>   verifies all 42 `window.BBGM_*` globals registered; if any are
+>   missing it auto-reloads once (sessionStorage-guarded), and on a
+>   second failure shows a plain "update didn't finish downloading —
+>   your save is safe" screen instead of limping. The scratchpad
+>   module-load test keeps the guard's list in lockstep with
+>   index.html's script tags.
 > - **The offseason rollover is atomic.** Both rollover halves snapshot
 >   the save before mutating; an error mid-rollover restores the snapshot
 >   instead of persisting a half-consumed October that no retry could fix.
