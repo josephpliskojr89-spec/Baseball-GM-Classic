@@ -242,7 +242,7 @@ window.BBGM_SCOUT = (function () {
     const ti = tierIdx(team);
     const topDepth = pool === 'intl'
       ? [10, 20, 30, 30][ti]
-      : [10, 50, 300, 300][ti]; // draft: standard sees the full class thinly
+      : [10, 50, 350, 350][ti]; // draft: standard sees the full class thinly
     if (pool === 'intl' && rank > 30) {
       // Bottom 70: minimal info at every tier (6.7).
       return { visible: ti >= 3 && rank <= 45, widen: 6 };

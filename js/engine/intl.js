@@ -71,12 +71,15 @@ window.BBGM_INTL = (function () {
     p.name = `${drawn.first} ${drawn.last}`;
   }
 
+  // July 2 signings are TEENAGERS (0.41.0): predominantly 16-17, a few
+  // late-blooming 18s, never older. A 19+ arrival takes a different
+  // road to the majors — NPB postings, KBO free agency, defections —
+  // which is exactly what rollOffseasonEvents models.
   function rollAge() {
     const r = rand();
-    if (r < 0.45) return 16;
-    if (r < 0.75) return 17;
-    if (r < 0.85) return 18;
-    return rint(19, 22);
+    if (r < 0.50) return 16;
+    if (r < 0.92) return 17;
+    return 18;
   }
 
   // Best-tool ceiling band by class rank (6.7). Top of the class matches

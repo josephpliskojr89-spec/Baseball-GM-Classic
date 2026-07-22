@@ -199,6 +199,12 @@ window.BBGM_UI_PLAYER = (function () {
       const rank = window.BBGM_SCOUT.pipelineRank(state, p.id);
       if (rank) bioRows.push(insetRow('Pipeline', `#${rank} on the NABL Top 100`));
     }
+    // Flavor league (0.41.0): an unsigned player is playing SOMEWHERE —
+    // indie ball, Mexico, or across the Pacific.
+    if (p.status === 'FA' && p.playsIn && window.BBGM_FLAVOR) {
+      const lg = window.BBGM_FLAVOR.leagueName(p.playsIn);
+      if (lg) bioRows.push(insetRow('Playing in', lg));
+    }
     // Farm level-fit note (0.31.1): the old minors action sheet carried
     // the scouts' assignment read — it renders under the bio now.
     let farmNote = null;

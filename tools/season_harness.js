@@ -34,6 +34,7 @@ const files = [
   'js/engine/roster.js',
   'js/engine/progression.js',
   'js/engine/minors.js',
+  'js/engine/flavorleagues.js',
   'js/engine/trades.js',
   'js/engine/freeagency.js',
   'js/engine/waivers.js',
@@ -176,10 +177,18 @@ function simOneDay(state) {
         devBase[id] = { ovr: R.overall(p), age: p.age };
       }
     }
+    // Flavor-league assignments + monthly stat lines (0.41.0, mirrors
+    // main.js): farmhands and flavor-league FAs post numbers on the 1st.
+    if (W.BBGM_FLAVOR) W.BBGM_FLAVOR.ensureAssignments(state, today.year);
     for (const id in state.players) {
       const p = state.players[id];
       if (!p || p.status === 'retired') continue;
       W.BBGM_PROGRESSION.inSeasonTick(p, today.year, 0.07);
+      if (p.status === 'minors') {
+        W.BBGM_MINORS.monthlyLine(p, today.year);
+      } else if (p.status === 'FA' && p.playsIn && W.BBGM_FLAVOR) {
+        W.BBGM_MINORS.monthlyLine(p, today.year, W.BBGM_FLAVOR.lineOpts(p) || {});
+      }
     }
     if (today.month === 9 && devBase) {
       const young = [], old = [];
@@ -193,6 +202,17 @@ function simOneDay(state) {
       const mean = (a) => a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0;
       draftLines.push(`  ${today.year} in-season |ΔOVR| May→Sep: age<=26 ${mean(young).toFixed(2)}` +
         ` | age>=30 ${mean(old).toFixed(2)} (t ~0.5-3, nonzero)`);
+      // Flavor-league headcounts (0.41.0): where the unsigned are "playing".
+      const flavCounts = {};
+      let faTotal = 0;
+      for (const fid of state.freeAgents || []) {
+        const fp = state.players[fid];
+        if (!fp || fp.status !== 'FA' || fp.retired) continue;
+        faTotal++;
+        if (fp.playsIn) flavCounts[fp.playsIn] = (flavCounts[fp.playsIn] || 0) + 1;
+      }
+      draftLines.push(`  ${today.year} flavor leagues (${faTotal} FAs): ` +
+        (Object.keys(flavCounts).sort().map((k) => `${k} ${flavCounts[k]}`).join(' | ') || 'none'));
       draftLines.push(`  ${today.year} mid-season moves: swaps ${msSwaps - msSwapsPrev} (t ~15-90)` +
         ` | farm level moves ${msLevelMoves - msLevelPrev}`);
       msSwapsPrev = msSwaps; msLevelPrev = msLevelMoves;
@@ -223,7 +243,7 @@ function simOneDay(state) {
     }
     draftLines.push(`  ${today.year} draft: strength ${state.draftHistory[state.draftHistory.length - 1].strength}` +
       ` | #1 ${first ? `${first.name} (${first.pos}) to ${first.teamId}` : '?'}` +
-      ` | signed ${recap.signedCount}/300` +
+      ` | signed ${recap.signedCount}/300 picks (class 350)` +
       ` | best teen signee OVR ${maxTeenOvr.toFixed(0)} (t <=45)`);
   }
   // International window: class exists all year (rollover / season-1

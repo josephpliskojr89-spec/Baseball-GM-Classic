@@ -1871,10 +1871,21 @@ window.BBGM_MAIN = (function () {
     const R = window.BBGM_ROSTER;
     const tickDay = today.day === 1 && today.month >= 5 && today.month <= 9;
     if (tickDay) {
+      // Flavor-league assignments refresh first (0.41.0) so a newly
+      // released or undrafted FA catches on somewhere before the lines
+      // are written.
+      if (window.BBGM_FLAVOR) window.BBGM_FLAVOR.ensureAssignments(state, today.year);
       for (const id in state.players) {
         const p = state.players[id];
         if (!p || p.retired || p.status === 'retired') continue;
         window.BBGM_PROGRESSION.inSeasonTick(p, today.year, 0.07);
+        // Monthly stat lines (0.41.0): farmhands and flavor-league FAs
+        // post a month of numbers on the 1st — immersion only, no sim.
+        if (p.status === 'minors') {
+          window.BBGM_MINORS.monthlyLine(p, today.year);
+        } else if (p.status === 'FA' && p.playsIn && window.BBGM_FLAVOR) {
+          window.BBGM_MINORS.monthlyLine(p, today.year, window.BBGM_FLAVOR.lineOpts(p) || {});
+        }
       }
       monthlyDevDigest(state, today);
     }

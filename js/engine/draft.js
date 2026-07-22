@@ -1,7 +1,7 @@
 // Amateur draft (bible 13 / Phase 11).
 //
 // Timeline (13.1/13.3): the draft class is generated on May 1 of each
-// season (~300 prospects, 10 rounds x 30 picks) so the user has May and
+// season (350 prospects, 10 rounds x 30 picks) so the user has May and
 // June to work the board. The draft itself runs on June 30 — the sim halts
 // on draft day until the class is drafted (main.js routes the user to the
 // Draft Hub; the harness auto-drafts).
@@ -25,7 +25,11 @@ window.BBGM_DRAFT = (function () {
 
   const ROUNDS = 10;
   const PICKS_PER_ROUND = 30;
-  const CLASS_SIZE = ROUNDS * PICKS_PER_ROUND;
+  // 0.41.0: the class outnumbers the 300 picks, so the last rounds carry
+  // real choice and ~50 names go undrafted every June (college kids hit
+  // the open market; high schoolers head to campus).
+  const CLASS_SIZE = 350;
+  const UNDRAFTED_FA_MAX = 50;
 
   // In-game variance uses Math.random, matching the other engines (the
   // seeded rng is reserved for initial league generation).
@@ -349,7 +353,45 @@ window.BBGM_DRAFT = (function () {
     if (owner === 'aggressive') decay = Math.min(0.75, decay + 0.08);
     else if (owner === 'cheap' && round > 1) { window_ += 4; decay = Math.min(0.78, decay + 0.06); }
 
-    const cands = avail.slice(0, window_).map((id, i) => {
+    // Per-team scouted view (0.41.0). The board is the industry
+    // consensus, but a department's PERCEIVED order blends consensus
+    // rank with the TRUTH in proportion to its scouting tier — elite
+    // depts sniff out the under-ranked gem and fade the consensus
+    // bust; bare-bones ones stay board-slaves. The candidate pool is
+    // the consensus window plus "our guys": the best true talents
+    // buried between the window and ~120, the names a good department
+    // surfaces in its own meetings.
+    const tier = SC && team ? SC.tierIdx(team) : 1;
+    const TRUTH_W = [0.15, 0.30, 0.50, 0.70][tier];
+    const RANK_NOISE = [4, 3, 2, 1][tier];
+    const trueScoreOf = (p) => {
+      const keys = talentKeys(p);
+      const avgCeil = keys.reduce((s, k) => s + p.hidden.ceiling[k], 0) / keys.length;
+      const avgCur = keys.reduce((s, k) => s + p.ratings[k], 0) / keys.length;
+      return avgCeil * 0.5 + avgCur * 0.5;
+    };
+    const deeper = avail.slice(window_, 120)
+      .map((id) => ({ id, t: trueScoreOf(draft.prospects[id]) }))
+      .sort((a, b) => b.t - a.t)
+      .slice(0, 6)
+      .map((x) => x.id);
+    // Off-window consensus rank saturates: "not on the board" is "not on
+    // the board", whether he's #70 or #110 — and the better the dept, the
+    // less that consensus miss costs (they trust their own eyes).
+    const offBoardCap = window_ + [10, 8, 6, 4][tier];
+    const pool = avail.slice(0, window_).concat(deeper).map((id) => ({
+      id,
+      boardPos: Math.min(avail.indexOf(id), offBoardCap),
+      t: trueScoreOf(draft.prospects[id]),
+    }));
+    pool.slice().sort((a, b) => b.t - a.t).forEach((c, i) => { c.trueRank = i; });
+    for (const c of pool) {
+      c.perceived = (1 - TRUTH_W) * c.boardPos + TRUTH_W * c.trueRank + rnorm(0, RANK_NOISE * 0.6);
+    }
+    pool.sort((a, b) => a.perceived - b.perceived);
+
+    const cands = pool.map((c, i) => {
+      const id = c.id;
       const p = draft.prospects[id];
       let w = Math.pow(decay, i);
       const college = p.background !== 'HS';
@@ -554,8 +596,36 @@ window.BBGM_DRAFT = (function () {
       team.minors.push(p.id);
     }
 
-    // Recap + condensed history; drop the 300-player prospect map from the
-    // save (signed picks now live in state.players).
+    // Undrafted paths (0.41.0). High schoolers head to campus — they
+    // were never in state.players, so they simply vanish with the class
+    // (same as unsigned HS picks). College kids hit the open market:
+    // the best UNDRAFTED_FA_MAX by board rank persist as free agents —
+    // they'll catch on in independent ball (flavor leagues), keep
+    // developing, and stay signable. The rest hang them up.
+    {
+      const signedSet = new Set(draft.picks.filter((pk) => pk.signed).map((pk) => pk.prospectId));
+      let intake = 0;
+      for (const id of draft.board) {
+        if (intake >= UNDRAFTED_FA_MAX) break;
+        const p = draft.prospects[id];
+        if (!p || signedSet.has(id)) continue;
+        if (p.background === 'HS') continue; // back to school
+        p.status = 'FA';
+        p.rosterStatus = 'FA';
+        p.teamId = null;
+        p.faSeasons = 0;
+        p.faReason = 'undrafted';
+        p.serviceTime = { years: 0, days: 0 };
+        p.contract = { years: 0, annualSalary: 0, totalValue: 0, signedAt: 'undrafted' };
+        state.players[p.id] = p;
+        if (!state.freeAgents) state.freeAgents = [];
+        state.freeAgents.push(p.id);
+        intake++;
+      }
+    }
+
+    // Recap + condensed history; drop the prospect map from the save
+    // (signed picks and undrafted FAs now live in state.players).
     const userTeamId = state.meta.userTeamId;
     draft.recap = {
       year, strength: draft.strength,

@@ -26,23 +26,21 @@ window.BBGM_MINORS = (function () {
     Rookie: { anchor: 31, noise: 2.0 },
   };
 
-  // Generate the season stat line for one minor leaguer at his level.
-  // Stored under stats[year].minorsLine (flat MLB line stays reserved for
-  // MLB play — a mid-season call-up ends the year with both).
-  function simSeasonLine(p, year) {
-    const lvl = LEVELS[p.rosterStatus] || LEVELS.AAA;
+  // Generate a stat-line CHUNK for one player at a quality anchor.
+  // frac = 1 is a full season; frac ≈ 1/6 is one month (0.41.0 monthly
+  // lines). Rates are computed fresh from current ratings each chunk, so
+  // an in-season developer's later months genuinely play better.
+  function lineChunk(p, lvl, frac) {
     const r = p.ratings;
-    const season = S().ensureSeason(p, year);
-
     if (!p.isPitcher) {
       const contact = (r.contactVsR + r.contactVsL) / 2;
       const power = (r.powerVsR + r.powerVsL) / 2;
       const delta = ((contact + power + r.discipline) / 3) - lvl.anchor;
 
-      const pa = rint(380, 560);
+      const pa = Math.round(rint(380, 560) * frac);
       const bbRate = clamp(0.080 + (r.discipline - lvl.anchor) * 0.0016 + rnorm(0, 0.008 * lvl.noise), 0.03, 0.17);
       const kRate = clamp(0.20 - (contact - lvl.anchor) * 0.002 + rnorm(0, 0.012 * lvl.noise), 0.07, 0.38);
-      const avg = clamp(0.262 + delta * 0.0032 + rnorm(0, 0.016 * lvl.noise), 0.170, 0.390);
+      const avg = clamp(0.262 + delta * 0.0032 + rnorm(0, 0.016 * lvl.noise * Math.sqrt(1 / Math.max(frac, 0.05))), 0.140, 0.430);
       const hrRate = clamp(0.018 + (power - lvl.anchor) * 0.0011 + rnorm(0, 0.004 * lvl.noise), 0.001, 0.065);
 
       const bb = Math.round(pa * bbRate);
@@ -52,36 +50,64 @@ window.BBGM_MINORS = (function () {
       const b2 = Math.round((h - hr) * clamp(0.20 + (power - 45) * 0.001, 0.1, 0.3));
       const b3 = Math.round((h - hr) * clamp(0.02 + (r.speed - 50) * 0.0008, 0, 0.06));
       const k = Math.round(pa * kRate);
-      const sb = Math.max(0, Math.round((r.speed - 42) * 0.55 + rnorm(0, 3)));
+      const sb = Math.max(0, Math.round(((r.speed - 42) * 0.55 + rnorm(0, 3)) * frac));
       const runsish = Math.round(h * 0.42 + bb * 0.25 + hr * 0.6);
-      season.minorsLine = {
-        level: p.rosterStatus, pa, ab, h, b2, b3, hr,
+      return {
+        pa, ab, h, b2, b3, hr,
         r: runsish, rbi: Math.round(h * 0.38 + hr * 1.1),
         sb, cs: Math.round(sb * 0.3), bb, k,
       };
-    } else {
-      const stuffish = (r.stuff + r.velocity) / 2;
-      const delta = ((stuffish + r.control + r.movement) / 3) - lvl.anchor;
-      const isSP = p.primaryPosition === 'SP';
-      const ipOuts = (isSP ? rint(110, 155) : rint(48, 72)) * 3;
-      const era = clamp(4.35 - delta * 0.085 + rnorm(0, 0.45 * lvl.noise), 1.60, 8.20);
-      const ip = ipOuts / 3;
-      const k9 = clamp(7.2 + (stuffish - lvl.anchor) * 0.09 + rnorm(0, 0.5 * lvl.noise), 3.5, 13.5);
-      const bb9 = clamp(3.6 - (r.control - lvl.anchor) * 0.055 + rnorm(0, 0.4 * lvl.noise), 1.0, 7.5);
-      const er = Math.round(era * ip / 9);
-      const g = isSP ? Math.round(ip / 5.3) : rint(35, 55);
-      season.minorsLine = {
-        level: p.rosterStatus,
-        g, gs: isSP ? g : 0,
-        w: Math.max(0, Math.round((isSP ? 9 : 4) * (5.2 - era) / 2.4 + rnorm(0, 1.5))),
-        l: Math.max(0, Math.round((isSP ? 8 : 3) * (era - 2.8) / 2.4 + rnorm(0, 1.5))),
-        sv: (!isSP && r.stuff >= lvl.anchor + 8) ? rint(4, 22) : 0,
-        ipOuts, er,
-        h: Math.round(ip * clamp(1.05 - delta * 0.012, 0.6, 1.5)),
-        bb: Math.round(bb9 * ip / 9), k: Math.round(k9 * ip / 9),
-        hr: Math.round(ip * clamp(0.11 - delta * 0.002, 0.02, 0.22)),
-      };
     }
+    const stuffish = (r.stuff + r.velocity) / 2;
+    const delta = ((stuffish + r.control + r.movement) / 3) - lvl.anchor;
+    const isSP = p.primaryPosition === 'SP';
+    const ipOuts = Math.round((isSP ? rint(110, 155) : rint(48, 72)) * frac) * 3;
+    const era = clamp(4.35 - delta * 0.085 + rnorm(0, 0.45 * lvl.noise * Math.sqrt(1 / Math.max(frac, 0.05))), 0.90, 9.90);
+    const ip = ipOuts / 3;
+    const k9 = clamp(7.2 + (stuffish - lvl.anchor) * 0.09 + rnorm(0, 0.5 * lvl.noise), 3.5, 13.5);
+    const bb9 = clamp(3.6 - (r.control - lvl.anchor) * 0.055 + rnorm(0, 0.4 * lvl.noise), 1.0, 7.5);
+    const er = Math.round(era * ip / 9);
+    const g = isSP ? Math.round(ip / 5.3) : Math.round(rint(35, 55) * frac);
+    return {
+      g, gs: isSP ? g : 0,
+      w: Math.max(0, Math.round(((isSP ? 9 : 4) * (5.2 - era) / 2.4 + rnorm(0, 1.5)) * frac)),
+      l: Math.max(0, Math.round(((isSP ? 8 : 3) * (era - 2.8) / 2.4 + rnorm(0, 1.5)) * frac)),
+      sv: (!isSP && r.stuff >= lvl.anchor + 8) ? Math.round(rint(4, 22) * frac) : 0,
+      ipOuts, er,
+      h: Math.round(ip * clamp(1.05 - delta * 0.012, 0.6, 1.5)),
+      bb: Math.round(bb9 * ip / 9), k: Math.round(k9 * ip / 9),
+      hr: Math.round(ip * clamp(0.11 - delta * 0.002, 0.02, 0.22)),
+    };
+  }
+
+  // Full-season line in one shot — the pre-0.41.0 behavior, kept as the
+  // rollover backfill for players who missed the monthly path (signed
+  // late, migrated saves). Overwrites.
+  function simSeasonLine(p, year) {
+    const lvl = LEVELS[p.rosterStatus] || LEVELS.AAA;
+    const season = S().ensureSeason(p, year);
+    season.minorsLine = { level: p.rosterStatus, ...lineChunk(p, lvl, 1) };
+  }
+
+  // Monthly line (0.41.0): ADD one month-sized chunk into the season's
+  // minorsLine (creating it on first call). `opts` overrides the anchor
+  // for flavor-league players (BBGM_FLAVOR.lineOpts): the level tag then
+  // reads e.g. 'NPB' on the player card instead of a farm level.
+  function monthlyLine(p, year, opts = {}) {
+    const season = S().ensureSeason(p, year);
+    const frac = opts.frac != null ? opts.frac : 1 / 6;
+    const lvl = opts.anchor != null
+      ? { anchor: opts.anchor, noise: opts.noise || 1.2 }
+      : (LEVELS[p.rosterStatus] || LEVELS.AAA);
+    const tag = opts.league || p.rosterStatus;
+    const chunk = lineChunk(p, lvl, frac);
+    if (!season.minorsLine) {
+      season.minorsLine = { level: tag, ...chunk };
+      return;
+    }
+    const line = season.minorsLine;
+    line.level = tag; // latest stop labels the season row
+    for (const k in chunk) line[k] = (line[k] || 0) + chunk[k];
   }
 
   // Level placement (12.4): the band a player's talent belongs in, with
@@ -178,5 +204,5 @@ window.BBGM_MINORS = (function () {
     p.rosterStatus = ORDER[clamp(next, 0, ORDER.length - 1)];
   }
 
-  return { simSeasonLine, reassignLevel, targetLevel, recommendedLevel, levelFitDelta, placementRating, maxLevelIdxForAge, LEVELS, ORDER };
+  return { simSeasonLine, monthlyLine, reassignLevel, targetLevel, recommendedLevel, levelFitDelta, placementRating, maxLevelIdxForAge, LEVELS, ORDER };
 })();

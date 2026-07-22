@@ -251,6 +251,9 @@ window.BBGM_PROGRESSION = (function () {
     // accumulate careers' worth of fringe veterans). The mid-20s tier
     // matters once the draft is the talent pipeline — farm-cap releases
     // land here every offseason and must keep draining.
+    // Undrafted/indie washouts (0.41.0): the young fringe FA who never
+    // catches on gives up the indie grind after a couple of summers.
+    if (p.status === 'FA' && age >= 24 && ovr < 44 && (p.faSeasons || 0) >= 2) return 0.5;
     if (p.status === 'FA' && age >= 28 && ovr < 48) return 0.6;
     if (p.status === 'FA' && age >= 26 && ovr < 46) return 0.5;
     if (p.status === 'FA' && age >= 30 && ovr < 50) return 0.5;

@@ -2372,6 +2372,39 @@ The user has full control. Notifications surface promotion candidates ("Player X
 > reads archetypes); HS draftees carry extra bust exposure. The only
 > tell is the attribute-history chart refusing to move.
 
+> **Status (0.41.0) — the wider baseball world (user request).**
+> Five connected changes. **(1) Intl ages:** the July 2 class is
+> 16-17-year-olds (~92%) with a rare 18; never older — the 19+ route to
+> the NABL is the posting/KBO/defector event pipeline (14.7), as in
+> life. **(2) Draft depth:** 350 prospects for the same 300 picks, so
+> the tenth round carries real choice and ~50 names go undrafted every
+> June. **(3) Smarter draft AI:** each club drafts off a PERCEIVED
+> board — consensus rank blended with true talent in proportion to its
+> scouting tier (bare 15% truth ±4 ranks of noise … elite 70% ±1), over
+> a candidate pool of the consensus window plus the best buried talents
+> down to ~#120. An elite department takes the true-top-5 talent
+> sitting #61 on the board ~10% of the time on a single pick; a
+> bare-bones one never does. **(4) Undrafted paths:** high schoolers
+> (drafted-unsigned or undrafted) return to campus and leave the game;
+> the best ~50 undrafted COLLEGE prospects hit the FA pool (status FA,
+> zero service time) and stay signable. A new drain clause (24+, sub-44
+> OVR, two unsigned years → 50%/yr) keeps the pool from bloating.
+> **(5) View-only flavor leagues + monthly stat lines:** nothing here
+> simulates — no teams, no standings, no games. Every unsigned FA is
+> stamped `playsIn` once per season (young → Atlantic League / American
+> Association / Frontier League; quality vets 27+ → NPB/KBO/Mexican
+> League; ~10% sit out), shown on the FA browser and player card. On
+> the 1st of May-Sep, farmhands AND flavor-league FAs post an additive
+> month-sized stat chunk (minors.monthlyLine, anchored to the league's
+> quality on the 12.2 level scale — NPB 50 plays above AAA 47, Frontier
+> 35 below A), with the rollover adding a sixth closing chunk; season
+> totals match the old one-shot lines, but the card now fills in as the
+> season goes, tagged where he "played" ("2031 NPB", "2031 FRO").
+> Players who miss the monthly path get the classic rollover backfill.
+> Indie-ball kids keep developing through normal progression — the
+> undrafted senior who rakes in the Atlantic League IS signable from
+> the in-season pool, which is the whole point.
+
 ### 12.6 Minor League Free Agents
 
 Players who haven't reached MLB but have been in the minors for 6+ seasons become minor league free agents at the end of their 6th minor-league year. They can be re-signed by their organization or signed by another team to a minor-league deal.

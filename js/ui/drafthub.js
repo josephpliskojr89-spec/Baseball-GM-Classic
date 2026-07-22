@@ -251,7 +251,7 @@ window.BBGM_UI_DRAFT = (function () {
     const card = U.el('div', { class: 'card' });
     card.appendChild(U.el('div', { class: 'card-title' }, `${classYear} NABL Amateur Draft`));
     card.appendChild(U.el('p', { style: { 'font-size': '13px' } },
-      `Class rankings release May 1. Draft day is June 30 — ten rounds, 300 picks, ` +
+      `Class rankings release May 1. Draft day is June 30 — ten rounds, 300 picks from a 350-man class, ` +
       `worst record picks first. The scouting department is already building its board.`));
     container.appendChild(card);
   }
@@ -589,7 +589,7 @@ window.BBGM_UI_DRAFT = (function () {
     const card = U.el('div', { class: 'card' });
     card.appendChild(U.el('div', { class: 'card-title' }, `Draft Day — ${draft.year}`));
     card.appendChild(U.el('p', { style: { 'font-size': '13px', 'margin-bottom': '10px' } },
-      `Ten rounds. 300 picks. Scouts grade it ${strengthLabel(draft.strength)}. ` +
+      `Ten rounds, 300 picks, a 350-man class. Scouts grade it ${strengthLabel(draft.strength)}. ` +
       `The season resumes when the draft wraps.`));
     card.appendChild(U.el('button', {
       class: 'btn-primary', style: { width: '100%' },

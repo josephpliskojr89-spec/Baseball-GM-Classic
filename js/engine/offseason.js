@@ -300,11 +300,30 @@ window.BBGM_OFFSEASON = (function () {
     // hardware. All-Star selections were stamped in July.
     summary.awards = window.BBGM_AWARDS.runAwardsVoting(state, records, year);
 
-    // 2. Minor-league season stat lines (12.2) — with the ratings the
-    // players actually had this season, i.e. before progression.
-    for (const id in players) {
-      const p = players[id];
-      if (p.status === 'minors' && !p.retired) MIN().simSeasonLine(p, year);
+    // 2. Minor-league + flavor-league season stat lines (12.2, monthly
+    // since 0.41.0) — with the ratings the players actually had this
+    // season, i.e. before progression. The 1st-of-month ticks (May-Sep)
+    // already accumulated five chunks; here the season gets its sixth,
+    // closing chunk. Players who missed the monthly path (signed late,
+    // saves migrated mid-season) get the classic one-shot backfill.
+    {
+      const FLAV = window.BBGM_FLAVOR;
+      for (const id in players) {
+        const p = players[id];
+        if (p.retired) continue;
+        const isFarm = p.status === 'minors';
+        const isFlavor = p.status === 'FA' && p.playsIn && FLAV;
+        if (!isFarm && !isFlavor) continue;
+        const opts = isFlavor ? (FLAV.lineOpts(p) || {}) : {};
+        const hasMonthly = p.stats && p.stats[year] && p.stats[year].minorsLine;
+        if (hasMonthly) {
+          MIN().monthlyLine(p, year, opts);
+        } else if (isFarm) {
+          MIN().simSeasonLine(p, year);
+        } else {
+          MIN().monthlyLine(p, year, { ...opts, frac: 1 });
+        }
+      }
     }
 
     // 3. Career aggregation + milestones (8.6).

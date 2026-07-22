@@ -197,8 +197,12 @@ window.BBGM_UI_FRONTOFFICE = (function () {
       row.appendChild(U.posBadge(p));
       const info = U.el('div', { class: 'player-row-info' });
       info.appendChild(U.el('div', { class: 'player-row-name' }, p.name));
+      // Flavor league (0.41.0): where the unsigned man is playing.
+      const FLAV = window.BBGM_FLAVOR;
+      const playing = FLAV && p.playsIn && p.status === 'FA' ? FLAV.leagueName(p.playsIn) : null;
       const metaEl = U.el('div', { class: 'player-row-meta' },
-        `Age ${p.age} • OVR ${U.gradeFor(ROSTER().overall(p))}`);
+        `Age ${p.age} • OVR ${U.gradeFor(ROSTER().overall(p))}` +
+        (playing ? ` • playing in the ${playing}` : ''));
       if (fillsNeed(needSet, p)) {
         metaEl.appendChild(U.el('span', {
           style: { color: 'var(--accent, #58a6ff)', 'font-weight': '600' },
