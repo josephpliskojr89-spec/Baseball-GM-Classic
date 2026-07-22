@@ -211,6 +211,7 @@ window.BBGM_TRADES = (function () {
   // player takes roughly fair value; an unlisted one costs a premium.
   function findAvailable(state, pos) {
     setPlayersRef(state.players);
+    const inSeason = !state.meta.offseasonPhase;
     const out = [];
     for (const t of state.league.teams) {
       if (t.id === state.meta.userTeamId) continue;
@@ -220,9 +221,10 @@ window.BBGM_TRADES = (function () {
       for (const p of roster) {
         if (p.primaryPosition !== pos) continue;
         // A club never shops what it can't legally lose (the same floors
-        // validateTradeShape enforces at proposal time).
-        if (pos === 'C' && cCount <= 2) continue;
-        if (pos === 'SP' && spCount <= 5) continue;
+        // validateTradeShape enforces at proposal time — in-season only,
+        // 0.34.1: winter rosters rebuild before Opening Day).
+        if (inSeason && pos === 'C' && cCount <= 2) continue;
+        if (inSeason && pos === 'SP' && spCount <= 5) continue;
         const market = tradeValue(p);
         if (market <= 6) continue; // fringe filler is waived, not "found"
         const ratio = teamValueOf(t, p) / market;
@@ -254,20 +256,30 @@ window.BBGM_TRADES = (function () {
   // Both teams must remain structurally playable: catcher floor, SP floor,
   // rough P/H balance, and coverage for every defensive position (counting
   // org minors depth, which can be promoted to patch a hole).
+  //
+  // 0.34.1: the 26-man count floors apply IN SEASON only — offseason
+  // rosters are legally short all winter and every club rebuilds through
+  // free agency and the spring backfill before Opening Day, so a
+  // December trade that thins the staff is normal business. Org-wide
+  // position coverage still holds year-round: nobody trades away the
+  // only catcher in the organization.
   function validateTradeShape(state, teamA, giveA, teamB, giveB) {
     const players = state.players;
+    const inSeason = !state.meta.offseasonPhase;
     function check(team, out, incoming) {
       const outIds = new Set(out.map((p) => p.id));
       const roster = team.roster.map((id) => players[id]).filter((p) => p && !outIds.has(p.id))
         .concat(incoming.filter((p) => p.status !== 'minors'));
-      const c = roster.filter((p) => !p.isPitcher && p.primaryPosition === 'C').length;
-      const sp = roster.filter((p) => p.isPitcher && p.primaryPosition === 'SP').length;
-      const pitchers = roster.filter((p) => p.isPitcher).length;
-      const hitters = roster.length - pitchers;
-      if (c < 2) return `${team.abbr} would be left without two catchers`;
-      if (sp < 5) return `${team.abbr} would be left without five starters`;
-      if (pitchers < 11) return `${team.abbr} would be left with too few pitchers`;
-      if (hitters < 11) return `${team.abbr} would be left with too few position players`;
+      if (inSeason) {
+        const c = roster.filter((p) => !p.isPitcher && p.primaryPosition === 'C').length;
+        const sp = roster.filter((p) => p.isPitcher && p.primaryPosition === 'SP').length;
+        const pitchers = roster.filter((p) => p.isPitcher).length;
+        const hitters = roster.length - pitchers;
+        if (c < 2) return `${team.abbr} would be left without two catchers`;
+        if (sp < 5) return `${team.abbr} would be left without five starters`;
+        if (pitchers < 11) return `${team.abbr} would be left with too few pitchers`;
+        if (hitters < 11) return `${team.abbr} would be left with too few position players`;
+      }
       // Position coverage: the post-trade org (26-man + minors, minus the
       // outgoing players) must be able to field all eight positions.
       const orgHitters = roster.concat(

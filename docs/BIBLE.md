@@ -4843,6 +4843,14 @@ This is not a single phase but an ongoing process. Activities include:
 > two taps. Measured league-wide: ~150 players available across all
 > positions on a fresh league. Unit-tested (floors, labels, sort,
 > user-team exclusion) + e2e finder→builder flow.
+> 0.34.1: the 26-man count floors (2 C / 5 SP / 11-a-side) apply IN
+> SEASON only — a December trade that thins the staff was being
+> rejected ("too few pitchers") even though winter rosters are
+> legally short and every club rebuilds through free agency and the
+> spring backfill before Opening Day. Org-wide position coverage
+> still holds year-round (nobody trades away the only catcher in the
+> organization), and the Trade Finder's floor guards relax on the
+> same rule — a two-catcher club will move one in December.
 
 ### 21.18 What's Explicitly Out of Initial Build
 
