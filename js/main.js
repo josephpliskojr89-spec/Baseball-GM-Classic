@@ -1667,10 +1667,14 @@ window.BBGM_MAIN = (function () {
     advanceFatigueRecovery(state, games);
     surfaceFatigueRestNotifications(state, today);
 
+    const stops = window.BBGM_STATE.simStops(state);
+
+    // In-season development ticks + merit-based roster moves (0.38.0).
+    devTickAndMoves(state, today, stops);
+
     // AI trade activity (bible 15.7): AI-AI deals and occasional
     // unsolicited offers to the user, up to the July 31 deadline.
     // A NEW offer to the user is a sim-stop event when the toggle is on.
-    const stops = window.BBGM_STATE.simStops(state);
     const offersBefore = (state.pendingTradeOffers || []).length;
     window.BBGM_TRADES.aiTradeTick(state, today);
     if (stops.tradeOffer && (state.pendingTradeOffers || []).length > offersBefore) {
@@ -1853,6 +1857,139 @@ window.BBGM_MAIN = (function () {
 
     // Advance
     state.meta.currentDate = D.addDays(today, 1);
+  }
+
+  // ---- In-season development + merit moves (0.38.0) ------------------------
+  // Monthly tick (1st of May–Sep): every unretired player takes a small
+  // development step along his archetype curve — ~7% of the annual rates
+  // per tick, with the offseason pass scaled to 65% so the yearly total is
+  // unchanged. The visible difference: a breakout farmhand improves DURING
+  // the season, and an aging vet visibly slips. Weekly, orgs act on it —
+  // ROSTER.midSeasonMoves promotes the farmhands who've earned it.
+  function devTickAndMoves(state, today, stops) {
+    if (state.offseasonPhase) return;
+    const R = window.BBGM_ROSTER;
+    const tickDay = today.day === 1 && today.month >= 5 && today.month <= 9;
+    if (tickDay) {
+      for (const id in state.players) {
+        const p = state.players[id];
+        if (!p || p.retired || p.status === 'retired') continue;
+        window.BBGM_PROGRESSION.inSeasonTick(p, today.year, 0.07);
+      }
+      monthlyDevDigest(state, today);
+    }
+
+    // Pre-move Pipeline ranks for the news ticker — the promoted player
+    // graduates off the list the moment he's active, so capture ranks
+    // before the moves run. Only bother on days moves can actually fire.
+    const moveDay = [1, 8, 15, 22, 29].includes(today.day) &&
+      ((today.month === 4 && today.day >= 15) || (today.month >= 5 && today.month <= 8));
+    let rankOf = null;
+    if (moveDay) {
+      rankOf = {};
+      window.BBGM_SCOUT.prospectRankings(state).forEach((e, i) => { rankOf[e.id] = i + 1; });
+    }
+
+    const events = R.midSeasonMoves(state, today, { userAuto: !stops.promotion });
+    if (!events.length) return;
+    if (!state.news) state.news = [];
+    const userId = state.meta.userTeamId;
+    for (const ev of events) {
+      const up = state.players[ev.upId];
+      const down = ev.downId ? state.players[ev.downId] : null;
+      const team = state.league.teams.find((t) => t.id === ev.teamId);
+      if (!up || !team) continue;
+
+      if (ev.type === 'suggestion') {
+        // User club with the promotion stop ON: notify, don't act. At most
+        // one halt per player per season, or a hot farmhand nags weekly.
+        if (!state.meta.promoHalts || state.meta.promoHalts.year !== today.year) {
+          state.meta.promoHalts = { year: today.year, ids: [] };
+        }
+        if (state.meta.promoHalts.ids.includes(up.id)) continue;
+        state.meta.promoHalts.ids.push(up.id);
+        window.BBGM_INBOX.push(state, {
+          from: 'Player Development',
+          subject: `${up.name} is forcing the issue`,
+          body: `${up.name} (${up.primaryPosition}, ${up.rosterStatus}) has nothing left to prove down here — ` +
+                `our staff grades him ahead of ${down ? down.name : 'the back of your roster'} right now. ` +
+                `He's ready for the call whenever you are.`,
+          action: { type: 'navigate', tab: 'team', opts: { tab: 'minors' } },
+        });
+        queueHalt({
+          title: 'Promotion Push',
+          body: `${up.name} (${up.primaryPosition}, ${up.rosterStatus}) is outplaying ` +
+                `${down ? down.name : 'a big-league roster spot'} — player development says he's ready now.`,
+          actions: [{ label: 'View Minors', kind: 'primary', onClick: () => {
+            navigate('team', { tab: 'minors' });
+            return true;
+          }}],
+        });
+      } else if (ev.type === 'swap') {
+        if (ev.teamId === userId) {
+          state.news.push({ date: { ...today },
+            body: `<strong>Front office move:</strong> ${up.name} (${up.primaryPosition}) earns the call-up` +
+                  (down ? `; ${down.name} optioned to ${down.rosterStatus}.` : '.') });
+        } else {
+          const rank = rankOf ? rankOf[up.id] : null;
+          if (rank) {
+            state.news.push({ date: { ...today },
+              body: `${team.abbr} call up <strong>#${rank} prospect ${up.name}</strong> (${up.primaryPosition})` +
+                    (down ? `, optioning ${down.name}.` : '.') });
+          }
+        }
+      } else if (ev.type === 'level' && ev.teamId === userId) {
+        state.news.push({ date: { ...today },
+          body: `${up.name} (${up.primaryPosition}) promoted to <strong>${ev.to}</strong> — ` +
+                `he'd outgrown ${ev.from}.` });
+      }
+    }
+  }
+
+  // Monthly development digest (0.38.0): on the 1st, right after the dev
+  // tick, the minor-league managers and scouts write in about who in the
+  // org is moving. Compares each player's overall to last month's
+  // snapshot; the May 1 tick seeds the baseline (no letter — nothing to
+  // compare against yet).
+  function monthlyDevDigest(state, today) {
+    const R = window.BBGM_ROSTER;
+    const team = state.league.teams.find((t) => t.id === state.meta.userTeamId);
+    if (!team) return;
+    const ids = (team.roster || []).concat(team.minors || [], team.il || []);
+    const snap = {};
+    for (const id of ids) {
+      const p = state.players[id];
+      if (p) snap[id] = Math.round(R.overall(p) * 10) / 10;
+    }
+    const prev = state.meta.devSnap;
+    state.meta.devSnap = { year: today.year, month: today.month, ovrs: snap };
+    if (!prev || prev.year !== today.year) return;
+
+    const movers = [];
+    for (const id in snap) {
+      if (prev.ovrs[id] == null) continue;
+      const d = Math.round((snap[id] - prev.ovrs[id]) * 10) / 10;
+      if (Math.abs(d) < 0.4) continue;
+      movers.push({ p: state.players[id], d });
+    }
+    if (!movers.length) return;
+    movers.sort((a, b) => Math.abs(b.d) - Math.abs(a.d));
+    const label = (p) => `${p.name} (${p.primaryPosition}, ${p.status === 'minors' ? p.rosterStatus : 'MLB'})`;
+    const risers = movers.filter((m) => m.d > 0).slice(0, 4);
+    const faders = movers.filter((m) => m.d < 0).slice(0, 4);
+    const parts = [];
+    if (risers.length) {
+      parts.push('Trending up: ' + risers.map((m) => `${label(m.p)} +${m.d.toFixed(1)}`).join('; ') + '.');
+    }
+    if (faders.length) {
+      parts.push('Trending down: ' + faders.map((m) => `${label(m.p)} ${m.d.toFixed(1)}`).join('; ') + '.');
+    }
+    window.BBGM_INBOX.push(state, {
+      from: 'Player Development',
+      subject: `${C.MONTHS[today.month - 1]} development report`,
+      body: 'Monthly check-in from the minor-league staff. ' + parts.join(' '),
+      action: { type: 'navigate', tab: 'team', opts: { tab: 'minors' } },
+    });
   }
 
   function pruneOldGameLogs(state, today) {

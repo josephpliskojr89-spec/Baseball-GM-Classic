@@ -3,7 +3,7 @@ window.BBGM_CONSTANTS = {
   // Single source of truth for the app/save version. main.js stamps this
   // into new saves; index.html's ?v= cache-busters and the service-worker
   // cache name must be bumped in lockstep (they can't read JS constants).
-  VERSION: '0.37.0',
+  VERSION: '0.38.0',
   START_YEAR: 2026,
   TEAMS_PER_LEAGUE: 15,
   // Two leagues, three divisions each. Internal values are lowercase for
@@ -53,27 +53,33 @@ window.BBGM_CONSTANTS = {
     { key: 'small', name: 'Small', base: 90, count: 8 },
   ],
 
-  // Hitter archetypes (per 5.6)
+  // Hitter archetypes (per 5.6). 'bust' (0.38.0): the prospect who
+  // simply never develops — riseRate ~0 means the scouted ceiling never
+  // arrives. Scouting NEVER reads the archetype, so a bust's potential
+  // band looks as seductive as anyone's; the only tell is watching the
+  // attribute history not move, season after season.
   HITTER_ARCHETYPES: [
-    { key: 'traditional', weight: 0.35, peakAge: [27, 29], riseRate: 0.25, declineRate: 0.15, plateauWidth: 3, volatility: 0.10 },
+    { key: 'traditional', weight: 0.30, peakAge: [27, 29], riseRate: 0.25, declineRate: 0.15, plateauWidth: 3, volatility: 0.10 },
     { key: 'late_bloomer', weight: 0.10, peakAge: [30, 33], riseRate: 0.10, declineRate: 0.20, plateauWidth: 2, volatility: 0.15, breakoutAge: [26, 28] },
-    { key: 'early_peak', weight: 0.15, peakAge: [23, 25], riseRate: 0.40, declineRate: 0.18, plateauWidth: 2, volatility: 0.15 },
+    { key: 'early_peak', weight: 0.12, peakAge: [23, 25], riseRate: 0.40, declineRate: 0.18, plateauWidth: 2, volatility: 0.15 },
     { key: 'one_year_wonder', weight: 0.05, peakAge: [24, 26], riseRate: 0.30, declineRate: 0.25, plateauWidth: 1, volatility: 0.30, reversionLikelihood: 0.85 },
     { key: 'steady_decliner', weight: 0.10, peakAge: [22, 24], riseRate: 0.45, declineRate: 0.10, plateauWidth: 4, volatility: 0.08 },
     { key: 'quad_a', weight: 0.10, peakAge: [25, 27], riseRate: 0.30, declineRate: 0.20, plateauWidth: 2, volatility: 0.15, ceilingCap: 50 },
     { key: 'slow_burn', weight: 0.10, peakAge: [30, 32], riseRate: 0.15, declineRate: 0.10, plateauWidth: 3, volatility: 0.08 },
     { key: 'volatile', weight: 0.05, peakAge: [27, 29], riseRate: 0.25, declineRate: 0.15, plateauWidth: 2, volatility: 0.40 },
+    { key: 'bust', weight: 0.08, peakAge: [24, 26], riseRate: 0.02, declineRate: 0.18, plateauWidth: 2, volatility: 0.12 },
   ],
 
   PITCHER_ARCHETYPES: [
-    { key: 'traditional', weight: 0.30, peakAge: [27, 30], riseRate: 0.25, declineRate: 0.18, plateauWidth: 3, volatility: 0.12 },
+    { key: 'traditional', weight: 0.25, peakAge: [27, 30], riseRate: 0.25, declineRate: 0.18, plateauWidth: 3, volatility: 0.12 },
     { key: 'workhorse', weight: 0.10, peakAge: [28, 31], riseRate: 0.18, declineRate: 0.10, plateauWidth: 5, volatility: 0.08 },
     { key: 'late_reinvent', weight: 0.10, peakAge: [32, 35], riseRate: 0.15, declineRate: 0.12, plateauWidth: 3, volatility: 0.15 },
     { key: 'flameout', weight: 0.10, peakAge: [25, 27], riseRate: 0.40, declineRate: 0.30, plateauWidth: 1, volatility: 0.20 },
     { key: 'crafty_vet', weight: 0.10, peakAge: [29, 31], riseRate: 0.20, declineRate: 0.10, plateauWidth: 4, volatility: 0.10 },
     { key: 'reliever_conv', weight: 0.10, peakAge: [27, 30], riseRate: 0.25, declineRate: 0.20, plateauWidth: 2, volatility: 0.18 },
     { key: 'quad_a', weight: 0.10, peakAge: [25, 27], riseRate: 0.30, declineRate: 0.25, plateauWidth: 2, volatility: 0.18, ceilingCap: 50 },
-    { key: 'volatile', weight: 0.10, peakAge: [27, 30], riseRate: 0.25, declineRate: 0.18, plateauWidth: 2, volatility: 0.40 },
+    { key: 'volatile', weight: 0.07, peakAge: [27, 30], riseRate: 0.25, declineRate: 0.18, plateauWidth: 2, volatility: 0.40 },
+    { key: 'bust', weight: 0.08, peakAge: [24, 26], riseRate: 0.02, declineRate: 0.18, plateauWidth: 2, volatility: 0.12 },
   ],
 
   POSITIONS: ['C', '1B', '2B', '3B', 'SS', 'LF', 'CF', 'RF', 'DH', 'SP', 'RP', 'CP'],

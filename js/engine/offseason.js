@@ -408,10 +408,12 @@ window.BBGM_OFFSEASON = (function () {
 
     // 4.95. Ratings history (0.33.0): snapshot every living player's
     // current tools AS the season just played, right before progression
-    // rewrites them. Feeds the attribute-history charts on the player
-    // card — the raw material for archetype detective work. Ints only;
-    // storage is bounded because washout retirees are deleted outright
-    // in the 4.45 compaction above.
+    // rewrites them. Since 0.38.0 the season's in-season dev ticks are
+    // already baked in, so the point reads "as-played by season's end".
+    // Feeds the attribute-history charts on the player card — the raw
+    // material for archetype detective work. Ints only; storage is
+    // bounded because washout retirees are deleted outright in the 4.45
+    // compaction above.
     {
       const HKEYS = ['contactVsR', 'contactVsL', 'powerVsR', 'powerVsL', 'discipline', 'speed', 'defense', 'arm', 'bunting'];
       const PKEYS = ['stuff', 'velocity', 'movement', 'control', 'stamina'];

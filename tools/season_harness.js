@@ -89,6 +89,10 @@ const runsByLeague = { east: 0, west: 0 }, gamesByLeague = { east: 0, west: 0 };
 let relieverWins = 0;
 let fieldingErrors = 0;
 let consecDayViolations = 0; // reliever appearing on a 4th straight day
+// 0.38.0 in-season development + merit-move diagnostics.
+let devBase = null;          // May 1 pre-tick OVR/age snapshot
+let msSwaps = 0, msLevelMoves = 0;
+let msSwapsPrev = 0, msLevelPrev = 0;
 
 function applyCeilingDrop(p) {
   const c = p.hidden.ceiling;
@@ -159,6 +163,46 @@ function simOneDay(state) {
       const team = state.league.teams.find((t) => t.id === p.teamId);
       if (team && (team.il || []).includes(p.id)) R.activateFromIL(state, team, p);
     }
+  }
+  // In-season development ticks (0.38.0, mirrors main.js): 1st of May–Sep,
+  // every unretired player steps along his archetype curve at ~7% of the
+  // annual rates. Drift diagnostic: mean |ΔOVR| May→Sep by age cohort.
+  if (today.day === 1 && today.month >= 5 && today.month <= 9) {
+    if (today.month === 5) {
+      devBase = {};
+      for (const id in state.players) {
+        const p = state.players[id];
+        if (!p || p.status === 'retired') continue;
+        devBase[id] = { ovr: R.overall(p), age: p.age };
+      }
+    }
+    for (const id in state.players) {
+      const p = state.players[id];
+      if (!p || p.status === 'retired') continue;
+      W.BBGM_PROGRESSION.inSeasonTick(p, today.year, 0.07);
+    }
+    if (today.month === 9 && devBase) {
+      const young = [], old = [];
+      for (const id in devBase) {
+        const p = state.players[id];
+        if (!p || p.status === 'retired') continue;
+        const d = Math.abs(R.overall(p) - devBase[id].ovr);
+        if (devBase[id].age <= 26) young.push(d);
+        else if (devBase[id].age >= 30) old.push(d);
+      }
+      const mean = (a) => a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0;
+      draftLines.push(`  ${today.year} in-season |ΔOVR| May→Sep: age<=26 ${mean(young).toFixed(2)}` +
+        ` | age>=30 ${mean(old).toFixed(2)} (t ~0.5-3, nonzero)`);
+      draftLines.push(`  ${today.year} mid-season moves: swaps ${msSwaps - msSwapsPrev} (t ~15-90)` +
+        ` | farm level moves ${msLevelMoves - msLevelPrev}`);
+      msSwapsPrev = msSwaps; msLevelPrev = msLevelMoves;
+    }
+  }
+  // Merit-based mid-season moves (0.38.0, mirrors main.js; every club is
+  // AI-run in the harness, so userAuto applies the user team too).
+  for (const ev of R.midSeasonMoves(state, today, { userAuto: true })) {
+    if (ev.type === 'swap') msSwaps++;
+    else if (ev.type === 'level') msLevelMoves++;
   }
   // AI trade activity (mirrors main.js).
   W.BBGM_TRADES.aiTradeTick(state, today);

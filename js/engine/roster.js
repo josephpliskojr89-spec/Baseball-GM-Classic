@@ -433,9 +433,120 @@ window.BBGM_ROSTER = (function () {
     throw lastErr;
   }
 
+  // ---- Merit-based mid-season moves (0.38.0 — bible 12.5 amendment) ------
+  // In-season development ticks mean a farmhand's big year now shows up in
+  // his ratings DURING the season, so orgs act on it in-season too. Called
+  // daily by the sim loop; gates itself internally:
+  //  - WEEKLY (days 1/8/15/22/29, Apr 15 – Aug 31): for each org, if the
+  //    best healthy AAA/AA farmhand clearly outplays the weakest same-side
+  //    26-man regular (overall gap ≥ MS_GAP), swap them.
+  //  - MONTHLY (1st of Jun/Jul/Aug): farmhands who have badly outgrown
+  //    their level (levelFitDelta ≥ 2) climb the ladder mid-season.
+  // The user's club executes swaps only when opts.userAuto (promotion sim
+  // stop OFF); otherwise a qualifying swap comes back as a 'suggestion'
+  // event for the UI to surface without touching the roster.
+  const MS_GAP = 3;        // farmhand must beat the incumbent by this much
+  const MS_COOLDOWN = 21;  // days before the same player can move again
+
+  function dayIndex(d) { return d.year * 372 + d.month * 31 + d.day; }
+
+  function msSwapForTeam(state, team, today, execute) {
+    const players = state.players;
+    const inj = INJ();
+    const idx = dayIndex(today);
+    const farm = (team.minors || [])
+      .map((id) => players[id])
+      .filter((p) => p && (p.rosterStatus === 'AAA' || p.rosterStatus === 'AA') &&
+        inj.isAvailable(p) && !(p.msMoved && idx - p.msMoved < MS_COOLDOWN));
+    if (!farm.length) return null;
+    const roster = team.roster.map((id) => players[id]).filter(Boolean);
+    const cCount = roster.filter((p) => !p.isPitcher && p.primaryPosition === 'C').length;
+    const spCount = roster.filter((p) => p.isPitcher && p.primaryPosition === 'SP').length;
+
+    let best = null;
+    for (const side of [false, true]) {
+      const up = farm.filter((p) => p.isPitcher === side)
+        .sort((a, b) => overall(b) - overall(a))[0];
+      if (!up) continue;
+      const down = roster.filter((p) => {
+        if (p.isPitcher !== side) return false;
+        if (!inj.isAvailable(p)) return false;    // never demote the hurt
+        if (p.ilCallUpFor) return false;          // stint covers leave via activation
+        if (p.msMoved && idx - p.msMoved < MS_COOLDOWN) return false;
+        if (side) {
+          if (p.id === team.closer) return false;
+          if (p.primaryPosition === 'SP' && spCount <= 5 && up.primaryPosition !== 'SP') return false;
+        } else if (p.primaryPosition === 'C' && cCount <= 2 && up.primaryPosition !== 'C') {
+          return false;
+        }
+        return true;
+      }).sort((a, b) => overall(a) - overall(b))[0];
+      if (!down) continue;
+      const gap = overall(up) - overall(down);
+      if (gap < MS_GAP) continue;
+      if (!best || gap > best.gap) best = { up, down, gap };
+    }
+    if (!best) return null;
+    if (!execute) return { type: 'suggestion', teamId: team.id, upId: best.up.id, downId: best.down.id };
+
+    const { up, down } = best;
+    const ri = team.roster.indexOf(down.id);
+    if (ri >= 0) team.roster.splice(ri, 1);
+    down.status = 'minors';
+    down.rosterStatus = demotionLevel(down);
+    down.msMoved = idx;
+    const mi = team.minors.indexOf(up.id);
+    if (mi >= 0) team.minors.splice(mi, 1);
+    team.minors.push(down.id);
+    team.roster.push(up.id);
+    up.status = 'active';
+    up.rosterStatus = '26-man';
+    up.msMoved = idx;
+    // Hand the departing player's lineup/staff spots to the arrival where
+    // legal; the fallbacks inside replaceRefs cover the rest, and
+    // ensureStaffIntegration guarantees a promoted arm belongs to a staff
+    // list even when the demoted player held none.
+    replaceRefs(team, players, down.id, up.id);
+    ensureStaffIntegration(state, team, up);
+    return { type: 'swap', teamId: team.id, upId: up.id, downId: down.id };
+  }
+
+  function midSeasonMoves(state, today, opts = {}) {
+    const events = [];
+    if (state.offseasonPhase) return events;
+    const m = today.month, d = today.day;
+    if (!((m === 4 && d >= 15) || (m >= 5 && m <= 8))) return events;
+    const weekly = d === 1 || d === 8 || d === 15 || d === 22 || d === 29;
+    const levelDay = d === 1 && m >= 6 && m <= 8;
+    if (!weekly && !levelDay) return events;
+    const MIN = window.BBGM_MINORS;
+    const userId = state.meta.userTeamId;
+
+    for (const team of state.league.teams) {
+      if (weekly) {
+        const isUser = team.id === userId;
+        const ev = msSwapForTeam(state, team, today, !isUser || !!opts.userAuto);
+        if (ev) events.push(ev);
+      }
+      if (levelDay && MIN) {
+        for (const id of (team.minors || []).slice()) {
+          const p = state.players[id];
+          if (!p || p.status !== 'minors') continue;
+          if (MIN.levelFitDelta(p) < 2) continue;
+          const from = p.rosterStatus;
+          MIN.reassignLevel(p);
+          if (p.rosterStatus !== from) {
+            events.push({ type: 'level', teamId: team.id, upId: p.id, from, to: p.rosterStatus });
+          }
+        }
+      }
+    }
+    return events;
+  }
+
   return {
     placeOnILWithMove, activateFromIL, replaceRefs, bestCallUp, overall, demotionLevel,
-    newPlayerId, safeRebuild,
+    newPlayerId, safeRebuild, midSeasonMoves,
     callUpCandidates, callUpNeedFor, executeILCallUp, ensureStaffIntegration,
   };
 })();

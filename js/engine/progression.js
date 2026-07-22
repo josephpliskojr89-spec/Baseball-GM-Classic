@@ -71,6 +71,14 @@ window.BBGM_PROGRESSION = (function () {
   // coachMod (bible 9.3 / 17.4): the org's hitting or pitching coach
   // development modifier (-0.10..+0.20). Coaches matter most for players
   // still developing; established veterans get less than half the effect.
+  // 0.38.0: a season's rating movement now splits between five monthly
+  // in-season ticks (inSeasonTick, ~35% of the archetype rates) and this
+  // annual pass (65%) — total yearly magnitude is preserved, but a
+  // developing kid visibly improves DURING the year and an aging vet
+  // visibly slips. Spikes, breakouts, reversion, coach mods, injury
+  // drag, and the full volatility jolt remain annual-only events.
+  const ANNUAL_SHARE = 0.65;
+
   function progressPlayer(p, year, coachMod) {
     const arch = archetypeDef(p);
     ensureCurveState(p, arch);
@@ -113,13 +121,13 @@ window.BBGM_PROGRESSION = (function () {
       let change = 0;
 
       if (age < h.peakAge) {
-        change = arch.riseRate * Math.max(0, ceil - cur) * posMod;
+        change = arch.riseRate * ANNUAL_SHARE * Math.max(0, ceil - cur) * posMod;
         if (breakoutNow) change += (0.3 + rand() * 0.2) * Math.max(0, ceil - cur);
       } else if (age < h.peakAge + (arch.plateauWidth || 2)) {
         change = 0; // plateau — variance only
       } else {
         const accel = age >= 35 ? 1.5 : 1;
-        change = -arch.declineRate * Math.max(0, cur - RATING_FLOOR) * accel;
+        change = -arch.declineRate * ANNUAL_SHARE * Math.max(0, cur - RATING_FLOOR) * accel;
       }
 
       if (spikeNow) {
@@ -130,6 +138,43 @@ window.BBGM_PROGRESSION = (function () {
 
       // Volatility (9.4).
       change += (rand() * 2 - 1) * (arch.volatility || 0.1) * MAX_SWING;
+
+      p.ratings[k] = Math.round(clamp(cur + change, HARD_MIN, ceil) * 10) / 10;
+    }
+  }
+
+  // In-season development tick (0.38.0). Fired on the 1st of May, Jun,
+  // Jul, Aug and Sep with frac = 0.07 each — five ticks carrying the
+  // ~35% of the archetype's yearly rate that progressPlayer no longer
+  // applies (ANNUAL_SHARE covers the rest). Same curve as the annual
+  // pass but a deliberately reduced modifier bundle: work ethic and
+  // level fit shape the month, while coach mods, injury drag, spikes,
+  // breakouts, reversion and the full volatility jolt remain
+  // annual-only events. Volatility here is a small monthly drift.
+  function inSeasonTick(p, year, frac) {
+    const arch = archetypeDef(p);
+    ensureCurveState(p, arch);
+    const h = p.hidden;
+    const keys = p.isPitcher ? PITCHER_KEYS : HITTER_KEYS;
+    const age = p.age;
+    const posMod = 1 + workEthicMod(p) - levelPenalty(p);
+
+    for (const k of keys) {
+      const cur = p.ratings[k];
+      if (cur == null) continue; // old-save shape missing this key
+      const ceil = h.ceiling[k] != null ? h.ceiling[k] : 60;
+      let change = 0;
+
+      if (age < h.peakAge) {
+        change = arch.riseRate * frac * Math.max(0, ceil - cur) * posMod;
+      } else if (age < h.peakAge + (arch.plateauWidth || 2)) {
+        change = 0;
+      } else {
+        const accel = age >= 35 ? 1.5 : 1;
+        change = -arch.declineRate * frac * Math.max(0, cur - RATING_FLOOR) * accel;
+      }
+
+      change += (rand() * 2 - 1) * (arch.volatility || 0.1) * MAX_SWING * frac;
 
       p.ratings[k] = Math.round(clamp(cur + change, HARD_MIN, ceil) * 10) / 10;
     }
@@ -226,5 +271,5 @@ window.BBGM_PROGRESSION = (function () {
     return true;
   }
 
-  return { progressPlayer, rollRetirement, retirementProb, levelPenalty, rollCeilingBreakout };
+  return { progressPlayer, inSeasonTick, rollRetirement, retirementProb, levelPenalty, rollCeilingBreakout };
 })();

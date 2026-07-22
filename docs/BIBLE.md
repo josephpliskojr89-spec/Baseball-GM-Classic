@@ -2336,6 +2336,33 @@ Demotions happen when:
 
 The user has full control. Notifications surface promotion candidates ("Player X is OPS-ing 1.050 at AA — consider promotion") but never auto-execute.
 
+> **Status (0.38.0) — in-season development + merit-based mid-season
+> moves (user request).** A season's rating movement now splits: five
+> monthly in-season ticks (`inSeasonTick`, 1st of May–Sep, ~7% of the
+> archetype's annual rates each) carry ~35% of the year, and the
+> offseason pass runs at the remaining 65% — total yearly magnitude
+> preserved, but a breakout farmhand now visibly improves DURING the
+> season (and an aging vet visibly slips). Ticks use a reduced modifier
+> bundle (work ethic + level fit); spikes, breakouts, reversion, coach
+> mods, injury drag, and the full volatility jolt remain annual events.
+> Orgs act on it: `ROSTER.midSeasonMoves` runs weekly (days
+> 1/8/15/22/29, Apr 15–Aug 31) — when the best healthy AAA/AA farmhand
+> outgrades the weakest same-side 26-man regular by ≥3 OVR, AI clubs
+> swap them (2-catcher/5-SP floors and a 21-day anti-yo-yo cooldown
+> respected; never the closer, never an IL cover), max one swap per
+> club per week. Farmhands two+ levels below their recommendation climb
+> the ladder on the 1st of Jun/Jul/Aug. The user's club NEVER
+> auto-moves while the `promotion` sim stop (default ON) is set —
+> qualifying swaps arrive as a halt notice + Player Development inbox
+> letter (once per player per season); turning the stop off hands the
+> calls to the front office like every other stop. A monthly
+> development report (inbox, 1st of Jun–Sep) names the org's biggest
+> risers and faders since last month. Companion: the `bust` archetype
+> (8% of both lists, riseRate 0.02) — the prospect who simply never
+> develops, with normal seductive scouted ceilings (scouting never
+> reads archetypes); HS draftees carry extra bust exposure. The only
+> tell is the attribute-history chart refusing to move.
+
 ### 12.6 Minor League Free Agents
 
 Players who haven't reached MLB but have been in the minors for 6+ seasons become minor league free agents at the end of their 6th minor-league year. They can be re-signed by their organization or signed by another team to a minor-league deal.

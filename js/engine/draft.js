@@ -144,11 +144,18 @@ window.BBGM_DRAFT = (function () {
       p.hidden.ceiling[k] = Math.round(clamp(p.hidden.ceiling[k] + delta - spread, 25, 82) * 10) / 10;
     }
 
-    // HS bats skew toward the high-variance development archetypes (6.5).
-    if (bg.key === 'HS' && rand() < 0.30) {
-      p.hidden.archetype = p.isPitcher
-        ? (rand() < 0.5 ? 'volatile' : 'flameout')
-        : (rand() < 0.6 ? 'late_bloomer' : 'volatile');
+    // HS bats skew toward the high-variance development archetypes (6.5),
+    // and carry extra true-bust exposure (0.38.0) — the classic first-round
+    // toolshed who never develops is disproportionately a prep pick.
+    if (bg.key === 'HS') {
+      const r = rand();
+      if (r < 0.06) {
+        p.hidden.archetype = 'bust';
+      } else if (r < 0.36) {
+        p.hidden.archetype = p.isPitcher
+          ? (rand() < 0.5 ? 'volatile' : 'flameout')
+          : (rand() < 0.6 ? 'late_bloomer' : 'volatile');
+      }
     }
 
     // Current ratings: even the class's best bat is no better than

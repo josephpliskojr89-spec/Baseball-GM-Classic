@@ -257,6 +257,7 @@ window.BBGM_STATE = (function () {
     tradeOffer: true,  // a rival GM sends you a trade offer
     deadline: true,    // heads-up 3 days before the July 31 trade deadline
     waiverWire: true,  // a claimable player (48+ OVR) hits the waiver wire
+    promotion: true,   // a farmhand outplays a big-league roster spot (0.38.0)
   };
 
   function simStops(s) {
