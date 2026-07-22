@@ -492,6 +492,18 @@ window.BBGM_INTL = (function () {
         body: `You sign <strong>${s.name}</strong> (${s.pos}, ${s.country}, ${s.age}) for $${s.bonus}M.`,
       });
     }
+    // Name the user's penalty the moment it's assessed (0.36.1) — the
+    // pool cut lands next class and was invisible without this.
+    const userPen = penalties.find((x) => x.teamId === userTeamId);
+    if (userPen) {
+      state.news.push({
+        date,
+        body: `<strong>League office:</strong> your international program ran ${userPen.overPct}% over pool. ` +
+              `Next class's allotment is ${userPen.overPct > 15 ? 'HALVED' : 'cut 15%'}` +
+              (userPen.restrictedYears
+                ? `, with signing restrictions for ${userPen.restrictedYears} classes (nothing over $300K)` : '') + '.',
+      });
+    }
 
     // Free the 100-player pool from the save; signees live in players now.
     intl.prospects = {};

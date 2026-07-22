@@ -905,6 +905,16 @@ window.BBGM_UI_DRAFT = (function () {
     }, `Bonus pool $${b.pool.toFixed(1)}M • spent $${b.spent.toFixed(2)}M` +
        (committed ? ` • offers out $${committed.toFixed(2)}M` : '') +
        ` • ${over ? 'OVER by $' + Math.abs(remaining).toFixed(2) + 'M' : '$' + remaining.toFixed(2) + 'M left'}`));
+    // Active overspend penalty (0.36.1): the cut was always applied to
+    // this pool, but it was invisible — a halved allotment reads like an
+    // ordinary small budget unless it's named.
+    const prev = (state.intlLedger || {})[state.meta.userTeamId];
+    if (prev && prev.penaltyMul) {
+      const overPct = prev.pool > 0 ? Math.round(((prev.spent - prev.pool) / prev.pool) * 100) : 0;
+      card.appendChild(U.el('p', { style: { 'font-size': '12px', color: 'var(--danger, #f85149)', 'font-weight': '600' } },
+        `Overspend penalty active: last class ran ${overPct}% over pool — ` +
+        `this class's allotment was ${prev.penaltyMul === 0.5 ? 'HALVED' : 'cut 15%'} by the league office.`));
+    }
     if (b.restricted) {
       card.appendChild(U.el('p', { style: { 'font-size': '12px', color: 'var(--danger, #f85149)' } },
         'Signing restrictions in effect: nothing over $300K this window (overspend penalty).'));
@@ -1250,10 +1260,14 @@ window.BBGM_UI_DRAFT = (function () {
     if (!recap) return;
     const card = U.el('div', { class: 'card' });
     card.appendChild(U.el('div', { class: 'card-title' }, `${recap.year} Signing Window — Closed`));
+    const myPen = (recap.penalties || []).find((x) => x.teamId === state.meta.userTeamId);
     card.appendChild(U.el('p', { style: { 'font-size': '13px' } },
       `${recap.signedCount} of 100 prospects signed league-wide. ` +
       `You spent $${recap.userSpent.toFixed(2)}M of your $${recap.userPool.toFixed(1)}M pool` +
-      (recap.userSpent > recap.userPool ? ' — OVER pool; league penalties apply.' : '.')));
+      (myPen
+        ? ` — OVER by ${myPen.overPct}%: next class's pool ${myPen.overPct > 15 ? 'HALVED' : 'cut 15%'}` +
+          (myPen.restrictedYears ? ` + ${myPen.restrictedYears}-class signing restrictions` : '') + '.'
+        : recap.userSpent > recap.userPool ? ' — over pool; league penalties apply.' : '.')));
     container.appendChild(card);
 
     if (recap.userSignings.length) {

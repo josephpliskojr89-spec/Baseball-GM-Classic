@@ -4887,6 +4887,19 @@ This is not a single phase but an ongoing process. Activities include:
 > (12 checks: ledger math, payroll effect, all four legality rules,
 > transfer bookkeeping, AI valuation).
 
+> **Status (0.36.1) — intl overspend penalties made visible.** The
+> user overspent a class and saw no penalty — investigation confirmed
+> the PIPELINE WORKS (10-check unit test: 8% over → 0.85 pool trim,
+> 20% → next pool halved, 40% → halved + 2-class restrictions, clean
+> → carryover), but the cut was invisible: pools naturally range
+> $4-9M by standings, so a halved allotment read as an ordinary small
+> budget, and only the 30%+ tier showed a banner. Now the penalty is
+> NAMED everywhere it acts: the budget card shows "Overspend penalty
+> active: last class ran X% over — this class's allotment was
+> HALVED/cut 15%" (read from intlLedger); the window-close recap
+> states the exact consequence tier; and a league-office news item
+> lands the day the penalty is assessed.
+
 ### 21.18 What's Explicitly Out of Initial Build
 
 To keep scope contained, several systems are explicitly deferred:
