@@ -4547,7 +4547,18 @@ This is not a single phase but an ongoing process. Activities include:
 >   26-man) and relievers to starters only at 55+ stamina — a one-inning
 >   frame can't hold a starter's workload. The manager still sorts the
 >   staff: a converted arm competes for a rotation spot, he isn't handed
->   one.
+>   one. **Amended (0.39.0) — the conversion reshapes the arm.**
+>   Pen-ward, the stuff plays up in one-inning bursts (velocity +2,
+>   stuff +1 — live rating AND hidden ceiling, ceiling capped 82 like
+>   breakouts) while the long-outing conditioning erodes (stamina −6,
+>   live only; the ceiling stays, so a young arm can stretch back out
+>   through development). Rotation-ward is the exact inverse on
+>   velocity/stuff, with no stamina refund — the 55 gate is the
+>   readiness check. A round trip nets velocity/stuff to zero and burns
+>   6 stamina per pen-ward leg, so flip-flopping strictly loses value.
+>   RP↔CP stays shift-free (same family), and the AI never converts, so
+>   the shift is a GM decision by construction (Pillar 4). The modal
+>   states the trade before the tap; the toast reports the numbers.
 > - **Closer is a role (7.8 amendment).** Tap any relief arm → Name
 >   Closer. Naming one stamps him CP (spring rebuilds keep the job with
 >   him) and returns the old closer to the pen as an RP. League-wide, the

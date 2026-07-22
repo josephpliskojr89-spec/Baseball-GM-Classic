@@ -641,9 +641,11 @@ window.BBGM_UI_TEAM = (function () {
     actions.push({ label: 'Cancel', kind: 'secondary', onClick: () => true });
 
     const staNote = p.primaryPosition === 'SP'
-      ? 'Converting to the pen lets him air it out in one-inning bursts.'
+      ? 'Converting to the pen lets him air it out in one-inning bursts: ' +
+        'velocity +2 and stuff +1, but the long-outing conditioning erodes (stamina −6).'
       : p.ratings.stamina >= SP_STAMINA_MIN
-        ? `Stamina ${Math.round(p.ratings.stamina)} — he can be stretched out to start.`
+        ? `Stamina ${Math.round(p.ratings.stamina)} — he can be stretched out to start. ` +
+          'Pacing through six innings gives back the pen bump: velocity −2, stuff −1.'
         : `Stamina ${Math.round(p.ratings.stamina)} — below the ${SP_STAMINA_MIN} a starter's workload demands.`;
     U.showModal({
       title: `${p.name} (${p.primaryPosition}${isCloser ? ', closer' : ''})`,
@@ -695,6 +697,21 @@ window.BBGM_UI_TEAM = (function () {
       }
     }
     const prev = p.primaryPosition;
+    // Attribute shift (0.39.0): the role change reshapes the arm — pen-ward
+    // the stuff plays up and the long-outing conditioning erodes;
+    // rotation-ward the max-effort juice comes back off. Snapshot so a
+    // failed rebuild reverts the ratings along with the role.
+    const ceil0 = (p.hidden && p.hidden.ceiling) || {};
+    const shiftSnap = {
+      r: { velocity: p.ratings.velocity, stuff: p.ratings.stuff, stamina: p.ratings.stamina },
+      c: { velocity: ceil0.velocity, stuff: ceil0.stuff },
+    };
+    const shift = window.BBGM_ROSTER.applyRoleShift(p, toPos);
+    const revertShift = () => {
+      if (!shift) return;
+      for (const k in shiftSnap.r) if (shiftSnap.r[k] != null) p.ratings[k] = shiftSnap.r[k];
+      for (const k in shiftSnap.c) if (shiftSnap.c[k] != null) p.hidden.ceiling[k] = shiftSnap.c[k];
+    };
     p.primaryPosition = toPos;
     if (team) {
       const ok = mutateTeam(state, team, () => {
@@ -703,13 +720,19 @@ window.BBGM_UI_TEAM = (function () {
         // handed one.
         window.BBGM_ROSTER.safeRebuild(state, team);
       });
-      if (!ok) { p.primaryPosition = prev; return; }
+      if (!ok) { p.primaryPosition = prev; revertShift(); return; }
     } else {
       window.BBGM_STATE.set(state);
     }
-    U.showToast(toPos === 'SP'
+    const fmt = (pair) => `${Math.round(pair[0])}→${Math.round(pair[1])}`;
+    const shiftLine = shift
+      ? (toPos === 'SP'
+        ? ` Velocity ${fmt(shift.velocity)}, stuff ${fmt(shift.stuff)} — pacing for six innings.`
+        : ` Velocity ${fmt(shift.velocity)}, stuff ${fmt(shift.stuff)}, stamina ${fmt(shift.stamina)} — he airs it out now.`)
+      : '';
+    U.showToast((toPos === 'SP'
       ? `${p.name} will be stretched out as a starter.`
-      : `${p.name} moves to the bullpen.`, 'success');
+      : `${p.name} moves to the bullpen.`) + shiftLine, 'success', shiftLine ? 5000 : undefined);
     render(document.getElementById('mainView'), state);
   }
 

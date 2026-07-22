@@ -433,6 +433,52 @@ window.BBGM_ROSTER = (function () {
     throw lastErr;
   }
 
+  // ---- Role-conversion attribute shift (0.39.0) --------------------------
+  // The real-baseball trade behind an SP↔RP conversion. Out of the pen a
+  // pitcher airs it out in one-inning bursts — velocity +2, stuff +1 —
+  // while the multi-inning conditioning erodes (stamina −6, live rating
+  // only; the ceiling stays, so a young arm can stretch back out through
+  // normal development). Moving to the rotation is the exact inverse on
+  // velocity/stuff: pacing through six innings costs the max-effort
+  // juice. No stamina refund rotation-ward — the UI's 55-stamina gate is
+  // the readiness check. Velocity/stuff shift BOTH the live rating and
+  // the hidden ceiling (progression clamps live to ceiling, so a
+  // live-only bump would be dragged back at the next dev tick); the
+  // ceiling lift caps at 82 like ceiling breakouts. A round trip nets
+  // velocity/stuff to zero and burns 6 stamina per pen-ward leg, so
+  // flip-flopping strictly loses value.
+  // Returns { velocity: [from, to], stuff: [...], stamina: [...] } for
+  // the caller's toast.
+  const ROLE_SHIFT = { velocity: 2, stuff: 1, stamina: 6 };
+  const ROLE_HARD_MIN = 20, ROLE_CEIL_CAP = 82;
+
+  function applyRoleShift(p, toPos) {
+    if (!p.isPitcher || !p.hidden || !p.hidden.ceiling) return null;
+    const penWard = toPos !== 'SP';
+    if (penWard === (p.primaryPosition !== 'SP')) return null; // same family (e.g. RP↔CP)
+    const clamp01 = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
+    const out = {};
+    for (const k of ['velocity', 'stuff']) {
+      const d = (penWard ? 1 : -1) * ROLE_SHIFT[k];
+      const c = p.hidden.ceiling[k];
+      if (c != null) {
+        p.hidden.ceiling[k] = Math.round(clamp01(c + d, ROLE_HARD_MIN, ROLE_CEIL_CAP) * 10) / 10;
+      }
+      const cur = p.ratings[k];
+      if (cur != null) {
+        const ceil = p.hidden.ceiling[k] != null ? p.hidden.ceiling[k] : ROLE_CEIL_CAP;
+        p.ratings[k] = Math.round(clamp01(cur + d, ROLE_HARD_MIN, ceil) * 10) / 10;
+        out[k] = [cur, p.ratings[k]];
+      }
+    }
+    if (penWard && p.ratings.stamina != null) {
+      const cur = p.ratings.stamina;
+      p.ratings.stamina = Math.round(clamp01(cur - ROLE_SHIFT.stamina, ROLE_HARD_MIN, cur) * 10) / 10;
+      out.stamina = [cur, p.ratings.stamina];
+    }
+    return out;
+  }
+
   // ---- Merit-based mid-season moves (0.38.0 — bible 12.5 amendment) ------
   // In-season development ticks mean a farmhand's big year now shows up in
   // his ratings DURING the season, so orgs act on it in-season too. Called
@@ -546,7 +592,7 @@ window.BBGM_ROSTER = (function () {
 
   return {
     placeOnILWithMove, activateFromIL, replaceRefs, bestCallUp, overall, demotionLevel,
-    newPlayerId, safeRebuild, midSeasonMoves, msDayIndex: dayIndex,
+    newPlayerId, safeRebuild, midSeasonMoves, msDayIndex: dayIndex, applyRoleShift,
     callUpCandidates, callUpNeedFor, executeILCallUp, ensureStaffIntegration,
   };
 })();
