@@ -593,10 +593,13 @@ if (seasonsArg > 1) {
     // December; the user's arb class queues; camp produces battles and
     // a sprinkling of day-to-day knocks (t ~5-13 league-wide).
     const camp = summary.springTraining || { battles: [], injuries: [], userLevelMoves: 0 };
+    const rc = summary.roleConversions || [];
     console.log(`  offseason: non-tenders ${(summary.nonTenders || []).length} (t ~10-35)` +
       ` | user arb cases ${summary.arbCases || 0}` +
       ` | camp battles ${camp.battles.length} | camp injuries ${camp.injuries.length}` +
-      ` | ceiling breakouts ${(summary.breakouts || []).length} (t ~10-30)`);
+      ` | ceiling breakouts ${(summary.breakouts || []).length} (t ~10-30)` +
+      ` | AI role conversions ${rc.length} (→RP ${rc.filter((c) => c.to === 'RP').length}` +
+      `, →SP ${rc.filter((c) => c.to === 'SP').length}, t ~10-30)`);
 
     if (si === seasonsArg) break;
     runSeason();

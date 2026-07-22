@@ -601,13 +601,14 @@ window.BBGM_UI_TEAM = (function () {
 
 
 
-  // ------- Pitcher role management (0.20.0) -------
+  // ------- Pitcher role management (0.20.0, gate removed 0.40.0) -------
   // The GM shapes the STAFF — who closes, who starts, who relieves; the
   // manager still sorts the rotation order and pen roles around those
-  // decisions (Pillar 4). Rules: moving to the rotation takes a 55+
-  // stamina arm (a one-inning frame can't hold a starter's workload);
-  // anyone can move to the pen, but never below five starters on the 26.
-  const SP_STAMINA_MIN = 55;
+  // decisions (Pillar 4). Any arm can be stretched out now — the old
+  // 55-stamina eligibility gate became a graduated price (the velocity/
+  // stuff cost scales with the stamina he has to build; see
+  // ROSTER.roleShiftPreview). Anyone can move to the pen, but never
+  // below five starters on the 26.
 
   function showPitcherActions(state, team, p) {
     const isCloser = team.closer === p.id;
@@ -640,13 +641,19 @@ window.BBGM_UI_TEAM = (function () {
     }});
     actions.push({ label: 'Cancel', kind: 'secondary', onClick: () => true });
 
-    const staNote = p.primaryPosition === 'SP'
-      ? 'Converting to the pen lets him air it out in one-inning bursts: ' +
-        'velocity +2 and stuff +1, but the long-outing conditioning erodes (stamina −6).'
-      : p.ratings.stamina >= SP_STAMINA_MIN
-        ? `Stamina ${Math.round(p.ratings.stamina)} — he can be stretched out to start. ` +
-          'Pacing through six innings gives back the pen bump: velocity −2, stuff −1.'
-        : `Stamina ${Math.round(p.ratings.stamina)} — below the ${SP_STAMINA_MIN} a starter's workload demands.`;
+    let staNote;
+    if (p.primaryPosition === 'SP') {
+      staNote = 'Converting to the pen lets him air it out in one-inning bursts: ' +
+        'velocity +2 and stuff +1. His long-outing conditioning fades season by season down there.';
+    } else {
+      const pv = window.BBGM_ROSTER.roleShiftPreview(p, 'SP');
+      staNote = pv && pv.staminaShort > 0
+        ? `Stamina ${Math.round(p.ratings.stamina)} — stretching him out means building ` +
+          `${Math.round(pv.staminaShort)} points toward a starter's ${60}, and the rework costs ` +
+          `velocity ${pv.velocity}, stuff ${pv.stuff}. The further from starter shape, the more it takes.`
+        : `Stamina ${Math.round(p.ratings.stamina)} — he's in starter shape. ` +
+          'Pacing through six innings gives back the pen bump: velocity −2, stuff −1.';
+    }
     U.showModal({
       title: `${p.name} (${p.primaryPosition}${isCloser ? ', closer' : ''})`,
       body: U.el('p', { class: 'muted', style: { 'font-size': '12px' } }, staNote),
@@ -684,10 +691,6 @@ window.BBGM_UI_TEAM = (function () {
   // Shared by the MLB pitching tab and the minors action sheet. `team` is
   // null for a minors arm — no config rebuild needed down there.
   function convertPitcherRole(state, team, p, toPos) {
-    if (toPos === 'SP' && p.ratings.stamina < SP_STAMINA_MIN) {
-      U.showToast(`${p.name} can't hold a starter's workload (stamina ${Math.round(p.ratings.stamina)}, needs ${SP_STAMINA_MIN}+).`, 'warning', 4500);
-      return;
-    }
     if (team && toPos !== 'SP' && p.primaryPosition === 'SP') {
       const spCount = team.roster.map((id) => state.players[id])
         .filter((q) => q && q.isPitcher && q.primaryPosition === 'SP').length;
@@ -703,7 +706,7 @@ window.BBGM_UI_TEAM = (function () {
     // failed rebuild reverts the ratings along with the role.
     const ceil0 = (p.hidden && p.hidden.ceiling) || {};
     const shiftSnap = {
-      r: { velocity: p.ratings.velocity, stuff: p.ratings.stuff, stamina: p.ratings.stamina },
+      r: { velocity: p.ratings.velocity, stuff: p.ratings.stuff },
       c: { velocity: ceil0.velocity, stuff: ceil0.stuff },
     };
     const shift = window.BBGM_ROSTER.applyRoleShift(p, toPos);
@@ -727,8 +730,8 @@ window.BBGM_UI_TEAM = (function () {
     const fmt = (pair) => `${Math.round(pair[0])}→${Math.round(pair[1])}`;
     const shiftLine = shift
       ? (toPos === 'SP'
-        ? ` Velocity ${fmt(shift.velocity)}, stuff ${fmt(shift.stuff)} — pacing for six innings.`
-        : ` Velocity ${fmt(shift.velocity)}, stuff ${fmt(shift.stuff)}, stamina ${fmt(shift.stamina)} — he airs it out now.`)
+        ? ` Velocity ${fmt(shift.velocity)}, stuff ${fmt(shift.stuff)} — the rework of pacing for six innings.`
+        : ` Velocity ${fmt(shift.velocity)}, stuff ${fmt(shift.stuff)} — he airs it out now; his conditioning will fade in the pen.`)
       : '';
     U.showToast((toPos === 'SP'
       ? `${p.name} will be stretched out as a starter.`

@@ -457,6 +457,54 @@ window.BBGM_OFFSEASON = (function () {
       GEN().syncPositions(p);
     }
 
+    // 5.3. AI role conversions (0.40.0). Real orgs rework arms in the
+    // winter: the failed starter with reliever tools moves to the pen,
+    // and — rarely — a thin rotation stretches out a durable relief arm.
+    // The user's club is untouched (Pillar 4: that call is the GM's).
+    // Conservative caps keep league SP supply stable: one conversion per
+    // org per winter, pen-ward only from genuine SP surplus, rotation-
+    // ward only out of genuine scarcity. Uses the same applyRoleShift
+    // price the user pays, so AI arms live under the same physics.
+    summary.roleConversions = [];
+    for (const t of teams) {
+      if (t.id === state.meta.userTeamId) continue;
+      const orgArms = t.roster.concat(t.minors || [])
+        .map((id) => players[id])
+        .filter((p) => p && p.isPitcher && !p.retired);
+      const spArms = orgArms.filter((p) => p.primaryPosition === 'SP')
+        .sort((a, b) => ROSTER().overall(b) - ROSTER().overall(a));
+      let conv = null;
+      if (spArms.length > 8) {
+        // Surplus: among the depth starters (below the org's top 8), find
+        // the classic pen profile — a stalled arm (23+, still fringe)
+        // whose stuff/velo clearly outrun his command. Every org carries
+        // 9-19 SP-primary arms, so the profile + the one-per-winter cap
+        // are what actually govern the league-wide rate (~5-15/winter).
+        conv = spArms.slice(8).find((p) => {
+          const r = p.ratings;
+          return p.age >= 23 && ROSTER().overall(p) < 50 &&
+            (r.stuff + r.velocity) / 2 - r.control >= 3;
+        }) || null;
+        if (conv) {
+          ROSTER().applyRoleShift(conv, 'RP');
+          conv.primaryPosition = 'RP';
+          summary.roleConversions.push({ playerId: conv.id, teamId: t.id, to: 'RP' });
+        }
+      } else if (spArms.length < 6) {
+        // Scarcity: stretch out the best durable, young-enough relief arm
+        // (never the closer's chair — he IS the pen's identity).
+        const cand = orgArms
+          .filter((p) => p.primaryPosition === 'RP' && p.id !== t.closer &&
+            p.age <= 30 && p.ratings.stamina >= 55)
+          .sort((a, b) => ROSTER().overall(b) - ROSTER().overall(a))[0];
+        if (cand) {
+          ROSTER().applyRoleShift(cand, 'SP');
+          cand.primaryPosition = 'SP';
+          summary.roleConversions.push({ playerId: cand.id, teamId: t.id, to: 'SP' });
+        }
+      }
+    }
+
     // 6. Service time and contract ticks. Only players with 6+ years of
     //    service reach free agency when their deal expires (bible 11.4);
     //    everyone else is under team control — renewed at the minimum

@@ -12,6 +12,14 @@ window.BBGM_PROGRESSION = (function () {
   const RATING_FLOOR = 25;   // decline asymptote (9.2's "floor")
   const HARD_MIN = 20;
   const MAX_SWING = 12;      // volatility 0.4 → ±~5 pts/yr (9.4)
+  // Pen-stamina erosion (0.40.0): a relief role doesn't build starter
+  // conditioning. RP/CP arms develop stamina only toward an effective
+  // ceiling of PEN_STA_CEIL, and anything above it fades season by
+  // season (a converted starter's 64 drifts to the mid-50s over ~4
+  // years). The RAW ceiling is untouched, so moving back to the
+  // rotation lets a young arm rebuild through normal development.
+  const PEN_STA_CEIL = 55;
+  const PEN_STA_EROSION = 0.25; // yearly fraction of the excess
 
   function rand() { return Math.random(); }
   function rint(lo, hi) { return lo + Math.floor(rand() * (hi - lo + 1)); }
@@ -114,15 +122,18 @@ window.BBGM_PROGRESSION = (function () {
       }
     }
 
+    const penRole = p.isPitcher && (p.primaryPosition === 'RP' || p.primaryPosition === 'CP');
     for (const k of keys) {
       const cur = p.ratings[k];
       if (cur == null) continue; // old-save shape missing this key — skip, don't NaN
       const ceil = h.ceiling[k] != null ? h.ceiling[k] : 60;
+      // Pen arms develop stamina only toward the reliever ceiling (0.40.0).
+      const devCeil = (k === 'stamina' && penRole) ? Math.min(ceil, PEN_STA_CEIL) : ceil;
       let change = 0;
 
       if (age < h.peakAge) {
-        change = arch.riseRate * ANNUAL_SHARE * Math.max(0, ceil - cur) * posMod;
-        if (breakoutNow) change += (0.3 + rand() * 0.2) * Math.max(0, ceil - cur);
+        change = arch.riseRate * ANNUAL_SHARE * Math.max(0, devCeil - cur) * posMod;
+        if (breakoutNow) change += (0.3 + rand() * 0.2) * Math.max(0, devCeil - cur);
       } else if (age < h.peakAge + (arch.plateauWidth || 2)) {
         change = 0; // plateau — variance only
       } else {
@@ -130,8 +141,14 @@ window.BBGM_PROGRESSION = (function () {
         change = -arch.declineRate * ANNUAL_SHARE * Math.max(0, cur - RATING_FLOOR) * accel;
       }
 
+      // Pen-stamina erosion: conditioning above the reliever ceiling
+      // fades — a converted starter's length drains season by season.
+      if (k === 'stamina' && penRole && cur > PEN_STA_CEIL) {
+        change -= PEN_STA_EROSION * ANNUAL_SHARE * (cur - PEN_STA_CEIL);
+      }
+
       if (spikeNow) {
-        const spike = (0.2 + rand() * 0.1) * Math.max(0, ceil - cur);
+        const spike = (0.2 + rand() * 0.1) * Math.max(0, devCeil - cur);
         change += spike;
         h.spikeAmounts[k] = spike;
       }
@@ -159,19 +176,27 @@ window.BBGM_PROGRESSION = (function () {
     const age = p.age;
     const posMod = 1 + workEthicMod(p) - levelPenalty(p);
 
+    const penRole = p.isPitcher && (p.primaryPosition === 'RP' || p.primaryPosition === 'CP');
     for (const k of keys) {
       const cur = p.ratings[k];
       if (cur == null) continue; // old-save shape missing this key
       const ceil = h.ceiling[k] != null ? h.ceiling[k] : 60;
+      const devCeil = (k === 'stamina' && penRole) ? Math.min(ceil, PEN_STA_CEIL) : ceil;
       let change = 0;
 
       if (age < h.peakAge) {
-        change = arch.riseRate * frac * Math.max(0, ceil - cur) * posMod;
+        change = arch.riseRate * frac * Math.max(0, devCeil - cur) * posMod;
       } else if (age < h.peakAge + (arch.plateauWidth || 2)) {
         change = 0;
       } else {
         const accel = age >= 35 ? 1.5 : 1;
         change = -arch.declineRate * frac * Math.max(0, cur - RATING_FLOOR) * accel;
+      }
+
+      // Pen-stamina erosion (0.40.0) — the in-season share of the fade,
+      // so a midseason convert visibly loses length by September.
+      if (k === 'stamina' && penRole && cur > PEN_STA_CEIL) {
+        change -= PEN_STA_EROSION * frac * (cur - PEN_STA_CEIL);
       }
 
       change += (rand() * 2 - 1) * (arch.volatility || 0.1) * MAX_SWING * frac;

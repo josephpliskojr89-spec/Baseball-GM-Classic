@@ -433,33 +433,53 @@ window.BBGM_ROSTER = (function () {
     throw lastErr;
   }
 
-  // ---- Role-conversion attribute shift (0.39.0) --------------------------
+  // ---- Role-conversion attribute shift (0.39.0, reworked 0.40.0) ---------
   // The real-baseball trade behind an SP↔RP conversion. Out of the pen a
-  // pitcher airs it out in one-inning bursts — velocity +2, stuff +1 —
-  // while the multi-inning conditioning erodes (stamina −6, live rating
-  // only; the ceiling stays, so a young arm can stretch back out through
-  // normal development). Moving to the rotation is the exact inverse on
-  // velocity/stuff: pacing through six innings costs the max-effort
-  // juice. No stamina refund rotation-ward — the UI's 55-stamina gate is
-  // the readiness check. Velocity/stuff shift BOTH the live rating and
-  // the hidden ceiling (progression clamps live to ceiling, so a
-  // live-only bump would be dragged back at the next dev tick); the
-  // ceiling lift caps at 82 like ceiling breakouts. A round trip nets
-  // velocity/stuff to zero and burns 6 stamina per pen-ward leg, so
-  // flip-flopping strictly loses value.
-  // Returns { velocity: [from, to], stuff: [...], stamina: [...] } for
-  // the caller's toast.
-  const ROLE_SHIFT = { velocity: 2, stuff: 1, stamina: 6 };
+  // pitcher airs it out in one-inning bursts — velocity +2, stuff +1,
+  // live rating AND hidden ceiling (progression clamps live to ceiling;
+  // the lift caps at 82 like ceiling breakouts). His long-outing
+  // conditioning is NOT docked up front — it fades season by season in
+  // the pen instead (progression.js pen-stamina erosion toward ~55).
+  //
+  // Rotation-ward there is no eligibility gate (0.40.0): ANY arm can be
+  // stretched out, but the cost scales with how much stamina he has to
+  // build toward a starter's ~60 — the pen bump comes back off (−2
+  // velocity / −1 stuff) plus 0.15 velocity and 0.10 stuff per point of
+  // stamina shortfall. A 58-stamina swingman pays about the base; a
+  // 30-grade-stamina flamethrower pays velocity −6.5 / stuff −4 — ruinous
+  // unless the arm is so talented the wreckage still starts. Flip-
+  // flopping strictly loses: the return leg always costs at least what
+  // the pen leg gave, and pen years erode the stamina that prices it.
+  // Returns { velocity: [from, to], stuff: [from, to] } (the applied
+  // pairs) for the caller's toast.
+  const ROLE_SHIFT = { velocity: 2, stuff: 1 };
+  const SP_STAMINA_PAR = 60;                       // a starter's baseline
+  const STRETCH_RATE = { velocity: 0.15, stuff: 0.10 }; // per point short
   const ROLE_HARD_MIN = 20, ROLE_CEIL_CAP = 82;
 
-  function applyRoleShift(p, toPos) {
+  // The would-be deltas of converting `p` to `toPos`, WITHOUT mutating —
+  // feeds the UI note so the price is on the sticker before the tap.
+  // null when no shift applies (same pen family, hitters).
+  function roleShiftPreview(p, toPos) {
     if (!p.isPitcher || !p.hidden || !p.hidden.ceiling) return null;
     const penWard = toPos !== 'SP';
-    if (penWard === (p.primaryPosition !== 'SP')) return null; // same family (e.g. RP↔CP)
+    if (penWard === (p.primaryPosition !== 'SP')) return null;
+    if (penWard) return { velocity: ROLE_SHIFT.velocity, stuff: ROLE_SHIFT.stuff };
+    const short = Math.max(0, SP_STAMINA_PAR - (p.ratings.stamina != null ? p.ratings.stamina : SP_STAMINA_PAR));
+    return {
+      velocity: -Math.round((ROLE_SHIFT.velocity + STRETCH_RATE.velocity * short) * 10) / 10,
+      stuff: -Math.round((ROLE_SHIFT.stuff + STRETCH_RATE.stuff * short) * 10) / 10,
+      staminaShort: Math.round(short * 10) / 10,
+    };
+  }
+
+  function applyRoleShift(p, toPos) {
+    const deltas = roleShiftPreview(p, toPos);
+    if (!deltas) return null;
     const clamp01 = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
     const out = {};
     for (const k of ['velocity', 'stuff']) {
-      const d = (penWard ? 1 : -1) * ROLE_SHIFT[k];
+      const d = deltas[k];
       const c = p.hidden.ceiling[k];
       if (c != null) {
         p.hidden.ceiling[k] = Math.round(clamp01(c + d, ROLE_HARD_MIN, ROLE_CEIL_CAP) * 10) / 10;
@@ -470,11 +490,6 @@ window.BBGM_ROSTER = (function () {
         p.ratings[k] = Math.round(clamp01(cur + d, ROLE_HARD_MIN, ceil) * 10) / 10;
         out[k] = [cur, p.ratings[k]];
       }
-    }
-    if (penWard && p.ratings.stamina != null) {
-      const cur = p.ratings.stamina;
-      p.ratings.stamina = Math.round(clamp01(cur - ROLE_SHIFT.stamina, ROLE_HARD_MIN, cur) * 10) / 10;
-      out.stamina = [cur, p.ratings.stamina];
     }
     return out;
   }
@@ -592,7 +607,8 @@ window.BBGM_ROSTER = (function () {
 
   return {
     placeOnILWithMove, activateFromIL, replaceRefs, bestCallUp, overall, demotionLevel,
-    newPlayerId, safeRebuild, midSeasonMoves, msDayIndex: dayIndex, applyRoleShift,
+    newPlayerId, safeRebuild, midSeasonMoves, msDayIndex: dayIndex,
+    applyRoleShift, roleShiftPreview,
     callUpCandidates, callUpNeedFor, executeILCallUp, ensureStaffIntegration,
   };
 })();

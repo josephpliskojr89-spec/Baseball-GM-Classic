@@ -4560,18 +4560,31 @@ This is not a single phase but an ongoing process. Activities include:
 >   26-man) and relievers to starters only at 55+ stamina — a one-inning
 >   frame can't hold a starter's workload. The manager still sorts the
 >   staff: a converted arm competes for a rotation spot, he isn't handed
->   one. **Amended (0.39.0) — the conversion reshapes the arm.**
->   Pen-ward, the stuff plays up in one-inning bursts (velocity +2,
->   stuff +1 — live rating AND hidden ceiling, ceiling capped 82 like
->   breakouts) while the long-outing conditioning erodes (stamina −6,
->   live only; the ceiling stays, so a young arm can stretch back out
->   through development). Rotation-ward is the exact inverse on
->   velocity/stuff, with no stamina refund — the 55 gate is the
->   readiness check. A round trip nets velocity/stuff to zero and burns
->   6 stamina per pen-ward leg, so flip-flopping strictly loses value.
->   RP↔CP stays shift-free (same family), and the AI never converts, so
->   the shift is a GM decision by construction (Pillar 4). The modal
->   states the trade before the tap; the toast reports the numbers.
+>   one. **Amended (0.39.0, reworked 0.40.0) — the conversion reshapes
+>   the arm, gradually and both ways.** Pen-ward, the stuff plays up in
+>   one-inning bursts (velocity +2, stuff +1 — live rating AND hidden
+>   ceiling, ceiling capped 82 like breakouts). The conditioning is not
+>   docked up front: a pen role simply stops building it — RP/CP arms
+>   develop stamina only toward an effective ceiling of ~55, and
+>   anything above it erodes ~25%/yr (split across the in-season dev
+>   ticks and the annual pass, so a midseason convert visibly loses
+>   length by September). The raw ceiling survives, so a young arm
+>   moved back to the rotation rebuilds through normal development.
+>   Rotation-ward the old 55-stamina eligibility gate is GONE — any arm
+>   can be stretched out, but the price scales with the stamina he must
+>   build toward a starter's ~60: velocity −(2 + 0.15/pt short), stuff
+>   −(1 + 0.10/pt short). A 58-stamina swingman pays about the base; a
+>   30-grade-stamina flamethrower pays velocity −6.5 / stuff −4 —
+>   ruinous unless the arm is so talented the wreckage still starts
+>   (the deliberate edge case). Flip-flopping strictly loses: an
+>   immediate round trip nets zero, and pen years erode the stamina
+>   that prices the return. RP↔CP stays shift-free. AI clubs convert
+>   too (0.40.0): once per winter an org with genuine SP surplus moves
+>   a depth starter with a reliever's profile (stuff+velo well ahead of
+>   stamina+control, age 24+) to the pen, and an org under six SP-
+>   primary arms stretches out its best durable young reliever — same
+>   applyRoleShift price, never the user's players, never the closer.
+>   The modal quotes the arm's exact price before the tap.
 > - **Closer is a role (7.8 amendment).** Tap any relief arm → Name
 >   Closer. Naming one stamps him CP (spring rebuilds keep the job with
 >   him) and returns the old closer to the pen as an RP. League-wide, the
