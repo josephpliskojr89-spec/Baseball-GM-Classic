@@ -250,12 +250,11 @@ window.BBGM_UI_FRONTOFFICE = (function () {
     for (const f of found.slice(0, 20)) {
       const p = state.players[f.playerId];
       const t = state.league.teams.find((x) => x.id === f.teamId);
+      // Tap → full profile first (0.35.0); the card's "Discuss Trade…"
+      // action drops him into the builder.
       const row = U.el('button', {
         class: 'roster-row',
-        on: { click: () => {
-          draft = { teamId: f.teamId, give: [], get: [f.playerId], cashGive: 0, cashGet: 0 };
-          window.BBGM_MAIN.refresh();
-        } },
+        on: { click: () => window.BBGM_UI_PLAYER.show(f.playerId, null, { discussTrade: true }) },
       });
       row.appendChild(U.posBadge(p));
       const info = U.el('div', { class: 'player-row-info' });
@@ -469,9 +468,13 @@ window.BBGM_UI_FRONTOFFICE = (function () {
     U.showModal({ title: 'Trade with…', body, actions: [{ label: 'Cancel', kind: 'secondary', onClick: () => true }] });
   }
 
+  // Two-page builder (0.35.0): page 1 is the PARTNER — browse their org
+  // and pick who you want; page 2 is YOUR side — build the offer and
+  // propose. One team per screen instead of one long scroll.
   function renderTradeBuilder(container, state, userTeam) {
     const players = state.players;
     const partner = state.league.teams.find((t) => t.id === draft.teamId);
+    if (!draft.page) draft.page = 1;
     // The draft survives re-renders — including ones after the user sims
     // days with the builder open. AI deals, demotions, and retirements can
     // move a picked player in the meantime, so drop any pick who is no
@@ -485,10 +488,13 @@ window.BBGM_UI_FRONTOFFICE = (function () {
     const needs = TRADES().teamNeeds(partner, players);
 
     const head = U.el('div', { class: 'card', style: { padding: '10px 12px', 'margin-bottom': '8px' } });
-    head.appendChild(U.el('div', { class: 'card-title' }, `Trade with ${partner.name}`));
+    head.appendChild(U.el('div', { class: 'card-title' },
+      `Trade with ${partner.name} — step ${draft.page} of 2`));
     head.appendChild(U.el('div', { class: 'muted', style: { 'font-size': '12px' } },
-      `${partner.competitiveWindow} • ${partner.ownerName}` +
-      (needs.length ? ` • looking for: ${needs.join(', ')}` : '')));
+      draft.page === 1
+        ? `${partner.competitiveWindow} • ${partner.ownerName}` +
+          (needs.length ? ` • looking for: ${needs.join(', ')}` : '')
+        : 'Build your offer — who goes the other way.'));
     // Your side of the shopping list, right next to theirs (0.30.1).
     const myNeeds = TRADES().teamNeeds(userTeam, players);
     if (myNeeds.length) {
@@ -530,11 +536,8 @@ window.BBGM_UI_FRONTOFFICE = (function () {
       container.appendChild(list);
     };
 
-    section('You send', userTeam, userTeam.roster.concat(userTeam.minors || []), true);
-    section('You receive', partner, partner.roster.concat(partner.minors || []), false);
-
-    // Cash steppers (up to $20M each way, 15.2).
-    const cashRow = U.el('div', { class: 'card', style: { padding: '10px 12px', 'margin-top': '10px' } });
+    // Cash stepper builder (up to $20M each way, 15.2) — each page shows
+    // only its own direction.
     const mkCash = (label, key) => {
       const wrap = U.el('div', { style: { display: 'flex', 'align-items': 'center', gap: '8px', 'margin-bottom': '6px' } });
       wrap.appendChild(U.el('span', { style: { 'font-size': '12px', flex: '1' } }, `${label}: $${draft[key]}M`));
@@ -542,8 +545,39 @@ window.BBGM_UI_FRONTOFFICE = (function () {
       wrap.appendChild(U.el('button', { class: 'btn-secondary btn-sm', on: { click: () => { draft[key] = Math.min(20, draft[key] + 5); window.BBGM_MAIN.refresh(); } } }, '+5'));
       return wrap;
     };
+    const discardBtn = () => U.el('button', {
+      class: 'btn-secondary', style: { flex: '1' },
+      on: { click: () => { draft = null; window.BBGM_MAIN.refresh(); } },
+    }, 'Discard');
+
+    if (draft.page === 1) {
+      // ---- Page 1: their side — pick who you want. ----
+      section(`You receive (${draft.get.length} picked)`, partner,
+        partner.roster.concat(partner.minors || []), false);
+      const cashRow = U.el('div', { class: 'card', style: { padding: '10px 12px', 'margin-top': '10px' } });
+      cashRow.appendChild(mkCash('Cash you receive', 'cashGet'));
+      container.appendChild(cashRow);
+
+      const actions = U.el('div', { style: { display: 'flex', gap: '8px', margin: '12px 0' } });
+      actions.appendChild(U.el('button', {
+        class: 'btn-primary', style: { flex: '2' },
+        on: { click: () => {
+          if (!draft.get.length) { U.showToast('Pick at least one player to receive.', 'warning'); return; }
+          draft.page = 2;
+          window.BBGM_MAIN.refresh();
+          window.scrollTo(0, 0);
+        } },
+      }, 'Next: Your Offer ▶'));
+      actions.appendChild(discardBtn());
+      container.appendChild(actions);
+      return;
+    }
+
+    // ---- Page 2: your side — build the offer and propose. ----
+    section(`You send (${draft.give.length} picked)`, userTeam,
+      userTeam.roster.concat(userTeam.minors || []), true);
+    const cashRow = U.el('div', { class: 'card', style: { padding: '10px 12px', 'margin-top': '10px' } });
     cashRow.appendChild(mkCash('Cash you send', 'cashGive'));
-    cashRow.appendChild(mkCash('Cash you receive', 'cashGet'));
     container.appendChild(cashRow);
 
     // Deal at a glance (0.22.2): the selected package, both sides, with
@@ -565,8 +599,9 @@ window.BBGM_UI_FRONTOFFICE = (function () {
     }, 'Propose Trade'));
     actions.appendChild(U.el('button', {
       class: 'btn-secondary', style: { flex: '1' },
-      on: { click: () => { draft = null; window.BBGM_MAIN.refresh(); } },
-    }, 'Discard'));
+      on: { click: () => { draft.page = 1; window.BBGM_MAIN.refresh(); window.scrollTo(0, 0); } },
+    }, '◀ Their Side'));
+    actions.appendChild(discardBtn());
     container.appendChild(actions);
   }
 
@@ -921,5 +956,12 @@ window.BBGM_UI_FRONTOFFICE = (function () {
     container.appendChild(list);
   }
 
-  return { renderFreeAgents, renderTrades, renderStaff, renderWaivers };
+  // Open the two-page builder with a partner and player preloaded — the
+  // player card's "Discuss Trade…" action lands here (0.35.0).
+  function startTradeFor(state, p) {
+    draft = { teamId: p.teamId, give: [], get: [p.id], cashGive: 0, cashGet: 0, page: 1 };
+    window.BBGM_MAIN.navigate('gm', { tab: 'trades' });
+  }
+
+  return { renderFreeAgents, renderTrades, renderStaff, renderWaivers, startTradeFor };
 })();

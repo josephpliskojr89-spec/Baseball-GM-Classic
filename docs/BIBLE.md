@@ -4852,6 +4852,20 @@ This is not a single phase but an ongoing process. Activities include:
 > organization), and the Trade Finder's floor guards relax on the
 > same rule — a two-catcher club will move one in December.
 
+> **Status (0.35.0) — trade flow rework (user request).** Two UX
+> changes: (1) Trade Finder rows open the player's full PROFILE
+> instead of jumping straight into the builder — the card gains a
+> "Discuss Trade…" action (opts.discussTrade on BBGM_UI_PLAYER.show)
+> that drops him into the builder preloaded, so the flow is browse →
+> vet the player → engage. (2) The trade builder split into two
+> pages (draft.page): step 1 is the PARTNER's side — their org list,
+> pick who you want, cash-you-receive stepper, "Next: Your Offer ▶"
+> (gated on at least one pick); step 2 is YOUR side — your org list,
+> cash-you-send, Deal at a Glance, Propose Trade / ◀ Their Side /
+> Discard. One team per screen instead of one long scroll; selected
+> counts show in each section header and scroll resets on page
+> change.
+
 ### 21.18 What's Explicitly Out of Initial Build
 
 To keep scope contained, several systems are explicitly deferred:

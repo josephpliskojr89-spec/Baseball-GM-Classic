@@ -45,7 +45,9 @@ window.BBGM_UI_PLAYER = (function () {
     return `${Math.floor(inches / 12)}'${inches % 12}"`;
   }
 
-  function show(playerId, tab) {
+  // opts.discussTrade (0.35.0): callers like the Trade Finder open the
+  // card with a "Discuss Trade…" action that jumps into the builder.
+  function show(playerId, tab, opts = {}) {
     const state = window.BBGM_STATE.get();
     const p = state.players[playerId];
     if (!p) return;
@@ -103,7 +105,7 @@ window.BBGM_UI_PLAYER = (function () {
     for (const t of tabDefs) {
       tabs.appendChild(U.el('button', {
         class: `tab${activeTab === t.key ? ' active' : ''}`,
-        on: { click: () => show(playerId, t.key) },
+        on: { click: () => show(playerId, t.key, opts) },
       }, t.label));
     }
     body.appendChild(tabs);
@@ -137,6 +139,15 @@ window.BBGM_UI_PLAYER = (function () {
       // Farm transactions (0.31.1): promote / level / development /
       // release, straight from the card — same treatment as the 26-man.
       actions.push(...TEAM.minorsCardActions(state, userTeam, p));
+    } else if (opts.discussTrade && !p.retired && p.teamId && userTeam &&
+        p.teamId !== userTeam.id && window.BBGM_UI_FRONTOFFICE &&
+        window.BBGM_UI_FRONTOFFICE.startTradeFor) {
+      // Trade Finder flow (0.35.0): review the profile first, then jump
+      // into the builder with this player already in the package.
+      actions.push({ label: 'Discuss Trade…', kind: 'primary', onClick: () => {
+        setTimeout(() => window.BBGM_UI_FRONTOFFICE.startTradeFor(state, p), 0);
+        return true;
+      }});
     }
     actions.push({ label: 'Close', kind: 'primary', onClick: () => true });
 
