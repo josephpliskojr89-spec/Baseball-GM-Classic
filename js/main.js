@@ -102,6 +102,7 @@ window.BBGM_MAIN = (function () {
 
     // Menu lives in the header's top-right (0.16.2), not the bottom nav.
     document.getElementById('btnMenu').addEventListener('click', () => navigate('menu'));
+    document.getElementById('btnInbox').addEventListener('click', () => showInbox());
 
     // Modal close on backdrop click
     document.getElementById('modalRoot').addEventListener('click', (e) => {
@@ -567,6 +568,93 @@ window.BBGM_MAIN = (function () {
     document.getElementById('hdrDate').textContent = D.format(state.meta.currentDate);
     document.getElementById('hdrRecord').textContent =
       `${team.seasonRecord.w}-${team.seasonRecord.l}`;
+    // Inbox badge (0.37.0).
+    const badge = document.getElementById('inboxBadge');
+    if (badge) {
+      const n = window.BBGM_INBOX.unread(state);
+      badge.style.display = n ? 'block' : 'none';
+      badge.textContent = n > 9 ? '9+' : String(n);
+    }
+  }
+
+  // ------- Inbox (0.37.0) -------
+  // The GM's mail: owner directives, scouting reports, rival GM pitches.
+  function showInbox() {
+    const state = window.BBGM_STATE.get();
+    const box = state.inbox || [];
+    const body = U.el('div');
+    if (!box.length) {
+      body.appendChild(U.el('div', { class: 'empty-state' },
+        'Nothing yet. The owner, your scouts, and rival GMs will write when there\'s something worth reading.'));
+    }
+    const list = U.el('div', { class: 'roster-list' });
+    for (const m of box) {
+      const row = U.el('button', {
+        class: 'roster-row',
+        on: { click: () => { U.closeModal(); setTimeout(() => showInboxMessage(m.id), 0); } },
+      });
+      row.appendChild(U.el('span', {
+        style: { width: '32px', 'text-align': 'center', 'font-size': '16px' },
+      }, m.read ? '📄' : '✉'));
+      const info = U.el('div', { class: 'player-row-info' });
+      info.appendChild(U.el('div', {
+        class: 'player-row-name',
+        style: m.read ? { 'font-weight': '400', color: 'var(--text-muted, #8b949e)' } : {},
+      }, m.subject));
+      info.appendChild(U.el('div', { class: 'player-row-meta' },
+        `${m.from} • ${D.format(m.date)}`));
+      row.appendChild(info);
+      list.appendChild(row);
+    }
+    body.appendChild(list);
+    const actions = [];
+    if (box.some((m) => !m.read)) {
+      actions.push({ label: 'Mark All Read', kind: 'secondary', onClick: () => {
+        const s = window.BBGM_STATE.get();
+        window.BBGM_INBOX.markAllRead(s);
+        window.BBGM_STATE.set(s);
+        updateHeader(s);
+        return true;
+      }});
+    }
+    actions.push({ label: 'Close', kind: 'primary', onClick: () => true });
+    U.showModal({ title: 'Inbox', body, actions });
+  }
+
+  function showInboxMessage(id) {
+    const state = window.BBGM_STATE.get();
+    const m = window.BBGM_INBOX.markRead(state, id);
+    if (!m) return;
+    window.BBGM_STATE.set(state);
+    updateHeader(state);
+    const body = U.el('div');
+    body.appendChild(U.el('p', { class: 'muted', style: { 'font-size': '12px', 'margin-bottom': '8px' } },
+      `From ${m.from} • ${D.format(m.date)}`));
+    body.appendChild(U.el('p', { style: { 'font-size': '13px', 'line-height': '1.5' } }, m.body));
+    const actions = [];
+    if (m.action && m.action.type === 'trade') {
+      actions.push({ label: 'Open Trade Talks', kind: 'primary', onClick: () => {
+        const s = window.BBGM_STATE.get();
+        const p = s.players[m.action.playerId];
+        if (p && p.teamId === m.action.teamId && window.BBGM_UI_FRONTOFFICE.startTradeFor) {
+          setTimeout(() => window.BBGM_UI_FRONTOFFICE.startTradeFor(s, p), 0);
+        } else {
+          U.showToast('That player has since moved — the offer is stale.', 'warning');
+        }
+        return true;
+      }});
+    } else if (m.action && m.action.type === 'navigate') {
+      actions.push({ label: 'Take a Look', kind: 'primary', onClick: () => {
+        setTimeout(() => navigate(m.action.tab, m.action.opts || {}), 0);
+        return true;
+      }});
+    }
+    actions.push({ label: 'Back to Inbox', kind: 'secondary', onClick: () => {
+      setTimeout(() => showInbox(), 0);
+      return true;
+    }});
+    actions.push({ label: 'Close', kind: 'primary', onClick: () => true });
+    U.showModal({ title: m.subject, body, actions });
   }
 
   // ------- Sim stops & pending decisions (0.21.0) -------
@@ -1042,6 +1130,23 @@ window.BBGM_MAIN = (function () {
           if (c > bestCeil) { bestCeil = c; prospect = p; }
         }
 
+        // Owner's marching orders land in the inbox (0.37.0): the
+        // projection sets the expectation, the budget sets the leash.
+        const ownerFlavor = ({
+          win_now: 'I didn\'t buy this club to develop prospects. Win.',
+          patient: 'Build it right — I\'m not chasing headlines.',
+          cheap: 'Mind the payroll. Every dollar you spend is mine.',
+          analytics: 'Trust the numbers and the process holds up.',
+          old_school: 'Play the game the right way and the wins follow.',
+          aggressive: 'If a deal makes us better, make the call.',
+        })[userTeam.owner] || 'Make me proud.';
+        window.BBGM_INBOX.push(state, {
+          from: `${userTeam.ownerName} (Owner)`,
+          subject: `${summary.newYear} marching orders`,
+          body: `The writers project us at ${projWins}-${162 - projWins}. ${outlook} ` +
+                `The board has set the payroll budget at $${userTeam.payrollBase}M. ${ownerFlavor}`,
+        });
+
         const body = U.el('div');
         body.appendChild(U.el('p', { style: { 'font-size': '14px', 'margin-bottom': '8px' } },
           `The writers project the ${userTeam.name} at ` +
@@ -1217,11 +1322,22 @@ window.BBGM_MAIN = (function () {
       defense: 'took a defensive leap this winter — the glove projects higher',
       arm: 'showed a stronger arm this winter',
     };
+    const myBreakouts = [];
     for (const bo of summary.breakouts || []) {
       if (bo.teamId !== userTeamId) continue;
+      myBreakouts.push(bo);
       state.news.push({
         date: jan(20 + (Math.abs(bo.playerId.length) % 8)),
         body: `<strong>${bo.name}</strong> ${BREAKOUT_PHRASES[bo.key] || 'made a developmental leap this winter'}.`,
+      });
+    }
+    // Development staff writes it up for the inbox too (0.37.0).
+    if (myBreakouts.length) {
+      window.BBGM_INBOX.push(state, {
+        from: 'Player Development',
+        subject: `Winter development report — ${myBreakouts.length} name${myBreakouts.length !== 1 ? 's' : ''} to know`,
+        body: myBreakouts.map((bo) =>
+          `${bo.name} ${BREAKOUT_PHRASES[bo.key] || 'made a developmental leap this winter'}.`).join(' '),
       });
     }
 
@@ -1624,6 +1740,21 @@ window.BBGM_MAIN = (function () {
     if (stops.deadline && today.month === 7 && today.day === 28 &&
         state.meta.deadlineNoticeYear !== today.year && !state.postseason) {
       state.meta.deadlineNoticeYear = today.year;
+      // Owner's deadline stance (0.37.0): buy or sell, in writing.
+      {
+        const ut = state.league.teams.find((t) => t.id === state.meta.userTeamId);
+        const pct = ut.seasonRecord.w / Math.max(1, ut.seasonRecord.w + ut.seasonRecord.l);
+        window.BBGM_INBOX.push(state, {
+          from: `${ut.ownerName} (Owner)`,
+          subject: 'The deadline is Thursday',
+          body: pct >= 0.54
+            ? 'We\'re in this. If a piece puts us over the top, you have my blessing to move prospects — within reason.'
+            : pct >= 0.47
+              ? 'We\'re on the fence. I won\'t tell you which way to jump, but don\'t stand still — pick a direction.'
+              : 'Let\'s be honest about where we are. Move the veterans, stock the farm, and let\'s build toward next year.',
+          action: { type: 'navigate', tab: 'gm', opts: { tab: 'trades' } },
+        });
+      }
       queueHalt({
         title: 'Trade Deadline — 3 Days Out',
         body: 'The July 31 trade deadline is three days away. After that, rosters are locked into October — last chance to buy or sell.',
@@ -1644,6 +1775,13 @@ window.BBGM_MAIN = (function () {
         body: `<strong>The ${intlClass.year} international class is posted.</strong> ` +
               `~100 prospects sign July 2 — scout the pool and your bonus budget in the Draft Hub.`,
       });
+      window.BBGM_INBOX.push(state, {
+        from: 'International Scouting',
+        subject: `${intlClass.year} int'l board is up`,
+        body: 'The class is posted — roughly a hundred names, signing day July 2. ' +
+              'We\'ve filed first reads on the top of the board; say the word and we\'ll send targeted looks at anyone unscouted.',
+        action: { type: 'navigate', tab: 'draft', opts: { tab: 'intl' } },
+      });
     }
 
     // Amateur draft class (bible 13.3): generated May 1, scouted through
@@ -1659,6 +1797,45 @@ window.BBGM_MAIN = (function () {
         body: `<strong>The ${draftClass.year} draft class rankings are out.</strong> ${flavor} ` +
               `Work the board in the Draft Hub before the June 30 draft.`,
       });
+      window.BBGM_INBOX.push(state, {
+        from: 'Amateur Scouting',
+        subject: `${draftClass.year} draft board is live`,
+        body: `${flavor} The full board is in the Draft Hub — flag your targets and we'll keep the reports current through June 30.`,
+        action: { type: 'navigate', tab: 'draft', opts: { tab: 'board' } },
+      });
+    }
+
+    // Rival GM trade pitch (0.37.0): every couple of weeks, a club that
+    // read your Team Needs and has a fitting player on the block writes
+    // in. Built on the same availability math as the Trade Finder, so
+    // the pitch is always genuine.
+    if (window.BBGM_TRADES.tradesAllowed(state) && !state.postseason) {
+      const last = state.meta.lastRivalPitch;
+      const daysSince = last ? D.diffDays(D.fromYMD(last.year, last.month, last.day), today) : 99;
+      if (daysSince >= 10 && Math.random() < 0.05) {
+        const ut = state.league.teams.find((t) => t.id === state.meta.userTeamId);
+        const needs = window.BBGM_TRADES.teamNeeds(ut, state.players);
+        if (needs.length) {
+          const pos = needs[Math.floor(Math.random() * needs.length)];
+          const avail = window.BBGM_TRADES.findAvailable(state, pos).slice(0, 8);
+          if (avail.length) {
+            const pick = avail[Math.floor(Math.random() * avail.length)];
+            const p = state.players[pick.playerId];
+            const t = state.league.teams.find((x) => x.id === pick.teamId);
+            state.meta.lastRivalPitch = { ...today };
+            window.BBGM_INBOX.push(state, {
+              from: `${t.abbr} Front Office`,
+              subject: `Interested in ${p.name}?`,
+              body: `Word is you're looking for ${pos} help. We'd move ${p.name} ` +
+                    `(${p.age}, $${((p.contract && p.contract.annualSalary) || 0).toFixed(1)}M) ` +
+                    `for the right return — ${pick.label === 'shopping him'
+                      ? 'frankly, we\'re shopping him' : pick.label === 'open to moving him'
+                        ? 'we\'re open to moving him' : 'we\'ll listen on him'}. Call us.`,
+              action: { type: 'trade', teamId: t.id, playerId: p.id },
+            });
+          }
+        }
+      }
     }
 
     // Generate news for any noteworthy results

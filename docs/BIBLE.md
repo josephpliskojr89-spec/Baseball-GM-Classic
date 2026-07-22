@@ -4900,6 +4900,27 @@ This is not a single phase but an ongoing process. Activities include:
 > states the exact consequence tier; and a league-office news item
 > lands the day the penalty is assessed.
 
+> **Status (0.37.0) — the Inbox (new, user request; first slice of the
+> 4.x owner-communication layer).** A mail icon in the app header
+> (next to the menu, with an unread badge) opens the GM's inbox —
+> js/engine/inbox.js holds the pure state helpers (push / unread /
+> markRead, 60-message cap that prunes oldest READ mail first);
+> message GENERATION lives in main.js and UI resolve paths so
+> headless harnesses never load it. Three correspondents: (1) the
+> OWNER — season-opening marching orders (writers' projection +
+> payroll budget + archetype-flavored line), a deadline stance three
+> days out (buy / pick-a-direction / sell, from the live W%), and a
+> pointed note when an int'l overspend penalty is assessed; (2)
+> SCOUTS — the draft board going live (class-strength blurb), the
+> int'l class posting, and a winter development report digesting the
+> org's ceiling breakouts; (3) RIVAL GMs — every couple of weeks
+> (10-day cooldown, ~5%/day), a club reads the user's Team Needs,
+> checks its own availability (the same findAvailable math as the
+> Trade Finder), and pitches a specific player. Messages carry
+> actions: a pitch's "Open Trade Talks" drops into the two-page
+> builder preloaded; scout mail deep-links to the relevant board.
+> Stale pitches (player since moved) degrade gracefully.
+
 ### 21.18 What's Explicitly Out of Initial Build
 
 To keep scope contained, several systems are explicitly deferred:

@@ -1160,6 +1160,21 @@ window.BBGM_UI_DRAFT = (function () {
   }
 
   // The signing window room: three phases, user acts first, then advances.
+  // Owner reacts to an int'l overspend penalty in the inbox (0.37.0).
+  function pushPenaltyMail(state, recap) {
+    const pen = (recap.penalties || []).find((x) => x.teamId === state.meta.userTeamId);
+    if (!pen || !window.BBGM_INBOX) return;
+    const ut = state.league.teams.find((t) => t.id === state.meta.userTeamId);
+    window.BBGM_INBOX.push(state, {
+      from: `${ut.ownerName} (Owner)`,
+      subject: 'About that international budget…',
+      body: `You ran ${pen.overPct}% over the pool. The league office is ` +
+            `${pen.overPct > 15 ? 'HALVING' : 'trimming'} next class's allotment` +
+            (pen.restrictedYears ? `, and we're under signing restrictions for ${pen.restrictedYears} classes` : '') +
+            `. I'll assume the kid is worth it.`,
+    });
+  }
+
   function renderIntlWindow(container, state) {
     const intl = state.intl;
     renderIntlBudgetCard(container, state);
@@ -1184,6 +1199,7 @@ window.BBGM_UI_DRAFT = (function () {
       class: 'btn-primary btn-sm', style: { width: '100%', 'margin-bottom': '6px' },
       on: { click: () => {
         const r = INTL().advanceWindow(state);
+        if (r.done && r.recap) pushPenaltyMail(state, r.recap);
         window.BBGM_STATE.set(state);
         const mine = (r.results || []).filter((x) => x && x.teamId === state.meta.userTeamId);
         if (r.step === 1) {
@@ -1227,6 +1243,7 @@ window.BBGM_UI_DRAFT = (function () {
             { label: 'Cancel', kind: 'secondary', onClick: () => true },
             { label: 'Auto-run', kind: 'primary', onClick: () => {
               INTL().autoRunWindow(state);
+              if (state.intl.recap) pushPenaltyMail(state, state.intl.recap);
               window.BBGM_STATE.set(state);
               setTimeout(() => window.BBGM_MAIN.refresh(), 0);
               return true;

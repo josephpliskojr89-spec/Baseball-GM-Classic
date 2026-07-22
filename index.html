@@ -30,7 +30,7 @@
                 <button id="btnImportGame" class="btn-tertiary">Import Save</button>
                 <input type="file" id="fileImport" accept=".json" hidden>
             </div>
-            <p class="version">v0.36.1</p>
+            <p class="version">v0.37.0</p>
         </div>
     </div>
 
@@ -54,7 +54,10 @@
             <div class="app-header-center">
                 <button id="btnAdvance" class="btn-advance">Advance Day ▶</button>
             </div>
-            <button id="btnMenu" class="hdr-menu-btn" aria-label="Menu">≡</button>
+            <div style="display:flex;align-items:center;gap:2px">
+                <button id="btnInbox" class="hdr-menu-btn" aria-label="Inbox" style="position:relative">✉<span id="inboxBadge" style="display:none;position:absolute;top:2px;right:0;background:#e25c5c;color:#fff;border-radius:8px;font-size:10px;line-height:1;padding:2px 5px;font-weight:700"></span></button>
+                <button id="btnMenu" class="hdr-menu-btn" aria-label="Menu">≡</button>
+            </div>
         </header>
 
         <main id="mainView" class="main-view">
@@ -101,46 +104,47 @@
     <!-- Version-stamped script imports. Browsers (and CDNs) cache JS by URL,
          so changing ?v=... forces a fresh fetch on next load. Bump the
          BBGM_BUILD value below whenever a JS file changes. -->
-    <script src="js/data/constants.js?v=0.36.1"></script>
-    <script src="js/data/name_pools.js?v=0.36.1"></script>
-    <script src="js/data/intl_name_pools.js?v=0.36.1"></script>
-    <script src="js/data/city_pools.js?v=0.36.1"></script>
-    <script src="js/data/teams.js?v=0.36.1"></script>
-    <script src="js/util/rng.js?v=0.36.1"></script>
-    <script src="js/util/dates.js?v=0.36.1"></script>
-    <script src="js/state.js?v=0.36.1"></script>
-    <script src="js/generation/ballparks.js?v=0.36.1"></script>
-    <script src="js/generation/league.js?v=0.36.1"></script>
-    <script src="js/generation/players.js?v=0.36.1"></script>
-    <script src="js/engine/schedule.js?v=0.36.1"></script>
-    <script src="js/engine/stats.js?v=0.36.1"></script>
-    <script src="js/engine/injuries.js?v=0.36.1"></script>
-    <script src="js/engine/fatigue.js?v=0.36.1"></script>
-    <script src="js/engine/roster.js?v=0.36.1"></script>
-    <script src="js/engine/progression.js?v=0.36.1"></script>
-    <script src="js/engine/minors.js?v=0.36.1"></script>
-    <script src="js/engine/trades.js?v=0.36.1"></script>
-    <script src="js/engine/freeagency.js?v=0.36.1"></script>
-    <script src="js/engine/waivers.js?v=0.36.1"></script>
-    <script src="js/engine/staff.js?v=0.36.1"></script>
-    <script src="js/engine/scouting.js?v=0.36.1"></script>
-    <script src="js/engine/draft.js?v=0.36.1"></script>
-    <script src="js/engine/intl.js?v=0.36.1"></script>
-    <script src="js/engine/awards.js?v=0.36.1"></script>
-    <script src="js/engine/simulation.js?v=0.36.1"></script>
-    <script src="js/engine/standings.js?v=0.36.1"></script>
-    <script src="js/engine/offseason.js?v=0.36.1"></script>
-    <script src="js/ui/common.js?v=0.36.1"></script>
-    <script src="js/ui/dashboard.js?v=0.36.1"></script>
-    <script src="js/ui/team.js?v=0.36.1"></script>
-    <script src="js/ui/league.js?v=0.36.1"></script>
-    <script src="js/ui/players.js?v=0.36.1"></script>
-    <script src="js/ui/games.js?v=0.36.1"></script>
-    <script src="js/ui/frontoffice.js?v=0.36.1"></script>
-    <script src="js/ui/gm.js?v=0.36.1"></script>
-    <script src="js/ui/drafthub.js?v=0.36.1"></script>
-    <script src="js/ui/menu.js?v=0.36.1"></script>
-    <script src="js/ui/player.js?v=0.36.1"></script>
-    <script src="js/main.js?v=0.36.1"></script>
+    <script src="js/data/constants.js?v=0.37.0"></script>
+    <script src="js/data/name_pools.js?v=0.37.0"></script>
+    <script src="js/data/intl_name_pools.js?v=0.37.0"></script>
+    <script src="js/data/city_pools.js?v=0.37.0"></script>
+    <script src="js/data/teams.js?v=0.37.0"></script>
+    <script src="js/util/rng.js?v=0.37.0"></script>
+    <script src="js/util/dates.js?v=0.37.0"></script>
+    <script src="js/state.js?v=0.37.0"></script>
+    <script src="js/generation/ballparks.js?v=0.37.0"></script>
+    <script src="js/generation/league.js?v=0.37.0"></script>
+    <script src="js/generation/players.js?v=0.37.0"></script>
+    <script src="js/engine/schedule.js?v=0.37.0"></script>
+    <script src="js/engine/stats.js?v=0.37.0"></script>
+    <script src="js/engine/injuries.js?v=0.37.0"></script>
+    <script src="js/engine/fatigue.js?v=0.37.0"></script>
+    <script src="js/engine/roster.js?v=0.37.0"></script>
+    <script src="js/engine/progression.js?v=0.37.0"></script>
+    <script src="js/engine/minors.js?v=0.37.0"></script>
+    <script src="js/engine/trades.js?v=0.37.0"></script>
+    <script src="js/engine/freeagency.js?v=0.37.0"></script>
+    <script src="js/engine/waivers.js?v=0.37.0"></script>
+    <script src="js/engine/inbox.js?v=0.37.0"></script>
+    <script src="js/engine/staff.js?v=0.37.0"></script>
+    <script src="js/engine/scouting.js?v=0.37.0"></script>
+    <script src="js/engine/draft.js?v=0.37.0"></script>
+    <script src="js/engine/intl.js?v=0.37.0"></script>
+    <script src="js/engine/awards.js?v=0.37.0"></script>
+    <script src="js/engine/simulation.js?v=0.37.0"></script>
+    <script src="js/engine/standings.js?v=0.37.0"></script>
+    <script src="js/engine/offseason.js?v=0.37.0"></script>
+    <script src="js/ui/common.js?v=0.37.0"></script>
+    <script src="js/ui/dashboard.js?v=0.37.0"></script>
+    <script src="js/ui/team.js?v=0.37.0"></script>
+    <script src="js/ui/league.js?v=0.37.0"></script>
+    <script src="js/ui/players.js?v=0.37.0"></script>
+    <script src="js/ui/games.js?v=0.37.0"></script>
+    <script src="js/ui/frontoffice.js?v=0.37.0"></script>
+    <script src="js/ui/gm.js?v=0.37.0"></script>
+    <script src="js/ui/drafthub.js?v=0.37.0"></script>
+    <script src="js/ui/menu.js?v=0.37.0"></script>
+    <script src="js/ui/player.js?v=0.37.0"></script>
+    <script src="js/main.js?v=0.37.0"></script>
 </body>
 </html>
