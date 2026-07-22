@@ -202,6 +202,46 @@ window.BBGM_TRADES = (function () {
     return report;
   }
 
+  // Trade Finder (0.34.0): who around the league might actually move.
+  // Availability is the gap between a club's internal view (teamValueOf —
+  // window and owner discounts) and open-market value: a rebuilding
+  // club's 31-year-old rental grades "shopping him", a contender's young
+  // star doesn't appear at all. These are the SAME numbers the AI uses
+  // to accept or reject a proposal, so the labels are honest — a listed
+  // player takes roughly fair value; an unlisted one costs a premium.
+  function findAvailable(state, pos) {
+    setPlayersRef(state.players);
+    const out = [];
+    for (const t of state.league.teams) {
+      if (t.id === state.meta.userTeamId) continue;
+      const roster = (t.roster || []).map((id) => state.players[id]).filter(Boolean);
+      const cCount = roster.filter((q) => !q.isPitcher && q.primaryPosition === 'C').length;
+      const spCount = roster.filter((q) => q.isPitcher && q.primaryPosition === 'SP').length;
+      for (const p of roster) {
+        if (p.primaryPosition !== pos) continue;
+        // A club never shops what it can't legally lose (the same floors
+        // validateTradeShape enforces at proposal time).
+        if (pos === 'C' && cCount <= 2) continue;
+        if (pos === 'SP' && spCount <= 5) continue;
+        const market = tradeValue(p);
+        if (market <= 6) continue; // fringe filler is waived, not "found"
+        const ratio = teamValueOf(t, p) / market;
+        // Above-market internal value (a contender's star, a needed
+        // position) = they want a premium; the finder lists only clubs
+        // that would take roughly fair value or less.
+        if (ratio > 1.02) continue;
+        out.push({
+          playerId: p.id, teamId: t.id, ratio,
+          label: ratio < 0.75 ? 'shopping him'
+            : ratio < 0.9 ? 'open to moving him' : 'will listen',
+        });
+      }
+    }
+    out.sort((a, b) =>
+      ROSTER().overall(state.players[b.playerId]) - ROSTER().overall(state.players[a.playerId]));
+    return out;
+  }
+
   // ---- Trade legality / shape checks ---------------------------------------
 
   function tradesAllowed(state) {
@@ -514,7 +554,7 @@ window.BBGM_TRADES = (function () {
   }
 
   return {
-    tradeValue, teamValueOf, teamNeeds, needsReport, expectedAAV, setPlayersRef,
+    tradeValue, teamValueOf, teamNeeds, needsReport, findAvailable, expectedAAV, setPlayersRef,
     evaluateProposal, suggestAddition, executeTrade, tradeNews,
     validateTradeShape, tradesAllowed, aiTradeTick,
   };

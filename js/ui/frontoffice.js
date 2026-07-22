@@ -215,6 +215,72 @@ window.BBGM_UI_FRONTOFFICE = (function () {
 
   // Module-level draft survives re-renders within a session.
   let draft = null;
+  let finderPos = null; // Trade Finder position filter (0.34.0)
+
+  // Trade Finder (0.34.0): pick a position, see who around the league
+  // might actually move — computed from the same team-perspective values
+  // the AI trades with (trades.findAvailable). Tapping a result opens
+  // the builder with the partner and player already loaded.
+  function renderTradeFinder(container, state, userTeam) {
+    const C = window.BBGM_CONSTANTS;
+    const card = U.el('div', { class: 'card', style: { 'margin-top': '10px' } });
+    card.appendChild(U.el('div', { class: 'card-title' }, 'Trade Finder'));
+    card.appendChild(U.el('p', { class: 'muted', style: { 'font-size': '12px', 'margin-bottom': '8px' } },
+      'Pick a position to see which big-leaguers rival clubs would move for fair value. ' +
+      'Anyone not listed costs a premium — or isn\'t moving at all.'));
+
+    const chips = U.el('div', { class: 'filter-bar', style: { 'flex-wrap': 'wrap', gap: '4px' } });
+    for (const pos of C.POSITIONS) {
+      chips.appendChild(U.el('button', {
+        class: `filter-chip${finderPos === pos ? ' active' : ''}`,
+        on: { click: () => { finderPos = finderPos === pos ? null : pos; window.BBGM_MAIN.refresh(); } },
+      }, pos));
+    }
+    card.appendChild(chips);
+    container.appendChild(card);
+
+    if (!finderPos) return;
+    const found = TRADES().findAvailable(state, finderPos);
+    if (!found.length) {
+      container.appendChild(U.el('p', { class: 'muted', style: { 'font-size': '12px', padding: '4px 2px' } },
+        `Nobody at ${finderPos} is being shopped right now — check back as the season turns, or pay the premium.`));
+      return;
+    }
+    const list = U.el('div', { class: 'roster-list card', style: { padding: '0' } });
+    for (const f of found.slice(0, 20)) {
+      const p = state.players[f.playerId];
+      const t = state.league.teams.find((x) => x.id === f.teamId);
+      const row = U.el('button', {
+        class: 'roster-row',
+        on: { click: () => {
+          draft = { teamId: f.teamId, give: [], get: [f.playerId], cashGive: 0, cashGet: 0 };
+          window.BBGM_MAIN.refresh();
+        } },
+      });
+      row.appendChild(U.posBadge(p));
+      const info = U.el('div', { class: 'player-row-info' });
+      info.appendChild(U.el('div', { class: 'player-row-name' }, `${p.name} (${p.age})`));
+      const meta = U.el('div', { class: 'player-row-meta' },
+        `${t ? t.abbr : '?'} • ${t ? t.competitiveWindow : ''} • ` +
+        `$${((p.contract && p.contract.annualSalary) || 0).toFixed(1)}M × ${(p.contract && p.contract.years) || 0}y`);
+      meta.appendChild(U.el('span', {
+        style: { color: 'var(--accent, #58a6ff)', 'font-weight': '600' },
+      }, ` • ${f.label}`));
+      info.appendChild(meta);
+      row.appendChild(info);
+      const stats = U.el('div', { class: 'player-row-stats' });
+      const ovr = Math.round(ROSTER().overall(p));
+      stats.appendChild(U.el('span', { class: U.gradeClass(ovr) }, String(U.gradeFor(ovr))));
+      stats.appendChild(U.el('span', { class: 'key' }, 'OVR'));
+      row.appendChild(stats);
+      list.appendChild(row);
+    }
+    container.appendChild(list);
+    if (found.length > 20) {
+      container.appendChild(U.el('p', { class: 'muted', style: { 'font-size': '11px', 'margin-top': '4px' } },
+        `${found.length - 20} more available at ${finderPos} — the best 20 shown.`));
+    }
+  }
 
   function renderTrades(container, state) {
     const userTeam = state.league.teams.find((t) => t.id === state.meta.userTeamId);
@@ -246,6 +312,8 @@ window.BBGM_UI_FRONTOFFICE = (function () {
     // The builder view gets a compact "your needs" line in its header
     // instead of the full card.
     renderTeamNeeds(container, state, userTeam);
+
+    renderTradeFinder(container, state, userTeam);
 
     container.appendChild(U.el('button', {
       class: 'btn-primary', style: { width: '100%', margin: '12px 0' },

@@ -4826,6 +4826,24 @@ This is not a single phase but an ongoing process. Activities include:
 > with history grow a "›" affordance; "Back to Card" returns to the
 > profile.
 
+> **Status (0.34.0) — Trade Finder (15.5 amendment, user request).**
+> Trade Center gains a finder card: tap a position chip to see which
+> big-leaguers rival clubs would move. Availability is
+> `teamValueOf / tradeValue` — the gap between a club's internal view
+> (window/owner discounts: rebuilding clubs dump rentals, cheap
+> owners shed salary) and open-market value, the SAME numbers the AI
+> uses to accept or reject proposals, so the labels are honest:
+> ratio < 0.75 "shopping him", < 0.9 "open to moving him", ≤ 1.02
+> "will listen" (fair-value deals clear); above that the player is
+> unlisted — he costs a premium. Floor guards mirror
+> validateTradeShape (no club lists a C it can't lose past 2, or an
+> SP past 5); fringe filler (market value ≤ 6) is excluded. Results
+> sort by OVR, cap at 20 shown, and tapping one opens the trade
+> builder with the partner and player preloaded — finder to offer in
+> two taps. Measured league-wide: ~150 players available across all
+> positions on a fresh league. Unit-tested (floors, labels, sort,
+> user-team exclusion) + e2e finder→builder flow.
+
 ### 21.18 What's Explicitly Out of Initial Build
 
 To keep scope contained, several systems are explicitly deferred:
