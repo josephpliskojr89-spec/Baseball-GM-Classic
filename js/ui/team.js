@@ -1161,5 +1161,6 @@ window.BBGM_UI_TEAM = (function () {
   // ratingStrip shared with the League tab's team pages (0.25.2) so every
   // roster surface renders the same attribute chips.
   return { render, overallHitter, overallPitcher, ratingStrip,
-    confirmSendDown, confirmRelease, minorsCardActions, minorsScoutNote };
+    confirmSendDown, confirmRelease, minorsCardActions, minorsScoutNote,
+    nameCloser };
 })();

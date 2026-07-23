@@ -24,6 +24,17 @@ window.BBGM_UI_FRONTOFFICE = (function () {
 
     renderTeamNeeds(container, state, userTeam);
 
+    // Position filter (0.48.0) — same chips as the Trade Finder, so
+    // shopping the market works like shopping the trade block.
+    const posBar = U.el('div', { class: 'filter-bar', style: { 'margin-bottom': '10px', 'flex-wrap': 'wrap', 'overflow-x': 'visible' } });
+    for (const pos of ['C', '1B', '2B', '3B', 'SS', 'LF', 'CF', 'RF', 'DH', 'SP', 'RP']) {
+      posBar.appendChild(U.el('button', {
+        class: `filter-chip${faPos === pos ? ' active' : ''}`,
+        on: { click: () => { faPos = faPos === pos ? null : pos; window.BBGM_MAIN.refresh(); } },
+      }, pos));
+    }
+    container.appendChild(posBar);
+
     if (state.meta.offseasonPhase === 'freeAgency' && state.faMarket) {
       renderMarket(container, state, userTeam);
     } else {
@@ -78,9 +89,14 @@ window.BBGM_UI_FRONTOFFICE = (function () {
   function renderMarket(container, state, userTeam) {
     const players = state.players;
     const market = state.faMarket;
-    const open = market.entries.filter((e) => !e.signedTeamId && players[e.playerId] && !players[e.playerId].retired);
+    const open = market.entries.filter((e) => {
+      const p = players[e.playerId];
+      if (e.signedTeamId || !p || p.retired) return false;
+      return !faPos || p.primaryPosition === faPos;
+    });
     if (!open.length) {
-      container.appendChild(U.el('div', { class: 'empty-state' }, 'The market is picked clean.'));
+      container.appendChild(U.el('div', { class: 'empty-state' },
+        faPos ? `Nobody at ${faPos} left on the market.` : 'The market is picked clean.'));
       return;
     }
     const myOffers = new Set(market.userOffers.map((o) => o.playerId));
@@ -164,11 +180,12 @@ window.BBGM_UI_FRONTOFFICE = (function () {
     const players = state.players;
     const pool = (state.freeAgents || [])
       .map((id) => players[id])
-      .filter((p) => p && !p.retired)
+      .filter((p) => p && !p.retired && (!faPos || p.primaryPosition === faPos))
       .sort((a, b) => ROSTER().overall(b) - ROSTER().overall(a));
     if (!pool.length) {
       container.appendChild(U.el('div', { class: 'empty-state' },
-        'No free agents available. The pool restocks when contracts expire in the offseason.'));
+        faPos ? `Nobody at ${faPos} in the pool right now.`
+          : 'No free agents available. The pool restocks when contracts expire in the offseason.'));
       return;
     }
     container.appendChild(U.el('p', { class: 'muted', style: { 'font-size': '12px', 'margin-bottom': '8px' } },
@@ -220,6 +237,7 @@ window.BBGM_UI_FRONTOFFICE = (function () {
   // Module-level draft survives re-renders within a session.
   let draft = null;
   let finderPos = null; // Trade Finder position filter (0.34.0)
+  let faPos = null;     // Free agency position filter (0.48.0)
 
   // Trade Finder (0.34.0): pick a position, see who around the league
   // might actually move — computed from the same team-perspective values

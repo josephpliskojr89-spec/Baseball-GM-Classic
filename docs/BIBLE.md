@@ -3633,6 +3633,30 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > consensus. League-wide market intensity is mean-preserving — the
 > 0.32.0 offer-ladder odds stay calibrated.
 
+> **Status (0.48.0) — coaches and the manager join the correspondents.**
+> Coaches now run one personal DEVELOPMENT PROJECT per season. In
+> spring, each user coach who finds a real candidate (age ≤24, his
+> side of the ball, meaningful ceiling headroom on HIS specialty
+> attributes — e.g. a Power-development coach works `powerVsR`/
+> `powerVsL`, a Command guru works `control`) writes one letter
+> naming the kid; approval is one tap in the inbox
+> (`p.devProject = {year, coachId, domain, attrs, startVals}`).
+> Project attributes develop at 1.6× on RISE ticks only — a project
+> never softens decline and never beats the hidden ceiling, so a
+> bust stays a bust and the coach's winter verdict letter says so
+> honestly (measured delta vs the spring baseline: proud, steady, or
+> "that one's on me"). AI clubs run the same projects silently
+> league-wide (assigned at rollover Part B); all closing-season
+> projects are harvested and cleared in Part A so nothing dangles.
+> The MANAGER found his voice the same way: a spring "my plan"
+> letter built from his real tendencies (small-ball, hook, defensive
+> subs) that may propose a closer change (one tap to install his
+> pick), a July 1 midpoint check-in on each active project, and the
+> September promotion push now arrives from the manager by name.
+> Same pillar as 0.47.0: one personality, one letter, one tap —
+> no assignment grids. Also: the free-agent market (open market and
+> in-season pool) gained the trade-finder's position filter chips.
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):

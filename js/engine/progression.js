@@ -133,6 +133,10 @@ window.BBGM_PROGRESSION = (function () {
 
       if (age < h.peakAge) {
         change = arch.riseRate * ANNUAL_SHARE * Math.max(0, devCeil - cur) * posMod;
+        // Coach project (0.48.0): the year a coach makes this player his
+        // personal project, HIS specialty attributes develop 60% faster.
+        // Rise only — a project never softens decline or beats the ceiling.
+        if (p.devProject && p.devProject.attrs.includes(k)) change *= 1.6;
         if (breakoutNow) change += (0.3 + rand() * 0.2) * Math.max(0, devCeil - cur);
       } else if (age < h.peakAge + (arch.plateauWidth || 2)) {
         change = 0; // plateau — variance only
@@ -186,6 +190,9 @@ window.BBGM_PROGRESSION = (function () {
 
       if (age < h.peakAge) {
         change = arch.riseRate * frac * Math.max(0, devCeil - cur) * posMod;
+        // Coach project boost (0.48.0) — the in-season share, so the
+        // project visibly moves during the year.
+        if (p.devProject && p.devProject.attrs.includes(k)) change *= 1.6;
       } else if (age < h.peakAge + (arch.plateauWidth || 2)) {
         change = 0;
       } else {

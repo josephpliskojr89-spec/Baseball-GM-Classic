@@ -487,6 +487,34 @@ window.BBGM_OFFSEASON = (function () {
       p.age++;
     }
 
+    // 5.1. Coach-project verdicts (0.48.0): after the year's development
+    // is booked, the user's coaches report out on their personal projects
+    // (main.js writes the letters from summary.coachProjects), then every
+    // project ends with the season — the AI's included.
+    {
+      const verdicts = [];
+      for (const id in players) {
+        const p = players[id];
+        if (!p || !p.devProject) continue;
+        if (p.teamId === state.meta.userTeamId) {
+          const dv = p.devProject;
+          let delta = 0, n = 0;
+          for (const k of dv.attrs) {
+            if (dv.startVals[k] != null && p.ratings[k] != null) {
+              delta += p.ratings[k] - dv.startVals[k];
+              n++;
+            }
+          }
+          verdicts.push({
+            coachId: dv.coachId, playerId: id, name: p.name,
+            delta: n ? Math.round((delta / n) * 10) / 10 : 0,
+          });
+        }
+        delete p.devProject;
+      }
+      summary.coachProjects = verdicts;
+    }
+
     // 5.2. Position development (0.20.0 — utility men). A minor leaguer on
     // a position-work assignment (Team → Minors) banks a season of side
     // work at the new spot; then every player's learned positions graduate
@@ -865,6 +893,22 @@ window.BBGM_OFFSEASON = (function () {
         type: p.currentInjury.type, days });
     }
     summary.springTraining = ST;
+
+    // Coach projects for the new season (0.48.0): AI clubs auto-approve
+    // their coaches' picks here; the user's coaches propose by letter
+    // (main.js, from summary.userProjectProposals) — approving is the
+    // GM's call.
+    window.BBGM_STAFF.assignAiProjects(state, newYear);
+    {
+      const ut = state.league.teams.find((t) => t.id === state.meta.userTeamId);
+      summary.userProjectProposals = ut ? window.BBGM_STAFF.proposeProjects(state, ut)
+        .map((pr) => ({
+          coachId: pr.coach.id, coachName: pr.coach.name, specialty: pr.coach.specialty,
+          domain: pr.coach.role, playerId: pr.player.id, playerName: pr.player.name,
+          playerPos: pr.player.primaryPosition, playerAge: pr.player.age,
+          attrs: pr.attrs,
+        })) : [];
+    }
 
     // Fail loud if any org came out of the offseason unplayable.
     GEN().validateLeagueReadiness(state.league, players);

@@ -97,6 +97,99 @@ window.BBGM_STAFF = (function () {
     };
   }
 
+  // ---- Coach projects (0.48.0) ---------------------------------------------
+  // Each winter a coach names ONE personal project: a young org player of
+  // his type who develops 60% faster on the coach's specialty attributes
+  // for the season (progression.js reads p.devProject). The user's coaches
+  // PROPOSE by letter (approve or decline — the correspondents pattern);
+  // AI clubs run theirs quietly on the same rules so league development
+  // stays fair. Projects die at the rollover, where the user's coaches
+  // report out honestly.
+  const SPECIALTY_ATTRS = {
+    'Power development': ['powerVsR', 'powerVsL'],
+    'Plate discipline': ['discipline'],
+    'Contact mechanics': ['contactVsR', 'contactVsL'],
+    'Command guru': ['control'],
+    'Velocity development': ['velocity'],
+    'Pitch design': ['stuff', 'movement'],
+  };
+  const GENERAL_ATTRS = {
+    hitting: ['contactVsR', 'contactVsL', 'powerVsR', 'powerVsL', 'discipline'],
+    pitching: ['stuff', 'control', 'movement', 'velocity'],
+  };
+
+  function projectAttrsFor(coach) {
+    return SPECIALTY_ATTRS[coach.specialty] || GENERAL_ATTRS[coach.role] || [];
+  }
+
+  // The coach's pick: young (24-), his side of the ball, and real headroom
+  // on HIS attributes — a specialist wants the kid whose ceiling gap sits
+  // exactly where he teaches.
+  function projectCandidate(state, team, coach) {
+    const players = state.players;
+    const attrs = projectAttrsFor(coach);
+    if (!attrs.length) return null;
+    const pool = [...(team.roster || []), ...(team.minors || [])]
+      .map((id) => players[id])
+      .filter((p) => p && !p.retired && p.age <= 24 &&
+        p.isPitcher === (coach.role === 'pitching') && !p.devProject);
+    let best = null, bestGap = 3; // needs at least 3 grades of headroom
+    for (const p of pool) {
+      const ceil = (p.hidden && p.hidden.ceiling) || {};
+      let gap = 0, n = 0;
+      for (const k of attrs) {
+        if (p.ratings[k] != null && ceil[k] != null) {
+          gap += Math.max(0, ceil[k] - p.ratings[k]);
+          n++;
+        }
+      }
+      if (!n) continue;
+      gap /= n;
+      if (gap > bestGap) { bestGap = gap; best = p; }
+    }
+    return best;
+  }
+
+  function approveProject(state, p, opts) {
+    const startVals = {};
+    for (const k of opts.attrs) {
+      if (p.ratings[k] != null) startVals[k] = p.ratings[k];
+    }
+    p.devProject = {
+      year: opts.year, coachId: opts.coachId, domain: opts.domain,
+      attrs: opts.attrs.slice(), startVals,
+    };
+  }
+
+  // AI clubs auto-approve their coaches' picks — no letters, same rules.
+  function assignAiProjects(state, year) {
+    for (const team of state.league.teams) {
+      if (team.id === state.meta.userTeamId) continue;
+      for (const field of ['hittingCoachId', 'pitchingCoachId']) {
+        const coach = team[field] && state.staff.coaches[team[field]];
+        if (!coach) continue;
+        const cand = projectCandidate(state, team, coach);
+        if (cand) {
+          approveProject(state, cand, {
+            year, coachId: coach.id, domain: coach.role, attrs: projectAttrsFor(coach),
+          });
+        }
+      }
+    }
+  }
+
+  // The user's coaches pick; main.js writes the letters.
+  function proposeProjects(state, team) {
+    const out = [];
+    for (const field of ['hittingCoachId', 'pitchingCoachId']) {
+      const coach = team[field] && state.staff.coaches[team[field]];
+      if (!coach) continue;
+      const cand = projectCandidate(state, team, coach);
+      if (cand) out.push({ coach, player: cand, attrs: projectAttrsFor(coach) });
+    }
+    return out;
+  }
+
   // ---- Head scouts (0.47.0) ------------------------------------------------
   // One per org: the single personality every international read flows
   // through. `reputation` is his ACCURACY (how tight the bands his
@@ -573,5 +666,6 @@ window.BBGM_STAFF = (function () {
     runStaffOffseason, managerAppeal, tendencyLevel,
     offerOdds, offerOutlook, offerJob, fireCoach,
     generateScout, poolScouts, scoutFor, fireScout, SCOUT_BIASES,
+    projectAttrsFor, projectCandidate, approveProject, assignAiProjects, proposeProjects,
   };
 })();

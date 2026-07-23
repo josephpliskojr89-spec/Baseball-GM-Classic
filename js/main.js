@@ -686,6 +686,38 @@ window.BBGM_MAIN = (function () {
         setTimeout(() => navigate(m.action.tab, m.action.opts || {}), 0);
         return true;
       }});
+    } else if (m.action && m.action.type === 'coachProject') {
+      // Approve a coach's personal project (0.48.0). Guarded: the player
+      // must still be in the org and not already someone's project.
+      actions.push({ label: 'Approve the Project', kind: 'primary', onClick: () => {
+        const s = window.BBGM_STATE.get();
+        const p = s.players[m.action.playerId];
+        const team = s.league.teams.find((t) => t.id === s.meta.userTeamId);
+        const inOrg = p && team && (team.roster.includes(p.id) ||
+          team.minors.includes(p.id) || (team.il || []).includes(p.id));
+        if (!p || !inOrg || p.devProject) {
+          U.showToast('That project is no longer on the table.', 'warning', 4000);
+          return true;
+        }
+        window.BBGM_STAFF.approveProject(s, p, m.action);
+        window.BBGM_STATE.set(s);
+        U.showToast(`${p.name} is the project — extra work starts now.`, 'success');
+        return true;
+      }});
+    } else if (m.action && m.action.type === 'closerProposal') {
+      // The manager's ninth-inning pick (0.48.0) — runs through the same
+      // Name Closer path the pitching tab uses.
+      actions.push({ label: 'Make Him the Closer', kind: 'primary', onClick: () => {
+        const s = window.BBGM_STATE.get();
+        const team = s.league.teams.find((t) => t.id === s.meta.userTeamId);
+        const p = s.players[m.action.playerId];
+        if (!p || !p.isPitcher || !team.roster.includes(p.id) || team.closer === p.id) {
+          U.showToast('That arm is no longer available for the ninth.', 'warning', 4000);
+          return true;
+        }
+        window.BBGM_UI_TEAM.nameCloser(s, team, p);
+        return true;
+      }});
     }
     actions.push({ label: 'Back to Inbox', kind: 'secondary', onClick: () => {
       setTimeout(() => showInbox(), 0);
@@ -1069,6 +1101,23 @@ window.BBGM_MAIN = (function () {
       try {
         const summary = window.BBGM_OFFSEASON.runSeasonRolloverPartA(state);
         pushOffseasonNews(state, summary);
+        // Coach-project verdicts (0.48.0): each coach reports out on his
+        // personal project honestly — the good years and the wasted ones.
+        for (const v of summary.coachProjects || []) {
+          const coach = state.staff && state.staff.coaches[v.coachId];
+          const up = v.delta >= 3;
+          const flat = v.delta < 1;
+          window.BBGM_INBOX.push(state, {
+            from: coach ? `${coach.name} (${coach.role === 'pitching' ? 'Pitching' : 'Hitting'} Coach)` : 'Player Development',
+            subject: `Project report: ${v.name}`,
+            body: up
+              ? `A year of extra work with ${v.name} and the results are on the card — up ${v.delta} grades where I teach. Give me another one next spring.`
+              : flat
+                ? `I'll be straight with you: ${v.name} didn't take the jump. ` +
+                  `Sometimes the hands just aren't there. That one's on me.`
+                : `${v.name} moved — up ${v.delta} grades in my program. Steady, not spectacular. The work continues.`,
+          });
+        }
         window.BBGM_STATE.setSaveBlocked(false);
         window.BBGM_STATE.saveNow();
         U.hideProgress();
@@ -1195,6 +1244,65 @@ window.BBGM_MAIN = (function () {
           body: `The writers project us at ${projWins}-${162 - projWins}. ${outlook} ` +
                 `The board has set the payroll budget at $${userTeam.payrollBase}M. ${ownerFlavor}`,
         });
+
+        // Coach project proposals (0.48.0): each coach names ONE personal
+        // project for the year — approving is a single tap on the letter.
+        for (const pr of summary.userProjectProposals || []) {
+          window.BBGM_INBOX.push(state, {
+            from: `${pr.coachName} (${pr.domain === 'pitching' ? 'Pitching' : 'Hitting'} Coach)`,
+            subject: `Give me ${pr.playerName} for the year`,
+            body: `${pr.playerName} (${pr.playerPos}, ${pr.playerAge}) is my guy. ` +
+                  (pr.specialty ? `${pr.specialty} is what I do, and ` : '') +
+                  `there's real headroom right where I teach. Sign off and he's my ` +
+                  `personal project this season — extra hours, my program, my reputation on it.`,
+            action: { type: 'coachProject', playerId: pr.playerId, coachId: pr.coachId,
+              domain: pr.domain, attrs: pr.attrs, year: summary.newYear },
+          });
+        }
+
+        // The manager's plan (0.48.0): his tendencies in his own words,
+        // plus his ninth-inning pick when it differs from the current arm.
+        {
+          const mgr = window.BBGM_STAFF.managerFor(state, userTeam);
+          if (mgr) {
+            const t = mgr.tendencies || {};
+            const lines = [];
+            if ((t.smallBall || 5) >= 7) lines.push('we pressure defenses — bunts, steals, first-to-third');
+            else if ((t.smallBall || 5) <= 3) lines.push('no giveaway outs — we sit back and slug');
+            if ((t.quickHook || 5) >= 7) lines.push('starters get a short leash');
+            else if ((t.quickHook || 5) <= 3) lines.push('my starters are trusted deep into games');
+            if ((t.defSub || 5) >= 7) lines.push('late leads get the glove men');
+            const planTxt = lines.length ? `Here's how we play: ${lines.join('; ')}. ` : '';
+            const pen = (userTeam.roster || []).map((id) => players[id])
+              .filter((p) => p && p.isPitcher && p.primaryPosition !== 'SP' && !p.currentInjury);
+            let pick = null;
+            if (pen.length) {
+              pen.sort((a, b) => (t.leverage || 5) >= 6
+                ? (b.ratings.stuff + b.ratings.velocity) - (a.ratings.stuff + a.ratings.velocity)
+                : b.age - a.age);
+              pick = pen[0];
+            }
+            if (pick && pick.id !== userTeam.closer) {
+              window.BBGM_INBOX.push(state, {
+                from: `${mgr.name} (Manager)`,
+                subject: 'My plan for the season',
+                body: planTxt + `One change I want: ${pick.name} closing games for me` +
+                      ((t.leverage || 5) >= 6
+                        ? ' — the best stuff in the pen gets the ninth.'
+                        : ' — I trust the veteran in the ninth.') +
+                      ' Your call, but that\'s my recommendation.',
+                action: { type: 'closerProposal', playerId: pick.id },
+              });
+            } else {
+              window.BBGM_INBOX.push(state, {
+                from: `${mgr.name} (Manager)`,
+                subject: 'My plan for the season',
+                body: (planTxt || 'We play it straight — solid baseball, no gimmicks. ') +
+                      `The ninth inning is settled${pick ? ` — ${pick.name} is my guy too` : ''}. Let's have a season.`,
+              });
+            }
+          }
+        }
 
         const body = U.el('div');
         body.appendChild(U.el('p', { style: { 'font-size': '14px', 'margin-bottom': '8px' } },
@@ -1993,6 +2101,34 @@ window.BBGM_MAIN = (function () {
         }
       }
       monthlyDevDigest(state, today);
+      // Coach-project midpoint report (0.48.0): on July 1 each coach with
+      // an approved project writes an honest progress note.
+      if (today.month === 7) {
+        const ut = state.league.teams.find((t) => t.id === state.meta.userTeamId);
+        for (const id of [...(ut.roster || []), ...(ut.minors || [])]) {
+          const p = state.players[id];
+          if (!p || !p.devProject || p.devProject.year !== today.year) continue;
+          const dv = p.devProject;
+          const coach = state.staff && state.staff.coaches[dv.coachId];
+          let delta = 0, n = 0;
+          for (const k of dv.attrs) {
+            if (dv.startVals[k] != null && p.ratings[k] != null) {
+              delta += p.ratings[k] - dv.startVals[k];
+              n++;
+            }
+          }
+          const d = n ? Math.round((delta / n) * 10) / 10 : 0;
+          window.BBGM_INBOX.push(state, {
+            from: coach ? `${coach.name} (${coach.role === 'pitching' ? 'Pitching' : 'Hitting'} Coach)` : 'Player Development',
+            subject: `Midseason check-in: ${p.name}`,
+            body: d >= 1.5
+              ? `The project is working — ${p.name} is up ${d} grades where I teach since spring. The second half is where it sticks.`
+              : d > 0
+                ? `${p.name} is moving, slowly — up ${d} so far. I'm not worried yet; the jump usually shows late.`
+                : `Honest report: ${p.name} hasn't budged yet. We're reworking his routine over the break.`,
+          });
+        }
+      }
     }
 
     // Pre-move Pipeline ranks for the news ticker — the promoted player
@@ -2024,12 +2160,19 @@ window.BBGM_MAIN = (function () {
         }
         if (state.meta.promoHalts.ids.includes(up.id)) continue;
         state.meta.promoHalts.ids.push(up.id);
+        // The manager's voice (0.48.0): the push for the kid comes from
+        // the skipper by name, not an anonymous department.
+        const promoMgr = window.BBGM_STAFF.managerFor(state, team);
         window.BBGM_INBOX.push(state, {
-          from: 'Player Development',
+          from: promoMgr ? `${promoMgr.name} (Manager)` : 'Player Development',
           subject: `${up.name} is forcing the issue`,
-          body: `${up.name} (${up.primaryPosition}, ${up.rosterStatus}) has nothing left to prove down here — ` +
-                `our staff grades him ahead of ${down ? down.name : 'the back of your roster'} right now. ` +
-                `He's ready for the call whenever you are.`,
+          body: promoMgr
+            ? `The kid's outplaying ${down ? down.name : 'the back of my roster'}. ` +
+              `${up.name} (${up.primaryPosition}, ${up.rosterStatus}) has nothing left to prove down there — ` +
+              `I want him in my lineup. Make the call and I'll find him the at-bats.`
+            : `${up.name} (${up.primaryPosition}, ${up.rosterStatus}) has nothing left to prove down here — ` +
+              `our staff grades him ahead of ${down ? down.name : 'the back of your roster'} right now. ` +
+              `He's ready for the call whenever you are.`,
           action: { type: 'navigate', tab: 'team', opts: { tab: 'minors' } },
         });
         queueHalt({
