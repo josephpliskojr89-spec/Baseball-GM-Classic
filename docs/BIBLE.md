@@ -3520,6 +3520,18 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > (flex-basis auto + nowrap — matters where the condensed display
 > font isn't installed and labels run wide).
 
+> **Status (0.44.0) — box-score scorebug + inbox wire report.** The
+> box score opens on a final scorebug (`.scorebug-final`): night
+> plate with the chrome keyline, condensed team names, the winner's
+> runs in LED amber, and FINAL/date plus the W-L-SV decisions as mono
+> meta lines inside the plate. Played games in the scores lists wear
+> a mono amber FINAL chip. The inbox is a newsroom wire feed
+> (`.wire-*`): unread mail carries a glowing amber LED dot (read
+> mail a hollow ring), the source reads as an amber mono news slug
+> over each subject, and an open letter leads with a dateline strip
+> (amber mono caps on night, chrome keyline) above the body. The
+> emoji glyphs (✉/📄) are gone from the mail list.
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):

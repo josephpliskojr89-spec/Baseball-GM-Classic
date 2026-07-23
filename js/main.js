@@ -595,22 +595,21 @@ window.BBGM_MAIN = (function () {
       body.appendChild(U.el('div', { class: 'empty-state' },
         'Nothing yet. The owner, your scouts, and rival GMs will write when there\'s something worth reading.'));
     }
-    const list = U.el('div', { class: 'roster-list' });
+    // Wire-report list (0.44.0): unread mail carries an amber LED, the
+    // source and dateline read as a mono news slug.
+    const list = U.el('div', { class: 'wire-list' });
     for (const m of box) {
       const row = U.el('button', {
-        class: 'roster-row',
+        class: `wire-row${m.read ? ' read' : ''}`,
         on: { click: () => { U.closeModal(); setTimeout(() => showInboxMessage(m.id), 0); } },
       });
-      row.appendChild(U.el('span', {
-        style: { width: '32px', 'text-align': 'center', 'font-size': '16px' },
-      }, m.read ? '📄' : '✉'));
-      const info = U.el('div', { class: 'player-row-info' });
-      info.appendChild(U.el('div', {
-        class: 'player-row-name',
-        style: m.read ? { 'font-weight': '400', color: 'var(--text-muted, #8b949e)' } : {},
-      }, m.subject));
-      info.appendChild(U.el('div', { class: 'player-row-meta' },
-        `${m.from} • ${D.format(m.date)}`));
+      row.appendChild(U.el('span', { class: 'wire-dot' }));
+      const info = U.el('div', { class: 'wire-info' });
+      info.appendChild(U.el('div', { class: 'wire-subject' }, m.subject));
+      const meta = U.el('div', { class: 'wire-meta' });
+      meta.appendChild(U.el('span', { class: 'src' }, m.from));
+      meta.appendChild(document.createTextNode(` • ${D.format(m.date)}`));
+      info.appendChild(meta);
       row.appendChild(info);
       list.appendChild(row);
     }
@@ -636,9 +635,9 @@ window.BBGM_MAIN = (function () {
     window.BBGM_STATE.set(state);
     updateHeader(state);
     const body = U.el('div');
-    body.appendChild(U.el('p', { class: 'muted', style: { 'font-size': '12px', 'margin-bottom': '8px' } },
-      `From ${m.from} • ${D.format(m.date)}`));
-    body.appendChild(U.el('p', { style: { 'font-size': '13px', 'line-height': '1.5' } }, m.body));
+    body.appendChild(U.el('div', { class: 'wire-dateline' },
+      `${m.from} • ${D.format(m.date)}`));
+    body.appendChild(U.el('p', { class: 'wire-body' }, m.body));
     const actions = [];
     if (m.action && m.action.type === 'trade') {
       actions.push({ label: 'Open Trade Talks', kind: 'primary', onClick: () => {

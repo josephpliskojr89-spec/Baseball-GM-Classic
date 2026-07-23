@@ -949,3 +949,181 @@
   text-transform: uppercase;
   opacity: 0.75;
 }
+
+/* Final scorebug (0.44.0): the end-of-game graphic at the top of every
+   box score — night plate, chrome keyline, winner's runs in LED amber. */
+.scorebug-final {
+  background: var(--night, var(--bg-elevated));
+  border: 1px solid var(--border-strong);
+  border-left: 3px solid var(--chrome-primary, var(--accent));
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  margin-bottom: 12px;
+}
+
+.sbf-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  opacity: 0.7;
+}
+
+.sbf-row.won {
+  opacity: 1;
+}
+
+.sbf-name {
+  font-family: var(--font-display);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: var(--fs-md);
+  color: var(--chalk, var(--text-primary));
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sbf-score {
+  font-family: var(--font-mono);
+  font-size: 24px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
+}
+
+.sbf-row.won .sbf-score {
+  color: var(--amber, #ffb52e);
+}
+
+.sbf-meta {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.sbf-meta.dec {
+  border-top: none;
+  margin-top: 2px;
+  padding-top: 0;
+  text-transform: none;
+  letter-spacing: 0.03em;
+}
+
+/* Scores list: a played game's status chip reads FINAL off the LED. */
+.game-status .fin {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--amber, #ffb52e);
+}
+
+/* Wire-report inbox (0.44.0): the GM's mail as a newsroom wire feed —
+   unread items carry an amber LED, sources read as mono news slugs. */
+.wire-list {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.wire-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.wire-row:last-child {
+  border-bottom: none;
+}
+
+.wire-row:active {
+  background: var(--bg-elevated);
+}
+
+.wire-dot {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  margin-top: 5px;
+  border-radius: 50%;
+  background: var(--amber, #ffb52e);
+  box-shadow: 0 0 6px var(--amber-soft, rgba(255, 181, 46, 0.4));
+}
+
+.wire-row.read .wire-dot {
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  box-shadow: none;
+}
+
+.wire-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.wire-subject {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+}
+
+.wire-row.read .wire-subject {
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.wire-meta {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wire-meta .src {
+  color: var(--amber, #ffb52e);
+}
+
+.wire-row.read .wire-meta .src {
+  color: var(--text-muted);
+}
+
+/* Message view: the dateline strip above the letter body. */
+.wire-dateline {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--amber, #ffb52e);
+  background: var(--night, var(--bg-elevated));
+  border-left: 3px solid var(--chrome-primary, var(--accent));
+  border-radius: 4px;
+  padding: 8px 10px;
+  margin-bottom: 10px;
+}
+
+.wire-body {
+  font-size: 13px;
+  line-height: 1.55;
+}

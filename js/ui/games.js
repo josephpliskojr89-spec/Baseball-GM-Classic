@@ -164,7 +164,7 @@ window.BBGM_UI_GAMES = (function () {
 
     const status = U.el('div', { class: 'game-status' });
     if (g.played) {
-      status.appendChild(U.el('span', {}, 'Final'));
+      status.appendChild(U.el('span', { class: 'fin' }, 'Final'));
       if (g.result.innings && g.result.innings > 9) {
         status.appendChild(U.el('span', { style: { display: 'block', 'font-size': '10px' } },
           `${g.result.innings} inn`));
@@ -193,27 +193,22 @@ window.BBGM_UI_GAMES = (function () {
     const r = game.result;
     const body = U.el('div');
 
-    // ---- Header ----
+    // ---- Header: the final scorebug (0.44.0) ----
+    // The end-of-game graphic off a telecast: night plate, chrome
+    // keyline, winner's score in scoreboard amber, FINAL + decisions on
+    // mono meta lines.
     const homeWon = r.homeRuns > r.awayRuns;
-    const scoreLine = U.el('div', { style: { 'margin-bottom': '12px' } });
+    const plate = U.el('div', { class: 'scorebug-final' });
     for (const [team, runs, won] of [[away, r.awayRuns, !homeWon], [home, r.homeRuns, homeWon]]) {
-      scoreLine.appendChild(U.el('div', { class: 'boxscore-team', style: won ? {} : { opacity: '0.75' } }, [
-        U.teamCap(team),
-        U.el('span', { style: { 'margin-left': '8px' } }, team.name),
-        U.el('span', { class: 'score' }, String(runs)),
-      ]));
+      const row = U.el('div', { class: `sbf-row${won ? ' won' : ''}` });
+      row.appendChild(U.teamCap(team));
+      row.appendChild(U.el('span', { class: 'sbf-name' }, team.name));
+      row.appendChild(U.el('span', { class: 'sbf-score' }, String(runs)));
+      plate.appendChild(row);
     }
-    const meta = [D.format(game.date)];
-    if (r.innings && r.innings !== 9) meta.push(`${r.innings} innings`);
-    scoreLine.appendChild(U.el('div', { class: 'muted', style: { 'font-size': '12px' } }, meta.join(' • ')));
-    body.appendChild(scoreLine);
-
-    // ---- Line score ----
-    if (r.lineScore && r.lineScore.away && r.lineScore.away.length) {
-      body.appendChild(buildLineScore(r, away, home));
-    }
-
-    // ---- Decisions ----
+    const finalTag = 'Final' + (r.innings && r.innings !== 9 ? `/${r.innings}` : '');
+    plate.appendChild(U.el('div', { class: 'sbf-meta' },
+      `${finalTag} • ${D.format(game.date)}`));
     const decisions = [];
     const nameOf = (pid) => (pid && state.players[pid]) ? state.players[pid].name : null;
     const wp = nameOf(r.homeWP || r.awayWP);
@@ -223,8 +218,13 @@ window.BBGM_UI_GAMES = (function () {
     if (lp) decisions.push(`L: ${lp}`);
     if (sv) decisions.push(`SV: ${sv}`);
     if (decisions.length) {
-      body.appendChild(U.el('div', { class: 'muted', style: { 'font-size': '13px', 'margin-bottom': '12px' } },
-        decisions.join('  •  ')));
+      plate.appendChild(U.el('div', { class: 'sbf-meta dec' }, decisions.join('  •  ')));
+    }
+    body.appendChild(plate);
+
+    // ---- Line score ----
+    if (r.lineScore && r.lineScore.away && r.lineScore.away.length) {
+      body.appendChild(buildLineScore(r, away, home));
     }
 
     // ---- Box scores ----
@@ -390,7 +390,7 @@ window.BBGM_UI_GAMES = (function () {
   function buildGameLog(state, r, away, home) {
     const details = U.el('details');
     details.appendChild(U.el('summary', {
-      style: { cursor: 'pointer', color: 'var(--accent)', 'font-size': '13px', 'font-weight': '600', padding: '6px 0' },
+      style: { cursor: 'pointer', color: 'var(--chrome-primary, var(--accent))', 'font-size': '13px', 'font-weight': '600', padding: '6px 0' },
     }, `Show at-bat by at-bat log (${r.gameLog.length} plays)`));
 
     const list = U.el('div', { style: { 'font-size': '12px', 'line-height': '1.5' } });
