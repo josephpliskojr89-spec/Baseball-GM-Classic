@@ -3657,6 +3657,24 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > no assignment grids. Also: the free-agent market (open market and
 > in-season pool) gained the trade-finder's position filter chips.
 
+> **Status (0.49.0) — the tale of the tape (user report: too many
+> 6'4" 220 players, teenagers with grown bodies).** The body model
+> was rebuilt. Heights pulled in (pitchers now peak-populate around
+> 6'2", ~25% at 6'4"+ instead of 43%) and the weight line dropped to
+> an adult FRAME of ~197 lb at 6'2" (+5.5/inch), with position body
+> types — 1B/DH/C run thick, 2B/SS/CF run lean. League-wide, 220+ lb
+> fell from 29% of all players to under 5%. Every player now carries
+> `frameLb`, the adult frame he fills toward: a listed weight equals
+> frame minus a youth deficit (~3.5 lb per year under 25, capped
+> 30), so a 16-year-old intl signee reads 150-170 wiry, not 205 —
+> and each winter (rollover step 5) a player under 27 adds 4-8 lb
+> until he reaches his frame. Cosmetic only: no rating reads weight;
+> the crapshoot invariants are untouched. A one-shot 0.49.0 load
+> migration reshapes existing saves (heights remapped
+> order-preserving so the tall stay tallest, weights rebuilt,
+> frames stamped, draft/intl pools included); retirees keep the
+> bodies they made their history at.
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):

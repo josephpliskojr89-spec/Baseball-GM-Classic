@@ -34,9 +34,12 @@ window.BBGM_UI_PLAYER = (function () {
     // negative under >>, and a negative modulo gave "undefined -7, 2006"
     // birthdates on the card.
     const heightIn = p.heightIn != null ? p.heightIn : 70 + (h % 9);
-    // Same scale as generation: ~197 lb at 6'0", +6 lb per inch.
-    const weightLb = p.weightLb != null ? p.weightLb
-      : Math.max(165, Math.min(270, Math.round((heightIn - 60) * 6 + 125 + ((h >>> 4) % 30) - 15)));
+    // Same scale as generation (0.49.0 body model): adult frame ~197 lb
+    // at 6'2", young players list light until they fill out.
+    const frame = Math.max(160, Math.min(260,
+      Math.round((heightIn - 60) * 5.5 + 120 + ((h >>> 4) % 23) - 11)));
+    const deficit = p.age != null ? Math.round(Math.max(0, Math.min(30, (25 - p.age) * 3.5))) : 0;
+    const weightLb = p.weightLb != null ? p.weightLb : Math.max(148, frame - deficit);
     const birthMonth = p.birthMonth != null ? p.birthMonth : 1 + ((h >>> 8) % 12);
     const birthDay = p.birthDay != null ? p.birthDay : 1 + ((h >>> 12) % 28);
     return { heightIn, weightLb, birthMonth, birthDay };

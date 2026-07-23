@@ -485,6 +485,13 @@ window.BBGM_OFFSEASON = (function () {
       const coachMod = mods ? (p.isPitcher ? mods.pitching : mods.hitting) : 0;
       PROG().progressPlayer(p, year, coachMod);
       p.age++;
+      // Fill-out (0.49.0): the wiry kid grows into his adult frame a few
+      // pounds a winter — signed at 16 around 155, listed near his frame
+      // weight by his mid-20s. Cosmetic only; no rating reads weight.
+      if (p.frameLb == null && p.heightIn != null) p.frameLb = GEN().frameFor(p.heightIn, 0);
+      if (p.frameLb != null && p.weightLb != null && p.age <= 27 && p.weightLb < p.frameLb) {
+        p.weightLb = Math.min(p.frameLb, p.weightLb + rint(4, 8));
+      }
     }
 
     // 5.1. Coach-project verdicts (0.48.0): after the year's development

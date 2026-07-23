@@ -499,6 +499,46 @@ window.BBGM_MAIN = (function () {
       }
     }
 
+    // 0.49.0: body-model rebuild. The old generator handed everyone an
+    // adult frame on a +6 lb/inch line off 6'3"-base pitcher heights —
+    // nearly a third of each staff listed 6'4"+ AND 220+, and 16-year-old
+    // intl signees could read 205 lb. Remap heights onto the tightened
+    // bases (order-preserving, so the tall stay tallest), rebuild weights
+    // on the ~197-at-6'2" line, and stamp the adult frame (frameLb) each
+    // young player fills toward. Retired players keep the bodies they
+    // made their history at. Signed intl prospects share their object
+    // with state.players — the frameLb stamp doubles as the visited flag.
+    if (versionLt(saveVersion, '0.49.0')) {
+      const GENP = window.BBGM_PLAYER_GEN;
+      let reshaped = 0;
+      const reshape = (p) => {
+        if (!p || p.retired || p.heightIn == null || p.frameLb != null) return;
+        let h = 0;
+        const idStr = String(p.id);
+        for (let i = 0; i < idStr.length; i++) h = (h * 31 + idStr.charCodeAt(i)) >>> 0;
+        const mid = ['2B', 'SS'].includes(p.primaryPosition);
+        const oldBase = p.isPitcher ? 75 : (p.primaryPosition === 'C' ? 73 : mid ? 71.5 : 73.5);
+        const newBase = p.isPitcher ? 74.4 : (p.primaryPosition === 'C' ? 73 : mid ? 71.5 : 73.2);
+        p.heightIn = Math.max(68, Math.min(79,
+          Math.round(newBase + (p.heightIn - oldBase) * (1.6 / 1.8))));
+        p.frameLb = GENP.frameFor(p.heightIn,
+          GENP.posFrameAdj(p.primaryPosition, p.isPitcher) + (h % 25) - 12);
+        p.weightLb = Math.max(148, p.frameLb - GENP.youthDeficit(p.age));
+        reshaped++;
+      };
+      for (const id in state.players) reshape(state.players[id]);
+      if (state.draft && state.draft.prospects) {
+        for (const id in state.draft.prospects) reshape(state.draft.prospects[id]);
+      }
+      if (state.intl && state.intl.prospects) {
+        for (const id in state.intl.prospects) reshape(state.intl.prospects[id]);
+      }
+      if (reshaped) {
+        console.log(`0.49.0 migration: rebuilt ${reshaped} player bodies on the new scale.`);
+        window.BBGM_STATE.set(state);
+      }
+    }
+
     // Stamp the save forward now that every migration has run. This is
     // what makes the versionLt gates above one-shot, and it makes the
     // Menu's "Save version" reflect the code the save actually runs under

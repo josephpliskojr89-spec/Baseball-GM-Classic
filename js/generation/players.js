@@ -7,6 +7,22 @@ window.BBGM_PLAYER_GEN = (function () {
   let _id = 0;
   function nextId() { _id++; return `p${_id}`; }
 
+  // 0.49.0 body model, shared with the load migration and the offseason
+  // fill-out: the adult frame a player fills toward (~197 lb at 6'2",
+  // +5.5 lb/inch), and how far under it a young player lists — a
+  // 16-year-old signee runs ~30 lb light and adds weight each winter.
+  function frameFor(heightIn, noise) {
+    return Math.max(160, Math.min(260, Math.round((heightIn - 60) * 5.5 + 120 + (noise || 0))));
+  }
+  function youthDeficit(age) {
+    return Math.round(Math.max(0, Math.min(30, (25 - age) * 3.5)));
+  }
+  // Corner bats run thick, up-the-middle players run lean.
+  const FRAME_POS_ADJ = { C: 6, '1B': 8, DH: 10, '3B': 3, LF: 2, RF: 2, CF: -4, '2B': -6, SS: -6 };
+  function posFrameAdj(primaryPosition, isPitcher) {
+    return isPitcher ? 0 : (FRAME_POS_ADJ[primaryPosition] || 0);
+  }
+
   // Roster slot template.
   // Each team needs:
   //  - 2 catchers
@@ -223,10 +239,16 @@ window.BBGM_PLAYER_GEN = (function () {
     };
 
     // Bio (profile card): height/weight by role, full birthdate.
-    const heightBase = isPitcher ? 75 : (primaryPosition === 'C' ? 73 : ['2B', 'SS'].includes(primaryPosition) ? 71.5 : 73.5);
-    const heightIn = clamp(Math.round(rnormal(rng, heightBase, 1.8)), 68, 80);
-    // ~197 lb at 6'0", ~+6 lb per inch (matches the modern MLB roster page).
-    const weightLb = clamp(Math.round((heightIn - 60) * 6 + 125 + rnormal(rng, 0, 12)), 165, 270);
+    // 0.49.0 body rebuild: the old model (6'3"-base pitchers on a
+    // +6 lb/inch line) had nearly a third of every staff listing 6'4"+
+    // AND 220+, and handed 16-year-old signees adult bodies. Heights
+    // pulled in, the weight line sits at ~197 lb for 6'2", and a player
+    // now carries an adult FRAME (frameLb) he fills toward — teenagers
+    // list wiry and add a few pounds each winter until their mid-20s.
+    const heightBase = isPitcher ? 74.4 : (primaryPosition === 'C' ? 73 : ['2B', 'SS'].includes(primaryPosition) ? 71.5 : 73.2);
+    const heightIn = clamp(Math.round(rnormal(rng, heightBase, 1.6)), 68, 79);
+    const frameLb = frameFor(heightIn, posFrameAdj(primaryPosition, isPitcher) + rnormal(rng, 0, 12));
+    const weightLb = Math.max(148, frameLb - youthDeficit(age));
 
     return {
       id,
@@ -238,6 +260,7 @@ window.BBGM_PLAYER_GEN = (function () {
       birthDay: rint(rng, 1, 28),
       heightIn,
       weightLb,
+      frameLb,
       age,
       bats,
       throws,
@@ -876,5 +899,7 @@ window.BBGM_PLAYER_GEN = (function () {
     // Post-launch generation + team config rebuild (offseason rollover).
     generateNewPlayer,
     assignLineupsAndPitching,
+    // 0.49.0 body model (load migration + offseason fill-out).
+    frameFor, youthDeficit, posFrameAdj,
   };
 })();
