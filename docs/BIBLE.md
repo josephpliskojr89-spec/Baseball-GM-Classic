@@ -3503,15 +3503,36 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > new tokens only, no renames (inline `var(--x, #hex)` fallbacks make
 > renames silently degrade).
 
+> **Status (0.43.0) — the final broadcast passes + nav reorder (user
+> request).** Bottom nav display order is now Home, Team, GM, League,
+> Players, Draft — the two screens you live in (your club, your
+> deals) sit beside Home; the league-watching screens follow. The
+> inherited screens got their bespoke passes: screen titles
+> (`.main-view > h2`, team select) and modal titles speak the
+> condensed broadcast voice; standings division headers are chalk
+> caps on `--night`; league leaders read as a scoreboard crawl (mono
+> ranks, the #1 line in amber); the World Series champion banner is a
+> team-colored lower-third (`team-strip`); the draft room's
+> on-the-clock line renders as an amber mono game clock. Every
+> remaining `var(--accent, ...)` accent in players/front-office/draft
+> hub re-keyed to `--chrome-primary` so the whole app follows the
+> franchise's colors. Tab labels no longer wrap on narrow phones
+> (flex-basis auto + nowrap — matters where the condensed display
+> font isn't installed and labels run wide).
+
 ### 20.2 Global Navigation
 
-A bottom navigation bar is present on every screen (mobile-standard pattern). Five tabs:
+A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):
 
 - **Home:** Dashboard with today's date, team status, pending decisions, recent results
 - **Team:** Roster, lineup, pitching staff, minor league system, scouting reports
-- **League:** Standings, schedule, league leaders, awards, other teams
-- **Games:** Today's games, recent box scores, upcoming series
-- **Menu:** Settings, save management, advanced options, help
+- **GM:** Front office — staff, trades, free agents, waivers
+- **League:** Scores/box scores, standings, playoffs, history
+- **Players:** Season stat tables, league leaders, awards wing
+- **Draft:** Draft hub — board, draft room, Top 100, history
+
+(Games folded into League → Scores in 0.13; Menu lives in the header. The
+your-club screens sit beside Home; the league-watching screens follow.)
 
 Each tab loads its own screen. Tabs persist scroll position when user navigates back. Navigation is single-tap from anywhere.
 

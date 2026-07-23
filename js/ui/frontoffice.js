@@ -101,7 +101,7 @@ window.BBGM_UI_FRONTOFFICE = (function () {
       const metaEl = U.el('div', { class: 'player-row-meta' }, meta);
       if (fillsNeed(needSet, p)) {
         metaEl.appendChild(U.el('span', {
-          style: { color: 'var(--accent, #58a6ff)', 'font-weight': '600' },
+          style: { color: 'var(--chrome-primary, var(--accent, #58a6ff))', 'font-weight': '600' },
         }, ' • fills need'));
       }
       info.appendChild(metaEl);
@@ -205,7 +205,7 @@ window.BBGM_UI_FRONTOFFICE = (function () {
         (playing ? ` • playing in the ${playing}` : ''));
       if (fillsNeed(needSet, p)) {
         metaEl.appendChild(U.el('span', {
-          style: { color: 'var(--accent, #58a6ff)', 'font-weight': '600' },
+          style: { color: 'var(--chrome-primary, var(--accent, #58a6ff))', 'font-weight': '600' },
         }, ' • fills need'));
       }
       info.appendChild(metaEl);
@@ -267,7 +267,7 @@ window.BBGM_UI_FRONTOFFICE = (function () {
         `${t ? t.abbr : '?'} • ${t ? t.competitiveWindow : ''} • ` +
         `$${((p.contract && p.contract.annualSalary) || 0).toFixed(1)}M × ${(p.contract && p.contract.years) || 0}y`);
       meta.appendChild(U.el('span', {
-        style: { color: 'var(--accent, #58a6ff)', 'font-weight': '600' },
+        style: { color: 'var(--chrome-primary, var(--accent, #58a6ff))', 'font-weight': '600' },
       }, ` • ${f.label}`));
       info.appendChild(meta);
       row.appendChild(info);
@@ -503,7 +503,7 @@ window.BBGM_UI_FRONTOFFICE = (function () {
     const myNeeds = TRADES().teamNeeds(userTeam, players);
     if (myNeeds.length) {
       head.appendChild(U.el('div', {
-        style: { 'font-size': '12px', color: 'var(--accent, #58a6ff)', 'margin-top': '2px' },
+        style: { 'font-size': '12px', color: 'var(--chrome-primary, var(--accent, #58a6ff))', 'margin-top': '2px' },
       }, `You need: ${myNeeds.join(', ')}`));
     }
     container.appendChild(head);

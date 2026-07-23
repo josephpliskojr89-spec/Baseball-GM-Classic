@@ -169,6 +169,16 @@
   width: 100%;
 }
 
+/* 0.43.0: screen titles speak in the broadcast voice — the segment
+   title card of the telecast. Chalk, condensed, all caps. */
+.main-view > h2,
+.screen-header h2 {
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--chalk, var(--text-primary));
+}
+
 /* Bottom nav */
 .bottom-nav {
   position: fixed;
@@ -350,8 +360,11 @@
 }
 
 .modal-title {
-  font-size: var(--fs-lg);
+  font-family: var(--font-display);
+  font-size: var(--fs-xl);
   font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
   margin-bottom: var(--sp-3);
 }
 

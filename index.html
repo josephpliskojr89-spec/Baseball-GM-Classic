@@ -30,7 +30,7 @@
                 <button id="btnImportGame" class="btn-tertiary">Import Save</button>
                 <input type="file" id="fileImport" accept=".json" hidden>
             </div>
-            <p class="version">v0.42.0</p>
+            <p class="version">v0.43.0</p>
         </div>
     </div>
 
@@ -76,6 +76,10 @@
                 <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M9 3a3 3 0 0 0 6 0l5 3-2 4-2-1v12H8V9L6 10 4 6z"/></svg></span>
                 <span class="nav-label">Team</span>
             </button>
+            <button class="nav-btn" data-tab="gm">
+                <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4" stroke-linecap="round"/><path d="M12 9.5v8M14 11.2c0-.9-.9-1.6-2-1.6s-2 .6-2 1.5c0 2.3 4 1.1 4 3.4 0 .9-.9 1.5-2 1.5s-2-.7-2-1.6" stroke-linecap="round"/></svg></span>
+                <span class="nav-label">GM</span>
+            </button>
             <button class="nav-btn" data-tab="league">
                 <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h11M4 18h7"/></svg></span>
                 <span class="nav-label">League</span>
@@ -87,10 +91,6 @@
             <button class="nav-btn" data-tab="draft">
                 <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.7 3.4 3.8.6-2.8 2.7.7 3.7-3.4-1.8-3.4 1.8.7-3.7L6.5 7l3.8-.6z"/><path d="M5 20h14M8 20v-3h8v3"/></svg></span>
                 <span class="nav-label">Draft</span>
-            </button>
-            <button class="nav-btn" data-tab="gm">
-                <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4" stroke-linecap="round"/><path d="M12 9.5v8M14 11.2c0-.9-.9-1.6-2-1.6s-2 .6-2 1.5c0 2.3 4 1.1 4 3.4 0 .9-.9 1.5-2 1.5s-2-.7-2-1.6" stroke-linecap="round"/></svg></span>
-                <span class="nav-label">GM</span>
             </button>
         </nav>
     </div>
@@ -107,49 +107,49 @@
     <!-- Version-stamped script imports. Browsers (and CDNs) cache JS by URL,
          so changing ?v=... forces a fresh fetch on next load. Bump the
          BBGM_BUILD value below whenever a JS file changes. -->
-    <script src="js/data/constants.js?v=0.42.0"></script>
-    <script src="js/data/name_pools.js?v=0.42.0"></script>
-    <script src="js/data/intl_name_pools.js?v=0.42.0"></script>
-    <script src="js/data/city_pools.js?v=0.42.0"></script>
-    <script src="js/data/teams.js?v=0.42.0"></script>
-    <script src="js/util/rng.js?v=0.42.0"></script>
-    <script src="js/util/dates.js?v=0.42.0"></script>
-    <script src="js/state.js?v=0.42.0"></script>
-    <script src="js/generation/ballparks.js?v=0.42.0"></script>
-    <script src="js/generation/league.js?v=0.42.0"></script>
-    <script src="js/generation/players.js?v=0.42.0"></script>
-    <script src="js/engine/schedule.js?v=0.42.0"></script>
-    <script src="js/engine/stats.js?v=0.42.0"></script>
-    <script src="js/engine/injuries.js?v=0.42.0"></script>
-    <script src="js/engine/fatigue.js?v=0.42.0"></script>
-    <script src="js/engine/roster.js?v=0.42.0"></script>
-    <script src="js/engine/progression.js?v=0.42.0"></script>
-    <script src="js/engine/minors.js?v=0.42.0"></script>
-    <script src="js/engine/flavorleagues.js?v=0.42.0"></script>
-    <script src="js/engine/trades.js?v=0.42.0"></script>
-    <script src="js/engine/freeagency.js?v=0.42.0"></script>
-    <script src="js/engine/waivers.js?v=0.42.0"></script>
-    <script src="js/engine/inbox.js?v=0.42.0"></script>
-    <script src="js/engine/staff.js?v=0.42.0"></script>
-    <script src="js/engine/scouting.js?v=0.42.0"></script>
-    <script src="js/engine/draft.js?v=0.42.0"></script>
-    <script src="js/engine/intl.js?v=0.42.0"></script>
-    <script src="js/engine/awards.js?v=0.42.0"></script>
-    <script src="js/engine/simulation.js?v=0.42.0"></script>
-    <script src="js/engine/standings.js?v=0.42.0"></script>
-    <script src="js/engine/offseason.js?v=0.42.0"></script>
-    <script src="js/ui/common.js?v=0.42.0"></script>
-    <script src="js/ui/dashboard.js?v=0.42.0"></script>
-    <script src="js/ui/team.js?v=0.42.0"></script>
-    <script src="js/ui/league.js?v=0.42.0"></script>
-    <script src="js/ui/players.js?v=0.42.0"></script>
-    <script src="js/ui/games.js?v=0.42.0"></script>
-    <script src="js/ui/frontoffice.js?v=0.42.0"></script>
-    <script src="js/ui/gm.js?v=0.42.0"></script>
-    <script src="js/ui/drafthub.js?v=0.42.0"></script>
-    <script src="js/ui/menu.js?v=0.42.0"></script>
-    <script src="js/ui/player.js?v=0.42.0"></script>
-    <script src="js/main.js?v=0.42.0"></script>
+    <script src="js/data/constants.js?v=0.43.0"></script>
+    <script src="js/data/name_pools.js?v=0.43.0"></script>
+    <script src="js/data/intl_name_pools.js?v=0.43.0"></script>
+    <script src="js/data/city_pools.js?v=0.43.0"></script>
+    <script src="js/data/teams.js?v=0.43.0"></script>
+    <script src="js/util/rng.js?v=0.43.0"></script>
+    <script src="js/util/dates.js?v=0.43.0"></script>
+    <script src="js/state.js?v=0.43.0"></script>
+    <script src="js/generation/ballparks.js?v=0.43.0"></script>
+    <script src="js/generation/league.js?v=0.43.0"></script>
+    <script src="js/generation/players.js?v=0.43.0"></script>
+    <script src="js/engine/schedule.js?v=0.43.0"></script>
+    <script src="js/engine/stats.js?v=0.43.0"></script>
+    <script src="js/engine/injuries.js?v=0.43.0"></script>
+    <script src="js/engine/fatigue.js?v=0.43.0"></script>
+    <script src="js/engine/roster.js?v=0.43.0"></script>
+    <script src="js/engine/progression.js?v=0.43.0"></script>
+    <script src="js/engine/minors.js?v=0.43.0"></script>
+    <script src="js/engine/flavorleagues.js?v=0.43.0"></script>
+    <script src="js/engine/trades.js?v=0.43.0"></script>
+    <script src="js/engine/freeagency.js?v=0.43.0"></script>
+    <script src="js/engine/waivers.js?v=0.43.0"></script>
+    <script src="js/engine/inbox.js?v=0.43.0"></script>
+    <script src="js/engine/staff.js?v=0.43.0"></script>
+    <script src="js/engine/scouting.js?v=0.43.0"></script>
+    <script src="js/engine/draft.js?v=0.43.0"></script>
+    <script src="js/engine/intl.js?v=0.43.0"></script>
+    <script src="js/engine/awards.js?v=0.43.0"></script>
+    <script src="js/engine/simulation.js?v=0.43.0"></script>
+    <script src="js/engine/standings.js?v=0.43.0"></script>
+    <script src="js/engine/offseason.js?v=0.43.0"></script>
+    <script src="js/ui/common.js?v=0.43.0"></script>
+    <script src="js/ui/dashboard.js?v=0.43.0"></script>
+    <script src="js/ui/team.js?v=0.43.0"></script>
+    <script src="js/ui/league.js?v=0.43.0"></script>
+    <script src="js/ui/players.js?v=0.43.0"></script>
+    <script src="js/ui/games.js?v=0.43.0"></script>
+    <script src="js/ui/frontoffice.js?v=0.43.0"></script>
+    <script src="js/ui/gm.js?v=0.43.0"></script>
+    <script src="js/ui/drafthub.js?v=0.43.0"></script>
+    <script src="js/ui/menu.js?v=0.43.0"></script>
+    <script src="js/ui/player.js?v=0.43.0"></script>
+    <script src="js/main.js?v=0.43.0"></script>
     <!-- Boot integrity guard (0.39.1). A PWA mid-update can fetch the new
          index.html while one of the version-stamped scripts above fails to
          download (flaky mobile network; the old service worker's cache

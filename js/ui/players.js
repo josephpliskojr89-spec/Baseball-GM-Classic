@@ -139,7 +139,7 @@ window.BBGM_UI_PLAYERS = (function () {
     for (const c of cols) {
       const active = statsSort.key === c[0];
       trh.appendChild(U.el('th', {
-        style: { cursor: 'pointer', ...(active ? { color: 'var(--accent, #58a6ff)' } : {}) },
+        style: { cursor: 'pointer', ...(active ? { color: 'var(--chrome-primary, var(--accent, #58a6ff))' } : {}) },
         on: { click: () => {
           if (statsSort.key === c[0]) {
             statsSort.dir = statsSort.dir === 'desc' ? 'asc' : 'desc';

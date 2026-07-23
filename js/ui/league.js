@@ -180,18 +180,19 @@ window.BBGM_UI_LEAGUE = (function () {
       return;
     }
 
-    // Champion banner.
+    // Champion banner as a lower-third in the champs' colors (0.43.0).
     const champ = state.league.teams.find((t) => t.id === ps.championId);
     const runnerUp = state.league.teams.find((t) => t.id === ps.runnerUpId);
-    const banner = U.el('div', { class: 'card', style: champ ? U.teamColorVars(champ) : {} });
-    banner.appendChild(U.el('div', { class: 'card-title' }, `${ps.year} World Series Champions`));
-    const line = U.el('div', { style: { display: 'flex', 'align-items': 'center', gap: '8px' } });
-    if (champ) line.appendChild(U.teamCap(champ, { size: 'lg' }));
-    line.appendChild(U.el('div', {}, [
-      U.el('div', { style: { 'font-weight': '700' } }, champ ? champ.name : ps.championId),
-      U.el('div', { class: 'muted', style: { 'font-size': '12px' } },
-        `def. ${runnerUp ? runnerUp.name : ps.runnerUpId} ${ps.worldSeries.score[0]}-${ps.worldSeries.score[1]}`),
-    ]));
+    const banner = U.el('div', {
+      class: 'team-strip',
+      style: champ ? U.teamColorVars(champ) : {},
+    });
+    if (champ) banner.appendChild(U.teamCap(champ, { size: 'lg' }));
+    const line = U.el('div');
+    line.appendChild(U.el('div', { class: 'team-strip-name' }, champ ? champ.name : ps.championId));
+    line.appendChild(U.el('div', { class: 'team-strip-meta' },
+      `${ps.year} World Series Champions • def. ${runnerUp ? runnerUp.name : ps.runnerUpId} ` +
+      `${ps.worldSeries.score[0]}-${ps.worldSeries.score[1]}`));
     banner.appendChild(line);
     container.appendChild(banner);
 

@@ -146,7 +146,7 @@ window.BBGM_UI_DRAFT = (function () {
       const isUser = e.teamId === userTeamId;
       const row = U.el('button', {
         class: 'roster-row',
-        style: isUser ? { border: '1px solid var(--accent, #58a6ff)' } : {},
+        style: isUser ? { border: '1px solid var(--chrome-primary, var(--accent, #58a6ff))' } : {},
         on: { click: () => window.BBGM_UI_PLAYER.show(p.id) },
       });
       row.appendChild(U.el('span', { class: 'pos-badge' }, String(i + 1)));
@@ -300,7 +300,7 @@ window.BBGM_UI_DRAFT = (function () {
       if (!p || !t) continue;
       const row = U.el('button', {
         class: 'roster-row',
-        style: isUser ? { border: '1px solid var(--accent, #58a6ff)' } : {},
+        style: isUser ? { border: '1px solid var(--chrome-primary, var(--accent, #58a6ff))' } : {},
         on: { click: () => showProspect(state, p.id) },
       });
       row.appendChild(U.el('span', { class: 'pos-badge' }, String(m.pick)));
@@ -611,13 +611,19 @@ window.BBGM_UI_DRAFT = (function () {
     const team = teamOf(state, otc.teamId);
     const isUser = otc.teamId === state.meta.userTeamId;
 
-    // On-the-clock strip (20.10 top strip).
+    // On-the-clock strip (20.10 top strip). The pick reads like the game
+    // clock on a scorebug: amber, mono, all caps (0.43.0).
     const strip = U.el('div', {
       class: 'card',
-      style: isUser ? { border: '1px solid var(--accent, #58a6ff)' } : {},
+      style: isUser ? { border: '1px solid var(--chrome-primary, var(--accent, #58a6ff))' } : {},
     });
-    strip.appendChild(U.el('div', { class: 'card-title' },
-      `Round ${otc.round}, Pick ${otc.pickInRound} — #${otc.overall} overall`));
+    strip.appendChild(U.el('div', {
+      class: 'num',
+      style: {
+        color: 'var(--amber, #ffb52e)', 'font-size': '11px', 'font-weight': '600',
+        'letter-spacing': '0.06em', 'text-transform': 'uppercase', 'margin-bottom': '8px',
+      },
+    }, `Round ${otc.round} • Pick ${otc.pickInRound} • #${otc.overall} overall`));
     const line = U.el('div', { style: { display: 'flex', 'align-items': 'center', gap: '8px', 'margin-bottom': '10px' } });
     line.appendChild(U.teamCap(team));
     line.appendChild(U.el('strong', {}, isUser ? `${team.name} — YOU are on the clock` : `${team.name} are on the clock`));
@@ -1039,7 +1045,7 @@ window.BBGM_UI_DRAFT = (function () {
       ` • Rank #${rank} • Ask $${p.ask}M`));
     if (intl.phase === 'window' && intl.windowStep === 1 && (intl.userOffers || {})[p.id]) {
       body.appendChild(U.el('p', {
-        style: { 'font-size': '12px', color: 'var(--accent, #58a6ff)', 'font-weight': '600', 'margin-bottom': '6px' },
+        style: { 'font-size': '12px', color: 'var(--chrome-primary, var(--accent, #58a6ff))', 'font-weight': '600', 'margin-bottom': '6px' },
       }, `Your standing offer: $${intl.userOffers[p.id]}M`));
     }
     body.appendChild(prospectBioLine(p));
@@ -1337,7 +1343,7 @@ window.BBGM_UI_DRAFT = (function () {
         const alive = state.players[s.prospectId];
         const row = U.el('button', {
           class: 'roster-row',
-          style: isUser ? { border: '1px solid var(--accent, #58a6ff)' } : {},
+          style: isUser ? { border: '1px solid var(--chrome-primary, var(--accent, #58a6ff))' } : {},
           on: { click: () => { if (alive) window.BBGM_UI_PLAYER.show(s.prospectId); } },
         });
         row.appendChild(U.el('span', { class: 'pos-badge' }, `#${s.rank}`));

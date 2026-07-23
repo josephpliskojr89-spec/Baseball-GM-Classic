@@ -221,13 +221,14 @@
   align-items: center;
   justify-content: space-between;
   padding: var(--sp-3) var(--sp-4);
-  background: var(--bg-elevated);
+  background: var(--night, var(--bg-elevated));
   border-bottom: 1px solid var(--border-subtle);
-  font-size: var(--fs-sm);
+  font-family: var(--font-display);
+  font-size: var(--fs-md);
   font-weight: 700;
-  letter-spacing: 0.4px;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--text-secondary);
+  color: var(--chalk, var(--text-secondary));
 }
 
 .standings-row {
@@ -383,9 +384,14 @@
   margin-bottom: var(--sp-4);
 }
 
+/* flex-basis auto (not flex: 1) so a long label like FREE AGENTS takes
+   the room it needs instead of wrapping to two lines on narrow phones
+   where the condensed display font isn't installed. */
 .tab {
-  flex: 1;
-  padding: 8px 4px;
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  padding: 8px 6px;
   font-size: var(--fs-sm);
   font-weight: 600;
   color: var(--text-secondary);
@@ -710,10 +716,18 @@
 .leader-row:last-child { border-bottom: none; }
 
 .leader-row .rank {
+  font-family: var(--font-mono);
   font-size: var(--fs-xs);
   color: var(--text-muted);
   font-weight: 600;
   text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The board leader reads like the top line of a scoreboard crawl. */
+.leader-row:first-child .rank,
+.leader-row:first-child .stat {
+  color: var(--amber, var(--text-primary));
 }
 
 .leader-row .name {
