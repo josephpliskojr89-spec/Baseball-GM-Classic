@@ -3532,6 +3532,29 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > (amber mono caps on night, chrome keyline) above the body. The
 > emoji glyphs (✉/📄) are gone from the mail list.
 
+> **Status (0.44.1) — audit wave 1, the correctness hotfix.** A full
+> five-dimension code audit preceded this release; wave 1 fixes the
+> reachable correctness defects it found. (1) The postseason
+> date-drift softlock: empty calendar days could tick past the wild
+> card's scheduled date and the bracket's exact-date match then never
+> fired a game — `simPostseasonDay` now plays due-or-OVERDUE games
+> (which also heals any already-frozen save with no migration),
+> `startPostseason` never anchors game 1 in the past, and the
+> multi-day sim buttons route to the start-the-postseason prompt
+> instead of burning days at season's end. (2) Trade rebalancing now
+> honors the roster floors: the 27→26 trim uses a shared
+> `weakestDemotable` helper (roster.js — never the closer, a catcher
+> at the 2-floor, or an SP at the 5-floor) also adopted by waiver
+> claims, so a legal trade can no longer strip a club's backup
+> catcher. (3) Accepting a days-old trade offer re-checks that every
+> named player is still in his org and voids the deal instead of
+> executing one-sided. (4) A dangling closer id no longer blanks the
+> Pitching tab. (5) OBP no longer reads .000 on minors/flavor lines
+> (absent HBP made the denominator NaN). (6) Two offseason guards
+> that read a nonexistent `state.offseasonPhase` now read
+> `state.meta.offseasonPhase`. Waves 2 (durability) and 3
+> (platform/save-size) remain on the audit backlog.
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):

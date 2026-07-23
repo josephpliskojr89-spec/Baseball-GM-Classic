@@ -105,6 +105,26 @@ window.BBGM_ROSTER = (function () {
     return MIN ? MIN.recommendedLevel(p) : 'AAA';
   }
 
+  // Weakest 26-man player who can be demoted without breaching the
+  // roster floors: never the closer, never a catcher when only two are
+  // rostered, never an SP-primary when only five are (0.44.1 — shared by
+  // the trade trim and waiver claims so every path enforces the same
+  // protections). Falls back to the plain weakest if everyone is
+  // protected — the roster must still get back to 26.
+  function weakestDemotable(team, players, excludeIds = []) {
+    const roster = team.roster.map((id) => players[id]).filter(Boolean);
+    const cCount = roster.filter((q) => !q.isPitcher && q.primaryPosition === 'C').length;
+    const spCount = roster.filter((q) => q.isPitcher && q.primaryPosition === 'SP').length;
+    const byOverall = (a, b) => overall(a) - overall(b);
+    const eligible = roster.filter((q) => !excludeIds.includes(q.id) && q.id !== team.closer &&
+        !(q.primaryPosition === 'C' && cCount <= 2) &&
+        !(q.primaryPosition === 'SP' && spCount <= 5))
+      .sort(byOverall);
+    if (eligible.length) return eligible[0];
+    const anyone = roster.filter((q) => !excludeIds.includes(q.id)).sort(byOverall);
+    return anyone[0] || null;
+  }
+
   // Healthy minor leaguers of the given type, ranked: position need first
   // (a catcher for a catcher), then level (AAA preferred), then talent.
   // The full list feeds the user's call-up decision modal (0.21.0);
@@ -574,7 +594,7 @@ window.BBGM_ROSTER = (function () {
 
   function midSeasonMoves(state, today, opts = {}) {
     const events = [];
-    if (state.offseasonPhase) return events;
+    if (state.meta && state.meta.offseasonPhase) return events;
     const m = today.month, d = today.day;
     if (!((m === 4 && d >= 15) || (m >= 5 && m <= 8))) return events;
     const weekly = d === 1 || d === 8 || d === 15 || d === 22 || d === 29;
@@ -607,6 +627,7 @@ window.BBGM_ROSTER = (function () {
 
   return {
     placeOnILWithMove, activateFromIL, replaceRefs, bestCallUp, overall, demotionLevel,
+    weakestDemotable,
     newPlayerId, safeRebuild, midSeasonMoves, msDayIndex: dayIndex,
     applyRoleShift, roleShiftPreview,
     callUpCandidates, callUpNeedFor, executeILCallUp, ensureStaffIntegration,

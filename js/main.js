@@ -1514,6 +1514,16 @@ window.BBGM_MAIN = (function () {
         showIntlWindowModal(state);
         return;
       }
+      // Season over, bracket not started: don't burn empty calendar days
+      // (each one used to advance the date and could strand the bracket's
+      // scheduled dates in the past — the 0.44.1 softlock). Route every
+      // sim button to the same start-the-postseason prompt advanceDay uses.
+      if (D.compare(state.meta.currentDate, state.league.schedule.seasonEnd) >= 0 &&
+          !state.postseason && !state.meta.offseasonPhase) {
+        finish();
+        confirmPostseasonStart(state);
+        return;
+      }
       try {
         simOneDay(state);
       } catch (e) {
@@ -1874,7 +1884,7 @@ window.BBGM_MAIN = (function () {
   // the season, and an aging vet visibly slips. Weekly, orgs act on it —
   // ROSTER.midSeasonMoves promotes the farmhands who've earned it.
   function devTickAndMoves(state, today, stops) {
-    if (state.offseasonPhase) return;
+    if (state.meta && state.meta.offseasonPhase) return;
     const R = window.BBGM_ROSTER;
     const tickDay = today.day === 1 && today.month >= 5 && today.month <= 9;
     if (tickDay) {

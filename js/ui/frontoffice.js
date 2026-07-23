@@ -423,6 +423,25 @@ window.BBGM_UI_FRONTOFFICE = (function () {
       body,
       actions: [
         { label: 'Accept', kind: 'primary', onClick: () => {
+          // Staleness guard (0.44.1): a pending offer lives 7 days, and a
+          // named player can leave his org in that window (AI-AI deadline
+          // deal, DFA, retirement). executeTrade would silently drop him
+          // and ship the user's side for a partial return — so re-check
+          // every id on BOTH sides against the org he was offered from,
+          // and void the deal instead of executing it one-sided.
+          const inOrg = (team, id) => [team.roster, team.minors, team.roster40, team.il]
+            .some((arr) => arr && arr.includes(id));
+          const goneId = (offer.give || []).find((id) => !inOrg(from, id)) ||
+                         (offer.get || []).find((id) => !inOrg(userTeam, id));
+          if (goneId != null) {
+            const gone = players[goneId];
+            U.showToast(`The deal is off — ${gone ? gone.name : 'a player in the offer'} ` +
+              'is no longer available.', 'warning', 4500);
+            state.pendingTradeOffers = (state.pendingTradeOffers || []).filter((o) => o.id !== offer.id);
+            window.BBGM_STATE.set(state);
+            window.BBGM_MAIN.refresh();
+            return true;
+          }
           const shape = TRADES().validateTradeShape(state, userTeam, get, from, give);
           if (shape) { U.showToast(shape, 'danger', 4500); return true; }
           const entry = TRADES().executeTrade(state, userTeam, get, from, give, 0, 0);

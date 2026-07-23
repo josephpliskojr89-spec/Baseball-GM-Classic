@@ -468,8 +468,10 @@ window.BBGM_TRADES = (function () {
     // Rebalance both 26-mans (a 2-for-1 leaves one side over, one short).
     for (const team of [teamA, teamB]) {
       while (team.roster.length > 26) {
-        const weakest = team.roster.map((id) => players[id]).filter(Boolean)
-          .sort((a, b) => ROSTER().overall(a) - ROSTER().overall(b))[0];
+        // Floor-aware trim (0.44.1): shape validation checked the
+        // 2-catcher/5-SP/closer floors pre-trim, so the trim itself must
+        // honor them too or the trade legally strips a backup catcher.
+        const weakest = ROSTER().weakestDemotable(team, players);
         if (!weakest) break;
         team.roster.splice(team.roster.indexOf(weakest.id), 1);
         team.minors.push(weakest.id);

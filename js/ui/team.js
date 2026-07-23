@@ -533,7 +533,9 @@ window.BBGM_UI_TEAM = (function () {
     const closerList = U.el('div', { class: 'roster-list' });
     if (team.closer) {
       const cp = players[team.closer];
-      closerList.appendChild(bullpenRow(state, team, cp, 'CL'));
+      // Guard like the rotation/bullpen rows: a dangling closer id must
+      // not blank the whole Pitching tab (0.44.1).
+      if (cp) closerList.appendChild(bullpenRow(state, team, cp, 'CL'));
     }
     container.appendChild(closerList);
 

@@ -82,7 +82,12 @@ window.BBGM_OFFSEASON = (function () {
 
   function startPostseason(state) {
     const year = state.meta.currentDate.year;
-    const firstDate = D().addDays(state.league.schedule.seasonEnd, 3);
+    // Anchor at seasonEnd+3, but never in the past: empty calendar days
+    // can tick by before the user starts the bracket, and a first game
+    // dated before "today" would otherwise never fire (0.44.1).
+    let firstDate = D().addDays(state.league.schedule.seasonEnd, 3);
+    const tomorrow = D().addDays(state.meta.currentDate, 1);
+    if (D().compare(firstDate, tomorrow) < 0) firstDate = tomorrow;
     const mk = (tag, league, bestOf) => ({
       tag, league, bestOf,
       highId: null, lowId: null, hw: 0, lw: 0, n: 0,
@@ -124,7 +129,10 @@ window.BBGM_OFFSEASON = (function () {
     S().setStatBucket('postseason');
     try {
       for (const s of ps.series) {
-        if (s.winnerId || !s.highId || !s.lowId || !s.nextDate || !D().eq(s.nextDate, today)) continue;
+        // Play when due OR overdue (0.44.1): an exact date match froze
+        // the bracket forever if the calendar had drifted past a game's
+        // scheduled day — this also heals any save already stuck that way.
+        if (s.winnerId || !s.highId || !s.lowId || !s.nextDate || D().compare(s.nextDate, today) > 0) continue;
         const highHosts = HOST[s.bestOf][s.n];
         const g = {
           gameId: `ps${ps.year}_${s.tag}_${s.n}`,

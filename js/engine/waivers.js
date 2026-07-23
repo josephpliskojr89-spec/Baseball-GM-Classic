@@ -86,13 +86,9 @@ window.BBGM_WAIVERS = (function () {
     team.roster.push(p.id);
     let demoted = null;
     if (team.roster.length > 26) {
-      const roster = team.roster.map((id) => players[id]).filter(Boolean);
-      const cCount = roster.filter((q) => !q.isPitcher && q.primaryPosition === 'C').length;
-      const spCount = roster.filter((q) => q.isPitcher && q.primaryPosition === 'SP').length;
-      demoted = roster.filter((q) => q.id !== p.id && q.id !== team.closer &&
-          !(q.primaryPosition === 'C' && cCount <= 2) &&
-          !(q.primaryPosition === 'SP' && spCount <= 5))
-        .sort((a, b) => overall(a) - overall(b))[0] || null;
+      // Shared floor-aware pick (0.44.1) — same protections as the trade
+      // trim, single source of truth in roster.js.
+      demoted = ROSTER().weakestDemotable(team, players, [p.id]);
       if (demoted) {
         team.roster.splice(team.roster.indexOf(demoted.id), 1);
         team.minors.push(demoted.id);
@@ -198,5 +194,5 @@ window.BBGM_WAIVERS = (function () {
     state.waivers = [];
   }
 
-  return { place, userClaim, dailyTick, clearAll, priority };
+  return { place, userClaim, dailyTick, clearAll, priority, awardClaim };
 })();

@@ -47,8 +47,12 @@ window.BBGM_STATS = (function () {
   // Hitter rates
   function avg(s) { return s.ab > 0 ? s.h / s.ab : 0; }
   function obp(s) {
-    const denom = s.ab + s.bb + s.hbp + (s.sf || 0);
-    return denom > 0 ? (s.h + s.bb + s.hbp) / denom : 0;
+    // hbp/sf are absent on minors and flavor-league lines (lineChunk emits
+    // neither) — unguarded they NaN the denominator and OBP read .000 on
+    // every farmhand's career table (0.44.1).
+    const hbp = s.hbp || 0;
+    const denom = s.ab + s.bb + hbp + (s.sf || 0);
+    return denom > 0 ? (s.h + s.bb + hbp) / denom : 0;
   }
   function slg(s) {
     if (s.ab === 0) return 0;
