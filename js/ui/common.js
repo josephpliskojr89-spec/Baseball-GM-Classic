@@ -116,10 +116,15 @@ window.BBGM_UI = (function () {
     document.getElementById('progressRoot').classList.add('hidden');
   }
 
-  function showModal({ title, body, actions }) {
+  // fullScreen (0.46.1): the tall card views (player profile, prospect
+  // cards, the ratings chart) take the whole viewport — the body scrolls
+  // internally and the action bar stays pinned, so the Close button never
+  // needs a scroll to reach. Dialogs and short lists stay bottom sheets.
+  function showModal({ title, body, actions, fullScreen }) {
     const root = document.getElementById('modalRoot');
     clearChildren(root);
-    const modal = el('div', { class: 'modal' });
+    root.classList.toggle('full', !!fullScreen);
+    const modal = el('div', { class: fullScreen ? 'modal modal-full' : 'modal' });
     if (title) modal.appendChild(el('div', { class: 'modal-title' }, title));
     if (body) {
       const bodyEl = el('div', { class: 'modal-body' });
@@ -149,6 +154,7 @@ window.BBGM_UI = (function () {
   function closeModal() {
     const root = document.getElementById('modalRoot');
     root.classList.add('hidden');
+    root.classList.remove('full');
     clearChildren(root);
   }
 

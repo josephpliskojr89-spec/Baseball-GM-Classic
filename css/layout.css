@@ -359,6 +359,38 @@
   overflow-y: auto;
 }
 
+/* Full-screen card modal (0.46.1): player/prospect cards fill the
+   viewport — less scrolling, and the action bar is always reachable
+   because only the body scrolls. */
+.modal-root.full {
+  padding: 0;
+  align-items: stretch;
+}
+
+.modal.modal-full {
+  max-width: 100%;
+  height: 100%;
+  max-height: none;
+  border: none;
+  border-radius: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: hidden;
+  padding: calc(var(--sp-4) + var(--safe-top)) var(--sp-5) calc(var(--sp-3) + var(--safe-bottom));
+}
+
+.modal.modal-full .modal-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-bottom: var(--sp-3);
+}
+
+.modal.modal-full .modal-actions {
+  flex-shrink: 0;
+}
+
 .modal-title {
   font-family: var(--font-display);
   font-size: var(--fs-xl);

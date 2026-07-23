@@ -174,6 +174,7 @@ window.BBGM_UI_PLAYER = (function () {
       title: '',
       body,
       actions,
+      fullScreen: true,
     });
   }
 
@@ -587,6 +588,7 @@ window.BBGM_UI_PLAYER = (function () {
     U.showModal({
       title: `${label} — ${p.name}`,
       body,
+      fullScreen: true,
       actions: [{ label: 'Back to Card', kind: 'primary', onClick: () => {
         setTimeout(() => show(p.id), 0);
         return true;

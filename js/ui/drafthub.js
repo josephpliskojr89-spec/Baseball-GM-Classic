@@ -574,7 +574,7 @@ window.BBGM_UI_DRAFT = (function () {
     });
     actions.push({ label: 'Close', kind: 'secondary', onClick: () => true });
 
-    U.showModal({ title: p.name, body, actions });
+    U.showModal({ title: p.name, body, actions, fullScreen: true });
   }
 
   function afterUserPick(state, p) {
@@ -1162,7 +1162,7 @@ window.BBGM_UI_DRAFT = (function () {
       },
     });
     actions.push({ label: 'Close', kind: 'secondary', onClick: () => true });
-    U.showModal({ title: p.name, body, actions });
+    U.showModal({ title: p.name, body, actions, fullScreen: true });
   }
 
   // The signing window room: three phases, user acts first, then advances.
