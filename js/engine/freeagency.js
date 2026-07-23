@@ -328,6 +328,7 @@ window.BBGM_FA = (function () {
       date: { ...state.meta.currentDate },
       body: `<strong>SIGNING:</strong> ${team.abbr} sign <strong>${p.name}</strong> ` +
             `(${p.primaryPosition}) — ${years} yr / $${total}M.`,
+      go: { type: 'player', id: p.id },
     });
   }
 
@@ -373,6 +374,7 @@ window.BBGM_FA = (function () {
     state.news.push({
       date: { ...state.meta.currentDate },
       body: `${team.abbr} sign <strong>${p.name}</strong> to a minor-league deal.`,
+      go: { type: 'player', id: p.id },
     });
     return null;
   }

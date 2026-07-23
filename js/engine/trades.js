@@ -514,12 +514,15 @@ window.BBGM_TRADES = (function () {
     const namesA = entry.playersA.map((p) => p.name).join(', ') || 'cash';
     const namesB = entry.playersB.map((p) => p.name).join(', ') || 'cash';
     if (!state.news) state.news = [];
+    // Tap-through (0.53.0): the headline player — biggest name moving.
+    const headline = entry.playersA.concat(entry.playersB)[0];
     state.news.push({
       date: { ...state.meta.currentDate },
       body: `<strong>TRADE:</strong> ${a.abbr} send ${namesA}` +
             `${entry.cashA ? ` (+$${entry.cashA}M cash)` : ''}${entry.poolA ? ` (+$${entry.poolA}M int'l pool)` : ''} ` +
             `to ${b.abbr} for ${namesB}` +
             `${entry.cashB ? ` (+$${entry.cashB}M cash)` : ''}${entry.poolB ? ` (+$${entry.poolB}M int'l pool)` : ''}.`,
+      go: headline && headline.id ? { type: 'player', id: headline.id } : undefined,
     });
   }
 

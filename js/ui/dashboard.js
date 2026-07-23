@@ -519,9 +519,34 @@ window.BBGM_UI_DASHBOARD = (function () {
       const item = U.el('div', { class: 'news-item' });
       item.appendChild(U.el('div', { class: 'date' }, D.format(n.date, 'date')));
       item.appendChild(U.el('div', { class: 'body', html: n.body }));
+      // Tap-through (0.53.0): items tagged with a destination open the
+      // player card, the box score, or a screen directly from the feed.
+      if (n.go) {
+        item.classList.add('tappable');
+        item.style.cursor = 'pointer';
+        item.appendChild(U.el('span', {
+          class: 'muted', style: { float: 'right', 'margin-top': '-18px', 'font-size': '14px' },
+        }, '›'));
+        item.addEventListener('click', () => followNews(state, n.go));
+      }
       list.appendChild(item);
     }
     return list;
+  }
+
+  function followNews(state, go) {
+    if (go.type === 'player') {
+      const p = state.players[go.id];
+      if (p) { window.BBGM_UI_PLAYER.show(go.id); return; }
+      U.showToast('That player is no longer in the league.', 'info', 3000);
+    } else if (go.type === 'game') {
+      const found = state.league.schedule.games.find((g) => g.gameId === go.id) ||
+        (state.postseason && (state.postseason.games || []).find((g) => g.gameId === go.id));
+      if (!found) { U.showToast('That box score has been archived.', 'info', 3000); return; }
+      window.BBGM_MAIN.navigate('league', { tab: 'scores', gameId: go.id });
+    } else if (go.type === 'nav') {
+      window.BBGM_MAIN.navigate(go.tab, go.opts || {});
+    }
   }
 
   function fmtPct(v) {

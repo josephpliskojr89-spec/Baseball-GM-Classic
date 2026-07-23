@@ -473,6 +473,7 @@ window.BBGM_SIM = (function () {
           date: { ...state.meta.currentDate },
           body: `<strong>${p.name}</strong>${t ? ' (' + t.abbr + ')' : ''}: ${f.detail}` +
                 (game.postseason ? ' — in the playoffs!' : '!'),
+          go: { type: 'game', id: game.gameId },
         });
       }
     }

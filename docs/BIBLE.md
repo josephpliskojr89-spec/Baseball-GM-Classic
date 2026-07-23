@@ -3765,6 +3765,18 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > kid stays a wide band. Stale letters (kid signed, window closed,
 > travel cap hit) degrade to an honest toast.
 
+> **Status (0.53.0) — tap the wire (user request: clickable feed
+> headlines).** News items may now carry a destination (`go`:
+> player / game / screen) attached at the SOURCE, and the
+> dashboard renders tagged items tappable (chevron affordance).
+> Tagged: game results and marathons → box score; feats (walk-offs,
+> cycles, no-hitters) → box score; call-ups, farm promotions,
+> injuries, IL activations, FA signings (major and minor-league),
+> trades (headline player) → player card; draft/intl class posts →
+> the Draft Hub. Guards: a retired-and-pruned player or an archived
+> box score degrades to an honest toast; untagged items stay plain
+> text. No migration — old news items simply aren't tappable.
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):

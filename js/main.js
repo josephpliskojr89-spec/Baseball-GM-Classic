@@ -973,7 +973,8 @@ window.BBGM_MAIN = (function () {
           const { sentDown } = R.activateFromIL(state, team, p, { downId: c.id });
           state.news.push({ date: { ...state.meta.currentDate },
             body: `<strong>${p.name}</strong> activated from the IL.` +
-              (sentDown ? ` <strong>${sentDown.name}</strong> optioned to ${sentDown.rosterStatus}.` : '') });
+              (sentDown ? ` <strong>${sentDown.name}</strong> optioned to ${sentDown.rosterStatus}.` : ''),
+            go: { type: 'player', id: p.id } });
           resolveDecision(state);
         }));
     }
@@ -983,7 +984,8 @@ window.BBGM_MAIN = (function () {
         const { sentDown } = R.activateFromIL(state, team, p);
         state.news.push({ date: { ...state.meta.currentDate },
           body: `<strong>${p.name}</strong> activated from the IL.` +
-            (sentDown ? ` <strong>${sentDown.name}</strong> optioned to ${sentDown.rosterStatus}.` : '') });
+            (sentDown ? ` <strong>${sentDown.name}</strong> optioned to ${sentDown.rosterStatus}.` : ''),
+          go: { type: 'player', id: p.id } });
         resolveDecision(state);
         return true;
       }},
@@ -2134,6 +2136,7 @@ window.BBGM_MAIN = (function () {
         date: { ...today },
         body: `<strong>The ${intlClass.year} international class is posted.</strong> ` +
               `~100 prospects sign July 2 — scout the pool and your bonus budget in the Draft Hub.`,
+        go: { type: 'nav', tab: 'draft', opts: { tab: 'intl' } },
       });
       window.BBGM_INBOX.push(state, {
         from: 'International Scouting',
@@ -2201,6 +2204,7 @@ window.BBGM_MAIN = (function () {
         date: { ...today },
         body: `<strong>The ${draftClass.year} draft class rankings are out.</strong> ${flavor} ` +
               `Work the board in the Draft Hub before the June 30 draft.`,
+        go: { type: 'nav', tab: 'draft', opts: { tab: 'board' } },
       });
       window.BBGM_INBOX.push(state, {
         from: 'Amateur Scouting',
@@ -2354,19 +2358,22 @@ window.BBGM_MAIN = (function () {
         if (ev.teamId === userId) {
           state.news.push({ date: { ...today },
             body: `<strong>Front office move:</strong> ${up.name} (${up.primaryPosition}) earns the call-up` +
-                  (down ? `; ${down.name} optioned to ${down.rosterStatus}.` : '.') });
+                  (down ? `; ${down.name} optioned to ${down.rosterStatus}.` : '.'),
+            go: { type: 'player', id: up.id } });
         } else {
           const rank = rankOf ? rankOf[up.id] : null;
           if (rank) {
             state.news.push({ date: { ...today },
               body: `${team.abbr} call up <strong>#${rank} prospect ${up.name}</strong> (${up.primaryPosition})` +
-                    (down ? `, optioning ${down.name}.` : '.') });
+                    (down ? `, optioning ${down.name}.` : '.'),
+              go: { type: 'player', id: up.id } });
           }
         }
       } else if (ev.type === 'level' && ev.teamId === userId) {
         state.news.push({ date: { ...today },
           body: `${up.name} (${up.primaryPosition}) promoted to <strong>${ev.to}</strong> — ` +
-                `he'd outgrown ${ev.from}.` });
+                `he'd outgrown ${ev.from}.`,
+          go: { type: 'player', id: up.id } });
       }
     }
   }
@@ -2497,6 +2504,7 @@ window.BBGM_MAIN = (function () {
               (entry.injury.ilType ? `placed on the ${entry.injury.ilType} IL (out ~${entry.injury.daysOut} days)` :
                 `day-to-day, expected back in ${entry.injury.daysOut} day${entry.injury.daysOut !== 1 ? 's' : ''}`) +
               (entry.injury.careerAltering ? ' — career-altering' : '') + '.' + callUpNote,
+            go: { type: 'player', id: p.id },
           });
         }
       }
@@ -2549,6 +2557,7 @@ window.BBGM_MAIN = (function () {
         state.news.push({
           date: { ...today },
           body: `<strong>${p.name}</strong> activated from the IL.` + sentDownNote,
+          go: { type: 'player', id: p.id },
         });
       }
     }
@@ -2648,12 +2657,14 @@ window.BBGM_MAIN = (function () {
         state.news.push({
           date: { ...date },
           body: `<strong>${winner.abbr}</strong> beat ${loser.abbr} ${Math.max(g.result.homeRuns, g.result.awayRuns)}-${Math.min(g.result.homeRuns, g.result.awayRuns)} in a rout.`,
+          go: { type: 'game', id: g.gameId },
         });
       }
       if (g.result.innings && g.result.innings >= 12 && involvesUser) {
         state.news.push({
           date: { ...date },
           body: `Marathon game: ${away.abbr} @ ${home.abbr} went ${g.result.innings} innings.`,
+          go: { type: 'game', id: g.gameId },
         });
       }
     }
