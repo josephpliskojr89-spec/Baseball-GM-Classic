@@ -105,6 +105,7 @@ window.BBGM_UI_TEAM = (function () {
     const snap = {
       roster: team.roster.slice(),
       minors: team.minors.slice(),
+      il: (team.il || []).slice(),
       rotation: team.rotation.slice(),
       bullpen: team.bullpen.slice(),
       closer: team.closer,
@@ -113,6 +114,19 @@ window.BBGM_UI_TEAM = (function () {
       lineupLH: JSON.parse(JSON.stringify(team.lineupLH)),
     };
     const statuses = {};
+    // Full-org rollback coverage (0.45.0): safeRebuild inside fn can
+    // promote/demote ANY org player and even generate brand-new patch
+    // players into state.players. The old revert restored the team arrays
+    // and only the statuses fn itself recorded — a rejected move could
+    // leave a generated ghost in the pool (accruing service time in no
+    // container forever) or an org player with a stale status/rosterStatus
+    // that mis-gates his development and service clock for good.
+    const orgStatus = {};
+    for (const id of [...snap.roster, ...snap.minors, ...snap.il]) {
+      const p = state.players[id];
+      if (p) orgStatus[id] = { status: p.status, rosterStatus: p.rosterStatus };
+    }
+    const preIds = new Set(Object.keys(state.players));
     // Pre-move floors (0.30.2): an offseason roster can legally sit
     // below the in-game floors (expired contracts walked). Validate
     // "no worse than before" so the user can climb back one move at a
@@ -132,12 +146,28 @@ window.BBGM_UI_TEAM = (function () {
       return true;
     } catch (e) {
       Object.assign(team, snap);
+      // Restore every pre-move org player's status fields, then the
+      // caller's explicit records (a superset guard for non-org players
+      // the callback touched, e.g. a signing).
+      for (const pid in orgStatus) {
+        const p = state.players[pid];
+        if (p) {
+          p.status = orgStatus[pid].status;
+          p.rosterStatus = orgStatus[pid].rosterStatus;
+        }
+      }
       for (const pid in statuses) {
         const p = state.players[pid];
         if (p) {
           p.rosterStatus = statuses[pid].rosterStatus;
           p.status = statuses[pid].status;
         }
+      }
+      // Delete any player generated during the failed attempt — with the
+      // team arrays restored he belongs to no container and would sit in
+      // the pool as a permanent ghost.
+      for (const pid of Object.keys(state.players)) {
+        if (!preIds.has(pid)) delete state.players[pid];
       }
       U.showToast('Move rejected: ' + e.message, 'danger', 5000);
       return false;

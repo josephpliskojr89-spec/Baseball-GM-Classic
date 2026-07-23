@@ -3555,6 +3555,28 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > `state.meta.offseasonPhase`. Waves 2 (durability) and 3
 > (platform/save-size) remain on the audit backlog.
 
+> **Status (0.45.0) — audit wave 2, the durability pass.** A simulated
+> day is now safe to re-enter after a mid-day error. Injuries apply
+> per game the moment it's simmed (each game stamped `injProcessed`,
+> with a catch-up sweep for games left stamped-less by an interrupted
+> run) — a resumed day can no longer silently discard an injury from
+> a game that already counted. The overnight IL-recovery and fatigue
+> ticks are idempotent per calendar day (`lastRecoveryTick` /
+> `lastFatigueTick` date guards), and the 1st-of-month development
+> tick + monthly minors/flavor lines are at-most-once per month
+> (`lastDevTickMonth` stamp set before the block runs — a missed
+> 0.07-frac tick is noise, a doubled one isn't). `simulateGame` now
+> builds the complete result (box included) BEFORE flipping
+> `played`/attaching it, and feat detection runs after the commit,
+> non-fatally — no more "played" games with no result and no
+> stats-double-count retry window. The free-agency rounds between
+> rollover Parts A and B take the same snapshot/restore backup the
+> parts themselves always had. `mutateTeam`'s rejection rollback now
+> covers safeRebuild's side effects: every pre-move org player's
+> status/rosterStatus is restored and any patch player generated
+> during the failed attempt is deleted instead of ghosting in the
+> pool. Wave 3 (platform/save-size) remains on the audit backlog.
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):

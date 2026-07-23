@@ -1060,7 +1060,18 @@ window.BBGM_MAIN = (function () {
   function advanceFAPeriod() {
     const state = window.BBGM_STATE.get();
     if (!state || state.meta.offseasonPhase !== 'freeAgency') return;
-    const result = window.BBGM_OFFSEASON.advanceFARound(state);
+    // Snapshot/restore (0.45.0): Part A and Part B both back up before
+    // mutating, but the FA rounds between them didn't — a throw mid-round
+    // left a half-resolved league-wide bidding round (contracts signed,
+    // rosters touched, round counter ambiguous) as the live state.
+    const backup = snapshotState(state);
+    let result;
+    try {
+      result = window.BBGM_OFFSEASON.advanceFARound(state);
+    } catch (e) {
+      offseasonError(e, backup);
+      return;
+    }
     window.BBGM_STATE.set(state);
     refresh();
     const userSignings = result.signings.filter((s) => s.isUser);
@@ -1653,6 +1664,18 @@ window.BBGM_MAIN = (function () {
       }
     }
 
+    // Retry catch-up (0.45.0): a mid-day error used to leave games simmed
+    // but their injuries unprocessed — on resume the !g.played filter
+    // excluded them and the injuries silently vanished (player played on
+    // hurt). Injuries now apply per game the moment it's simmed, each game
+    // stamped injProcessed, and any played-but-unstamped game from an
+    // interrupted run is picked up here first.
+    for (const g of state.league.schedule.games) {
+      if (g.played && !g.injProcessed && D.eq(g.date, today)) {
+        applyInjuriesFromGames(state, today, [g]);
+        g.injProcessed = true;
+      }
+    }
     const games = state.league.schedule.games.filter((g) => !g.played && D.eq(g.date, today));
     for (const g of games) {
       try {
@@ -1670,18 +1693,21 @@ window.BBGM_MAIN = (function () {
         // Halt the sim run rather than continuing through a broken schedule.
         throw new Error(`simOneDay halted: ${ctx} — ${e.message}`);
       }
+      // Injuries land immediately (IL move, cover call-up, news) so an
+      // error later in the day can never orphan them.
+      applyInjuriesFromGames(state, today, [g]);
+      g.injProcessed = true;
     }
-    // Injuries from today's games: place players on IL, swap minors bodies
-    // up to keep the 26-man roster legal, and surface user-team incidents
-    // in the news feed.
-    applyInjuriesFromGames(state, today, games);
     // Tick recovery on every injured player, return them when the clock
     // runs out (and demote whoever's filling their slot).
     advanceInjuryRecovery(state, today);
     // Position-player fatigue (bible 10.8): players who didn't appear today
     // recover; rest-recommended notifications fire for user-team starters
-    // who hit the very-high threshold.
-    advanceFatigueRecovery(state, games);
+    // who hit the very-high threshold. Pass ALL of today's played games —
+    // on a retry the just-simmed `games` list omits games that completed
+    // before the interruption, and their players must not double-recover.
+    advanceFatigueRecovery(state,
+      state.league.schedule.games.filter((g) => g.played && D.eq(g.date, today)));
     surfaceFatigueRestNotifications(state, today);
 
     const stops = window.BBGM_STATE.simStops(state);
@@ -1886,8 +1912,17 @@ window.BBGM_MAIN = (function () {
   function devTickAndMoves(state, today, stops) {
     if (state.meta && state.meta.offseasonPhase) return;
     const R = window.BBGM_ROSTER;
-    const tickDay = today.day === 1 && today.month >= 5 && today.month <= 9;
+    // Idempotence (0.45.0): the monthly block is NOT re-runnable —
+    // inSeasonTick moves ratings and monthlyLine ADDS a month of stats on
+    // every call. An error later in the day used to re-run the 1st on
+    // retry: double development league-wide plus a duplicate month of
+    // minors/flavor numbers. Stamp the month before running (at-most-once:
+    // a missed 0.07-frac tick is noise, a doubled one isn't).
+    const monthKey = today.year * 12 + today.month;
+    const tickDay = today.day === 1 && today.month >= 5 && today.month <= 9 &&
+      state.meta.lastDevTickMonth !== monthKey;
     if (tickDay) {
+      state.meta.lastDevTickMonth = monthKey;
       // Flavor-league assignments refresh first (0.41.0) so a newly
       // released or undrafted FA catches on somewhere before the lines
       // are written.
@@ -2110,6 +2145,9 @@ window.BBGM_MAIN = (function () {
     const INJ = window.BBGM_INJURIES;
     const R = window.BBGM_ROSTER;
     const userTeamId = state.meta.userTeamId;
+    // Idempotence (0.45.0): an error later in the day makes the user retry
+    // the same calendar date — IL clocks must not tick twice for one day.
+    if (state.meta.lastRecoveryTick && D.eq(state.meta.lastRecoveryTick, today)) return;
     // Part B heals IL clocks on calendar time from the last ticked day to
     // Opening Day — this stamp is what keeps October days played on the
     // calendar from being counted twice.
@@ -2163,6 +2201,12 @@ window.BBGM_MAIN = (function () {
   function advanceFatigueRecovery(state, games) {
     const FAT = window.BBGM_FATIGUE;
     if (!FAT) return;
+    // Idempotence (0.45.0): same retry story as the IL clocks — one
+    // overnight recovery per calendar day, no matter how many times the
+    // day is re-entered after an error.
+    const today = state.meta.currentDate;
+    if (state.meta.lastFatigueTick && D.eq(state.meta.lastFatigueTick, today)) return;
+    state.meta.lastFatigueTick = { ...today };
     const playedToday = new Set();
     for (const g of games) {
       if (!g.played || !g.result || !g.result.box) continue;

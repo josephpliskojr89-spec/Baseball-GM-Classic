@@ -365,12 +365,15 @@ window.BBGM_SIM = (function () {
     state.meta.gamesPlayedByTeam[home.id] = (state.meta.gamesPlayedByTeam[home.id] || 0) + 1;
     state.meta.gamesPlayedByTeam[away.id] = (state.meta.gamesPlayedByTeam[away.id] || 0) + 1;
 
-    // Notable single-game feats (achievements ledger + news): cycles,
-    // 3/4-HR games, 15-K games, no-hitters, perfect games, walk-off hits.
-    detectFeats(state, game, gameStats, teamState, year);
-
-    game.played = true;
-    game.result = {
+    // Commit ordering (0.45.0): build the COMPLETE result object first,
+    // then flip played + attach it in one adjacent step. The old order set
+    // played=true before constructing the box — a throw in the tail left a
+    // "played" game with no result (crashing every score list), while a
+    // throw before the flag left merged stats on an unplayed game that a
+    // retry would double-count. The remaining exposure is the simple
+    // bookkeeping loops between the stat merge and here, which contain no
+    // validation and no lookups that can miss.
+    const result = {
       homeRuns: teamState.home.runs,
       awayRuns: teamState.away.runs,
       homeHits: teamState.home.hits,
@@ -395,6 +398,18 @@ window.BBGM_SIM = (function () {
       injuries: injuriesThisGame, // [{playerId, injury}] — applied next day
       year,
     };
+    game.played = true;
+    game.result = result;
+
+    // Notable single-game feats (achievements ledger + news): cycles,
+    // 3/4-HR games, 15-K games, no-hitters, perfect games, walk-off hits.
+    // After the commit, and non-fatal — a feats bug is cosmetic and must
+    // never abort a day whose game already counted.
+    try {
+      detectFeats(state, game, gameStats, teamState, year);
+    } catch (e) {
+      console.error('detectFeats failed (cosmetic, game already committed):', e);
+    }
     return game.result;
   }
 
