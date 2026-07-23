@@ -468,6 +468,37 @@ window.BBGM_MAIN = (function () {
       }
     }
 
+    // 0.47.1: head scouts (0.47.0) only generated at the season rollover,
+    // so a save loaded mid-cycle had an empty scouting market and a
+    // vacancy with nobody to interview. Stock the market and staff the AI
+    // clubs now; the USER's chair deliberately stays open — their first
+    // head scout is their hire (an empty seat still gets the standard
+    // owner fill at Opening Day, same as coaches).
+    if (versionLt(saveVersion, '0.47.1')) {
+      const STAFF = window.BBGM_STAFF;
+      if (!state.staff) state.staff = { managers: {}, coaches: {} };
+      if (!state.staff.scouts) state.staff.scouts = {};
+      let staffed = 0;
+      for (const t of state.league.teams) {
+        if (t.id === state.meta.userTeamId) continue;
+        if (!t.scoutId || !state.staff.scouts[t.scoutId]) {
+          const sc = STAFF.generateScout(state);
+          state.staff.scouts[sc.id] = sc;
+          sc.teamId = t.id;
+          t.scoutId = sc.id;
+          staffed++;
+        }
+      }
+      while (STAFF.poolScouts(state).length < 6) {
+        const sc = STAFF.generateScout(state);
+        state.staff.scouts[sc.id] = sc;
+      }
+      if (staffed) {
+        console.log(`0.47.1 migration: staffed ${staffed} AI scout chair(s), stocked the market.`);
+        window.BBGM_STATE.set(state);
+      }
+    }
+
     // Stamp the save forward now that every migration has run. This is
     // what makes the versionLt gates above one-shot, and it makes the
     // Menu's "Save version" reflect the code the save actually runs under
