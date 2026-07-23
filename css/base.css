@@ -22,11 +22,59 @@
   --danger: #e25c5c;
   --info: #5b9bd5;
 
-  --grade-elite: #f1c40f;
+  /* "Night Game" broadcast package (0.42.0). Chrome surfaces (header,
+     nav, scorebug plates) sit on --night, a shade below the content
+     base, so the graphics package reads as its own layer — like the
+     broadcast bug over the field. Amber is the scoreboard-LED voice
+     (live data, dates, totals); dugout green is the field/positive
+     voice; chalk is the warm display-heading white (foul-line chalk
+     against the cool body text). */
+  --night: #0a0e14;
+  --field: #1d4230;
+  --field-bright: #3fae6a;
+  --amber: #ffb52e;
+  --amber-bright: #ffcf6b;
+  --amber-soft: rgba(255, 181, 46, 0.14);
+  --chalk: #f2efe6;
+
+  /* Runtime team chrome: once a save loads, setChromeTeam (common.js)
+     overrides these on <html> with the franchise's colors (contrast-
+     guarded). Pre-save screens — splash, team select — stay on the
+     neutral accent red via these defaults. NEVER rename chrome/accent
+     tokens: hundreds of inline styles carry var(--x, #hex) fallbacks
+     that would silently go stale. */
+  --chrome-primary: var(--accent);
+  --chrome-secondary: var(--accent-hover);
+  --chrome-text: #ffffff;
+  --chrome-soft: var(--accent-soft);
+
+  /* Position-family badge tints (tokenized 0.42.0 — same values the
+     rules hardcoded before). */
+  --pos-pitcher-bg: rgba(91, 155, 213, 0.18);
+  --pos-pitcher-fg: #88baea;
+  --pos-infield-bg: rgba(76, 175, 80, 0.18);
+  --pos-infield-fg: #74cf78;
+  --pos-outfield-bg: rgba(240, 162, 58, 0.18);
+  --pos-outfield-fg: #f5b86a;
+  --pos-catcher-bg: rgba(201, 48, 44, 0.22);
+  --pos-catcher-fg: #e88080;
+  --pos-dh-bg: rgba(155, 89, 182, 0.18);
+  --pos-dh-fg: #c08fdb;
+
+  /* 80-grade gold now speaks the scoreboard-amber voice. */
+  --grade-elite: #ffb52e;
   --grade-plus: #4caf50;
   --grade-avg: #e6edf3;
   --grade-below: #f0a23a;
   --grade-poor: #e25c5c;
+
+  /* Type voices (0.42.0, no webfonts — offline PWA). Mono is the
+     scoreboard voice for every numeric surface; display is the
+     broadcast voice (condensed caps) for headings and team names. */
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", "Roboto Mono",
+    "Segoe UI Mono", Consolas, monospace;
+  --font-display: "Avenir Next Condensed", "Roboto Condensed",
+    "Arial Narrow", -apple-system, "Segoe UI", sans-serif;
 
   /* Type scale */
   --fs-xs: 11px;
@@ -44,6 +92,7 @@
   --sp-4: 16px;
   --sp-5: 20px;
   --sp-6: 24px;
+  --sp-7: 28px;
   --sp-8: 32px;
 
   /* Layout */
@@ -102,12 +151,22 @@ p {
   color: var(--text-muted);
 }
 
-.mono {
+/* Scoreboard voice: monospace digits, tabular. */
+.num, .mono {
+  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
 }
 
 .tabular {
   font-variant-numeric: tabular-nums;
+}
+
+/* Broadcast voice: condensed caps for headings/team names. */
+.display {
+  font-family: var(--font-display);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 /* Color tokens for grade emphasis */

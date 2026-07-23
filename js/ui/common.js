@@ -183,6 +183,74 @@ window.BBGM_UI = (function () {
     };
   }
 
+  // ---- "Night Game" broadcast package helpers (0.42.0) ---------------------
+
+  // Key the app chrome (header topline, nav active, tabs, chips) to the
+  // user's franchise. Contrast guard: a near-black identity would vanish
+  // against the --night chrome and a near-white one would blow out the
+  // amber/chalk text around it, so we fall through primary → secondary →
+  // the neutral accent red. Values land on <html> so every CSS rule
+  // using var(--chrome-*, var(--accent*)) re-keys at once.
+  function setChromeTeam(team) {
+    const root = document.documentElement;
+    const usable = (hex) => {
+      const c = parseHex(hex);
+      if (!c) return false;
+      const luma = (0.299 * c.r + 0.587 * c.g + 0.114 * c.b) / 255;
+      return luma >= 0.10 && luma <= 0.82;
+    };
+    const primary = team && team.colors && team.colors.primary;
+    const secondary = team && team.colors && team.colors.secondary;
+    const chosen = usable(primary) ? primary : (usable(secondary) ? secondary : null);
+    if (!chosen) {
+      for (const k of ['--chrome-primary', '--chrome-secondary', '--chrome-text', '--chrome-soft']) {
+        root.style.removeProperty(k);
+      }
+      return;
+    }
+    const other = chosen === primary ? (secondary || primary) : primary;
+    const c = parseHex(chosen);
+    root.style.setProperty('--chrome-primary', chosen);
+    root.style.setProperty('--chrome-secondary', other || chosen);
+    root.style.setProperty('--chrome-text', readableTextColor(chosen));
+    root.style.setProperty('--chrome-soft', `rgba(${c.r}, ${c.g}, ${c.b}, 0.15)`);
+  }
+
+  // Inline SVG icons for dynamic call sites (nav icons live in
+  // index.html). stroke: currentColor so they tint with their parent.
+  const ICONS = {
+    envelope: '<path d="M3 6h18v13H3z"/><path d="M3 7l9 6 9-6"/>',
+    menu: '<path d="M4 7h16M4 12h16M4 17h16" stroke-linecap="round"/>',
+    plate: '<path d="M5 4h14v7l-7 9-7-9z"/>',
+    diamond: '<rect x="7.5" y="7.5" width="9" height="9" transform="rotate(45 12 12)"/>',
+  };
+  function icon(name, size = 22) {
+    const paths = ICONS[name] || '';
+    return el('span', {
+      class: 'icon',
+      html: `<svg viewBox="0 0 24 24" width="${size}" height="${size}" fill="none" ` +
+        `stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`,
+    });
+  }
+
+  // Last-10 form guide: the broadcast "L10 ■■□■■" strip. `lastTen` is the
+  // engine's array of 'W'/'L' (oldest first).
+  function formStrip(lastTen) {
+    const strip = el('span', { class: 'form-strip' });
+    for (const r of (lastTen || []).slice(-10)) {
+      strip.appendChild(el('i', { class: r === 'W' ? 'w' : 'l' }));
+    }
+    return strip;
+  }
+
+  // Scorebug stat plate: mono value over a caps label.
+  function statPlate(label, value) {
+    const plate = el('span', { class: 'stat-plate' });
+    plate.appendChild(el('span', { class: 'v' }, String(value)));
+    plate.appendChild(el('span', { class: 'k' }, label));
+    return plate;
+  }
+
   function gameLabel(game, state) {
     const home = state.league.teams.find((t) => t.id === game.homeId);
     const away = state.league.teams.find((t) => t.id === game.awayId);
@@ -216,5 +284,6 @@ window.BBGM_UI = (function () {
     showProgress, hideProgress, teamColorVars, gameLabel,
     leagueName, divisionLabel, compareTeamsByDivision,
     readableTextColor, parseHex,
+    setChromeTeam, icon, formStrip, statPlate,
   };
 })();

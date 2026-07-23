@@ -3,15 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-    <meta name="theme-color" content="#0d1117">
+    <meta name="theme-color" content="#0a0e14">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="BBGM Classic">
     <meta name="description" content="Baseball GM Classic - Modern framework, classic baseball.">
     <title>Baseball GM Classic</title>
     <link rel="manifest" href="manifest.json">
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='45' fill='%23c9302c'/%3E%3Cpath d='M30 30 Q50 50 70 70 M30 70 Q50 50 70 30' stroke='white' stroke-width='3' fill='none'/%3E%3C/svg%3E">
-    <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='45' fill='%23c9302c'/%3E%3Cpath d='M30 30 Q50 50 70 70 M30 70 Q50 50 70 30' stroke='white' stroke-width='3' fill='none'/%3E%3C/svg%3E">
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='46' fill='%230a0e14' stroke='%231d4230' stroke-width='4'/%3E%3Cpath d='M30 32h40v18L50 74 30 50z' fill='%231d4230' stroke='%23f2efe6' stroke-width='4' stroke-linejoin='round'/%3E%3Cpath d='M22 22Q32 33 22 44 M78 22Q68 33 78 44' stroke='%23ffb52e' stroke-width='3.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='46' fill='%230a0e14' stroke='%231d4230' stroke-width='4'/%3E%3Cpath d='M30 32h40v18L50 74 30 50z' fill='%231d4230' stroke='%23f2efe6' stroke-width='4' stroke-linejoin='round'/%3E%3Cpath d='M22 22Q32 33 22 44 M78 22Q68 33 78 44' stroke='%23ffb52e' stroke-width='3.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
     <link rel="stylesheet" href="css/reset.css">
     <link rel="stylesheet" href="css/base.css">
     <link rel="stylesheet" href="css/layout.css">
@@ -21,7 +21,7 @@
 <body>
     <div id="splash" class="splash">
         <div class="splash-inner">
-            <div class="splash-logo">⚾</div>
+            <div class="splash-logo"><svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><circle cx="50" cy="50" r="46" fill="#0a0e14" stroke="#1d4230" stroke-width="4"/><path d="M30 32h40v18L50 74 30 50z" fill="#1d4230" stroke="#f2efe6" stroke-width="4" stroke-linejoin="round"/><path d="M22 22Q32 33 22 44 M78 22Q68 33 78 44" stroke="#ffb52e" stroke-width="3.5" fill="none" stroke-linecap="round"/></svg></div>
             <h1>Baseball GM Classic</h1>
             <p class="tagline">Modern framework, classic baseball.</p>
             <div class="splash-buttons">
@@ -30,7 +30,7 @@
                 <button id="btnImportGame" class="btn-tertiary">Import Save</button>
                 <input type="file" id="fileImport" accept=".json" hidden>
             </div>
-            <p class="version">v0.41.0</p>
+            <p class="version">v0.42.0</p>
         </div>
     </div>
 
@@ -48,15 +48,18 @@
     <div id="app" class="app hidden">
         <header class="app-header">
             <div class="app-header-left">
-                <span id="hdrDate" class="hdr-date">—</span>
-                <span id="hdrRecord" class="hdr-record">0-0</span>
+                <span id="hdrTeamChip" class="scorebug-chip"></span>
+                <span class="hdr-stack">
+                    <span id="hdrRecord" class="hdr-record">0-0</span>
+                    <span id="hdrDate" class="hdr-date">—</span>
+                </span>
             </div>
             <div class="app-header-center">
                 <button id="btnAdvance" class="btn-advance">Advance Day ▶</button>
             </div>
             <div style="display:flex;align-items:center;gap:2px">
-                <button id="btnInbox" class="hdr-menu-btn" aria-label="Inbox" style="position:relative">✉<span id="inboxBadge" style="display:none;position:absolute;top:2px;right:0;background:#e25c5c;color:#fff;border-radius:8px;font-size:10px;line-height:1;padding:2px 5px;font-weight:700"></span></button>
-                <button id="btnMenu" class="hdr-menu-btn" aria-label="Menu">≡</button>
+                <button id="btnInbox" class="hdr-menu-btn" aria-label="Inbox" style="position:relative"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18v13H3z"/><path d="M3 7l9 6 9-6"/></svg><span id="inboxBadge" style="display:none;position:absolute;top:2px;right:0;background:#e25c5c;color:#fff;border-radius:8px;font-size:10px;line-height:1;padding:2px 5px;font-weight:700"></span></button>
+                <button id="btnMenu" class="hdr-menu-btn" aria-label="Menu"><svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg></button>
             </div>
         </header>
 
@@ -66,27 +69,27 @@
 
         <nav class="bottom-nav">
             <button class="nav-btn active" data-tab="home">
-                <span class="nav-icon">⌂</span>
+                <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h14v7l-7 9-7-9z"/></svg></span>
                 <span class="nav-label">Home</span>
             </button>
             <button class="nav-btn" data-tab="team">
-                <span class="nav-icon">●</span>
+                <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M9 3a3 3 0 0 0 6 0l5 3-2 4-2-1v12H8V9L6 10 4 6z"/></svg></span>
                 <span class="nav-label">Team</span>
             </button>
             <button class="nav-btn" data-tab="league">
-                <span class="nav-icon">⊞</span>
+                <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h11M4 18h7"/></svg></span>
                 <span class="nav-label">League</span>
             </button>
             <button class="nav-btn" data-tab="players">
-                <span class="nav-icon">◎</span>
+                <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="9" cy="8" r="2.6"/><circle cx="16.5" cy="9" r="2.1"/><path d="M4.5 19c0-2.6 2-4.6 4.5-4.6s4.5 2 4.5 4.6M14.8 19c.2-1.9 1.5-3.3 3.2-3.3 1.4 0 2.6 1 3 2.6"/></svg></span>
                 <span class="nav-label">Players</span>
             </button>
             <button class="nav-btn" data-tab="draft">
-                <span class="nav-icon">✪</span>
+                <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.7 3.4 3.8.6-2.8 2.7.7 3.7-3.4-1.8-3.4 1.8.7-3.7L6.5 7l3.8-.6z"/><path d="M5 20h14M8 20v-3h8v3"/></svg></span>
                 <span class="nav-label">Draft</span>
             </button>
             <button class="nav-btn" data-tab="gm">
-                <span class="nav-icon">$</span>
+                <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4" stroke-linecap="round"/><path d="M12 9.5v8M14 11.2c0-.9-.9-1.6-2-1.6s-2 .6-2 1.5c0 2.3 4 1.1 4 3.4 0 .9-.9 1.5-2 1.5s-2-.7-2-1.6" stroke-linecap="round"/></svg></span>
                 <span class="nav-label">GM</span>
             </button>
         </nav>
@@ -104,49 +107,49 @@
     <!-- Version-stamped script imports. Browsers (and CDNs) cache JS by URL,
          so changing ?v=... forces a fresh fetch on next load. Bump the
          BBGM_BUILD value below whenever a JS file changes. -->
-    <script src="js/data/constants.js?v=0.41.0"></script>
-    <script src="js/data/name_pools.js?v=0.41.0"></script>
-    <script src="js/data/intl_name_pools.js?v=0.41.0"></script>
-    <script src="js/data/city_pools.js?v=0.41.0"></script>
-    <script src="js/data/teams.js?v=0.41.0"></script>
-    <script src="js/util/rng.js?v=0.41.0"></script>
-    <script src="js/util/dates.js?v=0.41.0"></script>
-    <script src="js/state.js?v=0.41.0"></script>
-    <script src="js/generation/ballparks.js?v=0.41.0"></script>
-    <script src="js/generation/league.js?v=0.41.0"></script>
-    <script src="js/generation/players.js?v=0.41.0"></script>
-    <script src="js/engine/schedule.js?v=0.41.0"></script>
-    <script src="js/engine/stats.js?v=0.41.0"></script>
-    <script src="js/engine/injuries.js?v=0.41.0"></script>
-    <script src="js/engine/fatigue.js?v=0.41.0"></script>
-    <script src="js/engine/roster.js?v=0.41.0"></script>
-    <script src="js/engine/progression.js?v=0.41.0"></script>
-    <script src="js/engine/minors.js?v=0.41.0"></script>
-    <script src="js/engine/flavorleagues.js?v=0.41.0"></script>
-    <script src="js/engine/trades.js?v=0.41.0"></script>
-    <script src="js/engine/freeagency.js?v=0.41.0"></script>
-    <script src="js/engine/waivers.js?v=0.41.0"></script>
-    <script src="js/engine/inbox.js?v=0.41.0"></script>
-    <script src="js/engine/staff.js?v=0.41.0"></script>
-    <script src="js/engine/scouting.js?v=0.41.0"></script>
-    <script src="js/engine/draft.js?v=0.41.0"></script>
-    <script src="js/engine/intl.js?v=0.41.0"></script>
-    <script src="js/engine/awards.js?v=0.41.0"></script>
-    <script src="js/engine/simulation.js?v=0.41.0"></script>
-    <script src="js/engine/standings.js?v=0.41.0"></script>
-    <script src="js/engine/offseason.js?v=0.41.0"></script>
-    <script src="js/ui/common.js?v=0.41.0"></script>
-    <script src="js/ui/dashboard.js?v=0.41.0"></script>
-    <script src="js/ui/team.js?v=0.41.0"></script>
-    <script src="js/ui/league.js?v=0.41.0"></script>
-    <script src="js/ui/players.js?v=0.41.0"></script>
-    <script src="js/ui/games.js?v=0.41.0"></script>
-    <script src="js/ui/frontoffice.js?v=0.41.0"></script>
-    <script src="js/ui/gm.js?v=0.41.0"></script>
-    <script src="js/ui/drafthub.js?v=0.41.0"></script>
-    <script src="js/ui/menu.js?v=0.41.0"></script>
-    <script src="js/ui/player.js?v=0.41.0"></script>
-    <script src="js/main.js?v=0.41.0"></script>
+    <script src="js/data/constants.js?v=0.42.0"></script>
+    <script src="js/data/name_pools.js?v=0.42.0"></script>
+    <script src="js/data/intl_name_pools.js?v=0.42.0"></script>
+    <script src="js/data/city_pools.js?v=0.42.0"></script>
+    <script src="js/data/teams.js?v=0.42.0"></script>
+    <script src="js/util/rng.js?v=0.42.0"></script>
+    <script src="js/util/dates.js?v=0.42.0"></script>
+    <script src="js/state.js?v=0.42.0"></script>
+    <script src="js/generation/ballparks.js?v=0.42.0"></script>
+    <script src="js/generation/league.js?v=0.42.0"></script>
+    <script src="js/generation/players.js?v=0.42.0"></script>
+    <script src="js/engine/schedule.js?v=0.42.0"></script>
+    <script src="js/engine/stats.js?v=0.42.0"></script>
+    <script src="js/engine/injuries.js?v=0.42.0"></script>
+    <script src="js/engine/fatigue.js?v=0.42.0"></script>
+    <script src="js/engine/roster.js?v=0.42.0"></script>
+    <script src="js/engine/progression.js?v=0.42.0"></script>
+    <script src="js/engine/minors.js?v=0.42.0"></script>
+    <script src="js/engine/flavorleagues.js?v=0.42.0"></script>
+    <script src="js/engine/trades.js?v=0.42.0"></script>
+    <script src="js/engine/freeagency.js?v=0.42.0"></script>
+    <script src="js/engine/waivers.js?v=0.42.0"></script>
+    <script src="js/engine/inbox.js?v=0.42.0"></script>
+    <script src="js/engine/staff.js?v=0.42.0"></script>
+    <script src="js/engine/scouting.js?v=0.42.0"></script>
+    <script src="js/engine/draft.js?v=0.42.0"></script>
+    <script src="js/engine/intl.js?v=0.42.0"></script>
+    <script src="js/engine/awards.js?v=0.42.0"></script>
+    <script src="js/engine/simulation.js?v=0.42.0"></script>
+    <script src="js/engine/standings.js?v=0.42.0"></script>
+    <script src="js/engine/offseason.js?v=0.42.0"></script>
+    <script src="js/ui/common.js?v=0.42.0"></script>
+    <script src="js/ui/dashboard.js?v=0.42.0"></script>
+    <script src="js/ui/team.js?v=0.42.0"></script>
+    <script src="js/ui/league.js?v=0.42.0"></script>
+    <script src="js/ui/players.js?v=0.42.0"></script>
+    <script src="js/ui/games.js?v=0.42.0"></script>
+    <script src="js/ui/frontoffice.js?v=0.42.0"></script>
+    <script src="js/ui/gm.js?v=0.42.0"></script>
+    <script src="js/ui/drafthub.js?v=0.42.0"></script>
+    <script src="js/ui/menu.js?v=0.42.0"></script>
+    <script src="js/ui/player.js?v=0.42.0"></script>
+    <script src="js/main.js?v=0.42.0"></script>
     <!-- Boot integrity guard (0.39.1). A PWA mid-update can fetch the new
          index.html while one of the version-stamped scripts above fails to
          download (flaky mobile network; the old service worker's cache

@@ -63,33 +63,52 @@ window.BBGM_UI_PLAYER = (function () {
     const rarityBasis = ovrBand ? (ovrBand[0] + ovrBand[1]) / 2 : ovr;
     const rarity = rep.mode === 'min' ? rarityFor(0) : rarityFor(rarityBasis);
 
-    // Rarity header: name + bio line + big OVR badge.
-    const header = U.el('div', {
-      class: 'player-profile-header',
-      style: {
-        background: `linear-gradient(135deg, ${rarity.from}, ${rarity.to})`,
-        color: rarity.text,
-        display: 'flex', 'justify-content': 'space-between', 'align-items': 'center', gap: '10px',
-      },
-    });
-    const left = U.el('div');
-    left.appendChild(U.el('div', { class: 'player-profile-name', style: { color: rarity.text } }, p.name));
-    left.appendChild(U.el('div', { class: 'player-profile-meta', style: { color: rarity.text, opacity: '0.9' } },
+    // Broadcast lower-third header (0.42.0): the laundry owns the panel —
+    // team colors, jersey-number watermark — and rarity lives on the
+    // home-plate OVR badge where the caliber still reads from across the
+    // room. Free agents and retirees have no laundry, so THEIR header
+    // keeps the full rarity gradient (the old look).
+    const hasLaundry = !!team && !p.retired;
+    const headerStyle = hasLaundry
+      ? {
+          ...U.teamColorVars(team),
+          display: 'flex', 'justify-content': 'space-between', 'align-items': 'center', gap: '10px',
+        }
+      : {
+          background: `linear-gradient(135deg, ${rarity.from}, ${rarity.to})`,
+          color: rarity.text,
+          display: 'flex', 'justify-content': 'space-between', 'align-items': 'center', gap: '10px',
+        };
+    const header = U.el('div', { class: 'player-profile-header', style: headerStyle });
+    if (hasLaundry && p.jersey != null) {
+      header.appendChild(U.el('span', { class: 'jersey-mark' }, `#${p.jersey}`));
+    }
+    const left = U.el('div', { style: { position: 'relative' } });
+    left.appendChild(U.el('div', { class: 'player-profile-name' }, p.name));
+    left.appendChild(U.el('div', { class: 'player-profile-meta', style: { opacity: '0.9' } },
       `${p.primaryPosition} • Age ${p.age} • ${p.bats}/${p.throws} • #${p.jersey}` +
       (p.retired ? ` • Retired ${p.retired.year}` : '')));
-    if (team && !p.retired) {
-      left.appendChild(U.el('div', { class: 'player-profile-team', style: { color: rarity.text, opacity: '0.9' } }, team.name));
+    if (hasLaundry) {
+      left.appendChild(U.el('div', { class: 'player-profile-team', style: { opacity: '0.9' } }, team.name));
     }
     header.appendChild(left);
-    const badge = U.el('div', { style: { 'text-align': 'center', 'min-width': '64px' } });
+    const badge = U.el('div', { style: { 'text-align': 'center', 'min-width': '68px', position: 'relative' } });
     const badgeText = rep.mode === 'exact' ? String(U.gradeFor(ovr))
       : rep.mode === 'min' ? '??'
       : `${ovrBand[0]}–${ovrBand[1]}`;
     badge.appendChild(U.el('div', {
-      style: { 'font-size': rep.mode === 'exact' ? '30px' : '20px', 'font-weight': '800', 'line-height': '1.4' },
+      class: 'ovr-plate',
+      style: {
+        background: `linear-gradient(160deg, ${rarity.from}, ${rarity.to})`,
+        color: rarity.text,
+        'font-size': rep.mode === 'exact' ? '26px' : '14px',
+        margin: '0 auto',
+      },
     }, badgeText));
-    badge.appendChild(U.el('div', { style: { 'font-size': '10px', 'letter-spacing': '0.6px', 'text-transform': 'uppercase', opacity: '0.9' } },
-      rep.mode === 'min' ? 'Unscouted' : rarity.label + (rep.mode !== 'exact' ? ' (proj.)' : '')));
+    badge.appendChild(U.el('div', {
+      class: 'display',
+      style: { 'font-size': '10px', 'letter-spacing': '0.06em', opacity: '0.9', 'margin-top': '2px' },
+    }, rep.mode === 'min' ? 'Unscouted' : rarity.label + (rep.mode !== 'exact' ? ' (proj.)' : '')));
     header.appendChild(badge);
     body.appendChild(header);
 
@@ -520,21 +539,30 @@ window.BBGM_UI_PLAYER = (function () {
     const W = 300, H = 130, L = 26, R = 8, T = 10, B = 22;
     const x = (i) => pts.length === 1 ? W / 2 : L + i * ((W - L - R) / (pts.length - 1));
     const y = (v) => T + (80 - Math.max(20, Math.min(80, v))) * ((H - T - B) / 60);
+    // Chart colors ride the design tokens (0.42.0): the line is the
+    // franchise chrome color, the peak dot dugout green, and the grade-50
+    // "league average" reference line glows scoreboard amber — a
+    // telestrator touch. CSS vars resolve fine in DOM-injected SVG.
+    const LINE = 'var(--chrome-primary, #58a6ff)';
+    const PEAK = 'var(--field-bright, #3fb950)';
+    const INK = 'var(--text-muted, #8b949e)';
+    const MONO = 'font-family="ui-monospace, Consolas, monospace"';
     let svg = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block">`;
     for (const g of [20, 40, 60, 80]) {
-      svg += `<line x1="${L}" y1="${y(g)}" x2="${W - R}" y2="${y(g)}" stroke="rgba(139,148,158,0.25)" stroke-width="1"/>`;
-      svg += `<text x="${L - 4}" y="${y(g) + 3}" font-size="9" fill="#8b949e" text-anchor="end">${g}</text>`;
+      svg += `<line x1="${L}" y1="${y(g)}" x2="${W - R}" y2="${y(g)}" stroke="var(--border-strong, rgba(139,148,158,0.25))" stroke-opacity="0.55" stroke-width="1"/>`;
+      svg += `<text x="${L - 4}" y="${y(g) + 3}" font-size="9" ${MONO} fill="${INK}" text-anchor="end">${g}</text>`;
     }
+    svg += `<line x1="${L}" y1="${y(50)}" x2="${W - R}" y2="${y(50)}" stroke="var(--amber, #ffb52e)" stroke-opacity="0.35" stroke-width="1" stroke-dasharray="3 4"/>`;
     if (pts.length > 1) {
-      svg += `<polyline fill="none" stroke="#58a6ff" stroke-width="2" points="${pts.map((pt, i) => `${x(i)},${y(pt.value)}`).join(' ')}"/>`;
+      svg += `<polyline fill="none" stroke="${LINE}" stroke-width="2" points="${pts.map((pt, i) => `${x(i)},${y(pt.value)}`).join(' ')}"/>`;
     }
     pts.forEach((pt, i) => {
       const isPeak = pt === peak;
-      svg += `<circle cx="${x(i)}" cy="${y(pt.value)}" r="${isPeak ? 4 : 2.5}" fill="${isPeak ? '#3fb950' : '#58a6ff'}"/>`;
+      svg += `<circle cx="${x(i)}" cy="${y(pt.value)}" r="${isPeak ? 4 : 2.5}" fill="${isPeak ? PEAK : LINE}"/>`;
     });
-    svg += `<text x="${x(0)}" y="${H - 6}" font-size="9" fill="#8b949e" text-anchor="middle">age ${pts[0].age}</text>`;
+    svg += `<text x="${x(0)}" y="${H - 6}" font-size="9" ${MONO} fill="${INK}" text-anchor="middle">age ${pts[0].age}</text>`;
     if (pts.length > 1) {
-      svg += `<text x="${x(pts.length - 1)}" y="${H - 6}" font-size="9" fill="#8b949e" text-anchor="middle">age ${cur.age}</text>`;
+      svg += `<text x="${x(pts.length - 1)}" y="${H - 6}" font-size="9" ${MONO} fill="${INK}" text-anchor="middle">age ${cur.age}</text>`;
     }
     svg += '</svg>';
     body.appendChild(U.el('div', { class: 'card', style: { padding: '8px' }, html: svg }));
@@ -547,7 +575,7 @@ window.BBGM_UI_PLAYER = (function () {
           ...(pt === peak ? { color: 'var(--success, #3fb950)', 'font-weight': '600' } : {}) },
       }, [
         U.el('span', { class: pt === peak ? '' : 'muted' }, `${pt.year} — age ${pt.age}${pt.now ? ' (now)' : ''}`),
-        U.el('span', { style: { 'font-variant-numeric': 'tabular-nums' } }, String(pt.value)),
+        U.el('span', { class: 'num' }, String(pt.value)),
       ]));
     }
     body.appendChild(list);

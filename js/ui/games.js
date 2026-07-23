@@ -278,10 +278,12 @@ window.BBGM_UI_GAMES = (function () {
       for (let i = 0; i < innings; i++) {
         tr.appendChild(U.el('td', {}, line[i] != null ? String(line[i]) : '—'));
       }
-      tr.appendChild(U.el('td', { style: { 'font-weight': '700' } }, String(runs)));
-      tr.appendChild(U.el('td', {}, String(hits != null ? hits : '—')));
+      // R/H/E totals wear the LED treatment (0.42.0): amber mono on the
+      // night surface — the out-of-town scoreboard look.
+      tr.appendChild(U.el('td', { class: 'led' }, String(runs)));
+      tr.appendChild(U.el('td', { class: 'led' }, String(hits != null ? hits : '—')));
       // Pre-0.7 games have no error counts — show a dash, not 0.
-      tr.appendChild(U.el('td', {}, errors != null ? String(errors) : '—'));
+      tr.appendChild(U.el('td', { class: 'led' }, errors != null ? String(errors) : '—'));
       tbody.appendChild(tr);
     }
     table.appendChild(tbody);

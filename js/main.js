@@ -568,6 +568,14 @@ window.BBGM_MAIN = (function () {
     document.getElementById('hdrDate').textContent = D.format(state.meta.currentDate);
     document.getElementById('hdrRecord').textContent =
       `${team.seasonRecord.w}-${team.seasonRecord.l}`;
+    // "Night Game" chrome (0.42.0): key the broadcast package to the
+    // franchise and light up the scorebug team chip.
+    U.setChromeTeam(team);
+    const chip = document.getElementById('hdrTeamChip');
+    if (chip) {
+      chip.textContent = team.abbr;
+      chip.classList.add('on');
+    }
     // Inbox badge (0.37.0).
     const badge = document.getElementById('inboxBadge');
     if (badge) {

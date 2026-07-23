@@ -7,6 +7,9 @@
   padding-bottom: calc(var(--bottom-nav-h) + var(--safe-bottom));
 }
 
+/* Scorebug header (0.42.0): the broadcast graphics package. Sits on
+   --night with a team-color topline keyline — the lower-third of a
+   regional sports network telecast. */
 .app-header {
   position: sticky;
   top: 0;
@@ -18,7 +21,8 @@
   padding: 0 var(--sp-4);
   padding-top: var(--safe-top);
   height: calc(var(--header-h) + var(--safe-top));
-  background: var(--bg-elevated);
+  background: var(--night, var(--bg-elevated));
+  border-top: 3px solid var(--chrome-primary, var(--accent));
   border-bottom: 1px solid var(--border-subtle);
 }
 
@@ -26,30 +30,66 @@
    room on narrow phones. */
 .app-header-left {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  justify-content: center;
-  gap: 0;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--sp-2);
   min-width: 0;
 }
 
-/* The Advance pill is centered on the header's content strip (below the
-   iOS safe-area inset). The wrapper spans the full width but only the
-   button itself takes taps. */
+/* The bug: rectangular team chip (deliberately NOT the round cap — a
+   broadcast bug is a plate) beside the stacked record/date block. */
+.scorebug-chip {
+  display: none; /* shown by updateHeader once a save loads */
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  height: 26px;
+  padding: 0 6px;
+  border-radius: 3px;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--fs-sm);
+  letter-spacing: 0.04em;
+  background: var(--chrome-primary, var(--accent));
+  color: var(--chrome-text, #fff);
+}
+
+.scorebug-chip.on {
+  display: inline-flex;
+}
+
+.hdr-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.hdr-stack > span {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 0.42.0: the scorebug header is a real 3-column flex row — the wider
+   team bug + advance plate can't overlap the way the old absolutely-
+   centered pill could. The left bug truncates gracefully instead. */
+.app-header {
+  gap: var(--sp-2);
+}
+
+.app-header-left {
+  flex: 1 1 auto;
+  overflow: hidden;
+}
+
 .app-header-center {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: var(--safe-top);
-  bottom: 0;
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
   justify-content: center;
-  pointer-events: none;
-}
-
-.app-header-center > * {
-  pointer-events: auto;
 }
 
 /* Menu moved out of the bottom nav (0.16.2) to the header's top right. */
@@ -73,39 +113,50 @@
   background: var(--bg-card);
 }
 
+/* Date in scoreboard amber — the game clock of the bug. */
 .hdr-date {
-  font-size: var(--fs-sm);
-  color: var(--text-secondary);
-  font-weight: 500;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--amber, var(--text-secondary));
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   white-space: nowrap;
 }
 
 .hdr-record {
+  font-family: var(--font-mono);
   font-size: var(--fs-md);
-  color: var(--text-primary);
+  color: var(--chalk, var(--text-primary));
   font-weight: 700;
   font-variant-numeric: tabular-nums;
+  line-height: 1.15;
 }
 
+/* Advance as a scorebug plate: night surface, team keyline, amber
+   mono text — the "NEXT: 7:05" plate on a telecast. */
 .btn-advance {
-  background: var(--accent);
-  color: white;
+  background: var(--night, var(--bg-elevated));
+  color: var(--amber, #ffb52e);
+  font-family: var(--font-mono);
   font-weight: 600;
   font-size: var(--fs-sm);
   padding: 8px 14px;
-  border-radius: var(--radius-md);
+  border: 1px solid var(--border-strong);
+  border-left: 3px solid var(--chrome-primary, var(--accent));
+  border-radius: 4px;
   min-height: 36px;
   transition: background 120ms ease;
 }
 
 .btn-advance:active {
-  background: var(--accent-hover);
+  background: var(--chrome-soft, var(--accent-soft));
 }
 
 .btn-advance:disabled {
-  opacity: 0.5;
-  background: var(--bg-card);
+  opacity: 0.6;
   color: var(--text-muted);
+  border-left-color: var(--border-strong);
 }
 
 /* Main view */
@@ -127,12 +178,13 @@
   display: flex;
   height: calc(var(--bottom-nav-h) + var(--safe-bottom));
   padding-bottom: var(--safe-bottom);
-  background: var(--bg-elevated);
+  background: var(--night, var(--bg-elevated));
   border-top: 1px solid var(--border-subtle);
   z-index: 60;
 }
 
 .nav-btn {
+  position: relative;
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -147,6 +199,12 @@
 .nav-btn .nav-icon {
   font-size: 20px;
   line-height: 1;
+  display: inline-flex;
+}
+
+.nav-btn .nav-icon svg {
+  width: 22px;
+  height: 22px;
 }
 
 .nav-btn .nav-label {
@@ -155,7 +213,18 @@
 }
 
 .nav-btn.active {
-  color: var(--accent);
+  color: var(--chrome-primary, var(--accent));
+}
+
+/* The broadcast "selected segment" tick. */
+.nav-btn.active::before {
+  content: "";
+  position: absolute;
+  top: -1px;
+  left: 20%;
+  right: 20%;
+  height: 2px;
+  background: var(--chrome-primary, var(--accent));
 }
 
 .nav-btn:active {
@@ -166,7 +235,8 @@
 .splash {
   position: fixed;
   inset: 0;
-  background: linear-gradient(180deg, #0d1117 0%, #1a2230 60%, #0d1117 100%);
+  /* Night sky over the field: near-black with a dugout-green heart. */
+  background: linear-gradient(180deg, #0a0e14 0%, #12241c 55%, #0a0e14 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -187,8 +257,17 @@
   margin-bottom: var(--sp-4);
 }
 
+.splash-logo svg {
+  width: 96px;
+  height: 96px;
+}
+
 .splash h1 {
   margin-bottom: var(--sp-2);
+  font-family: var(--font-display);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--chalk, var(--text-primary));
 }
 
 .splash .tagline {

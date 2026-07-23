@@ -24,7 +24,17 @@ window.BBGM_UI_TEAM = (function () {
     U.clearChildren(container);
     const team = state.league.teams.find((t) => t.id === state.meta.userTeamId);
 
-    container.appendChild(U.el('h2', { style: { 'margin-bottom': '12px' } }, team.name));
+    // Broadcast lower-third (0.42.0): the same team strip the dashboard
+    // wears, so the franchise's colors own this screen too.
+    const strip = U.el('div', { class: 'team-strip', style: U.teamColorVars(team) });
+    strip.appendChild(U.teamCap(team, { size: 'lg' }));
+    const stripInfo = U.el('div');
+    stripInfo.appendChild(U.el('div', { class: 'team-strip-name' }, team.name));
+    stripInfo.appendChild(U.el('div', { class: 'team-strip-meta' }, U.divisionLabel(team)));
+    strip.appendChild(stripInfo);
+    strip.appendChild(U.el('div', { class: 'team-strip-record' },
+      `${team.seasonRecord.w}-${team.seasonRecord.l}`));
+    container.appendChild(strip);
 
     // Tabs
     const tabs = U.el('div', { class: 'tabs' });
@@ -73,7 +83,7 @@ window.BBGM_UI_TEAM = (function () {
         style: { color: 'var(--text-muted)', 'font-size': '10px', 'margin-right': '3px', 'letter-spacing': '0.4px' },
       }, label));
       chip.appendChild(U.el('span', {
-        class: U.gradeClass(value),
+        class: 'num ' + U.gradeClass(value),
         style: { 'font-weight': '700', 'font-variant-numeric': 'tabular-nums' },
       }, String(U.gradeFor(value))));
       row.appendChild(chip);

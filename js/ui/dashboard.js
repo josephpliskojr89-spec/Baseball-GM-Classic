@@ -19,9 +19,22 @@ window.BBGM_UI_DASHBOARD = (function () {
     info.appendChild(U.el('div', { class: 'team-strip-name' }, team.name));
     info.appendChild(U.el('div', { class: 'team-strip-meta' },
       `${U.divisionLabel(team)} • ${team.market[0].toUpperCase() + team.market.slice(1)} Market`));
+    // Broadcast form guide (0.42.0): last-10 as tiny squares under the meta.
+    if ((team.seasonRecord.lastTen || []).length) {
+      const formLine = U.el('div', { style: { 'margin-top': '4px' } });
+      formLine.appendChild(U.formStrip(team.seasonRecord.lastTen));
+      info.appendChild(formLine);
+    }
     strip.appendChild(info);
-    const record = `${team.seasonRecord.w}-${team.seasonRecord.l}`;
-    strip.appendChild(U.el('div', { class: 'team-strip-record' }, record));
+    const right = U.el('div', {
+      style: { 'margin-left': 'auto', display: 'flex', 'align-items': 'center', gap: '8px' },
+    });
+    // Division rank plate, scorebug style.
+    const rank = divisionRank(state, team);
+    if (rank) right.appendChild(U.statPlate('DIV', rank));
+    right.appendChild(U.el('div', { class: 'team-strip-record', style: { 'margin-left': '0' } },
+      `${team.seasonRecord.w}-${team.seasonRecord.l}`));
+    strip.appendChild(right);
     container.appendChild(strip);
 
     // Pending roster decisions (0.21.0): the calendar is frozen until the
@@ -189,6 +202,29 @@ window.BBGM_UI_DASHBOARD = (function () {
         line = opp
           ? `Your series: ${ourWins}-${theirWins} vs ${opp.name}.`
           : 'Awaiting your next opponent.';
+        // Series diamond (0.42.0): your series wins as filled bases —
+        // "up 2-1" rendered as runners on first and second.
+        const filled = 'var(--field-bright, #3fb950)';
+        const open = 'none';
+        const baseAt = (cx, cy, on) =>
+          `<rect x="${cx - 5}" y="${cy - 5}" width="10" height="10" transform="rotate(45 ${cx} ${cy})" ` +
+          `fill="${on ? filled : open}" stroke="${on ? filled : 'var(--border-strong, #3a4358)'}" stroke-width="1.6"/>`;
+        const w = Math.max(0, Math.min(4, ourWins));
+        const diamondSvg =
+          '<svg viewBox="0 0 64 48" width="56" height="42" aria-hidden="true">' +
+          baseAt(50, 30, w >= 1) +  // first
+          baseAt(32, 12, w >= 2) +  // second
+          baseAt(14, 30, w >= 3) +  // third
+          `<path d="M27 40h10v4l-5 4-5-4z" fill="${w >= 4 ? filled : 'none'}" ` +
+          `stroke="${w >= 4 ? filled : 'var(--border-strong, #3a4358)'}" stroke-width="1.6"/>` + // home
+          '</svg>';
+        const seriesRow = U.el('div', {
+          style: { display: 'flex', 'align-items': 'center', gap: '10px', 'margin-bottom': '8px' },
+        });
+        seriesRow.appendChild(U.el('span', { class: 'icon', html: diamondSvg }));
+        seriesRow.appendChild(U.el('span', { class: 'num', style: { 'font-size': '18px', 'font-weight': '700' } },
+          `${ourWins}-${theirWins}`));
+        card.appendChild(seriesRow);
       } else if (wasIn) {
         const lost = ps.series.find((s) => s.loserId === team.id);
         line = lost ? 'Your season is over — eliminated. October plays on.' : 'You have a first-round bye — next round soon.';
@@ -423,7 +459,11 @@ window.BBGM_UI_DASHBOARD = (function () {
         class: 'roster-row',
         on: { click: () => window.BBGM_MAIN.navigate('games', { gameId: g.gameId }) },
       });
-      row.appendChild(U.el('span', { class: 'pos-badge' }, won ? 'W' : 'L'));
+      // W/L on a home plate (0.42.0): green-family plate for a win,
+      // red-family for a loss — the result reads before the score does.
+      row.appendChild(U.el('span', {
+        class: `pos-badge ${won ? 'pos-infield' : 'pos-catcher'}`,
+      }, won ? 'W' : 'L'));
       const info = U.el('div', { class: 'player-row-info' });
       info.appendChild(U.el('div', { class: 'player-row-name' },
         `${isHome ? 'vs' : '@'} ${opp.name}`));
@@ -486,6 +526,18 @@ window.BBGM_UI_DASHBOARD = (function () {
 
   function fmtPct(v) {
     return v.toFixed(3).replace(/^0/, '');
+  }
+
+  // "2nd" in the division, for the strip's scorebug plate.
+  function divisionRank(state, team) {
+    const standings = STAND.buildStandings(state);
+    const myDiv = standings.find((s) => s.league === team.league && s.division === team.division);
+    if (!myDiv) return null;
+    const i = myDiv.teams.findIndex((r) => r.team.id === team.id);
+    if (i < 0) return null;
+    const n = i + 1;
+    const suffix = n === 1 ? 'st' : n === 2 ? 'nd' : n === 3 ? 'rd' : 'th';
+    return `${n}${suffix}`;
   }
 
   function lastTenStr(team) {

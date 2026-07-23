@@ -3467,6 +3467,42 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 
 **Minimum friction for common actions.** Advancing the day, viewing standings, checking the lineup — these happen constantly. They should be one tap from anywhere in the app.
 
+> **Status (0.42.0) — the "Night Game" broadcast package (user
+> request: a unique, modern baseball identity).** The visual language
+> is a regional sports network's night telecast. Chrome surfaces
+> (header, bottom nav, scorebug plates) sit on `--night` (#0a0e14)
+> below the content base, keyed to the FRANCHISE's colors at runtime:
+> `setChromeTeam` (common.js) contrast-guards the team primary (luma
+> 0.10-0.82, else secondary, else the neutral accent red) and sets the
+> `--chrome-*` vars on `<html>` — header topline, nav active state,
+> tab underlines, filter chips, standings highlight all re-key the
+> moment a save loads. Three type voices, all system stacks (offline
+> PWA, no webfonts): body (unchanged), `--font-mono` scoreboard voice
+> on every numeric surface (records, stats tables, standings, scores,
+> line scores, rating values), `--font-display` condensed-caps
+> broadcast voice on headings/team names/tabs. Scoreboard amber
+> (`--amber`) is the LED color: header date, the Advance plate, R/H/E
+> line-score totals, the chart's league-average reference line; dugout
+> green (`--field`/`--field-bright`) is the field-positive color.
+> Signature pieces: home-plate-shaped position badges (clip-path,
+> every roster row league-wide), the scorebug header (rect team chip +
+> mono record over amber date + the Advance Day plate), inline-SVG nav
+> iconography (plate/jersey/standings/players/star-podium/contract),
+> the last-10 form strip and division-rank plate on the dashboard
+> lower-third, the postseason series diamond (series wins as filled
+> bases), the LED line score, and an SVG home-plate-on-night-green
+> mark replacing the emoji/red-circle icon everywhere (favicon,
+> splash, manifest, theme-color #0a0e14). Player card: the laundry
+> owns the header (team colors + jersey-number watermark); the rarity
+> tier moved to a home-plate OVR badge (gradient fill + label) — free
+> agents and retirees, having no laundry, keep the full rarity-gradient
+> header. The ratings-history chart rides tokens (chrome line, field
+> peak dot, amber avg line, mono ticks). Foundation + hero screens
+> (dashboard, player card, team) this release; remaining screens
+> inherit the system and get bespoke passes later. Token discipline:
+> new tokens only, no renames (inline `var(--x, #hex)` fallbacks make
+> renames silently degrade).
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Five tabs:
