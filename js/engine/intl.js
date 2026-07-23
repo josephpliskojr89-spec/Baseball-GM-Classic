@@ -189,6 +189,9 @@ window.BBGM_INTL = (function () {
       const spread = k === bestKey ? 0 : rfloat(0, 8);
       p.hidden.ceiling[k] = Math.round(clamp(p.hidden.ceiling[k] + delta - spread, 25, 82) * 10) / 10;
     }
+    // The rank lift never overrides the archetype cap (0.53.1): a
+    // quad-A profile stays quad-A at any board slot.
+    GEN().applyArchetypeCap(p);
 
     // Current ratings: a 16-year-old is YEARS from his ceiling — rawer
     // than any draft pick (6.7's higher variance). 0.28.0: gaps widened

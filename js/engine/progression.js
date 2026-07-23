@@ -122,6 +122,15 @@ window.BBGM_PROGRESSION = (function () {
       }
     }
 
+    // Yearly form (0.53.1, archetype audit): the volatility jolt used to
+    // be rolled independently per attribute, and the overall — a weighted
+    // mean of 5-9 draws — averaged the noise away: a "volatile" player's
+    // OVR barely wobbled more than a workhorse's despite a 5× setting.
+    // Most of the jolt is now ONE shared draw so his whole game swings
+    // together (the All-Star year, then the mediocre one); the smaller
+    // per-attribute remainder keeps individual tools diverging.
+    const form = (rand() * 2 - 1) * (arch.volatility || 0.1) * MAX_SWING * 0.8;
+
     const penRole = p.isPitcher && (p.primaryPosition === 'RP' || p.primaryPosition === 'CP');
     for (const k of keys) {
       const cur = p.ratings[k];
@@ -157,8 +166,8 @@ window.BBGM_PROGRESSION = (function () {
         h.spikeAmounts[k] = spike;
       }
 
-      // Volatility (9.4).
-      change += (rand() * 2 - 1) * (arch.volatility || 0.1) * MAX_SWING;
+      // Volatility (9.4): shared yearly form + per-attribute remainder.
+      change += form + (rand() * 2 - 1) * (arch.volatility || 0.1) * MAX_SWING * 0.4;
 
       p.ratings[k] = Math.round(clamp(cur + change, HARD_MIN, ceil) * 10) / 10;
     }

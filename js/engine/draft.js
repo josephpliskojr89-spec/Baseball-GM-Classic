@@ -162,6 +162,11 @@ window.BBGM_DRAFT = (function () {
       }
     }
 
+    // The slot lift never overrides the archetype cap (0.53.1): a
+    // quad-A profile stays quad-A even in a first-round slot — his
+    // honest capped band ranks him where the limited upside belongs.
+    GEN().applyArchetypeCap(p);
+
     // Current ratings: even the class's best bat is no better than
     // MLB-average on draft day (6.5). HS picks are far from their ceiling
     // — RAW, not just young (0.17.0: gap deepened 24→29 with wider
@@ -243,6 +248,7 @@ window.BBGM_DRAFT = (function () {
         const spread = k === bestKey ? 0 : rfloat(0, 7);
         gem.hidden.ceiling[k] = Math.round(clamp(gem.hidden.ceiling[k] + delta - spread, 25, 80) * 10) / 10;
       }
+      GEN().applyArchetypeCap(gem); // the gem lift honors the cap too (0.53.1)
       // The gem hides because scouts don't see it: his public band stays low.
     }
 
@@ -582,6 +588,7 @@ window.BBGM_DRAFT = (function () {
         p.hidden.ceiling[k] = Math.round(clamp(p.hidden.ceiling[k] + bust, 25, 82) * 10) / 10;
         p.ratings[k] = Math.min(p.ratings[k], Math.max(20, p.hidden.ceiling[k] - 2));
       }
+      GEN().applyArchetypeCap(p); // the signing-day shift honors the cap (0.53.1)
 
       const team = state.league.teams.find((t) => t.id === pick.teamId);
       p.status = 'minors';

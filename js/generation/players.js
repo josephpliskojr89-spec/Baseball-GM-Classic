@@ -17,6 +17,29 @@ window.BBGM_PLAYER_GEN = (function () {
   function youthDeficit(age) {
     return Math.round(Math.max(0, Math.min(30, (25 - age) * 3.5)));
   }
+  // 0.53.1 (archetype audit): re-clamp ceilings to the archetype's cap.
+  // The draft/intl slot lifts raise ceilings toward a rank target and
+  // used to blow straight past ceilingCap — a third of pipeline quad-A
+  // kids broke their cap and 10% became stars, erasing the archetype in
+  // the main talent pipeline. Pitcher stamina stays exempt (workload,
+  // not talent — the same rule generation applies). Ratings re-clamp
+  // beneath any lowered ceiling.
+  function applyArchetypeCap(p) {
+    const defs = p.isPitcher ? C.PITCHER_ARCHETYPES : C.HITTER_ARCHETYPES;
+    const arch = defs.find((a) => a.key === (p.hidden && p.hidden.archetype));
+    if (!arch || !arch.ceilingCap || !p.hidden || !p.hidden.ceiling) return false;
+    for (const k in p.hidden.ceiling) {
+      if (p.isPitcher && k === 'stamina') continue;
+      if (p.hidden.ceiling[k] > arch.ceilingCap) {
+        p.hidden.ceiling[k] = arch.ceilingCap;
+        if (p.ratings && p.ratings[k] != null && p.ratings[k] > arch.ceilingCap) {
+          p.ratings[k] = arch.ceilingCap;
+        }
+      }
+    }
+    return true;
+  }
+
   // Corner bats run thick, up-the-middle players run lean.
   const FRAME_POS_ADJ = { C: 6, '1B': 8, DH: 10, '3B': 3, LF: 2, RF: 2, CF: -4, '2B': -6, SS: -6 };
   function posFrameAdj(primaryPosition, isPitcher) {
@@ -921,5 +944,7 @@ window.BBGM_PLAYER_GEN = (function () {
     assignLineupsAndPitching,
     // 0.49.0 body model (load migration + offseason fill-out).
     frameFor, youthDeficit, posFrameAdj,
+    // 0.53.1: archetype ceiling cap re-clamp (draft/intl slot lifts).
+    applyArchetypeCap,
   };
 })();

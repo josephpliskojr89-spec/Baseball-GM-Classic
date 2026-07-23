@@ -3777,6 +3777,31 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > box score degrades to an honest toast; untagged items stay plain
 > text. No migration — old news items simply aren't tappable.
 
+> **Status (0.53.1) — archetype audit fixes (user-approved from the
+> 8,100-career development audit).** The audit confirmed the system
+> healthy: archetype frequencies match weights, observed peak ages
+> land in their configured windows, busts rise +2 career points vs
+> +17 for real prospects while carrying bands statistically
+> identical to anyone's (17% show 65+ star grades — the trap works),
+> the draft sends ~1.3% of each class to a 65+ peak and the intl
+> class is the sharper crapshoot (5% stars, 65% washouts). Two
+> defects fixed. ONE: the quad-A cap leaked — the draft/intl slot
+> lifts clamped only to the global 82 and blew past ceilingCap, so
+> 33% of pipeline quad-A kids broke their cap and 10% became stars
+> (top-slot quad-As essentially always delivered). applyArchetypeCap
+> now re-clamps after every lift (draft slot lift, late-round gem,
+> signing-day shift, intl rank lift; pitcher stamina stays exempt) —
+> a quad-A profile stays quad-A, his honest capped band ranks him
+> low, and the BUST remains the only prospect who can look like a
+> star and never become one. TWO: volatile was muted — the yearly
+> jolt was rolled independently per attribute and averaged out of
+> the overall (1.3× a workhorse's OVR wobble despite a 5× setting).
+> Most of the jolt is now ONE shared yearly-form draw (80%) plus a
+> smaller per-attribute remainder (40%): a volatile player's whole
+> game now swings together (yr-to-yr OVR sd 3.3× a workhorse's) —
+> the All-Star year, then the mediocre one — while calm archetypes
+> are untouched.
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):
