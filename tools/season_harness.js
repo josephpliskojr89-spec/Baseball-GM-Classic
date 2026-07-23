@@ -226,6 +226,8 @@ function simOneDay(state) {
   }
   // AI trade activity (mirrors main.js).
   W.BBGM_TRADES.aiTradeTick(state, today);
+  // AI mid-season FA sweep (0.50.0, mirrors main.js).
+  W.BBGM_FA.aiMidSeasonTick(state, today);
   // Amateur draft: class on May 1, auto-drafted (AI picks every team,
   // including the "user") on June 30 (mirrors main.js + Draft Hub).
   W.BBGM_DRAFT.ensureClass(state, today);

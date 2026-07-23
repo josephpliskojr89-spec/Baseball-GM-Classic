@@ -3692,6 +3692,32 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > (dice) / sendRivalPitch (letter) so the content is testable
 > without the cadence.
 
+> **Status (0.50.0) — nobody sits out a season (user report: a
+> 70-overall ace and a three-time MVP unsigned on Opening Day).**
+> Two compounding market defects. First, the offseason room gate
+> was absolute — an AI club needed payroll room for 85% of a star's
+> ask to BID AT ALL, and in a mature league with bloated payrolls
+> and $7-25M scouting bills, nobody cleared it; the ask eroded only
+> 6% a round, the 8 rounds ran out, and the market closed forever.
+> Second, signMidSeason was wired to the user's UI only — no AI
+> club ever touched the pool in-season, so the stranded star sat
+> ALL YEAR. Fixes: asks now crater 12%/round when the phone isn't
+> ringing (zero offers); rounds 5+ open the pillow door (bid what
+> you actually have, ≥30% of the eroding ask, short years); rounds
+> 7-8 open the minimum-contract door (any club with a roster-
+> minimum dollar can call, stars-at-a-bargain override the appetite
+> dice, and in the final round a player takes any offer at the
+> minimum or better — nobody sits out a season over pride). Healthy
+> markets are untouched: a 28-year-old star still signs in round 1
+> at full freight. And AI clubs now sweep the in-season pool three
+> times a month (aiMidSeasonTick): the best remaining 52+ FA signs
+> a one-year discount deal with a club he genuinely upgrades
+> (out-grades their weakest same-side regular by 2+, any payroll
+> room, safeRebuild slots him in — no orphaned pitchers). Sub-52
+> depth stays put, so the user's bargain bin survives. This also
+> heals existing saves with no migration: the stranded stars get
+> scooped within a few simmed weeks.
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):

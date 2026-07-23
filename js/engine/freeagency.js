@@ -170,16 +170,27 @@ window.BBGM_FA = (function () {
   }
 
   // AI teams interested in this player right now.
-  function aiBidders(state, entry, p) {
+  function aiBidders(state, entry, p, round) {
     const players = state.players;
     const bidders = [];
+    const lateRound = (round || 0) >= 5;
+    const desperation = (round || 0) >= 7;
     for (const team of state.league.teams) {
       if (team.id === state.meta.userTeamId) continue;
       const payroll = computePayroll(team, players);
       // The scouting department bills against the same ownership budget
       // (6.9.1) — an elite operation leaves less for the FA market.
       const room = team.payrollBase - scoutingCost(team) - payroll;
-      if (room < entry.askAAV * 0.85) continue;
+      // 0.50.0: the room gate was absolute (85% of ask or no bid at
+      // all) — in a mature league with bloated payrolls NOBODY cleared
+      // it for a star's ask, so MVPs sat unsigned into Opening Day.
+      // Late rounds open the pillow-contract door (bid what you have,
+      // down to 30% of the eroding ask); the last two rounds open the
+      // minimum-contract door — any club with a roster-minimum dollar
+      // can make the spring-bargain call.
+      const roomGate = desperation ? 0.74
+        : lateRound ? Math.max(2, entry.askAAV * 0.3) : entry.askAAV * 0.85;
+      if (room < roomGate) continue;
       // Need or clear upgrade (16.7).
       TRADES().setPlayersRef(players);
       const needs = TRADES().teamNeeds(team, players);
@@ -192,13 +203,19 @@ window.BBGM_FA = (function () {
       if (entry.tier === 3) appetite = Math.min(0.5, appetite + 0.15); // everyone shops the bargain bin
       if (team.competitiveWindow === 'win-now') appetite += 0.15;
       if (team.competitiveWindow === 'rebuilding' && entry.tier === 1) appetite -= 0.3;
+      // A star at a spring-bargain price is free money — every front
+      // office takes that call.
+      if (desperation && ROSTER().overall(p) >= 56) appetite = Math.max(appetite, 0.8);
       if (rand() > appetite) continue;
       // Bid: around the ask, scaled by aggression and remaining room.
       const aggression = { win_now: 1.1, old_school: 1.05, aggressive: 1.0, analytics: 0.92, patient: 0.95, cheap: 0.85 }[team.owner] || 1;
       let years = clamp(entry.askYears + (rand() < 0.25 ? -1 : 0), 1, 8);
       if (team.owner === 'patient' && years > 4) years = 4; // no mega-deals (16.7)
       const aav = Math.min(room, entry.askAAV * aggression * (0.92 + rand() * 0.16));
-      if (aav < entry.askAAV * 0.6) continue;
+      if (aav < 0.74) continue;
+      if (!desperation && aav < entry.askAAV * (lateRound ? 0.3 : 0.6)) continue;
+      // A pillow bid well under ask never carries a long commitment.
+      if (lateRound && aav < entry.askAAV * 0.6) years = Math.min(years, desperation ? 1 : 2);
       bidders.push({ team, years, total: Math.round(aav * years * 10) / 10 });
     }
     return bidders;
@@ -220,13 +237,16 @@ window.BBGM_FA = (function () {
       if (!p || p.retired) continue;
       if (!tierActive(entry.tier, market.round)) continue;
 
-      // Asking price erodes the longer a player sits (16.8).
+      // Asking price erodes the longer a player sits (16.8) — and craters
+      // when the phone isn't ringing at all (0.50.0): a market with zero
+      // offers is telling the agent something.
       if (tierActive(entry.tier, market.round - 1)) {
-        entry.askAAV = Math.round(entry.askAAV * 0.94 * 10) / 10;
+        const erode = entry.offersThisRound === 0 ? 0.88 : 0.94;
+        entry.askAAV = Math.round(entry.askAAV * erode * 10) / 10;
         entry.askTotal = Math.round(entry.askAAV * entry.askYears * 10) / 10;
       }
 
-      const bids = aiBidders(state, entry, p);
+      const bids = aiBidders(state, entry, p, market.round);
       // The user's standing offer competes.
       const userOffer = market.userOffers.find((o) => o.playerId === entry.playerId);
       const userTeam = state.league.teams.find((t) => t.id === state.meta.userTeamId);
@@ -252,9 +272,18 @@ window.BBGM_FA = (function () {
 
       if (!best) continue;
       // Accept when the winning offer clears the (eroding) ask — late
-      // rounds get desperate (16.8 pillow contracts).
+      // rounds get desperate (16.8 pillow contracts). The AAV clause
+      // (0.50.0) lets a short pillow deal land for a multi-year asker:
+      // a 1-2 year bid can never out-TOTAL a 5-year ask, but a player
+      // out of options takes the respectable one-year number.
       const acceptFloor = lateRounds ? 0.55 : 0.88;
-      if (best.total >= entry.askTotal * acceptFloor) {
+      const bestAAV = best.total / Math.max(1, best.years);
+      // Final round: nobody sits out a season over pride — any offer at
+      // the roster minimum or better gets taken (0.50.0).
+      const finalRound = market.round >= market.totalRounds;
+      if (best.total >= entry.askTotal * acceptFloor ||
+          (lateRounds && bestAAV >= entry.askAAV * 0.5) ||
+          (finalRound && bestAAV >= 0.74)) {
         signPlayer(state, best.team, p, best.years, best.total, entry);
         signings.push({ entry, team: best.team, years: best.years, total: best.total, isUser: !!best.isUser });
       }
@@ -351,6 +380,58 @@ window.BBGM_FA = (function () {
     return null;
   }
 
+  // AI mid-season pool sweep (0.50.0). Before this, signMidSeason was
+  // wired to the user's UI only — no AI club ever touched the pool after
+  // the winter's 8 rounds, so a stranded star (a 70-overall ace, a
+  // three-time MVP) sat unsigned ALL SEASON (user report). Three times a
+  // month, AI clubs scoop the best remaining FAs who genuinely upgrade
+  // them: he must out-grade the club's weakest same-side regular by 2+,
+  // the club must have any payroll room at all, and the deal is one year
+  // at a discount (a stray mid-season signing has no leverage). At most
+  // two signings per tick — a drip, not a feeding frenzy.
+  function aiMidSeasonTick(state, today) {
+    if (state.meta.offseasonPhase || state.postseason) return [];
+    if (today.day !== 5 && today.day !== 15 && today.day !== 25) return [];
+    const players = state.players;
+    const R = ROSTER();
+    const strays = (state.freeAgents || []).map((id) => players[id])
+      .filter((p) => p && !p.retired && p.status === 'FA' && R.overall(p) >= 52)
+      .sort((a, b) => R.overall(b) - R.overall(a))
+      .slice(0, 2);
+    const signings = [];
+    for (const p of strays) {
+      const ovr = R.overall(p);
+      let best = null;
+      for (const team of state.league.teams) {
+        if (team.id === state.meta.userTeamId) continue;
+        const payroll = computePayroll(team, players);
+        const room = team.payrollBase - scoutingCost(team) - payroll;
+        if (room < 0.74) continue;
+        const regs = p.isPitcher
+          ? (team.rotation || []).concat(team.bullpen || [])
+          : (team.lineupRH || []).map((s) => s.playerId);
+        const ovrs = regs.map((id) => players[id]).filter(Boolean).map((q) => R.overall(q));
+        if (!ovrs.length) continue;
+        const weakest = Math.min(...ovrs);
+        if (ovr < weakest + 2) continue;
+        const score = (ovr - weakest) + Math.min(10, room) * 0.1;
+        if (!best || score > best.score) best = { team, room, score };
+      }
+      if (!best) continue;
+      const aav = Math.max(0.74, Math.round(
+        Math.min(best.room, TRADES().expectedAAV(ovr, p.age) * 0.5) * 10) / 10);
+      signPlayer(state, best.team, p, 1, aav, null);
+      // Slot him into the on-field configs immediately — signPlayer fills
+      // the roster spot, but a pitcher outside rotation/bullpen would be
+      // an orphan (the 0.25.1 bug class).
+      try { R.safeRebuild(state, best.team); } catch (e) {
+        console.error(`Mid-season signing rebuild failed for ${best.team.abbr}:`, e);
+      }
+      signings.push({ playerId: p.id, teamId: best.team.id, aav });
+    }
+    return signings;
+  }
+
   // ---- Extensions (16.11) ---------------------------------------------------
 
   function extensionAsk(p) {
@@ -388,7 +469,7 @@ window.BBGM_FA = (function () {
     TOTAL_ROUNDS,
     computePayroll, askingPrice, prefsText, prefMultiplier,
     releaseToPool, buildMarket, addMarketEntry, resolveRound,
-    makeUserOffer, withdrawUserOffer, signMidSeason,
+    makeUserOffer, withdrawUserOffer, signMidSeason, aiMidSeasonTick,
     extensionAsk, offerExtension, signPlayer,
   };
 })();

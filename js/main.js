@@ -1979,6 +1979,10 @@ window.BBGM_MAIN = (function () {
     // In-season development ticks + merit-based roster moves (0.38.0).
     devTickAndMoves(state, today, stops);
 
+    // AI mid-season FA sweep (0.50.0): clubs scoop stranded pool talent
+    // a few times a month — a star free agent no longer sits all year.
+    window.BBGM_FA.aiMidSeasonTick(state, today);
+
     // AI trade activity (bible 15.7): AI-AI deals and occasional
     // unsolicited offers to the user, up to the July 31 deadline.
     // A NEW offer to the user is a sim-stop event when the toggle is on.
