@@ -1789,6 +1789,91 @@ window.BBGM_MAIN = (function () {
     simStep(numDays);
   }
 
+  // ---- Rival GM pitches (0.37.0, rebuilt 0.49.1) --------------------------
+  // The original only wrote when a user starter graded under 46 OVR — a
+  // well-built club never heard from a rival GM at all (user report).
+  // Three doors now, all on the Trade Finder's availability math so the
+  // pitch is always genuine:
+  //  - need:     a real hole (the classic "you're looking for help")
+  //  - upgrade:  no holes, so a club pitches its available player at the
+  //    weakest chair in the lineup/rotation — only if he out-grades the
+  //    incumbent
+  //  - deadline: July — sellers shop whoever's on the block, fit be damned
+  // maybeRivalPitch rolls the dice (10-day cooldown, then ~5%/day);
+  // sendRivalPitch writes the letter. Split so tests can skip the dice.
+  function maybeRivalPitch(state, today) {
+    if (!window.BBGM_TRADES.tradesAllowed(state) || state.postseason) return null;
+    const last = state.meta.lastRivalPitch;
+    const daysSince = last ? D.diffDays(D.fromYMD(last.year, last.month, last.day), today) : 99;
+    if (daysSince < 10 || Math.random() >= 0.05) return null;
+    return sendRivalPitch(state, today);
+  }
+
+  function sendRivalPitch(state, today) {
+    const TR = window.BBGM_TRADES;
+    const R = window.BBGM_ROSTER;
+    const players = state.players;
+    const ut = state.league.teams.find((t) => t.id === state.meta.userTeamId);
+    if (!ut) return null;
+
+    // Incumbent grade per position: lineup starters plus the back of the
+    // rotation (4th starter, same slot teamNeeds reads).
+    const incumbent = {};
+    for (const spot of ut.lineupRH || []) {
+      const p = players[spot.playerId];
+      if (p && spot.position !== 'DH') incumbent[spot.position] = R.overall(p);
+    }
+    const rot = (ut.rotation || []).map((id) => players[id]).filter(Boolean)
+      .map((p) => R.overall(p)).sort((a, b) => b - a);
+    if (rot.length) incumbent.SP = rot[Math.min(3, rot.length - 1)];
+
+    const needs = TR.teamNeeds(ut, players);
+    const july = today.month === 7 && !state.meta.offseasonPhase;
+
+    let pos = null, mode = null;
+    if (needs.length) {
+      pos = needs[Math.floor(Math.random() * needs.length)];
+      mode = 'need';
+    } else if (july && Math.random() < 0.5) {
+      const all = Object.keys(incumbent);
+      pos = all[Math.floor(Math.random() * all.length)];
+      mode = 'deadline';
+    } else {
+      for (const k in incumbent) if (pos === null || incumbent[k] < incumbent[pos]) pos = k;
+      mode = 'upgrade';
+    }
+    if (!pos) return null;
+
+    let avail = TR.findAvailable(state, pos).slice(0, 10);
+    if (mode !== 'need') {
+      // An unsolicited pitch has to actually beat what's on the field.
+      const bar = (incumbent[pos] || 0) + 2;
+      avail = avail.filter((a) => R.overall(players[a.playerId]) >= bar);
+    }
+    if (!avail.length) return null;
+    const pick = avail[Math.floor(Math.random() * avail.length)];
+    const p = players[pick.playerId];
+    const t = state.league.teams.find((x) => x.id === pick.teamId);
+    const shopLine = pick.label === 'shopping him' ? 'frankly, we\'re shopping him'
+      : pick.label === 'open to moving him' ? 'we\'re open to moving him'
+      : 'we\'ll listen on him';
+    const opener = mode === 'need'
+      ? `Word is you're looking for ${pos} help.`
+      : mode === 'deadline'
+        ? 'Deadline\'s coming and we\'re open for business.'
+        : `No knock on what you're running out at ${pos} — we just think this makes you better.`;
+    state.meta.lastRivalPitch = { ...today };
+    window.BBGM_INBOX.push(state, {
+      from: `${t.abbr} Front Office`,
+      subject: `Interested in ${p.name}?`,
+      body: `${opener} We'd move ${p.name} ` +
+            `(${pos}, ${p.age}, $${((p.contract && p.contract.annualSalary) || 0).toFixed(1)}M) ` +
+            `for the right return — ${shopLine}. Call us.`,
+      action: { type: 'trade', teamId: t.id, playerId: p.id },
+    });
+    return { mode, pos, playerId: p.id, teamId: t.id };
+  }
+
   function simOneDay(state) {
     const today = state.meta.currentDate;
 
@@ -2053,38 +2138,7 @@ window.BBGM_MAIN = (function () {
       });
     }
 
-    // Rival GM trade pitch (0.37.0): every couple of weeks, a club that
-    // read your Team Needs and has a fitting player on the block writes
-    // in. Built on the same availability math as the Trade Finder, so
-    // the pitch is always genuine.
-    if (window.BBGM_TRADES.tradesAllowed(state) && !state.postseason) {
-      const last = state.meta.lastRivalPitch;
-      const daysSince = last ? D.diffDays(D.fromYMD(last.year, last.month, last.day), today) : 99;
-      if (daysSince >= 10 && Math.random() < 0.05) {
-        const ut = state.league.teams.find((t) => t.id === state.meta.userTeamId);
-        const needs = window.BBGM_TRADES.teamNeeds(ut, state.players);
-        if (needs.length) {
-          const pos = needs[Math.floor(Math.random() * needs.length)];
-          const avail = window.BBGM_TRADES.findAvailable(state, pos).slice(0, 8);
-          if (avail.length) {
-            const pick = avail[Math.floor(Math.random() * avail.length)];
-            const p = state.players[pick.playerId];
-            const t = state.league.teams.find((x) => x.id === pick.teamId);
-            state.meta.lastRivalPitch = { ...today };
-            window.BBGM_INBOX.push(state, {
-              from: `${t.abbr} Front Office`,
-              subject: `Interested in ${p.name}?`,
-              body: `Word is you're looking for ${pos} help. We'd move ${p.name} ` +
-                    `(${p.age}, $${((p.contract && p.contract.annualSalary) || 0).toFixed(1)}M) ` +
-                    `for the right return — ${pick.label === 'shopping him'
-                      ? 'frankly, we\'re shopping him' : pick.label === 'open to moving him'
-                        ? 'we\'re open to moving him' : 'we\'ll listen on him'}. Call us.`,
-              action: { type: 'trade', teamId: t.id, playerId: p.id },
-            });
-          }
-        }
-      }
-    }
+    maybeRivalPitch(state, today);
 
     // Generate news for any noteworthy results
     generateDailyNews(state, today, games);
@@ -2654,6 +2708,8 @@ window.BBGM_MAIN = (function () {
     navigate, refresh, advanceDay, simToNextEvent, simToEndOfMonth, simToSeasonEnd,
     advanceFAPeriod, startSeasonFlow, validateCurrentSave,
     showPendingDecisions,
+    // 0.49.1: exposed for the rival-pitch regression tests (dice-free).
+    sendRivalPitch,
   };
 })();
 

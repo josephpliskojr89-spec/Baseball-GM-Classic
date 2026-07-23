@@ -3675,6 +3675,23 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > frames stamped, draft/intl pools included); retirees keep the
 > bodies they made their history at.
 
+> **Status (0.49.1) — the phone rings again (user report: rival GM
+> letters never arrived).** The 0.37.0 rival pitch only wrote when a
+> user starter graded under 46 OVR — a well-built club literally
+> never heard from another front office; only the separate
+> AI-offer path (pending decisions) ever fired. Rebuilt as three
+> doors on the Trade Finder's availability math: a genuine hole
+> still gets the classic "you're looking for help" letter; a
+> healthy club now gets UPGRADE pitches at its weakest lineup/
+> rotation chair (only when the shopped player out-grades the
+> incumbent by 2+ — an unsolicited pitch has to beat what's on the
+> field); and July is seller season — clubs shop whoever's on the
+> block, fit be damned. An all-star-everywhere roster still hears
+> silence, by design. Cadence unchanged (10-day cooldown, ~5%/day
+> after: a letter every few weeks). Split into maybeRivalPitch
+> (dice) / sendRivalPitch (letter) so the content is testable
+> without the cadence.
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):
