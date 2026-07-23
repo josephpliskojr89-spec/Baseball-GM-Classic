@@ -37,8 +37,17 @@ window.BBGM_UI_DRAFT = (function () {
       widen = widen == null ? lk.widen : Math.min(widen, lk.widen);
     }
     if (widen == null) return null;
-    let lo = p.scout.ceilLo - widen;
-    let hi = p.scout.ceilHi + widen;
+    let shift = 0;
+    if (pool === 'intl' && SC.intlScoutMods) {
+      // Head-scout lens (0.47.0): his reputation and region focus tighten
+      // (or loosen) the band; his hidden bias SHIFTS it. The rank floor
+      // keeps the deep pool wide no matter what.
+      const mods = SC.intlScoutMods(state, p, rank);
+      widen = Math.max(widen + mods.widenDelta, mods.floor);
+      shift = mods.shift;
+    }
+    let lo = p.scout.ceilLo - widen + shift;
+    let hi = p.scout.ceilHi + widen + shift;
     if (hi - lo < 4) { const mid = (lo + hi) / 2; lo = mid - 2; hi = mid + 2; }
     return [Math.max(20, Math.round(lo)), Math.min(82, Math.round(hi))];
   }
@@ -937,6 +946,60 @@ window.BBGM_UI_DRAFT = (function () {
     container.appendChild(card);
   }
 
+  // Head scout card (0.47.0): the one personality every international
+  // read flows through — his rep, his (soft) tell, the winter focus
+  // choice from his season letter, and the travel ledger including
+  // pool-funded extra trips. His BIAS is never shown as a number; the
+  // hint line is all the game ever confesses.
+  function renderScoutCard(container, state) {
+    const intl = state.intl;
+    const team = teamOf(state, state.meta.userTeamId);
+    const STAFF = window.BBGM_STAFF;
+    const sc = STAFF.scoutFor ? STAFF.scoutFor(state, team) : null;
+    const INTL = window.BBGM_INTL;
+    const card = U.el('div', { class: 'card' });
+    card.appendChild(U.el('div', { class: 'card-title' }, 'Head Scout'));
+    if (!sc) {
+      card.appendChild(U.el('p', { class: 'muted', style: { 'font-size': '12px' } },
+        'No head scout on staff — hire one from the GM tab\'s Staff page.'));
+      container.appendChild(card);
+      return;
+    }
+    card.appendChild(U.el('div', { class: 'player-row-name' }, sc.name));
+    card.appendChild(U.el('div', { class: 'player-row-meta', style: { 'white-space': 'normal' } },
+      `Age ${sc.age} • ${sc.yearsInProfession} yrs in the game • Rep ${sc.reputation}/10 • ${sc.biasHint}`));
+    if (intl.userFocus) {
+      card.appendChild(U.el('p', { style: { 'font-size': '12px', 'margin-top': '6px' } },
+        `Winter focus: ${INTL.regionLabel(intl.userFocus)} — his reads there run sharper.`));
+    } else if (intl.phase === 'scouting') {
+      card.appendChild(U.el('p', { class: 'muted', style: { 'font-size': '12px', 'margin-top': '6px' } },
+        'No focus set — pick the region he works until July (one per class):'));
+      const wrap = U.el('div', { class: 'filter-bar', style: { 'margin-top': '6px', 'flex-wrap': 'wrap', 'overflow-x': 'visible' } });
+      for (const r of INTL.regionStrengths(intl)) {
+        wrap.appendChild(U.el('button', {
+          class: 'filter-chip',
+          on: { click: () => {
+            intl.userFocus = r.key;
+            window.BBGM_STATE.set(state);
+            U.showToast(`${sc.name} heads to ${r.label}.`, 'success');
+            window.BBGM_MAIN.refresh();
+          }},
+        }, `${r.label} (${r.top30})`));
+      }
+      card.appendChild(wrap);
+      card.appendChild(U.el('p', { class: 'muted', style: { 'font-size': '11px', 'margin-top': '4px' } },
+        'Number = his top-30 prospects from that region.'));
+    }
+    const looks = window.BBGM_SCOUT.targetedLooks(state, 'intl');
+    card.appendChild(U.el('p', { class: 'muted', style: { 'font-size': '12px', 'margin-top': '6px' } },
+      `Trips: ${looks.remaining} of ${looks.budget} free left` +
+      (looks.remaining === 0 && looks.extraRemaining > 0
+        ? ` — extras cost pool money (next $${looks.nextExtraCost}M, ${looks.extraRemaining} available)`
+        : '') +
+      ((intl.tripSpend || 0) > 0 ? ` • $${intl.tripSpend}M of pool spent on travel` : '')));
+    container.appendChild(card);
+  }
+
   function renderIntl(container, state) {
     const intl = state.intl;
     if (!intl) {
@@ -954,6 +1017,7 @@ window.BBGM_UI_DRAFT = (function () {
       return;
     }
     renderIntlBudgetCard(container, state);
+    renderScoutCard(container, state);
     renderIntlPool(container, state);
     renderIntlHistory(container, state);
   }
@@ -1080,7 +1144,9 @@ window.BBGM_UI_DRAFT = (function () {
         : ' on his best tool. Teenage international projection — the widest error bars in scouting.',
     ] : looks.remaining > 0
       ? 'Your scouts have nothing on him — but you could send one for a closer look.'
-      : 'Sign him and hope — your scouts have nothing on him, and the travel budget for this class is spent.'));
+      : looks.extraRemaining > 0
+        ? 'Your scouts have nothing on him. The free travel budget is spent — but pool money buys another trip.'
+        : 'Sign him and hope — your scouts have nothing on him, and the travel budget for this class is spent.'));
     if (ib) appendScoutNotes(body, state, p, 'intl');
 
     const actions = [];
@@ -1095,6 +1161,26 @@ window.BBGM_UI_DRAFT = (function () {
           intl.userLooks.push(p.id);
           window.BBGM_STATE.set(state);
           U.showToast(`Scout dispatched — report on ${p.name} is in.`, 'success');
+          window.BBGM_MAIN.refresh();
+          setTimeout(() => showIntlProspect(state, p.id), 0);
+          return true;
+        },
+      });
+    } else if (!ib && looks.extraRemaining > 0 && intl.phase !== 'complete') {
+      // Paid extras (0.47.0): past the allowance, trips cost signing-pool
+      // money at an escalating price — information bought with the same
+      // dollars that sign the class.
+      actions.push({
+        label: `Send a Scout — $${looks.nextExtraCost}M of pool`,
+        kind: 'primary',
+        onClick: () => {
+          const res = window.BBGM_INTL.buyExtraLook(state, p.id);
+          if (!res.ok) {
+            U.showToast(res.reason, 'warning', 4000);
+            return true;
+          }
+          window.BBGM_STATE.set(state);
+          U.showToast(`Scout dispatched ($${res.cost}M from the pool) — report on ${p.name} is in.`, 'success');
           window.BBGM_MAIN.refresh();
           setTimeout(() => showIntlProspect(state, p.id), 0);
           return true;

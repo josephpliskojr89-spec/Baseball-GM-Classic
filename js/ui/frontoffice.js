@@ -846,6 +846,53 @@ window.BBGM_UI_FRONTOFFICE = (function () {
       }
       container.appendChild(card);
     }
+
+    // Head scout (0.47.0): the one personality every international read
+    // flows through. Same market rules as coaches — fire opens the seat,
+    // vacancies fill by offer, an empty chair gets an owner hire at
+    // Opening Day. His bias line is a soft tell, never a number.
+    container.appendChild(U.el('div', { class: 'card-title', style: { 'margin-top': '14px' } }, 'Head Scout'));
+    {
+      const STAFF2 = window.BBGM_STAFF;
+      const sc = STAFF2.scoutFor ? STAFF2.scoutFor(state, team) : null;
+      const card = U.el('div', { class: 'card', style: { 'margin-bottom': '8px' } });
+      card.appendChild(U.el('div', { class: 'muted', style: { 'font-size': '11px' } }, 'International Scouting'));
+      if (sc) {
+        card.appendChild(U.el('div', { class: 'player-row-name' }, sc.name));
+        card.appendChild(U.el('div', { class: 'player-row-meta', style: { 'white-space': 'normal' } },
+          `Rep ${sc.reputation}/10 • Age ${sc.age} • ${sc.yearsInProfession} yrs in the game • ${sc.biasHint}`));
+        if (offseason) {
+          card.appendChild(U.el('button', {
+            class: 'btn-secondary btn-sm', style: { 'margin-top': '8px' },
+            on: { click: () => {
+              U.showModal({
+                title: `Fire ${sc.name}?`,
+                body: 'He returns to the market and the chair opens. A new scout means tighter or looser reads — and a new set of blind spots you don\'t know yet.',
+                actions: [
+                  { label: 'Cancel', kind: 'secondary', onClick: () => true },
+                  { label: 'Fire Scout', kind: 'danger', onClick: () => {
+                    STAFF2.fireScout(state, team);
+                    window.BBGM_STATE.set(state);
+                    window.BBGM_MAIN.refresh();
+                    return true;
+                  }},
+                ],
+              });
+            }},
+          }, 'Fire…'));
+        }
+      } else {
+        card.appendChild(U.el('div', { class: 'player-row-meta' }, 'Vacant'));
+        if (offseason) {
+          card.appendChild(U.el('button', {
+            class: 'btn-primary btn-sm', style: { 'margin-top': '8px' },
+            on: { click: () => showScoutMarket(state, team) },
+          }, 'Interview Candidates…'));
+        }
+      }
+      container.appendChild(card);
+    }
+
     if (!offseason) {
       container.appendChild(U.el('p', { class: 'muted', style: { 'font-size': '12px', 'margin-top': '8px' } },
         'Staff changes happen in the offseason.'));
@@ -962,6 +1009,23 @@ window.BBGM_UI_FRONTOFFICE = (function () {
     }
     U.showModal({
       title: 'Coaching Market',
+      body,
+      actions: [{ label: 'Close', kind: 'secondary', onClick: () => true }],
+    });
+  }
+
+  // Scout market for a vacant chair (0.47.0) — same offer flow.
+  function showScoutMarket(state, team) {
+    const STAFF = window.BBGM_STAFF;
+    const cands = STAFF.poolScouts(state).sort((a, b) => b.reputation - a.reputation);
+    const body = U.el('div');
+    if (!cands.length) body.appendChild(U.el('div', { class: 'empty-state' }, 'Nobody available.'));
+    for (const c of cands.slice(0, 12)) {
+      body.appendChild(staffCandidateRow(state, team, c, 'scout', null,
+        `Rep ${c.reputation}/10 • Age ${c.age} • ${c.yearsInProfession} yrs in the game • ${c.biasHint}`));
+    }
+    U.showModal({
+      title: 'Scouting Market',
       body,
       actions: [{ label: 'Close', kind: 'secondary', onClick: () => true }],
     });

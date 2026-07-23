@@ -97,6 +97,56 @@ window.BBGM_STAFF = (function () {
     };
   }
 
+  // ---- Head scouts (0.47.0) ------------------------------------------------
+  // One per org: the single personality every international read flows
+  // through. `reputation` is his ACCURACY (how tight the bands his
+  // department produces are); `bias` is the DIRECTION his reads
+  // systematically miss — and the numbers never confess it. The hint line
+  // is deliberately soft: you learn a scout's tells by comparing his
+  // classes to how the kids actually turned out, not by reading a stat.
+  const SCOUT_BIASES = [
+    { key: 'tools', hint: 'Falls hard for loud tools' },
+    { key: 'polish', hint: 'Values polish and feel over ceiling' },
+    { key: 'projection', hint: 'Dreams on the youngest kids in the class' },
+    { key: 'skeptic', hint: 'Famously hard grader' },
+    { key: 'balanced', hint: 'Even-handed evaluator' },
+  ];
+
+  function generateScout(state, opts = {}) {
+    const bias = opts.bias
+      ? SCOUT_BIASES.find((b) => b.key === opts.bias) || SCOUT_BIASES[4]
+      : SCOUT_BIASES[Math.floor(rand() * SCOUT_BIASES.length)];
+    return {
+      id: nextStaffId(state),
+      role: 'scout',
+      name: opts.name || randomName(),
+      age: opts.age != null ? opts.age : rint(38, 64),
+      reputation: opts.reputation != null ? opts.reputation : rint(3, 8),
+      bias: bias.key,
+      biasHint: bias.hint,
+      yearsInProfession: opts.yearsInProfession != null ? opts.yearsInProfession : rint(2, 20),
+      formerPlayerId: opts.formerPlayerId || null,
+      teamId: null,
+      yearsWithTeam: 0,
+    };
+  }
+
+  function poolScouts(state) {
+    return Object.values(state.staff.scouts || {}).filter((s) => !s.teamId && !s.retired);
+  }
+
+  function scoutFor(state, team) {
+    return (state.staff && state.staff.scouts && team.scoutId &&
+      state.staff.scouts[team.scoutId]) || null;
+  }
+
+  function fireScout(state, team) {
+    const s = scoutFor(state, team);
+    if (s) { s.teamId = null; s.yearsWithTeam = 0; }
+    team.scoutId = null;
+    return s || null;
+  }
+
   // Owner hiring preference: which archetypes each owner favors (17.5).
   const OWNER_PREFS = {
     win_now: ['players_manager', 'old_school', 'modern'],       // established rep matters more
@@ -126,6 +176,7 @@ window.BBGM_STAFF = (function () {
   function ensureStaff(state) {
     if (!state.staff) state.staff = { managers: {}, coaches: {} };
     const S = state.staff;
+    if (!S.scouts) S.scouts = {}; // lazy migration (0.47.0)
     for (const team of state.league.teams) {
       if (!team.managerId || !S.managers[team.managerId]) {
         const mgr = hireBestFromPool(state, team) || createAndHire(state, team);
@@ -143,8 +194,20 @@ window.BBGM_STAFF = (function () {
           team[field] = coach.id;
         }
       }
+      // Head scout (0.47.0): every org carries exactly one.
+      if (!team.scoutId || !S.scouts[team.scoutId]) {
+        let sc = poolScouts(state).sort((a, b) => b.reputation - a.reputation)[0];
+        if (!sc) {
+          sc = generateScout(state);
+          S.scouts[sc.id] = sc;
+        }
+        sc.teamId = team.id;
+        sc.yearsWithTeam = 0;
+        team.scoutId = sc.id;
+      }
     }
-    // Standing pool floors: 8-12 unemployed managers, 15-20 coaches.
+    // Standing pool floors: 8-12 unemployed managers, 15-20 coaches,
+    // a handful of scouts.
     while (poolManagers(state).length < 8) {
       const m = generateManager(state);
       S.managers[m.id] = m;
@@ -152,6 +215,10 @@ window.BBGM_STAFF = (function () {
     while (poolCoaches(state).length < 15) {
       const c = generateCoach(state);
       S.coaches[c.id] = c;
+    }
+    while (poolScouts(state).length < 6) {
+      const sc = generateScout(state);
+      S.scouts[sc.id] = sc;
     }
   }
 
@@ -378,13 +445,40 @@ window.BBGM_STAFF = (function () {
       S.managers[m.id] = m;
     }
 
+    // 7. Scout churn (0.47.0): aging, retirement, organic turnover — a
+    //    scout who walks re-enters the market; ensureStaff refills the
+    //    vacancy for AI clubs (and at Opening Day for the user's).
+    for (const sid in S.scouts || {}) {
+      const sc = S.scouts[sid];
+      if (sc.retired) continue;
+      sc.age++;
+      sc.yearsInProfession = (sc.yearsInProfession || 0) + 1;
+      if (sc.teamId) sc.yearsWithTeam++;
+      const leavesTeam = () => {
+        const team = state.league.teams.find((t) => t.id === sc.teamId);
+        if (team && team.scoutId === sc.id) team.scoutId = null;
+        sc.teamId = null;
+        sc.yearsWithTeam = 0;
+      };
+      if (sc.age >= 66 && rand() < 0.3) {
+        if (sc.teamId) {
+          events.push({ kind: 'scout-retired', teamId: sc.teamId, name: sc.name });
+          leavesTeam();
+        }
+        sc.retired = true;
+      } else if (sc.teamId && rand() < 0.06) {
+        events.push({ kind: 'scout-departs', teamId: sc.teamId, name: sc.name });
+        leavesTeam();
+      }
+    }
+
     // Pool hygiene (0.46.0): retired staff were flagged but never deleted
     // — the pools grew ~35 objects a winter forever. Nothing references a
     // retired entry (award history stores name copies, teams reference
     // only employed ids), so drop any retiree no team still points at.
     const referenced = new Set();
     for (const team of state.league.teams) {
-      for (const f of ['managerId', 'hittingCoachId', 'pitchingCoachId']) {
+      for (const f of ['managerId', 'hittingCoachId', 'pitchingCoachId', 'scoutId']) {
         if (team[f]) referenced.add(team[f]);
       }
     }
@@ -393,6 +487,9 @@ window.BBGM_STAFF = (function () {
     }
     for (const id in S.coaches) {
       if (S.coaches[id].retired && !referenced.has(id)) delete S.coaches[id];
+    }
+    for (const id in S.scouts || {}) {
+      if (S.scouts[id].retired && !referenced.has(id)) delete S.scouts[id];
     }
 
     return events;
@@ -442,6 +539,12 @@ window.BBGM_STAFF = (function () {
     if (Math.random() < offerOdds(state, team, cand)) {
       if (kind === 'manager') {
         hireManager(state, team, cand.id);
+      } else if (kind === 'scout') {
+        const current = scoutFor(state, team);
+        if (current) { current.teamId = null; current.yearsWithTeam = 0; }
+        cand.teamId = team.id;
+        cand.yearsWithTeam = 0;
+        team.scoutId = cand.id;
       } else {
         const current = team[field] && state.staff.coaches[team[field]];
         if (current) { current.teamId = null; current.yearsWithTeam = 0; }
@@ -469,5 +572,6 @@ window.BBGM_STAFF = (function () {
     tendenciesFor, managerFor, coachModsFor,
     runStaffOffseason, managerAppeal, tendencyLevel,
     offerOdds, offerOutlook, offerJob, fireCoach,
+    generateScout, poolScouts, scoutFor, fireScout, SCOUT_BIASES,
   };
 })();

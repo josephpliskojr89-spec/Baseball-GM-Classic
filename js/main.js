@@ -1831,6 +1831,28 @@ window.BBGM_MAIN = (function () {
       });
     }
 
+    // Head scout's season letter (0.47.0): once per class — he proposes a
+    // winter focus region; the GM answers from the intl hub's scout card.
+    // Fires for rollover-generated classes (first simmed day of the new
+    // season) and the season-1 fallback alike.
+    if (state.intl && state.intl.phase === 'scouting' && !state.intl.scoutLetterSent) {
+      state.intl.scoutLetterSent = true;
+      const ut = state.league.teams.find((t) => t.id === state.meta.userTeamId);
+      const sc = window.BBGM_STAFF.scoutFor ? window.BBGM_STAFF.scoutFor(state, ut) : null;
+      const regions = window.BBGM_INTL.regionStrengths(state.intl);
+      const r1 = regions[0], r2 = regions[1];
+      window.BBGM_INBOX.push(state, {
+        from: sc ? `${sc.name} (Head Scout)` : 'International Scouting',
+        subject: 'Where do you want me this winter?',
+        body: `Early looks at the ${state.intl.year} class: the talent is concentrated in ` +
+              `${r1.label} — ${r1.top30} of my top 30 — ` +
+              (r2 && r2.top30 ? `with ${r2.label} close behind (${r2.top30}). ` : '. ') +
+              'Give me a region and I\'ll live there until July; my reads on those kids will be a lot sharper. ' +
+              'Set my focus from the international hub whenever you\'ve decided.',
+        action: { type: 'navigate', tab: 'draft', opts: { tab: 'intl' } },
+      });
+    }
+
     // Amateur draft class (bible 13.3): generated May 1, scouted through
     // June 30 in the Draft Hub.
     const draftClass = window.BBGM_DRAFT.ensureClass(state, today);

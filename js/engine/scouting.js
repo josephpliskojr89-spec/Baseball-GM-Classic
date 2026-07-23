@@ -382,6 +382,51 @@ window.BBGM_SCOUT = (function () {
     return null;
   }
 
+  // ---- Head-scout lens (0.47.0) ---------------------------------------------
+  // Every international read the user sees is filtered through ONE person:
+  // the head scout. His reputation sets how TIGHT the bands are; his bias
+  // sets which DIRECTION they miss — a systematic, learnable error keyed to
+  // the prospect's true profile, never displayed anywhere. A region focus
+  // (chosen from his season letter) tightens his reads inside that region.
+  // The rank-based noise floor is the design's bedrock: past the top 30,
+  // no scout, tier, focus, or trip budget produces a confident read — the
+  // deep pool stays a crapshoot at any spend.
+  function intlScoutMods(state, p, rank) {
+    const team = state.league.teams.find((t) => t.id === state.meta.userTeamId);
+    const sc = window.BBGM_STAFF && window.BBGM_STAFF.scoutFor
+      ? window.BBGM_STAFF.scoutFor(state, team) : null;
+    let widenDelta = 0;
+    let shift = 0;
+    if (sc) {
+      // Rep 8 scout ≈ 2 grades tighter than a rep 3 journeyman.
+      widenDelta += (5 - (sc.reputation || 5)) * 0.6;
+      const ceil = (p.hidden && p.hidden.ceiling) || {};
+      const avg = (keys) => {
+        let s = 0, n = 0;
+        for (const k of keys) { if (ceil[k] != null) { s += ceil[k]; n++; } }
+        return n ? s / n : 50;
+      };
+      // "Toolsiness": loud raw gifts vs feel-and-polish, off TRUE ceilings
+      // — the miss correlates with what kind of player the kid really is.
+      const tools = p.isPitcher
+        ? avg(['velocity', 'stuff']) - avg(['control', 'movement'])
+        : avg(['powerVsR', 'powerVsL', 'speed', 'arm']) - avg(['contactVsR', 'contactVsL', 'discipline']);
+      if (sc.bias === 'tools') shift = Math.max(-4, Math.min(4, tools * 0.35));
+      else if (sc.bias === 'polish') shift = Math.max(-4, Math.min(4, -tools * 0.35));
+      else if (sc.bias === 'projection') shift = p.age === 16 ? 3 : p.age >= 18 ? -2 : 0;
+      else if (sc.bias === 'skeptic') shift = -2.5;
+    }
+    // Region focus: the winter he spent where you sent him.
+    const INTL = window.BBGM_INTL;
+    if (state.intl && state.intl.userFocus && INTL && INTL.regionOf &&
+        INTL.regionOf(p.origin) === state.intl.userFocus) {
+      widenDelta -= 3;
+    }
+    // Noise floor by class rank (0.47.0 invariant).
+    const floor = rank <= 10 ? -3 : rank <= 30 ? 0 : 4;
+    return { widenDelta, shift, floor };
+  }
+
   // ---- Targeted looks (0.23.0 intl, 0.24.0 draft) ---------------------------
   // Tier coverage leaves part of every class as "??" names — most of the
   // intl pool at low tiers, everything past rank 10/50 in the draft for
@@ -399,12 +444,21 @@ window.BBGM_SCOUT = (function () {
     const cls = pool === 'draft' ? state.draft : state.intl;
     const used = (cls && cls.userLooks) ? cls.userLooks.length : 0;
     const budget = [2, 4, 6, 9][ti];
+    // Paid extras (0.47.0, intl only): past the free allowance, each trip
+    // is bought with SIGNING POOL money at an escalating price — every
+    // dollar spent learning about the class is a dollar you can't spend
+    // signing it.
+    const extraUsed = Math.max(0, used - budget);
+    const EXTRA_MAX = 6;
     return {
       budget,
       used,
       remaining: Math.max(0, budget - used),
       widen: [6, 3, 1, -2][ti], // band quality of a one-trip report
       tools: ti >= 1,           // bare bones brings a number, not a toolkit
+      extraUsed,
+      extraRemaining: pool === 'intl' ? Math.max(0, EXTRA_MAX - extraUsed) : 0,
+      nextExtraCost: pool === 'intl' ? Math.round((0.2 + extraUsed * 0.15) * 100) / 100 : null,
     };
   }
 
@@ -472,6 +526,6 @@ window.BBGM_SCOUT = (function () {
     requestTier, runScoutingOffseason,
     modeFor, report, poolView, aiDraftDiscipline, potentialBand, prospectNotes,
     targetedLooks, hasTargetedLook, medicalRead,
-    prospectRankings, pipelineRank,
+    prospectRankings, pipelineRank, intlScoutMods,
   };
 })();

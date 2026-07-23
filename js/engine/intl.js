@@ -58,6 +58,42 @@ window.BBGM_INTL = (function () {
     return COUNTRIES[0][0];
   }
 
+  // ---- Scouting regions (0.47.0) -------------------------------------------
+  // The head scout works ONE region per cycle (his season letter proposes,
+  // the GM disposes). Focus tightens the org's reads on prospects from
+  // that region; everyone else gets his ordinary look.
+  const REGIONS = {
+    islands: { label: 'DR & the Islands', countries: ['Dominican Republic', 'Puerto Rico', 'Cuba', 'Curaçao'] },
+    southam: { label: 'Venezuela & South America', countries: ['Venezuela', 'Colombia'] },
+    central: { label: 'Mexico & Central America', countries: ['Mexico', 'Panama', 'Nicaragua'] },
+    pacific: { label: 'Pacific Rim', countries: ['Japan', 'South Korea', 'Taiwan', 'Australia'] },
+  };
+
+  function regionOf(country) {
+    for (const key in REGIONS) {
+      if (REGIONS[key].countries.includes(country)) return key;
+    }
+    return 'islands';
+  }
+
+  function regionLabel(key) {
+    return REGIONS[key] ? REGIONS[key].label : key;
+  }
+
+  // The scout's read on where this class's talent lives: top-30 heads per
+  // region, ordered. Drives his letter's proposals and his own default
+  // pick when the GM never answers.
+  function regionStrengths(intl) {
+    const counts = {};
+    for (const key in REGIONS) counts[key] = 0;
+    intl.board.slice(0, 30).forEach((pid) => {
+      const p = intl.prospects[pid];
+      if (p) counts[regionOf(p.origin)]++;
+    });
+    return Object.keys(counts).sort((a, b) => counts[b] - counts[a])
+      .map((key) => ({ key, label: regionLabel(key), top30: counts[key] }));
+  }
+
   // Rename by origin: the generic pool skews Anglo, and a Dominican
   // 16-year-old signing as "Dean Pennington" breaks the fiction. Countries
   // without a dedicated pool (Australia) keep the default draw.
@@ -248,8 +284,43 @@ window.BBGM_INTL = (function () {
       userOffers: {},           // prospectId -> $M offer (top tier)
       userTargets: [],
       recap: null,
+      userFocus: null,          // region key the head scout works (0.47.0)
+      tripSpend: 0,             // pool $ the user burned on extra trips
     };
+    // AI scouting economics (0.47.0): information is bought with signing
+    // money. Each AI club diverts an archetype-driven slice of its pool to
+    // trips up front — analytics clubs buy sharp reads and bid with thin
+    // wallets; cheap clubs keep the cash and bid the consensus board.
+    const SPEND_FRAC = { analytics: 0.08, patient: 0.06, aggressive: 0.04, win_now: 0.03, old_school: 0.03, cheap: 0 };
+    for (const t of state.league.teams) {
+      if (t.id === state.meta.userTeamId) continue;
+      const b = state.intl.budgets[t.id];
+      const frac = SPEND_FRAC[t.owner] != null ? SPEND_FRAC[t.owner] : 0.03;
+      const spend = Math.round(b.pool * frac * 100) / 100;
+      b.pool = Math.round((b.pool - spend) * 10) / 10;
+      b.scouted = spend;
+    }
     return state.intl;
+  }
+
+  // Paid extra trip (0.47.0): past the free tier allowance, the user buys
+  // additional looks with pool money at an escalating price. Returns
+  // {ok} or {ok:false, reason}.
+  function buyExtraLook(state, prospectId) {
+    const intl = state.intl;
+    if (!intl || intl.phase === 'complete') return { ok: false, reason: 'No open class.' };
+    const SC = window.BBGM_SCOUT;
+    const looks = SC.targetedLooks(state, 'intl');
+    if (looks.remaining > 0) return { ok: false, reason: 'Free trips remain — no purchase needed.' };
+    if (looks.extraRemaining <= 0) return { ok: false, reason: 'The department is at its travel limit for this class.' };
+    const b = intl.budgets[state.meta.userTeamId];
+    const cost = looks.nextExtraCost;
+    if (!b || b.pool - b.spent < cost) return { ok: false, reason: 'Not enough pool money left.' };
+    b.pool = Math.round((b.pool - cost) * 100) / 100;
+    intl.tripSpend = Math.round(((intl.tripSpend || 0) + cost) * 100) / 100;
+    if (!intl.userLooks) intl.userLooks = [];
+    intl.userLooks.push(prospectId);
+    return { ok: true, cost };
   }
 
   // Daily hook: make sure the current year's class exists (season 1 has no
@@ -272,7 +343,75 @@ window.BBGM_INTL = (function () {
       state.intl.phase = 'window';
       state.intl.windowStep = 1;
     }
+    buildAiViews(state);
     return state.intl;
+  }
+
+  // ---- AI perceived boards (0.47.0) ----------------------------------------
+  // Pre-0.47 AI bid blind on consensus rank. Now each club sees the class
+  // through ITS OWN head scout: true ceiling talent + the scout's bias
+  // shift + noise that shrinks with his reputation and the pool money the
+  // club diverted to trips. Views are built once per window (stable), and
+  // deleted at close (transient — no save growth).
+  function aiHash(teamId, pid) {
+    let h = 2166136261;
+    const s = `${teamId}|${pid}`;
+    for (let i = 0; i < s.length; i++) {
+      h ^= s.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    return h >>> 0;
+  }
+
+  function scoutShiftFor(sc, p) {
+    if (!sc) return 0;
+    const ceil = (p.hidden && p.hidden.ceiling) || {};
+    const avg = (ks) => ks.reduce((a, k) => a + (ceil[k] != null ? ceil[k] : 50), 0) / ks.length;
+    const tools = p.isPitcher
+      ? avg(['velocity', 'stuff']) - avg(['control', 'movement'])
+      : avg(['powerVsR', 'powerVsL', 'speed', 'arm']) - avg(['contactVsR', 'contactVsL', 'discipline']);
+    if (sc.bias === 'tools') return clamp(tools * 0.35, -4, 4);
+    if (sc.bias === 'polish') return clamp(-tools * 0.35, -4, 4);
+    if (sc.bias === 'projection') return p.age === 16 ? 3 : p.age >= 18 ? -2 : 0;
+    if (sc.bias === 'skeptic') return -2.5;
+    return 0;
+  }
+
+  function buildAiViews(state) {
+    const intl = state.intl;
+    if (!intl || intl.aiViews) return intl && intl.aiViews;
+    const STAFF = window.BBGM_STAFF;
+    const views = {};
+    for (const t of state.league.teams) {
+      if (t.id === state.meta.userTeamId) continue;
+      const sc = STAFF && STAFF.scoutFor ? STAFF.scoutFor(state, t) : null;
+      const rep = sc ? (sc.reputation || 5) : 5;
+      const spend = (intl.budgets[t.id] && intl.budgets[t.id].scouted) || 0;
+      // Read noise: a rep-8 scout with real trip money sees ±3ish; a
+      // rep-3 scout on a cheap owner's budget sees ±8.
+      const sd = clamp(9 - rep * 0.5 - spend * 4, 2.5, 9);
+      const v = {};
+      for (const pid of intl.board) {
+        const p = intl.prospects[pid];
+        const keys = talentKeys(p);
+        let talent = 0;
+        for (const k of keys) talent += p.hidden.ceiling[k];
+        talent /= keys.length;
+        const h = aiHash(t.id, pid);
+        const noise = (((h % 2001) / 1000) - 1) * sd;
+        v[pid] = Math.round((talent + scoutShiftFor(sc, p) + noise) * 10) / 10;
+      }
+      views[t.id] = v;
+    }
+    intl.aiViews = views;
+    return views;
+  }
+
+  // Consensus expectation at a class rank — the baseline an AI club's
+  // perceived read is measured against ("do we believe more or less than
+  // the industry?").
+  function expectedByRank(rank) {
+    return rank <= 5 ? 76 : rank <= 15 ? 70 : rank <= 30 ? 60 : 48;
   }
 
   // ---- Window resolution (14.3) ---------------------------------------------
@@ -336,6 +475,7 @@ window.BBGM_INTL = (function () {
     const top = unsignedBoard(intl).filter((id) => intl.board.indexOf(id) < 10);
     for (const pid of top) {
       const p = intl.prospects[pid];
+      const rank = intl.board.indexOf(pid) + 1;
       const bids = [];
       const userOffer = intl.userOffers[pid];
       if (userOffer && !intl.budgets[state.meta.userTeamId].restricted) {
@@ -347,16 +487,24 @@ window.BBGM_INTL = (function () {
         if (b.restricted) continue;
         const remaining = remainingFor(intl, t.id);
         if (remaining < p.ask * 0.8) continue;
+        // Belief (0.47.0): what this club's own scout sees vs the
+        // consensus at this rank. Believers show up more and stretch;
+        // skeptics stay home or lowball. Mean belief across the league is
+        // ~0, so the aggregate market (and the user's offer-ladder odds
+        // from 0.32.0) stays calibrated.
+        const view = intl.aiViews && intl.aiViews[t.id];
+        const belief = view && view[pid] != null
+          ? clamp((view[pid] - expectedByRank(rank)) / 15, -0.5, 0.5) : 0;
         // 0.32.0: participation cut 0.28 → 0.12. Real July 2 classes run
         // on long-standing handshake deals — each elite kid draws 3-4
         // serious suitors, not nine. With ~9 bidders the old market made
         // every user offer below a max-raise a ~3% lottery, which read
         // as "I can never win" (it nearly was). The offer ladder now has
         // legible odds: ask ~5%, +15% ~25%, +30% ~90%, +50% a lock.
-        if (rand() > 0.12 * aiAppetite(t)) continue;
+        if (rand() > (0.12 + belief * 0.10) * aiAppetite(t)) continue;
         // Most clubs bid inside the expected range; a few chase hard —
         // the aggressive tail keeps a +30% offer from being a guarantee.
-        const mul = rand() < 0.15 ? rfloat(0.85, 1.35) : rfloat(0.85, 1.3);
+        const mul = (rand() < 0.15 ? rfloat(0.85, 1.35) : rfloat(0.85, 1.3)) + belief * 0.25;
         const amount = Math.min(remaining, p.ask * mul);
         bids.push({ teamId: t.id, amount: Math.floor(amount * 100) / 100 });
       }
@@ -388,8 +536,16 @@ window.BBGM_INTL = (function () {
         return remainingFor(intl, t.id) >= p.ask;
       });
       if (!cands.length) continue; // unsigned — pool money ran dry
-      // Weight by remaining pool and archetype appetite.
-      const weights = cands.map((t) => remainingFor(intl, t.id) * aiAppetite(t));
+      // Weight by remaining pool, archetype appetite, and belief (0.47.0):
+      // a club whose scout likes this kid more than his rank suggests
+      // tilts toward him — well-scouted clubs quietly collect the
+      // under-ranked prospects.
+      const weights = cands.map((t) => {
+        const view = intl.aiViews && intl.aiViews[t.id];
+        const beliefW = view && view[pid] != null
+          ? clamp(1 + (view[pid] - expectedByRank(rank)) / 12, 0.3, 2.2) : 1;
+        return remainingFor(intl, t.id) * aiAppetite(t) * beliefW;
+      });
       let r = rand() * weights.reduce((a, b) => a + b, 0);
       let pick = cands[0];
       for (let i = 0; i < cands.length; i++) {
@@ -438,6 +594,7 @@ window.BBGM_INTL = (function () {
   function closeWindow(state) {
     const intl = state.intl;
     intl.phase = 'complete';
+    delete intl.aiViews; // transient perception maps (0.47.0) — no save growth
     if (!state.intlLedger) state.intlLedger = {};
     const penalties = [];
     for (const t of state.league.teams) {
@@ -635,5 +792,6 @@ window.BBGM_INTL = (function () {
     openWindow, advanceWindow, userSign, autoRunWindow, closeWindow,
     unsignedBoard, remainingFor, computeBudgets,
     rollOffseasonEvents,
+    REGIONS, regionOf, regionLabel, regionStrengths, buyExtraLook,
   };
 })();

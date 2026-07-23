@@ -3605,6 +3605,34 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > constants.js can't ship silently again. This completes the audit
 > backlog.
 
+> **Status (0.47.0) — the head scout (user direction: staff as
+> correspondents, not spreadsheets).** Every org carries ONE head
+> scout (`state.staff.scouts`, `team.scoutId` — same offer-based
+> market, churn, and pool hygiene as coaches). His REPUTATION sets
+> how tight the org's international bands are; his hidden BIAS sets
+> which direction they systematically miss (`tools`/`polish`/
+> `projection`/`skeptic`/`balanced`), keyed to the prospect's TRUE
+> profile so the error is learnable across classes — the staff card
+> shows only a soft hint line, never a number. His season letter
+> (once per class, from the wire inbox) proposes a winter focus
+> region (DR & the Islands / Venezuela & South America / Mexico &
+> Central America / Pacific Rim); the pick — one tap on the intl
+> hub's scout card — tightens his reads on that region's prospects
+> by 3. Design invariants: the rank noise floor (top 10 can reach
+> −3 widen; 11-30 floor 0; past 30 the band never tightens below +4
+> at ANY spend) and scouting never reads development (archetype,
+> curve, and durability stay dark). Paid trips: past the tier's free
+> allowance, up to 6 extra targeted looks cost SIGNING POOL money at
+> an escalating price ($0.2M +$0.15M each) — information bought with
+> the same dollars that sign the class. AI clubs play the same game:
+> an archetype-driven pool slice buys trip quality up front
+> (analytics 8% … cheap 0), each club bids its own perceived board
+> (true ceiling + its scout's bias + noise shrinking with rep and
+> spend, built at window open, deleted at close), so well-scouted
+> clubs quietly collect under-ranked kids while cheap clubs bid the
+> consensus. League-wide market intensity is mean-preserving — the
+> 0.32.0 offer-ladder odds stay calibrated.
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):
