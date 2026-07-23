@@ -378,6 +378,23 @@ window.BBGM_STAFF = (function () {
       S.managers[m.id] = m;
     }
 
+    // Pool hygiene (0.46.0): retired staff were flagged but never deleted
+    // — the pools grew ~35 objects a winter forever. Nothing references a
+    // retired entry (award history stores name copies, teams reference
+    // only employed ids), so drop any retiree no team still points at.
+    const referenced = new Set();
+    for (const team of state.league.teams) {
+      for (const f of ['managerId', 'hittingCoachId', 'pitchingCoachId']) {
+        if (team[f]) referenced.add(team[f]);
+      }
+    }
+    for (const id in S.managers) {
+      if (S.managers[id].retired && !referenced.has(id)) delete S.managers[id];
+    }
+    for (const id in S.coaches) {
+      if (S.coaches[id].retired && !referenced.has(id)) delete S.coaches[id];
+    }
+
     return events;
   }
 

@@ -3577,6 +3577,34 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > during the failed attempt is deleted instead of ghosting in the
 > pool. Wave 3 (platform/save-size) remains on the audit backlog.
 
+> **Status (0.46.0) — audit wave 3, platform + save size.** PWA update
+> path: CSS joined the version-stamped URL set (index.html links +
+> service-worker precache) — every release used to run its whole first
+> post-update session on the PREVIOUS release's stylesheets, invisible
+> to the boot guard. The navigation handler now refuses to cache
+> non-OK / redirected / cross-origin responses as the offline shell
+> (captive-portal login pages were being saved as the app). The boot
+> guard's retry marker falls back to a URL query param when storage
+> access is blocked — the old swallowed exceptions produced an
+> infinite reload storm instead of the error screen. Install icons
+> are real PNGs (icons/, 192/512 + apple-touch 180; iOS ignores SVG
+> data URIs). Save size: never-MLB retirees (career farmhands, indie
+> FAs) leave the archive after two winters — measured at roughly half
+> the retiree blob, the biggest term in save growth; the 16-year
+> deletion bar rose to hofScore < 6.0 (the veterans-committee floor)
+> closing the 5-6.0 dead band; retired staff husks are pruned from
+> the pools (they leaked ~35 objects a winter forever). Export is
+> compact JSON (pretty-printing doubled a late save into a 50MB+
+> string — a real mobile tab kill) with a guarded filename so the
+> save-failure lifeline can't itself throw. Import rejects saves from
+> a NEWER app version (migrations only run forward) and persists
+> before swapping live state (a failed put no longer leaves the
+> session running an unsaved import). tools/version_lockstep.js
+> verifies all five version sites + the three parallel module lists
+> every release — the class of miss that shipped 0.43.0 with a stale
+> constants.js can't ship silently again. This completes the audit
+> backlog.
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):

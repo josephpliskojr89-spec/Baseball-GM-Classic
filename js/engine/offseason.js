@@ -389,13 +389,32 @@ window.BBGM_OFFSEASON = (function () {
     //     farm-cap cut has deleted washouts since 0.16.x).
     {
       const hofScore = window.BBGM_AWARDS.hofScore;
+      // "Played MLB" = any big-league season line with real activity —
+      // minors/flavor numbers live under stats[y].minorsLine and don't
+      // count. Career farmhands and indie-league FAs retire with no MLB
+      // record, no award case, and nothing linking to them.
+      const playedMLB = (p) => {
+        for (const y in (p.stats || {})) {
+          const s = p.stats[y];
+          if (s && ((s.g || 0) > 0 || (s.gs || 0) > 0 || (s.pa || 0) > 0 || (s.ipOuts || 0) > 0)) return true;
+        }
+        return false;
+      };
       for (const id in players) {
         const p = players[id];
         if (!p.retired) continue;
         if (p.hidden) delete p.hidden;
         if (p.hof) continue;
         const retiredFor = year - (p.retired.year || year);
-        if (retiredFor >= 16 && hofScore(p) < 5.0) delete players[id];
+        // Never-MLB retirees leave the archive after two winters (0.46.0)
+        // — measured at roughly half the retiree blob on long saves, the
+        // single biggest term in save growth.
+        if (retiredFor >= 2 && !playedMLB(p)) { delete players[id]; continue; }
+        // 6.0 matches the veterans-committee induction bar: below it a
+        // Hall case is mathematically over once the writers' window has
+        // passed — the old 5.0 gate kept a dead band of 5-6.0 retirees
+        // in the save forever (0.46.0).
+        if (retiredFor >= 16 && hofScore(p) < 6.0) delete players[id];
       }
       // Draft / intl class archives: a decade of history is plenty for the
       // hub's history tabs; each season adds ~400 rows between the two.

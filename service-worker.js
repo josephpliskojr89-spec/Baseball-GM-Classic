@@ -13,7 +13,7 @@
 //     cached zero JS files, so "offline support" never actually worked),
 //     and FAILS if any asset can't be fetched — a half-populated cache
 //     must not activate and shadow the previous good one.
-const VERSION = '0.45.0';
+const VERSION = '0.46.0';
 const CACHE_NAME = `bbgm-classic-v${VERSION}`;
 
 const JS_FILES = [
@@ -62,17 +62,27 @@ const JS_FILES = [
   'js/main.js',
 ];
 
+const CSS_FILES = [
+  'css/reset.css',
+  'css/base.css',
+  'css/layout.css',
+  'css/components.css',
+  'css/mobile.css',
+];
+
 const ASSETS = [
   './',
   './index.html',
   './manifest.json',
-  './css/reset.css',
-  './css/base.css',
-  './css/layout.css',
-  './css/components.css',
-  './css/mobile.css',
-  // The ?v= suffix must match index.html's script tags exactly — that is
-  // the URL the page will actually request.
+  './icons/icon-192.png',
+  './icons/icon-512.png',
+  './icons/apple-touch-icon.png',
+  // The ?v= suffix must match index.html's link/script tags exactly —
+  // those are the URLs the page will actually request. CSS joined the
+  // stamped list in 0.46.0: unstamped stylesheets were served from the
+  // PREVIOUS release's cache for the whole first post-update session
+  // (new HTML + old CSS), and the boot guard can't see CSS at all.
+  ...CSS_FILES.map((f) => `./${f}?v=${VERSION}`),
   ...JS_FILES.map((f) => `./${f}?v=${VERSION}`),
 ];
 
@@ -103,9 +113,17 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(req)
         .then((res) => {
-          // Keep the offline copy current with whatever the server sent.
-          const copy = res.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put('./index.html', copy));
+          // Keep the offline copy current — but only with a healthy,
+          // same-origin, non-redirected response (0.46.0). A captive
+          // portal's login page (or a server error page) used to be
+          // cached as the app shell, so the next offline launch rendered
+          // hotel wifi instead of the game.
+          let sameOrigin = false;
+          try { sameOrigin = new URL(res.url).origin === self.location.origin; } catch (e) {}
+          if (res.ok && !res.redirected && sameOrigin) {
+            const copy = res.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put('./index.html', copy));
+          }
           return res;
         })
         .catch(() => caches.match('./index.html'))

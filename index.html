@@ -11,12 +11,12 @@
     <title>Baseball GM Classic</title>
     <link rel="manifest" href="manifest.json">
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='46' fill='%230a0e14' stroke='%231d4230' stroke-width='4'/%3E%3Cpath d='M30 32h40v18L50 74 30 50z' fill='%231d4230' stroke='%23f2efe6' stroke-width='4' stroke-linejoin='round'/%3E%3Cpath d='M22 22Q32 33 22 44 M78 22Q68 33 78 44' stroke='%23ffb52e' stroke-width='3.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
-    <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='46' fill='%230a0e14' stroke='%231d4230' stroke-width='4'/%3E%3Cpath d='M30 32h40v18L50 74 30 50z' fill='%231d4230' stroke='%23f2efe6' stroke-width='4' stroke-linejoin='round'/%3E%3Cpath d='M22 22Q32 33 22 44 M78 22Q68 33 78 44' stroke='%23ffb52e' stroke-width='3.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
-    <link rel="stylesheet" href="css/reset.css">
-    <link rel="stylesheet" href="css/base.css">
-    <link rel="stylesheet" href="css/layout.css">
-    <link rel="stylesheet" href="css/components.css">
-    <link rel="stylesheet" href="css/mobile.css">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+    <link rel="stylesheet" href="css/reset.css?v=0.46.0">
+    <link rel="stylesheet" href="css/base.css?v=0.46.0">
+    <link rel="stylesheet" href="css/layout.css?v=0.46.0">
+    <link rel="stylesheet" href="css/components.css?v=0.46.0">
+    <link rel="stylesheet" href="css/mobile.css?v=0.46.0">
 </head>
 <body>
     <div id="splash" class="splash">
@@ -30,7 +30,7 @@
                 <button id="btnImportGame" class="btn-tertiary">Import Save</button>
                 <input type="file" id="fileImport" accept=".json" hidden>
             </div>
-            <p class="version">v0.45.0</p>
+            <p class="version">v0.46.0</p>
         </div>
     </div>
 
@@ -104,52 +104,56 @@
         </div>
     </div>
 
-    <!-- Version-stamped script imports. Browsers (and CDNs) cache JS by URL,
-         so changing ?v=... forces a fresh fetch on next load. Bump the
-         BBGM_BUILD value below whenever a JS file changes. -->
-    <script src="js/data/constants.js?v=0.45.0"></script>
-    <script src="js/data/name_pools.js?v=0.45.0"></script>
-    <script src="js/data/intl_name_pools.js?v=0.45.0"></script>
-    <script src="js/data/city_pools.js?v=0.45.0"></script>
-    <script src="js/data/teams.js?v=0.45.0"></script>
-    <script src="js/util/rng.js?v=0.45.0"></script>
-    <script src="js/util/dates.js?v=0.45.0"></script>
-    <script src="js/state.js?v=0.45.0"></script>
-    <script src="js/generation/ballparks.js?v=0.45.0"></script>
-    <script src="js/generation/league.js?v=0.45.0"></script>
-    <script src="js/generation/players.js?v=0.45.0"></script>
-    <script src="js/engine/schedule.js?v=0.45.0"></script>
-    <script src="js/engine/stats.js?v=0.45.0"></script>
-    <script src="js/engine/injuries.js?v=0.45.0"></script>
-    <script src="js/engine/fatigue.js?v=0.45.0"></script>
-    <script src="js/engine/roster.js?v=0.45.0"></script>
-    <script src="js/engine/progression.js?v=0.45.0"></script>
-    <script src="js/engine/minors.js?v=0.45.0"></script>
-    <script src="js/engine/flavorleagues.js?v=0.45.0"></script>
-    <script src="js/engine/trades.js?v=0.45.0"></script>
-    <script src="js/engine/freeagency.js?v=0.45.0"></script>
-    <script src="js/engine/waivers.js?v=0.45.0"></script>
-    <script src="js/engine/inbox.js?v=0.45.0"></script>
-    <script src="js/engine/staff.js?v=0.45.0"></script>
-    <script src="js/engine/scouting.js?v=0.45.0"></script>
-    <script src="js/engine/draft.js?v=0.45.0"></script>
-    <script src="js/engine/intl.js?v=0.45.0"></script>
-    <script src="js/engine/awards.js?v=0.45.0"></script>
-    <script src="js/engine/simulation.js?v=0.45.0"></script>
-    <script src="js/engine/standings.js?v=0.45.0"></script>
-    <script src="js/engine/offseason.js?v=0.45.0"></script>
-    <script src="js/ui/common.js?v=0.45.0"></script>
-    <script src="js/ui/dashboard.js?v=0.45.0"></script>
-    <script src="js/ui/team.js?v=0.45.0"></script>
-    <script src="js/ui/league.js?v=0.45.0"></script>
-    <script src="js/ui/players.js?v=0.45.0"></script>
-    <script src="js/ui/games.js?v=0.45.0"></script>
-    <script src="js/ui/frontoffice.js?v=0.45.0"></script>
-    <script src="js/ui/gm.js?v=0.45.0"></script>
-    <script src="js/ui/drafthub.js?v=0.45.0"></script>
-    <script src="js/ui/menu.js?v=0.45.0"></script>
-    <script src="js/ui/player.js?v=0.45.0"></script>
-    <script src="js/main.js?v=0.45.0"></script>
+    <!-- Version-stamped imports. Browsers (and CDNs) cache by URL, so
+         changing ?v=... forces a fresh fetch on next load. Per release,
+         bump IN LOCKSTEP: every ?v= here (CSS links above + all scripts),
+         the splash version text, constants.js VERSION (colon syntax!),
+         service-worker.js VERSION, and menu.js BUILD.
+         tools/version_lockstep.js verifies all of it — run it before
+         shipping. -->
+    <script src="js/data/constants.js?v=0.46.0"></script>
+    <script src="js/data/name_pools.js?v=0.46.0"></script>
+    <script src="js/data/intl_name_pools.js?v=0.46.0"></script>
+    <script src="js/data/city_pools.js?v=0.46.0"></script>
+    <script src="js/data/teams.js?v=0.46.0"></script>
+    <script src="js/util/rng.js?v=0.46.0"></script>
+    <script src="js/util/dates.js?v=0.46.0"></script>
+    <script src="js/state.js?v=0.46.0"></script>
+    <script src="js/generation/ballparks.js?v=0.46.0"></script>
+    <script src="js/generation/league.js?v=0.46.0"></script>
+    <script src="js/generation/players.js?v=0.46.0"></script>
+    <script src="js/engine/schedule.js?v=0.46.0"></script>
+    <script src="js/engine/stats.js?v=0.46.0"></script>
+    <script src="js/engine/injuries.js?v=0.46.0"></script>
+    <script src="js/engine/fatigue.js?v=0.46.0"></script>
+    <script src="js/engine/roster.js?v=0.46.0"></script>
+    <script src="js/engine/progression.js?v=0.46.0"></script>
+    <script src="js/engine/minors.js?v=0.46.0"></script>
+    <script src="js/engine/flavorleagues.js?v=0.46.0"></script>
+    <script src="js/engine/trades.js?v=0.46.0"></script>
+    <script src="js/engine/freeagency.js?v=0.46.0"></script>
+    <script src="js/engine/waivers.js?v=0.46.0"></script>
+    <script src="js/engine/inbox.js?v=0.46.0"></script>
+    <script src="js/engine/staff.js?v=0.46.0"></script>
+    <script src="js/engine/scouting.js?v=0.46.0"></script>
+    <script src="js/engine/draft.js?v=0.46.0"></script>
+    <script src="js/engine/intl.js?v=0.46.0"></script>
+    <script src="js/engine/awards.js?v=0.46.0"></script>
+    <script src="js/engine/simulation.js?v=0.46.0"></script>
+    <script src="js/engine/standings.js?v=0.46.0"></script>
+    <script src="js/engine/offseason.js?v=0.46.0"></script>
+    <script src="js/ui/common.js?v=0.46.0"></script>
+    <script src="js/ui/dashboard.js?v=0.46.0"></script>
+    <script src="js/ui/team.js?v=0.46.0"></script>
+    <script src="js/ui/league.js?v=0.46.0"></script>
+    <script src="js/ui/players.js?v=0.46.0"></script>
+    <script src="js/ui/games.js?v=0.46.0"></script>
+    <script src="js/ui/frontoffice.js?v=0.46.0"></script>
+    <script src="js/ui/gm.js?v=0.46.0"></script>
+    <script src="js/ui/drafthub.js?v=0.46.0"></script>
+    <script src="js/ui/menu.js?v=0.46.0"></script>
+    <script src="js/ui/player.js?v=0.46.0"></script>
+    <script src="js/main.js?v=0.46.0"></script>
     <!-- Boot integrity guard (0.39.1). A PWA mid-update can fetch the new
          index.html while one of the version-stamped scripts above fails to
          download (flaky mobile network; the old service worker's cache
@@ -179,14 +183,29 @@
       if (!missing.length) {
         window.__BBGM_BOOT_OK = true;
         try { sessionStorage.removeItem('bbgm-boot-retry'); } catch (e) {}
+        // Strip the URL fallback marker so a future failure still gets
+        // its one automatic retry.
+        if (/(^|[?&])bbgmretry=1(&|$)/.test(location.search)) {
+          try { history.replaceState(null, '', location.pathname); } catch (e) {}
+        }
         return;
       }
       console.error('BBGM boot incomplete — missing modules:', missing.join(', '));
-      var retried = false;
-      try { retried = !!sessionStorage.getItem('bbgm-boot-retry'); } catch (e) {}
+      // Retry marker lives in sessionStorage, with the URL query as the
+      // fallback (0.46.0): with storage access blocked ("Block all
+      // cookies" and some privacy webviews) BOTH storage calls throw
+      // silently, the marker never stuck, and a permanently missing file
+      // meant an infinite reload storm instead of this error screen.
+      var retried = /(^|[?&])bbgmretry=1(&|$)/.test(location.search);
+      try { retried = retried || !!sessionStorage.getItem('bbgm-boot-retry'); } catch (e) {}
       if (!retried) {
-        try { sessionStorage.setItem('bbgm-boot-retry', '1'); } catch (e) {}
-        location.reload();
+        var stored = false;
+        try { sessionStorage.setItem('bbgm-boot-retry', '1'); stored = true; } catch (e) {}
+        if (stored) {
+          location.reload();
+        } else {
+          location.replace(location.pathname + '?bbgmretry=1');
+        }
         return;
       }
       // Second failed boot in a row: stop and say so. The save is untouched.

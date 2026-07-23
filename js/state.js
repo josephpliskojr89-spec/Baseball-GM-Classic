@@ -194,11 +194,18 @@ window.BBGM_STATE = (function () {
 
   function exportToFile() {
     if (!state) return;
-    const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+    // Compact stringify (0.46.0): pretty-printing inflated the export
+    // ~2x — a late-career save became a 50MB+ string plus a Blob copy in
+    // memory, a realistic mobile tab crash during the one operation that
+    // protects the save. Guard the filename too: export is offered from
+    // the save-failure modal, exactly when state may be damaged, and the
+    // lifeline must not throw on a missing meta.
+    const teamTag = (state.meta && state.meta.userTeamId) || 'save';
+    const blob = new Blob([JSON.stringify(state)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `bbgm-classic-${state.meta.userTeamId || 'save'}-${Date.now()}.json`;
+    a.download = `bbgm-classic-${teamTag}-${Date.now()}.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -231,12 +238,26 @@ window.BBGM_STATE = (function () {
             reject(new Error('This save predates the fixed NABL league and cannot be imported — your current save is untouched.'));
             return;
           }
-          state = obj;
-          notify();
-          // Persist BEFORE resolving: menu.js reloads the page on success,
-          // and resolving on the debounced save path would race the reload
-          // and load the previous save.
-          idbPut(obj).then(() => resolve(obj)).catch(reject);
+          // Forward-version guard (0.46.0): migrations only run forward. A
+          // save from a NEWER app would import silently, get re-stamped
+          // backward, and have its unknown fields mishandled on the next
+          // rollover.
+          const app = String(window.BBGM_CONSTANTS.VERSION).split('.').map((x) => parseInt(x, 10) || 0);
+          if (v[0] > app[0] || (v[0] === app[0] && v[1] > app[1]) ||
+              (v[0] === app[0] && v[1] === app[1] && (v[2] || 0) > (app[2] || 0))) {
+            reject(new Error(`This save is from a newer version (v${obj.version}) than the app (v${window.BBGM_CONSTANTS.VERSION}) — update the app first, then import.`));
+            return;
+          }
+          // Persist FIRST, swap the live state only on success (0.46.0):
+          // swapping first meant a failed put left the session running an
+          // unsaved import while disk still held the old save — a crash
+          // silently reverted the player hours back. Persist-before-resolve
+          // also beats menu.js's success reload racing the debounced save.
+          idbPut(obj).then(() => {
+            state = obj;
+            notify();
+            resolve(obj);
+          }).catch(reject);
         } catch (e) { reject(e); }
       };
       reader.onerror = () => reject(reader.error);
