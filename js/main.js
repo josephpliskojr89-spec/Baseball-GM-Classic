@@ -756,6 +756,39 @@ window.BBGM_MAIN = (function () {
         U.showToast(`${p.name} is the project — extra work starts now.`, 'success');
         return true;
       }});
+    } else if (m.action && m.action.type === 'scoutHunch') {
+      // Fund the scout's flyer (0.52.0): free trip if the allowance has
+      // room, pool money past it — same machinery as the intl hub.
+      const sLive = window.BBGM_STATE.get();
+      const looksNow = window.BBGM_SCOUT.targetedLooks(sLive, 'intl');
+      const label = looksNow.remaining > 0
+        ? 'Send Him — uses a trip'
+        : `Fund the Trip — $${looksNow.nextExtraCost}M of pool`;
+      actions.push({ label, kind: 'primary', onClick: () => {
+        const s = window.BBGM_STATE.get();
+        const intl = s.intl;
+        const p = intl && intl.prospects && intl.prospects[m.action.prospectId];
+        if (!p || p.teamId || !intl || intl.phase === 'complete') {
+          U.showToast('That window has passed — the kid is off the board.', 'warning', 4000);
+          return true;
+        }
+        if (window.BBGM_SCOUT.hasTargetedLook(s, 'intl', p.id)) {
+          U.showToast('He already made that trip — the read is on the card.', 'info', 4000);
+          return true;
+        }
+        const looks = window.BBGM_SCOUT.targetedLooks(s, 'intl');
+        if (looks.remaining > 0) {
+          if (!intl.userLooks) intl.userLooks = [];
+          intl.userLooks.push(p.id);
+          U.showToast(`He's on a plane — the report lands on ${p.name}'s card.`, 'success');
+        } else {
+          const r = window.BBGM_INTL.buyExtraLook(s, p.id);
+          if (!r.ok) { U.showToast(r.reason, 'warning', 4000); return true; }
+          U.showToast(`Trip funded ($${r.cost}M of pool) — the report lands on ${p.name}'s card.`, 'success');
+        }
+        window.BBGM_STATE.set(s);
+        return true;
+      }});
     } else if (m.action && m.action.type === 'closerProposal') {
       // The manager's ninth-inning pick (0.48.0) — runs through the same
       // Name Closer path the pitching tab uses.
@@ -2131,6 +2164,29 @@ window.BBGM_MAIN = (function () {
               'Set my focus from the international hub whenever you\'ve decided.',
         action: { type: 'navigate', tab: 'draft', opts: { tab: 'intl' } },
       });
+    }
+
+    // The scout's hunch (0.52.0): once a class, mid-winter, he writes in
+    // about a deep-pool kid he wants another look at. Funding the trip is
+    // one tap on the letter (free allowance first, then pool money).
+    if (state.intl && state.intl.phase === 'scouting' && !state.intl.hunchSent &&
+        (today.month === 12 || today.month <= 5) && Math.random() < 0.025) {
+      const hunch = window.BBGM_INTL.pickHunch(state);
+      if (hunch) {
+        state.intl.hunchSent = true;
+        const ut = state.league.teams.find((t) => t.id === state.meta.userTeamId);
+        const sc = window.BBGM_STAFF.scoutFor ? window.BBGM_STAFF.scoutFor(state, ut) : null;
+        const p = hunch.p;
+        const region = window.BBGM_INTL.regionLabel(window.BBGM_INTL.regionOf(p.origin));
+        window.BBGM_INBOX.push(state, {
+          from: sc ? `${sc.name} (Head Scout)` : 'International Scouting',
+          subject: `A flyer on ${p.name}`,
+          body: `Kid sitting at #${hunch.rank} on the board — ${p.name}, ${p.age}, out of ${region}. ` +
+                `Something about him I can't put on the card from one viewing, and nobody else is on him. ` +
+                `Give me the trip and I'll get you a real read. Might be something, might be nothing.`,
+          action: { type: 'scoutHunch', prospectId: p.id },
+        });
+      }
     }
 
     // Amateur draft class (bible 13.3): generated May 1, scouted through

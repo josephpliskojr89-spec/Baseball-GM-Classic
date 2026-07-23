@@ -3750,6 +3750,21 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > keep their negotiated contracts; a red over-budget bar there is
 > the honest ledger, not a bug.
 
+> **Status (0.52.0) — the flyer (user idea: the scout occasionally
+> flags a lower-ranked kid).** Once per class, mid-winter, the head
+> scout writes in about a deep-pool kid (rank 31-80, unsigned,
+> unscouted): "Something about him I can't put on the card from one
+> viewing... might be something, might be nothing." One tap funds
+> the look — a free trip if the allowance has room, pool money past
+> it (same buyExtraLook machinery, same escalating price). His nose
+> is calibrated by REPUTATION: a rep-9 scout's flyers are genuinely
+> underranked ~78% of the time, a rep-1 scout's ~53% — but the pick
+> reads only true ceiling vs rank expectation (never archetype or
+> development, per the crapshoot invariant), and the rank-noise
+> floor still holds after the trip: even a glowing report on a #45
+> kid stays a wide band. Stale letters (kid signed, window closed,
+> travel cap hit) degrade to an honest toast.
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):

@@ -786,12 +786,44 @@ window.BBGM_INTL = (function () {
     return events;
   }
 
+  // The scout's hunch (0.52.0): once a class, the head scout flags a
+  // deep-pool kid he wants another look at. His nose is calibrated by
+  // REPUTATION — a sharper scout's flyers are real more often — but the
+  // pick reads only TRUE CEILING vs rank expectation (never archetype
+  // or development curve, per the crapshoot invariant), and funding the
+  // look still leaves the rank-noise floor intact: even a great report
+  // on a #45 kid stays a wide band. Might be something, might be nothing.
+  function pickHunch(state) {
+    const intl = state.intl;
+    if (!intl || intl.phase !== 'scouting' || !intl.board) return null;
+    const SC = window.BBGM_SCOUT;
+    const cands = [];
+    for (let i = 30; i < Math.min(intl.board.length, 80); i++) {
+      const p = intl.prospects[intl.board[i]];
+      if (!p || p.teamId) continue;
+      if (SC.hasTargetedLook(state, 'intl', p.id)) continue;
+      cands.push({ p, rank: i + 1 });
+    }
+    if (!cands.length) return null;
+    const ut = state.league.teams.find((t) => t.id === state.meta.userTeamId);
+    const sc = window.BBGM_STAFF.scoutFor ? window.BBGM_STAFF.scoutFor(state, ut) : null;
+    const rep = sc ? sc.reputation : 5;
+    const best = (p) => Math.max(...talentKeys(p).map((k) => p.hidden.ceiling[k]));
+    const hitOdds = 0.30 + rep * 0.04; // rep 3 ≈ 42%, rep 8 ≈ 62%
+    if (rand() < hitOdds) {
+      cands.sort((a, b) =>
+        (best(b.p) - expectedByRank(b.rank)) - (best(a.p) - expectedByRank(a.rank)));
+      return cands[Math.floor(rand() * Math.min(3, cands.length))];
+    }
+    return cands[Math.floor(rand() * cands.length)];
+  }
+
   return {
     CLASS_SIZE,
     generateClass, ensureClass, windowPending,
     openWindow, advanceWindow, userSign, autoRunWindow, closeWindow,
     unsignedBoard, remainingFor, computeBudgets,
     rollOffseasonEvents,
-    REGIONS, regionOf, regionLabel, regionStrengths, buyExtraLook,
+    REGIONS, regionOf, regionLabel, regionStrengths, buyExtraLook, pickHunch,
   };
 })();
