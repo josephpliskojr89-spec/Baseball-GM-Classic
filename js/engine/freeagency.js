@@ -8,12 +8,8 @@ window.BBGM_FA = (function () {
 
   function rand() { return Math.random(); }
 
-  // Scouting department cost against the ownership budget (6.9.1).
-  // Defensive: 0 when the scouting module isn't loaded (older harnesses).
-  function scoutingCost(team) {
-    const SC = window.BBGM_SCOUT;
-    return SC ? SC.tierCost(team) : 0;
-  }
+  // (0.51.0: the scouting bill moved off player payroll onto the
+  // operating budget — see team.opsBase / SCOUT.ensureOps.)
   function rint(lo, hi) { return lo + Math.floor(rand() * (hi - lo + 1)); }
   function clamp(x, lo, hi) { return Math.max(lo, Math.min(hi, x)); }
 
@@ -178,9 +174,9 @@ window.BBGM_FA = (function () {
     for (const team of state.league.teams) {
       if (team.id === state.meta.userTeamId) continue;
       const payroll = computePayroll(team, players);
-      // The scouting department bills against the same ownership budget
-      // (6.9.1) — an elite operation leaves less for the FA market.
-      const room = team.payrollBase - scoutingCost(team) - payroll;
+      // 0.51.0: scouting and staff moved to the OPERATING budget
+      // (team.opsBase) — player payroll is player money, full stop.
+      const room = team.payrollBase - payroll;
       // 0.50.0: the room gate was absolute (85% of ask or no bid at
       // all) — in a mature league with bloated payrolls NOBODY cleared
       // it for a star's ask, so MVPs sat unsigned into Opening Day.
@@ -344,10 +340,11 @@ window.BBGM_FA = (function () {
     const userTeam = state.league.teams.find((t) => t.id === state.meta.userTeamId);
     const payroll = computePayroll(userTeam, state.players);
     const aav = total / years;
-    const cap = userTeam.payrollBase - scoutingCost(userTeam);
+    // 0.51.0: scouting/staff bill against opsBase now — the payroll
+    // budget is all player money.
+    const cap = userTeam.payrollBase;
     if (payroll + aav > cap * 1.05) {
-      return `That offer would blow the budget ($${payroll.toFixed(1)}M of $${cap.toFixed(0)}M available` +
-             (scoutingCost(userTeam) ? `; $${scoutingCost(userTeam)}M funds scouting` : '') + ').';
+      return `That offer would blow the payroll budget ($${payroll.toFixed(1)}M committed of $${cap.toFixed(0)}M).`;
     }
     market.userOffers = market.userOffers.filter((o) => o.playerId !== playerId);
     market.userOffers.push({ playerId, years, total: Math.round(total * 10) / 10 });
@@ -405,7 +402,7 @@ window.BBGM_FA = (function () {
       for (const team of state.league.teams) {
         if (team.id === state.meta.userTeamId) continue;
         const payroll = computePayroll(team, players);
-        const room = team.payrollBase - scoutingCost(team) - payroll;
+        const room = team.payrollBase - payroll;
         if (room < 0.74) continue;
         const regs = p.isPitcher
           ? (team.rotation || []).concat(team.bullpen || [])

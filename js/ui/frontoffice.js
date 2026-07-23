@@ -1004,6 +1004,8 @@ window.BBGM_UI_FRONTOFFICE = (function () {
           window.BBGM_MAIN.refresh();
           if (r.accepted) {
             U.showToast(`${cand.name} accepts!`, 'success');
+          } else if (r.overBudget) {
+            U.showToast(r.message, 'warning', 6000);
           } else {
             U.showToast(`${cand.name} declines — he'll listen again next winter.`, 'warning', 5000);
           }
@@ -1124,5 +1126,91 @@ window.BBGM_UI_FRONTOFFICE = (function () {
     window.BBGM_MAIN.navigate('gm', { tab: 'trades' });
   }
 
-  return { renderFreeAgents, renderTrades, renderStaff, renderWaivers, startTradeFor };
+  // ---- Finances (0.51.0) ---------------------------------------------------
+  // The club's two ledgers: player payroll (team.payrollBase) and the
+  // operating budget (team.opsBase — scouting department + staff). The
+  // intl signing pool is its own pot in the Draft Hub.
+
+  function budgetBar(spent, budget) {
+    const over = spent > budget;
+    const wrap = U.el('div', { style: {
+      height: '8px', 'border-radius': '4px', overflow: 'hidden',
+      background: 'rgba(255,255,255,0.08)', margin: '8px 0 4px',
+    } });
+    wrap.appendChild(U.el('div', { style: {
+      height: '100%', width: `${Math.min(100, Math.round((spent / Math.max(1, budget)) * 100))}%`,
+      background: over ? 'var(--danger, #e05252)' : 'var(--accent, #4c9be8)',
+    } }));
+    return wrap;
+  }
+
+  function ledgerRow(label, value, opts = {}) {
+    const row = U.el('div', { style: {
+      display: 'flex', 'justify-content': 'space-between', padding: '3px 0',
+      'font-size': '13px', color: opts.muted ? 'var(--text-dim, #8a93a5)' : '',
+    } });
+    row.appendChild(U.el('span', {}, label));
+    row.appendChild(U.el('span', { class: 'num' }, value));
+    return row;
+  }
+
+  function renderFinances(container, state) {
+    const players = state.players;
+    const team = state.league.teams.find((t) => t.id === state.meta.userTeamId);
+    const FA = window.BBGM_FA, SC = window.BBGM_SCOUT, STAFF = window.BBGM_STAFF;
+
+    // Ownership header.
+    const head = U.el('div', { class: 'card', style: { 'margin-bottom': '10px' } });
+    head.appendChild(U.el('div', { class: 'card-title' }, 'Ownership'));
+    head.appendChild(U.el('div', { style: { 'font-size': '13px' } },
+      `${team.ownerName} • ${team.market === 'large' ? 'Large' : team.market === 'small' ? 'Small' : 'Mid'} market`));
+    head.appendChild(U.el('p', { class: 'muted', style: { 'font-size': '11px', 'margin-top': '4px' } },
+      'Two ledgers: player payroll and the operating budget. The July 2 signing pool is its own money (Draft Hub).'));
+    container.appendChild(head);
+
+    // ---- Player payroll ----
+    const payroll = FA.computePayroll(team, players);
+    const pc = U.el('div', { class: 'card', style: { 'margin-bottom': '10px' } });
+    pc.appendChild(U.el('div', { class: 'card-title' }, 'Player Payroll'));
+    pc.appendChild(ledgerRow('Committed', `$${payroll.toFixed(1)}M of $${team.payrollBase}M`));
+    pc.appendChild(budgetBar(payroll, team.payrollBase));
+    if (team.tradeCash && ((team.tradeCash.out || 0) || (team.tradeCash.in || 0))) {
+      if (team.tradeCash.out) pc.appendChild(ledgerRow('Cash sent in trades', `+$${team.tradeCash.out.toFixed(1)}M`, { muted: true }));
+      if (team.tradeCash.in) pc.appendChild(ledgerRow('Cash received', `−$${team.tradeCash.in.toFixed(1)}M`, { muted: true }));
+    }
+    const rostered = team.roster.concat(team.il || []).map((id) => players[id])
+      .filter((p) => p && p.contract && p.contract.annualSalary);
+    let nextYear = 0;
+    for (const p of rostered) if ((p.contract.years || 0) >= 2) nextYear += p.contract.annualSalary;
+    pc.appendChild(ledgerRow('Committed to next season', `$${nextYear.toFixed(1)}M`, { muted: true }));
+    pc.appendChild(U.el('div', { class: 'card-title', style: { 'margin-top': '10px' } }, 'Top Contracts'));
+    for (const p of rostered.sort((a, b) => b.contract.annualSalary - a.contract.annualSalary).slice(0, 8)) {
+      pc.appendChild(ledgerRow(`${p.name} (${p.primaryPosition})`,
+        `$${p.contract.annualSalary.toFixed(1)}M × ${p.contract.years}y`));
+    }
+    container.appendChild(pc);
+
+    // ---- Operating budget ----
+    const tier = SC.tierDef(SC.tierOf(team));
+    const staffBill = STAFF.staffCost(state, team);
+    const ops = Math.round((tier.cost + staffBill) * 10) / 10;
+    const oc = U.el('div', { class: 'card', style: { 'margin-bottom': '10px' } });
+    oc.appendChild(U.el('div', { class: 'card-title' }, 'Operating Budget'));
+    oc.appendChild(ledgerRow('Spent', `$${ops.toFixed(1)}M of $${team.opsBase || 0}M`));
+    oc.appendChild(budgetBar(ops, team.opsBase || 1));
+    oc.appendChild(ledgerRow(`Scouting — ${tier.name}`, `$${tier.cost.toFixed(1)}M`));
+    const mgr = STAFF.managerFor(state, team);
+    if (mgr) oc.appendChild(ledgerRow(`${mgr.name} (Manager)`, `$${STAFF.salaryOf(mgr).toFixed(1)}M`));
+    for (const [field, label] of [['hittingCoachId', 'Hitting Coach'], ['pitchingCoachId', 'Pitching Coach']]) {
+      const c = team[field] && state.staff.coaches[team[field]];
+      if (c) oc.appendChild(ledgerRow(`${c.name} (${label})`, `$${STAFF.salaryOf(c).toFixed(1)}M`));
+    }
+    const sc = STAFF.scoutFor(state, team);
+    if (sc) oc.appendChild(ledgerRow(`${sc.name} (Head Scout)`, `$${STAFF.salaryOf(sc).toFixed(1)}M`));
+    oc.appendChild(U.el('p', { class: 'muted', style: { 'font-size': '11px', 'margin-top': '6px' } },
+      'Scouting upgrades and hires must fit this budget. Manage the department from the Staff tab.'));
+    container.appendChild(oc);
+  }
+
+  return { renderFreeAgents, renderTrades, renderStaff, renderWaivers, startTradeFor, renderFinances };
 })();

@@ -539,6 +539,18 @@ window.BBGM_MAIN = (function () {
       }
     }
 
+    // 0.51.0: operating budgets. Scouting and staff now bill against
+    // team.opsBase instead of player payroll — stamp one on every club
+    // (sized by market and owner, floored so nobody is born unable to
+    // fund the department they already run).
+    if (versionLt(saveVersion, '0.51.0')) {
+      const stamped = window.BBGM_SCOUT.ensureOps(state);
+      if (stamped) {
+        console.log(`0.51.0 migration: stamped operating budgets on ${stamped} club(s).`);
+        window.BBGM_STATE.set(state);
+      }
+    }
+
     // Stamp the save forward now that every migration has run. This is
     // what makes the versionLt gates above one-shot, and it makes the
     // Menu's "Save version" reflect the code the save actually runs under

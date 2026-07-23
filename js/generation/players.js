@@ -75,6 +75,26 @@ window.BBGM_PLAYER_GEN = (function () {
       assignLineupsAndPitching(rng, team, players);
     }
 
+    // Payroll calibration (0.51.0): contracts were drawn from talent
+    // tiers with no budget awareness, so half the league opened its
+    // books 100-300% over the owner's number — glaring now that the
+    // Finances tab shows the ledger. Scale each over-budget club's
+    // contracts to open at 85-96% of payrollBase (small clubs carry
+    // bargain deals — realistic); the league-minimum floor holds.
+    for (const team of league.teams) {
+      let payroll = 0;
+      const rostered = team.roster.map((id) => players[id]).filter((p) => p && p.contract);
+      for (const p of rostered) payroll += p.contract.annualSalary || 0;
+      const target = team.payrollBase * (0.85 + rng() * 0.11);
+      if (payroll <= target || payroll <= 0) continue;
+      const scale = target / payroll;
+      for (const p of rostered) {
+        const s = Math.max(0.74, Math.round(p.contract.annualSalary * scale * 10) / 10);
+        p.contract.annualSalary = s;
+        p.contract.totalValue = Math.round(s * (p.contract.years || 1) * 10) / 10;
+      }
+    }
+
     return players;
   }
 

@@ -54,6 +54,31 @@ window.BBGM_SCOUT = (function () {
         t.scoutingTier = defaultTierFor(t.owner);
       }
     }
+    ensureOps(state);
+  }
+
+  // Operating budget (0.51.0): the money that pays scouting and staff,
+  // SEPARATE from player payroll (which used to eat the scouting bill —
+  // the audit trail behind 0.50.0's starved FA market). Sized by market
+  // and ownership taste, floored so no club is born unable to fund the
+  // department it already runs (+$9M of staff-and-headroom past the
+  // current tier). Idempotent: stamps only teams without one.
+  const OPS_MUL = {
+    analytics: 1.25, patient: 1.05, win_now: 1.05,
+    aggressive: 1.0, old_school: 0.95, cheap: 0.7,
+  };
+  function ensureOps(state) {
+    const C = window.BBGM_CONSTANTS;
+    let stamped = 0;
+    for (const t of state.league.teams) {
+      if (t.opsBase != null) continue;
+      const market = C.MARKET_SIZES.find((m) => m.key === t.market);
+      const mul = OPS_MUL[t.owner] != null ? OPS_MUL[t.owner] : 1;
+      const base = (market ? market.base : 140) * 0.16 * mul * (0.95 + rand() * 0.10);
+      t.opsBase = Math.round(Math.max(base, tierCost(t) + 9));
+      stamped++;
+    }
+    return stamped;
   }
 
   // ---- Offseason tier requests (6.9.3) ------------------------------------
@@ -81,6 +106,19 @@ window.BBGM_SCOUT = (function () {
     }
     // Upgrade: one step at a time; old-school owners flatly resist elite.
     const step = TIERS[cur + 1].key;
+    // Operating-budget gate (0.51.0): the step has to fit under opsBase
+    // next to the staff bill — checked BEFORE the approval dice so the
+    // decline reason is honest money, not owner mood.
+    if (team.opsBase != null) {
+      const STAFF = window.BBGM_STAFF;
+      const bill = tierDef(step).cost + (STAFF && STAFF.staffCost ? STAFF.staffCost(state, team) : 0);
+      if (bill > team.opsBase) {
+        return {
+          ok: false,
+          message: `The operating budget can't carry it — ${tierDef(step).name} plus the staff bill runs $${bill.toFixed(1)}M against $${team.opsBase}M.`,
+        };
+      }
+    }
     let odds = UPGRADE_APPROVAL[team.owner] != null ? UPGRADE_APPROVAL[team.owner] : 0.7;
     if (step === 'elite' && team.owner === 'old_school') odds *= 0.4;
     if (step === 'elite' && team.owner === 'cheap') odds *= 0.5;
@@ -522,7 +560,7 @@ window.BBGM_SCOUT = (function () {
 
   return {
     TIERS, tierOf, tierIdx, tierDef, tierCost,
-    defaultTierFor, ensureTiers,
+    defaultTierFor, ensureTiers, ensureOps,
     requestTier, runScoutingOffseason,
     modeFor, report, poolView, aiDraftDiscipline, potentialBand, prospectNotes,
     targetedLooks, hasTargetedLook, medicalRead,

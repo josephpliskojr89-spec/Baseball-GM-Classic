@@ -55,6 +55,29 @@ window.BBGM_STAFF = (function () {
     return t;
   }
 
+  // ---- Staff salaries (0.51.0) --------------------------------------------
+  // Paid from the club's OPERATING budget (team.opsBase), never player
+  // payroll. Derived from role and reputation — no stored field, so every
+  // save prices the same man the same way and old saves need no backfill.
+  function salaryOf(m) {
+    if (!m) return 0;
+    const rep = m.reputation || 5;
+    const base = m.role === 'manager' ? 0.6 + rep * 0.22
+      : m.role === 'scout' ? 0.4 + rep * 0.18
+      : 0.35 + rep * 0.13;
+    return Math.round(base * 10) / 10;
+  }
+
+  // Total staff bill: manager, both coaches, head scout.
+  function staffCost(state, team) {
+    let total = salaryOf(managerFor(state, team)) + salaryOf(scoutFor(state, team));
+    for (const field of ['hittingCoachId', 'pitchingCoachId']) {
+      const c = team[field] && state.staff && state.staff.coaches[team[field]];
+      total += salaryOf(c);
+    }
+    return Math.round(total * 10) / 10;
+  }
+
   function generateManager(state, opts = {}) {
     const arch = opts.archetype
       ? MANAGER_ARCHETYPES.find((a) => a.key === opts.archetype)
@@ -629,6 +652,25 @@ window.BBGM_STAFF = (function () {
     const year = state.meta.currentDate.year;
     if (!cand.declinedTeams) cand.declinedTeams = {};
     if (cand.declinedTeams[team.id] === year) return { accepted: false, already: true };
+    // Operating-budget gate (0.51.0), user team only: the new hire's
+    // salary (net of whoever he replaces) has to fit under opsBase next
+    // to the scouting department. AI chairs are never blocked — a staffed
+    // league matters more than an AI ledger.
+    if (team.id === state.meta.userTeamId && team.opsBase != null) {
+      const SC = window.BBGM_SCOUT;
+      let current = null;
+      if (kind === 'manager') current = managerFor(state, team);
+      else if (kind === 'scout') current = scoutFor(state, team);
+      else current = team[field] && state.staff.coaches[team[field]];
+      const projected = staffCost(state, team) - salaryOf(current) + salaryOf(cand) +
+        (SC ? SC.tierCost(team) : 0);
+      if (projected > team.opsBase) {
+        return {
+          accepted: false, overBudget: true,
+          message: `Ownership balks — $${projected.toFixed(1)}M of operations against a $${team.opsBase}M budget. Clear salary or cut the scouting tier first.`,
+        };
+      }
+    }
     if (Math.random() < offerOdds(state, team, cand)) {
       if (kind === 'manager') {
         hireManager(state, team, cand.id);
@@ -665,6 +707,7 @@ window.BBGM_STAFF = (function () {
     tendenciesFor, managerFor, coachModsFor,
     runStaffOffseason, managerAppeal, tendencyLevel,
     offerOdds, offerOutlook, offerJob, fireCoach,
+    salaryOf, staffCost,
     generateScout, poolScouts, scoutFor, fireScout, SCOUT_BIASES,
     projectAttrsFor, projectCandidate, approveProject, assignAiProjects, proposeProjects,
   };

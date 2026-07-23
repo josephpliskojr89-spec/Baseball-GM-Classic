@@ -3718,6 +3718,38 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > heals existing saves with no migration: the stranded stars get
 > scooped within a few simmed weeks.
 
+> **Status (0.51.0) — two ledgers (user direction: separate the
+> operating money from player payroll, and show the books).** Every
+> club now carries an OPERATING BUDGET (`team.opsBase`) alongside
+> the player-payroll budget: scouting-department cost and staff
+> salaries bill there, and player payroll is player money, full
+> stop (the entanglement was the audit trail behind 0.50.0's
+> starved market — an elite department used to eat $25M of FA
+> room). Staff salaries are derived, not stored (role + reputation:
+> managers ~$1.3-2.4M, coaches ~$0.7-1.7M, scouts ~$0.9-1.8M), so
+> old saves price the same man the same way with no backfill.
+> opsBase is sized by market and ownership taste (analytics owners
+> fund infrastructure at 1.25×, cheap owners at 0.7×), floored so
+> no club is born unable to pay the department it already runs; a
+> one-shot 0.51.0 migration stamps it via the same idempotent
+> ensureOps that news leagues use. The budget BITES in two places:
+> a scouting-tier upgrade now declines on honest money (before the
+> owner-mood dice) when the step doesn't fit, and a user hire whose
+> salary would overrun gets "ownership balks" with the number — AI
+> chairs are never money-blocked (a staffed league beats an AI
+> ledger). The GM section gained a FINANCES tab: ownership header,
+> the payroll ledger (committed vs budget bar, trade-cash lines,
+> next-season commitments, top 8 contracts) and the operations
+> ledger (tier line, every staff salary, budget bar). The July 2
+> signing pool remains its own pot in the Draft Hub. Opening the
+> books also exposed a generation hole: contracts were drawn from
+> talent tiers with no budget awareness, so half a fresh league
+> opened 100-300% over its owner's number — new leagues now scale
+> each over-budget club's contracts to open at 85-96% of
+> payrollBase (small clubs carry bargain deals). Existing saves
+> keep their negotiated contracts; a red over-budget bar there is
+> the honest ledger, not a bug.
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):
