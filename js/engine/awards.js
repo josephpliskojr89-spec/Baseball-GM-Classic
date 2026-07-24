@@ -541,8 +541,104 @@ window.BBGM_AWARDS = (function () {
     return entry;
   }
 
+  // ---- Record book (0.55.0) -------------------------------------------------
+  // The league encyclopedia: all-time career leaderboards and the best
+  // individual seasons ever, FROZEN into state.history.records at each
+  // rollover. Frozen rows carry the name, so a record survives its
+  // holder's pruning from the save — the book outlives the man, exactly
+  // like the real one. Career rows merge by playerId (careers grow);
+  // season rows merge by playerId+year.
+  const REC_N = 10;
+  const CAREER_CATS = [
+    { key: 'h', label: 'Hits', pitcher: false },
+    { key: 'hr', label: 'Home Runs', pitcher: false },
+    { key: 'rbi', label: 'RBI', pitcher: false },
+    { key: 'r', label: 'Runs', pitcher: false },
+    { key: 'sb', label: 'Stolen Bases', pitcher: false },
+    { key: 'w', label: 'Wins', pitcher: true },
+    { key: 'k', label: 'Strikeouts', pitcher: true },
+    { key: 'sv', label: 'Saves', pitcher: true },
+  ];
+  // Fixed 162-game qualifiers (446 PA / 162 IP) — frozen records must not
+  // depend on the live season's length.
+  const SEASON_CATS = [
+    { key: 'h', label: 'Hits', pitcher: false },
+    { key: 'hr', label: 'Home Runs', pitcher: false },
+    { key: 'rbi', label: 'RBI', pitcher: false },
+    { key: 'r', label: 'Runs', pitcher: false },
+    { key: 'sb', label: 'Stolen Bases', pitcher: false },
+    { key: 'avg', label: 'Batting Average', pitcher: false, rate: true,
+      value: (s) => (s.ab || 0) > 0 ? s.h / s.ab : 0, qualify: (s) => (s.pa || 0) >= 446 },
+    { key: 'w', label: 'Wins', pitcher: true },
+    { key: 'k', label: 'Strikeouts', pitcher: true },
+    { key: 'sv', label: 'Saves', pitcher: true },
+    { key: 'era', label: 'ERA', pitcher: true, rate: true, asc: true,
+      value: (s) => (s.ipOuts || 0) > 0 ? (s.er || 0) * 27 / s.ipOuts : 99, qualify: (s) => (s.ipOuts || 0) >= 486 },
+  ];
+
+  function mergeRecordRows(existing, candidates, asc) {
+    const byKey = {};
+    for (const row of existing || []) byKey[row.playerId + '|' + (row.year || '')] = row;
+    for (const row of candidates) byKey[row.playerId + '|' + (row.year || '')] = row;
+    return Object.values(byKey)
+      .sort((a, b) => asc ? a.value - b.value : b.value - a.value)
+      .slice(0, REC_N);
+  }
+
+  // Fold one closed season (and current career totals) into the book.
+  function updateRecordBook(state, closedYear) {
+    if (!state.history) state.history = { seasons: [] };
+    const book = state.history.records = state.history.records || { career: {}, season: {} };
+    const players = state.players;
+
+    for (const cat of CAREER_CATS) {
+      const cands = [];
+      for (const id in players) {
+        const p = players[id];
+        if (!p || p.isPitcher !== cat.pitcher || !p.careerStats) continue;
+        const v = p.careerStats[cat.key] || 0;
+        if (v > 0) cands.push({ playerId: id, name: p.name, value: v });
+      }
+      book.career[cat.key] = mergeRecordRows(book.career[cat.key], cands, false);
+    }
+
+    for (const cat of SEASON_CATS) {
+      const cands = [];
+      for (const id in players) {
+        const p = players[id];
+        if (!p || p.isPitcher !== cat.pitcher) continue;
+        const s = p.stats && p.stats[closedYear];
+        if (!s) continue;
+        if (cat.rate) {
+          if (!cat.qualify(s)) continue;
+          cands.push({ playerId: id, name: p.name, year: closedYear,
+            value: Math.round(cat.value(s) * 10000) / 10000 });
+        } else {
+          const v = s[cat.key] || 0;
+          if (v > 0) cands.push({ playerId: id, name: p.name, year: closedYear, value: v });
+        }
+      }
+      book.season[cat.key] = mergeRecordRows(book.season[cat.key], cands, !!cat.asc);
+    }
+    return book;
+  }
+
+  // Migration backfill (0.55.0): fold every stat-year still present on
+  // surviving players. Careers already pruned from the save are honestly
+  // lost — the book starts from what remains and freezes from here on.
+  function seedRecordBook(state) {
+    const years = new Set();
+    for (const id in state.players) {
+      for (const y in (state.players[id].stats || {})) years.add(parseInt(y, 10));
+    }
+    for (const y of [...years].sort()) updateRecordBook(state, y);
+    return (state.history.records && Object.keys(state.history.records.career).length) || 0;
+  }
+
   return {
     runAwardsVoting, runAllStar, allStarPending, runHofVoting,
     hitterValue, pitcherValue, relieverValue, hofScore,
+    updateRecordBook, seedRecordBook,
+    RECORD_CAREER_CATS: CAREER_CATS, RECORD_SEASON_CATS: SEASON_CATS,
   };
 })();

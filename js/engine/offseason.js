@@ -302,6 +302,9 @@ window.BBGM_OFFSEASON = (function () {
       records,
       playoffSeeds: ps.rounds.map((r) => ({ league: r.league, seeds: r.seeds })),
     });
+    // Record book (0.55.0): freeze the closed season's best marks and the
+    // updated career leaderboards BEFORE any pruning can touch a holder.
+    window.BBGM_AWARDS.updateRecordBook(state, year);
 
     // 1.5. Awards week (18.3/19.2): voted on final regular-season stats,
     // announced before retirements so a retiring MVP still collects his

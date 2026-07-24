@@ -3826,6 +3826,25 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > equilibrium then stabilizes (fresh leagues start below it; R/G
 > stays calibrated throughout).
 
+> **Status (0.55.0) — the record book (user direction: the kept
+> stats need a front door).** The Players tab gained a RECORDS wing:
+> all-time career leaderboards (hitting H/HR/RBI/R/SB, pitching
+> W/K/SV) and the best individual seasons ever (those plus AVG at a
+> fixed 446-PA qualifier and ERA at 162 IP, sorted the right way),
+> FROZEN into `state.history.records` at every rollover — rows carry
+> the holder's name, so the book OUTLIVES its holders: a pruned
+> retiree's record still reads, it just stops tapping through (live
+> holders tap to their card). A 0.55.0 migration backfolds every
+> stat-year still on surviving players; careers already pruned are
+> honestly lost, and the book freezes from there on. LEADERS gained
+> a year picker (any archived season's races from the kept yearly
+> lines — fixed qualifiers for past years; deep-past rows thin as
+> retirees prune, which is what the frozen Records wing is for).
+> And the Stats page gained PLAYER SEARCH — the missing front door:
+> two characters finds anyone, active or retired (results tagged
+> with club or retirement year), tapping opens the full card with
+> his complete kept career.
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):

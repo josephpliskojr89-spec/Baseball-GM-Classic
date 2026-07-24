@@ -18,6 +18,7 @@ window.BBGM_UI_PLAYERS = (function () {
     const tabDefs = [
       { key: 'stats', label: 'Stats' },
       { key: 'leaders', label: 'Leaders' },
+      { key: 'records', label: 'Records' },
       { key: 'awards', label: 'Awards' },
     ];
     for (const t of tabDefs) {
@@ -30,7 +31,61 @@ window.BBGM_UI_PLAYERS = (function () {
 
     if (activeTab === 'stats') renderStatsPage(container, state);
     else if (activeTab === 'leaders') renderLeaders(container, state);
+    else if (activeTab === 'records') renderRecords(container, state);
     else renderAwards(container, state);
+  }
+
+  // ------- Records: the league encyclopedia (0.55.0) -------
+  // Frozen at each rollover into state.history.records — rows carry the
+  // name, so a pruned retiree's record still reads; a tap opens the card
+  // only while the player exists in the save.
+
+  let recordsMode = 'career';
+
+  function recordRow(state, rank, row, fmt) {
+    const p = state.players[row.playerId];
+    const el = U.el(p ? 'button' : 'div', {
+      class: 'roster-row',
+      style: { display: 'flex', 'justify-content': 'space-between', width: '100%' },
+      on: p ? { click: () => window.BBGM_UI_PLAYER.show(row.playerId) } : undefined,
+    });
+    const left = U.el('span', {},
+      `${rank}. ${row.name}${row.year ? ' ' : ''}`);
+    if (row.year) left.appendChild(U.el('span', { class: 'muted', style: { 'font-size': '11px' } }, `(${row.year})`));
+    el.appendChild(left);
+    el.appendChild(U.el('span', { class: 'num' }, fmt(row.value)));
+    return el;
+  }
+
+  function renderRecords(container, state) {
+    const book = state.history && state.history.records;
+    const AW = window.BBGM_AWARDS;
+    const modes = U.el('div', { class: 'filter-bar', style: { margin: '10px 0' } });
+    for (const [key, label] of [['career', 'All-Time'], ['season', 'Single-Season']]) {
+      modes.appendChild(U.el('button', {
+        class: `filter-chip${recordsMode === key ? ' active' : ''}`,
+        on: { click: () => { recordsMode = key; window.BBGM_MAIN.refresh(); } },
+      }, label));
+    }
+    container.appendChild(modes);
+    if (!book || !Object.keys(book[recordsMode] || {}).length) {
+      container.appendChild(U.el('div', { class: 'empty-state' },
+        'The record book opens after your first completed season.'));
+      return;
+    }
+    const cats = recordsMode === 'career' ? AW.RECORD_CAREER_CATS : AW.RECORD_SEASON_CATS;
+    for (const cat of cats) {
+      const rows = book[recordsMode][cat.key];
+      if (!rows || !rows.length) continue;
+      container.appendChild(U.el('div', { class: 'card-title', style: { 'margin-top': '14px' } },
+        `${cat.label}${cat.pitcher ? ' (P)' : ''}`));
+      const list = U.el('div', { class: 'roster-list' });
+      const fmt = cat.key === 'avg' ? (v) => S.fmtAvg(v)
+        : cat.key === 'era' ? (v) => v.toFixed(2)
+        : (v) => String(Math.round(v));
+      rows.forEach((row, i) => list.appendChild(recordRow(state, i + 1, row, fmt)));
+      container.appendChild(list);
+    }
   }
 
   // ------- Stats: sortable season tables for any club (0.15.1) -------
@@ -68,10 +123,67 @@ window.BBGM_UI_PLAYERS = (function () {
     ['hr', 'HR', (s) => s.hr || 0],
   ];
 
+  // Player search (0.55.0): the front door to every archived career —
+  // active AND retired. Results render into their own container on each
+  // keystroke, so the input never loses focus to a full refresh.
+  function searchSection(state) {
+    const wrap = U.el('div', { style: { margin: '0 0 12px' } });
+    const input = U.el('input', {
+      type: 'search', placeholder: 'Find any player, past or present…',
+      autocomplete: 'off',
+      style: {
+        width: '100%', padding: '10px 12px', 'border-radius': '8px',
+        border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.06)',
+        color: 'inherit', 'font-size': '14px',
+      },
+    });
+    const results = U.el('div', { class: 'roster-list', style: { 'margin-top': '6px' } });
+    input.addEventListener('input', () => {
+      U.clearChildren(results);
+      const q = input.value.trim().toLowerCase();
+      if (q.length < 2) return;
+      const matches = [];
+      for (const id in state.players) {
+        const p = state.players[id];
+        if (!p.name || !p.name.toLowerCase().includes(q)) continue;
+        matches.push(p);
+        if (matches.length >= 60) break;
+      }
+      matches.sort((a, b) => {
+        const aStarts = a.name.toLowerCase().startsWith(q) ? 0 : 1;
+        const bStarts = b.name.toLowerCase().startsWith(q) ? 0 : 1;
+        if (aStarts !== bStarts) return aStarts - bStarts;
+        if (!!a.retired !== !!b.retired) return a.retired ? 1 : -1;
+        return ((b.careerStats && b.careerStats.g) || 0) - ((a.careerStats && a.careerStats.g) || 0);
+      });
+      for (const p of matches.slice(0, 20)) {
+        const team = p.teamId && state.league.teams.find((t) => t.id === p.teamId);
+        const tag = p.retired ? `retired ${p.retired.year}` :
+          team ? team.abbr : p.status === 'FA' ? 'free agent' : '—';
+        const row = U.el('button', {
+          class: 'roster-row',
+          style: { display: 'flex', 'justify-content': 'space-between', width: '100%' },
+          on: { click: () => window.BBGM_UI_PLAYER.show(p.id) },
+        });
+        row.appendChild(U.el('span', {}, `${p.name} (${p.primaryPosition})`));
+        row.appendChild(U.el('span', { class: 'muted', style: { 'font-size': '11px' } }, tag));
+        results.appendChild(row);
+      }
+      if (!results.children.length) {
+        results.appendChild(U.el('div', { class: 'muted', style: { 'font-size': '12px', padding: '6px 2px' } },
+          'No one by that name in the archive.'));
+      }
+    });
+    wrap.appendChild(input);
+    wrap.appendChild(results);
+    return wrap;
+  }
+
   function renderStatsPage(container, state) {
     if (!statsTeamId) statsTeamId = state.meta.userTeamId;
     const year = state.meta.currentDate.year;
     const players = state.players;
+    container.appendChild(searchSection(state));
 
     // Team selector: native select (mobile-friendly), NABL order.
     const teams = state.league.teams.slice().sort((a, b) => {
@@ -177,15 +289,29 @@ window.BBGM_UI_PLAYERS = (function () {
 
   // ------- Leaders: league-wide top-10 boards -------
 
+  let leadersYear = null;
+
   function renderLeaders(container, state) {
     const players = Object.values(state.players);
-    const year = state.meta.currentDate.year;
+    const current = state.meta.currentDate.year;
+    // Year picker (0.55.0): any archived season's races, from the kept
+    // yearly lines. Deep-past rows thin out as retirees prune — the
+    // frozen Records tab is the permanent book.
+    const seasonYears = ((state.history && state.history.seasons) || []).map((s) => s.year);
+    const years = [...new Set([current, ...seasonYears])].sort((a, b) => b - a);
+    const year = leadersYear != null && years.includes(leadersYear) ? leadersYear : current;
+    if (years.length > 1) {
+      container.appendChild(yearPicker(years, year, (y) => { leadersYear = y; window.BBGM_MAIN.refresh(); }));
+    }
+    const isPast = year !== current;
+    const paMin = isPast ? 446 : Math.max(20, qualifierPA(state));
+    const outsMin = isPast ? 486 : Math.max(15, qualifierIP(state) * 3);
 
     const hitters = players
-      .filter((p) => !p.isPitcher && p.stats[year] && (p.stats[year].pa || 0) >= Math.max(20, qualifierPA(state)))
+      .filter((p) => !p.isPitcher && p.stats[year] && (p.stats[year].pa || 0) >= paMin)
       .map((p) => ({ p, s: p.stats[year] }));
     const pitchers = players
-      .filter((p) => p.isPitcher && p.stats[year] && (p.stats[year].ipOuts || 0) >= Math.max(15, qualifierIP(state) * 3))
+      .filter((p) => p.isPitcher && p.stats[year] && (p.stats[year].ipOuts || 0) >= outsMin)
       .map((p) => ({ p, s: p.stats[year] }));
 
     container.appendChild(U.el('div', { class: 'card-title' }, 'Hitting Leaders'));

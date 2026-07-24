@@ -590,6 +590,17 @@ window.BBGM_MAIN = (function () {
       }
     }
 
+    // 0.55.0: record book. Backfold every stat-year still on surviving
+    // players into state.history.records (careers already pruned are
+    // honestly lost — the book freezes from here on).
+    if (versionLt(saveVersion, '0.55.0')) {
+      const n = window.BBGM_AWARDS.seedRecordBook(state);
+      if (n) {
+        console.log('0.55.0 migration: record book seeded.');
+        window.BBGM_STATE.set(state);
+      }
+    }
+
     // Stamp the save forward now that every migration has run. This is
     // what makes the versionLt gates above one-shot, and it makes the
     // Menu's "Save version" reflect the code the save actually runs under
