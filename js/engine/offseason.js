@@ -476,9 +476,22 @@ window.BBGM_OFFSEASON = (function () {
     // rework. Rolled before progression so this same winter's development
     // starts climbing toward the new ceiling. ~15-25 league-wide per year.
     summary.breakouts = [];
+    // 0.57.0: the generational leap — the lottery ticket above the
+    // ordinary breakout. When everything lines up (age window, work
+    // ethic, a targeted coaching project, a live archetype, good
+    // health) a player can blow through his ceiling entirely. Rolled
+    // first; a leap supersedes the small breakout that winter.
+    summary.leaps = [];
     for (const id in players) {
       const p = players[id];
       if (p.retired) continue;
+      const leap = PROG().rollGenerationalLeap(p, year);
+      if (leap) {
+        summary.leaps.push({ playerId: p.id, name: p.name, teamId: p.teamId,
+          isPitcher: p.isPitcher, before: leap.before, after: leap.after,
+          coachId: p.devProject && p.devProject.coachId });
+        continue;
+      }
       const bo = PROG().rollCeilingBreakout(p);
       if (bo) {
         summary.breakouts.push({ playerId: p.id, name: p.name, teamId: p.teamId,

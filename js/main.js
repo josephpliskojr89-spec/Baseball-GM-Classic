@@ -1679,6 +1679,32 @@ window.BBGM_MAIN = (function () {
       });
     }
 
+    // Generational leaps (0.57.0): rare enough that every one is
+    // league-wide news — the whole sport talks about it. The fog holds
+    // even here: no numbers, just the fact that he's a different player.
+    for (const lp of summary.leaps || []) {
+      const t = teamOf(lp.teamId);
+      state.news.push({
+        date: jan(12 + (Math.abs(lp.playerId.length) % 6)),
+        body: `<strong>${lp.name}</strong>${t ? ` (${t.abbr})` : ''} has stunned evaluators across ` +
+              `the league this winter. Scouts who saw him in camp say he looks like a different ` +
+              `player entirely — ${lp.isPitcher ? 'the stuff, the command, all of it' : 'the swing, the body, all of it'} ` +
+              `has jumped a full class. Every projection on him is being torn up.`,
+        go: { type: 'player', id: lp.playerId },
+      });
+      if (lp.teamId === userTeamId) {
+        const coach = lp.coachId && state.staff && state.staff.coaches[lp.coachId];
+        window.BBGM_INBOX.push(state, {
+          from: coach ? `${coach.name} (${coach.role === 'pitching' ? 'Pitching' : 'Hitting'} Coach)` : 'Player Development',
+          subject: `You need to see ${lp.name}`,
+          body: `I've been doing this a long time and I don't say this lightly: I have never seen ` +
+                `a winter like the one ${lp.name} just had. Whatever ceiling we had on him, throw ` +
+                `it out. This isn't a kid taking a step — this is a player becoming somebody ` +
+                `else. Get to camp early and watch him yourself.`,
+        });
+      }
+    }
+
     // Milestones crossed this season.
     for (const m of summary.milestones) {
       const p = state.players[m.playerId];

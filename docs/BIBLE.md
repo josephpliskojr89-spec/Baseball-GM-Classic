@@ -3875,6 +3875,29 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > enforces the spoiler line: section coverage asserted present,
 > hidden-system vocabulary asserted absent.
 
+> **Status (0.57.0) — the generational leap (user direction: a
+> lottery-ticket breakout that busts THROUGH the ceiling, Aaron
+> Judge-style).** The offseason now rolls `rollGenerationalLeap`
+> (progression.js) before ordinary ceiling breakouts: when EVERY
+> factor aligns — age 21-27, work ethic 8+, a growth-capable
+> archetype (bust/quad-A/one-year-wonder identities stay sacred), a
+> coach's personal project that season, and a clean bill of health
+> (no 60-day/season-ending injury that year, proneness < 8) — a 4%
+> roll fires. Effect: every talent ceiling jumps +6-12 clamped only
+> by the 82 lid (the ONE door past the scouted ceiling; bunting
+> excluded, speed only if it's the carrying tool), current tools
+> surge 40-60% of the new gap, and the player is tagged once per
+> career. Fully-aligned players are scarce (~15/league-year via the
+> coach-project gate), so the league sees roughly one leap every
+> couple of seasons — franchise-story rare. A leap supersedes the
+> small breakout that winter (offseason step 4.9 → summary.leaps
+> with the project coach's id). Every leap is league-wide tappable
+> news; a user-org leap also lands an awed letter from the project
+> coach. Verified by a 31-check engine suite (each gate closes the
+> door alone at 0/2500; rate ≈4%; lid/clamp/once-per-career; a real
+> rollover with forced alignment surfaces summary.leaps and
+> suppresses duplicate breakouts) plus the standard full battery.
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):

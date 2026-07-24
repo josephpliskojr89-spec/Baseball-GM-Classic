@@ -692,6 +692,13 @@ if (seasonsArg > 1) {
       ` | ceiling breakouts ${(summary.breakouts || []).length} (t ~10-30)` +
       ` | AI role conversions ${rc.length} (→RP ${rc.filter((c) => c.to === 'RP').length}` +
       `, →SP ${rc.filter((c) => c.to === 'SP').length}, t ~10-30)`);
+    // 0.57.0 generational leaps: franchise-story rare (~1 per 2-4
+    // seasons league-wide). Print each one — a soak that shows a flood
+    // of these means the alignment gates broke.
+    for (const lp of summary.leaps || []) {
+      console.log(`  ⚡ GENERATIONAL LEAP: ${lp.name} (${lp.isPitcher ? 'P' : 'H'}, ` +
+        `team ${lp.teamId}) ceiling ${lp.before} → ${lp.after}`);
+    }
 
     if (si === seasonsArg) break;
     runSeason();

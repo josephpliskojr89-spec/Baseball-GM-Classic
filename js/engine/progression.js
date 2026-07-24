@@ -256,6 +256,56 @@ window.BBGM_PROGRESSION = (function () {
     return { key, amount: Math.round((after - before) * 10) / 10 };
   }
 
+  // ---- The generational leap (0.57.0) --------------------------------------
+  // The Aaron Judge winter: an EXTREMELY rare breakout that busts through
+  // the scouted ceiling entirely. It exists only when everything lines
+  // up at once — a gym-rat work ethic, a growth-capable archetype (the
+  // bust, quad-A, and one-year-wonder identities are sacred), a coach
+  // who made him his personal project this season, the right age, and a
+  // clean season of health. When it fires, every talent ceiling jumps
+  // 6-12 grades (clamped only by the 82 lid — this is the ONE door past
+  // the old ceiling; speed stays body-given unless it's the carrying
+  // tool) and the current tools surge toward the new lids. Once per
+  // career. Fully-aligned odds are slim enough that the league sees a
+  // leap every few seasons — franchise-story rare.
+  const LEAP_ODDS = 0.04;
+  const LEAP_BLOCKED = { bust: true, quad_a: true, one_year_wonder: true };
+
+  function rollGenerationalLeap(p, year) {
+    const h = p.hidden;
+    if (!h || !h.ceiling || h.leap) return null;          // once per career
+    if (p.age < 21 || p.age > 27) return null;            // the window
+    if ((h.workEthic || 5) < 8) return null;              // gym rat only
+    if (LEAP_BLOCKED[h.archetype]) return null;           // identity is sacred
+    if (!p.devProject) return null;                       // targeted coaching
+    const hurt = (p.injuryHistory || []).some((i) => i.year === year &&
+      (i.severity === 'season-ending' || i.severity === '60-day'));
+    if (hurt || (h.injuryProneness || 5) >= 8) return null; // good health
+    if (rand() >= LEAP_ODDS) return null;
+
+    const allKeys = p.isPitcher ? PITCHER_KEYS : HITTER_KEYS;
+    const best = Math.max(...allKeys.map((k) => (h.ceiling[k] != null ? h.ceiling[k] : 0)));
+    const keys = allKeys.filter((k) => {
+      if (h.ceiling[k] == null) return false;
+      if (k === 'bunting') return false;
+      if (k === 'speed') return h.ceiling.speed >= best; // body-given rule
+      return true;
+    });
+    if (!keys.length) return null;
+    const before = Math.max(...keys.map((k) => h.ceiling[k]));
+    for (const k of keys) {
+      h.ceiling[k] = Math.round(clamp(h.ceiling[k] + 6 + rand() * 6, HARD_MIN, 82) * 10) / 10;
+      if (p.ratings[k] != null) {
+        const gap = Math.max(0, h.ceiling[k] - p.ratings[k]);
+        p.ratings[k] = Math.round(clamp(p.ratings[k] + gap * (0.4 + rand() * 0.2),
+          HARD_MIN, h.ceiling[k]) * 10) / 10;
+      }
+    }
+    h.leap = { year: year + 1 }; // tagged to the season he arrives changed
+    const after = Math.max(...keys.map((k) => h.ceiling[k]));
+    return { before: Math.round(before), after: Math.round(after) };
+  }
+
   // ---- Retirement (9.6) ----
   function retirementProb(p, year) {
     const age = p.age;
@@ -315,5 +365,6 @@ window.BBGM_PROGRESSION = (function () {
     return true;
   }
 
-  return { progressPlayer, inSeasonTick, rollRetirement, retirementProb, levelPenalty, rollCeilingBreakout };
+  return { progressPlayer, inSeasonTick, rollRetirement, retirementProb, levelPenalty,
+    rollCeilingBreakout, rollGenerationalLeap };
 })();
