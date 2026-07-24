@@ -3861,6 +3861,20 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > All-Star MVP, Silver Slugger, Gold Glove — each line carrying the
 > count, years, and position for the per-position hardware.
 
+> **Status (0.56.0) — the broadcast manual (user direction: a game
+> guide, broad strokes only).** The Menu gained a GAME GUIDE — a
+> full-screen, ten-section explanation of how the world works:
+> the GM's job, the 20-80 scale, scouting fog and the head scout,
+> development (paths exist, projections aren't promises, the
+> attribute history chart is the honest signal), the season loop,
+> the market, the two money ledgers plus the signing pool, draft
+> and July 2, the staff correspondents, and history/records. By
+> DESIGN it never opens the hood: no archetype tables, no rates,
+> no noise floors, no bias mechanics — "the fine machinery stays
+> under the hood; finding its edges is the game." The UI test
+> enforces the spoiler line: section coverage asserted present,
+> hidden-system vocabulary asserted absent.
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):
