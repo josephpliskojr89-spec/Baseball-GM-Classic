@@ -3802,6 +3802,30 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > the All-Star year, then the mediocre one — while calm archetypes
 > are untouched.
 
+> **Status (0.54.0) — travel light (approved from the 20-season
+> dynasty soak: saves grew ~1MB/season to 23.7MB at year 20).**
+> Measured profile first, cuts second: the growth is NOT the MLB
+> stat archive (~133 bytes/player-year, irreducible and sacred) but
+> stat-line EXTRAS — historical minors lines (1.14MB of an 8-year
+> save), pitcher batting lines nothing reads past the award year,
+> and full attribute/salary/injury histories on journeyman retirees.
+> Rolling trims at every rollover (plus a one-shot 0.54.0 catch-up
+> migration): each player keeps minors rows for his 5 newest
+> stat-years and pitcher batting for his 2 newest; a retiree below
+> the veterans-committee bar (hofScore < 6.0) sheds his attribute
+> chart, salary ledger, and injury log. KEPT FOREVER: every MLB
+> stat line, postseason rows, career totals, achievements — and
+> HoF-caliber retirees keep everything. Measured: −13% at year 8
+> (12.27 → 10.66MB), compounding with save age since the trimmed
+> categories are the linearly-growing ones. Dynasty soak also
+> validated: HoF first class year 12 then ~2/yr (healthy), payroll
+> asymptotes (no arb runaway), injury proneness differentiates 3.2×,
+> late bloomers reach 50+ at ~25% vs traditional 38% (survivor bias
+> as intended texture — ~4-5 genuine late-bloom careers per season
+> league-wide), talent pyramid drifts up for ~a decade to pipeline
+> equilibrium then stabilizes (fresh leagues start below it; R/G
+> stays calibrated throughout).
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):

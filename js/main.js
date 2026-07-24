@@ -551,6 +551,45 @@ window.BBGM_MAIN = (function () {
       }
     }
 
+    // 0.54.0: dynasty save slimming (one-shot catch-up — the rollover
+    // applies the same trims every winter going forward). Historical
+    // minors lines past a player's 5 newest stat-years, pitcher batting
+    // lines past his 2 newest, and the attribute/salary/injury histories
+    // of journeyman retirees are the measured top of save growth; MLB
+    // lines, postseason rows, career totals and achievements are kept.
+    if (versionLt(saveVersion, '0.54.0')) {
+      const hofScore = window.BBGM_AWARDS.hofScore;
+      let slimmed = 0;
+      for (const id in state.players) {
+        const p = state.players[id];
+        let touched = false;
+        const years = Object.keys(p.stats || {}).map(Number).sort((a, b) => b - a);
+        years.forEach((y, i) => {
+          const s = p.stats[y];
+          if (!s) return;
+          if (i >= 5 && s.minorsLine) { delete s.minorsLine; touched = true; }
+          if (i >= 2 && s.batting) { delete s.batting; touched = true; }
+        });
+        if (p.retired && !p.hof && hofScore(p) < 6.0) {
+          if (p.ratingsHistory || p.salaryHistory || p.injuryHistory) touched = true;
+          delete p.ratingsHistory;
+          delete p.salaryHistory;
+          delete p.injuryHistory;
+          for (const y of years) {
+            const s = p.stats[y];
+            if (s && (s.minorsLine || s.batting)) {
+              delete s.minorsLine; delete s.batting; touched = true;
+            }
+          }
+        }
+        if (touched) slimmed++;
+      }
+      if (slimmed) {
+        console.log(`0.54.0 migration: slimmed stat-line extras on ${slimmed} player(s).`);
+        window.BBGM_STATE.set(state);
+      }
+    }
+
     // Stamp the save forward now that every migration has run. This is
     // what makes the versionLt gates above one-shot, and it makes the
     // Menu's "Save version" reflect the code the save actually runs under

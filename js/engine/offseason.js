@@ -416,6 +416,37 @@ window.BBGM_OFFSEASON = (function () {
         // in the save forever (0.46.0).
         if (retiredFor >= 16 && hofScore(p) < 6.0) delete players[id];
       }
+
+      // 0.54.0 (dynasty soak): the 20-season profile put yearly stat-line
+      // EXTRAS — not the MLB lines themselves (~133 B/yr, irreducible) —
+      // at the top of save growth: historical minors lines (1.14MB of an
+      // 8-year save), pitcher batting lines nothing reads past the award
+      // year (0.47MB), and full attribute/salary/injury histories on
+      // journeyman retirees. Rolling trims: every player keeps minors
+      // rows for his 5 newest stat-years and pitcher batting for his 2
+      // newest; a retiree below the veterans-committee bar sheds his
+      // attribute chart, salary ledger, injury log, and all stat-line
+      // extras (his MLB rows, postseason rows, career totals and
+      // achievements — the record that matters — stay forever).
+      for (const id in players) {
+        const p = players[id];
+        const years = Object.keys(p.stats || {}).map(Number).sort((a, b) => b - a);
+        years.forEach((y, i) => {
+          const s = p.stats[y];
+          if (!s) return;
+          if (i >= 5 && s.minorsLine) delete s.minorsLine;
+          if (i >= 2 && s.batting) delete s.batting;
+        });
+        if (p.retired && !p.hof && hofScore(p) < 6.0) {
+          delete p.ratingsHistory;
+          delete p.salaryHistory;
+          delete p.injuryHistory;
+          for (const y of years) {
+            const s = p.stats[y];
+            if (s) { delete s.minorsLine; delete s.batting; }
+          }
+        }
+      }
       // Draft / intl class archives: a decade of history is plenty for the
       // hub's history tabs; each season adds ~400 rows between the two.
       if ((state.draftHistory || []).length > 10) state.draftHistory = state.draftHistory.slice(-10);
