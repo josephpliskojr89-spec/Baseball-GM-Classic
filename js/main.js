@@ -645,6 +645,33 @@ window.BBGM_MAIN = (function () {
       }
     }
 
+    // 0.62.2: a stale deferred IL call-up decision (queued behind the
+    // 0.21.0 injury sim stop) could execute after the vacancy had been
+    // filled another way, running a 27-man roster with no validation on
+    // that path (the door is now guarded in executeILCallUp). Heal any
+    // save carrying an oversized roster with a floor-aware trim.
+    if (versionLt(saveVersion, '0.62.2')) {
+      let trimmed = 0;
+      const R = window.BBGM_ROSTER;
+      for (const t of state.league.teams) {
+        if (!Array.isArray(t.roster) || t.roster.length <= 26) continue;
+        while (t.roster.length > 26) {
+          const weakest = R.weakestDemotable(t, state.players);
+          if (!weakest) break;
+          t.roster.splice(t.roster.indexOf(weakest.id), 1);
+          t.minors.push(weakest.id);
+          weakest.status = 'minors';
+          weakest.rosterStatus = R.demotionLevel(weakest);
+          trimmed++;
+        }
+        try { R.safeRebuild(state, t); } catch (e) { /* best-effort */ }
+      }
+      if (trimmed) {
+        console.log(`0.62.2 migration: demoted ${trimmed} player(s) from oversized rosters.`);
+        window.BBGM_STATE.set(state);
+      }
+    }
+
     // 0.62.1: the intl board sat in generation-slot order, so a kid
     // whose ceilings the archetype clamp pulled down (quad-A cap,
     // overachiever squash) kept a top-5 rank AND ask over a 27-45 band
@@ -1054,9 +1081,13 @@ window.BBGM_MAIN = (function () {
         `Age ${c.age} • ${c.rosterStatus}`,
         () => {
           U.closeModal();
-          R.executeILCallUp(state, team, p, c);
-          state.news.push({ date: { ...state.meta.currentDate },
-            body: `<strong>${c.name}</strong> called up to cover ${p.name}'s IL stint.` });
+          const done = R.executeILCallUp(state, team, p, c);
+          if (done) {
+            state.news.push({ date: { ...state.meta.currentDate },
+              body: `<strong>${c.name}</strong> called up to cover ${p.name}'s IL stint.` });
+          } else {
+            U.showToast('The roster is already full — that spot got filled while this sat on your desk.', 'warning', 4500);
+          }
           resolveDecision(state);
         }));
     }
@@ -1067,10 +1098,11 @@ window.BBGM_MAIN = (function () {
     const actions = [
       { label: 'Let the AI Decide', kind: 'secondary', onClick: () => {
         const pick = R.bestCallUp(team, state.players, p.isPitcher, need);
-        if (pick) {
-          R.executeILCallUp(state, team, p, pick);
+        if (pick && R.executeILCallUp(state, team, p, pick)) {
           state.news.push({ date: { ...state.meta.currentDate },
             body: `<strong>${pick.name}</strong> called up to cover ${p.name}'s IL stint.` });
+        } else if (pick) {
+          U.showToast('The roster is already full — that spot got filled while this sat on your desk.', 'warning', 4500);
         }
         resolveDecision(state);
         return true;

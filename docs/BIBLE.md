@@ -3973,8 +3973,10 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > effects, all small, all invisible on the card: (1) OCTOBER
 > FACTOR (simulation.js makeupMod + per-game gameCtx): in
 > postseason games only, makeup 9-10 plays +2 effective grades and
-> 1-2 plays −2, hitters and pitchers both — measured worth ~0.7
-> runs/game at full-roster extremes, zero in the regular season.
+> 1-2 plays −2, hitters and pitchers both — DELIBERATELY subtle:
+> a seeded 1,200-game-per-side measurement (0.62.2) puts it at
+> ~+0.13 runs/game even at full-roster extremes (the ~0.7 figure
+> first reported was noise at n=250); zero in the regular season.
 > (2) TRADE ADJUSTMENT (trades.js): a makeup ≤3 player moved in a
 > trade carries .adjusting for ~30 days and plays −3 effective
 > until it expires (lazily, the first game past the date); high
@@ -4032,6 +4034,28 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > on load, any class still in its scouting phase is re-ranked in
 > place (ids stable, targeted looks unaffected); a class already
 > in its signing window is left alone — bids are live.
+
+> **Status (0.62.2) — HOTFIX: stale IL decision ran a 27-man
+> roster (user screenshot: 27/26 with two 60-day stints).** The
+> deferred injury-stop decision (0.21.0 skipCallUp → the queued
+> "pick his replacement" modal) executed executeILCallUp days
+> later with NO roster-size guard and no validation on that path.
+> If the vacancy had been filled another way meanwhile — the Team
+> tab's fill button, a waiver claim, an FA signing — the stale
+> pick added a 27th man that stuck. Fix: executeILCallUp refuses
+> at 26 (returns null; the same-tick AI flow always runs right
+> after the injured man vacates, so it never blocks); both modal
+> branches surface the refusal honestly ("that spot got filled
+> while this sat on your desk"). Migration: a floor-aware
+> weakestDemotable trim heals any oversized roster on load.
+> Verified by a 10-check suite with a git-stash repro proving the
+> pre-fix code runs 27 on the exact user sequence. ALSO in this
+> release: simulation.js exports makeupMod with an injectable ctx
+> as a TEST SEAM, and the 0.61.0 October measurement is corrected
+> — a seeded 1,200-game-per-side run puts the effect at ~+0.13
+> runs/game at full-roster extremes (the ~0.7 first reported was
+> statistical noise at n=250); the makeup suite now verifies the
+> mechanism exactly and keeps a directional seeded outcome check.
 
 ### 20.2 Global Navigation
 

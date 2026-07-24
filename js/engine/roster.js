@@ -171,6 +171,13 @@ window.BBGM_ROSTER = (function () {
   // call-up decision (0.21.0) executes through the same code as the AI's.
   function executeILCallUp(state, team, injured, callUp) {
     if (!callUp) return null;
+    // Stale-decision guard (0.62.2): the user's deferred call-up choice
+    // (0.21.0 sim stop) can sit queued for days while the vacancy fills
+    // another way — the Team tab's fill button, a waiver claim, an FA
+    // signing. Executing the stale pick then ran a 27-man roster with no
+    // validation on this path. The same-tick AI flow always runs right
+    // after the injured man vacates (25), so this never blocks it.
+    if (team.roster.length >= 26) return null;
     const rSlot = (team.rotation || []).indexOf(injured.id);
     const mi = team.minors.indexOf(callUp.id);
     if (mi >= 0) team.minors.splice(mi, 1);

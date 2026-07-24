@@ -33,17 +33,18 @@ window.BBGM_SIM = (function () {
   // gameCtx is stamped by simulateGame each game (synchronous sim; it is
   // simply overwritten by the next game, never read outside one).
   let gameCtx = null;
-  function makeupMod(pl) {
-    if (!gameCtx || !pl || !pl.hidden) return 0;
+  function makeupMod(pl, ctx) {
+    const c = ctx || gameCtx;
+    if (!c || !pl || !pl.hidden) return 0;
     const mk = pl.hidden.makeupGrade || 5;
     let mod = 0;
-    if (gameCtx.postseason) {
+    if (c.postseason) {
       if (mk >= 9) mod += 2;
       else if (mk <= 2) mod -= 2;
     }
     if (pl.adjusting) {
       const D = window.BBGM_DATES;
-      if (D.compare(gameCtx.date, pl.adjusting.until) < 0) mod -= 3;
+      if (D.compare(c.date, pl.adjusting.until) < 0) mod -= 3;
       else delete pl.adjusting; // settled — expire lazily
     }
     return mod;
@@ -1871,5 +1872,9 @@ window.BBGM_SIM = (function () {
     return Math.max(lo, Math.min(hi, x));
   }
 
-  return { simulateGame };
+  // makeupMod exported with an injectable ctx as a TEST SEAM (0.62.2):
+  // the October/adjustment effects are deliberately subtle (±2-3
+  // effective grades), too small to assert reliably through full-game
+  // outcome noise — the mechanism is verified directly instead.
+  return { simulateGame, makeupMod };
 })();
