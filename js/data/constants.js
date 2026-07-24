@@ -3,7 +3,7 @@ window.BBGM_CONSTANTS = {
   // Single source of truth for the app/save version. main.js stamps this
   // into new saves; index.html's ?v= cache-busters and the service-worker
   // cache name must be bumped in lockstep (they can't read JS constants).
-  VERSION: '0.58.0',
+  VERSION: '0.59.0',
   START_YEAR: 2026,
   TEAMS_PER_LEAGUE: 15,
   // Two leagues, three divisions each. Internal values are lowercase for
@@ -59,7 +59,13 @@ window.BBGM_CONSTANTS = {
   // band looks as seductive as anyone's; the only tell is watching the
   // attribute history not move, season after season.
   HITTER_ARCHETYPES: [
-    { key: 'traditional', weight: 0.25, peakAge: [27, 29], riseRate: 0.25, declineRate: 0.15, plateauWidth: 3, volatility: 0.10 },
+    { key: 'traditional', weight: 0.21, peakAge: [27, 29], riseRate: 0.25, declineRate: 0.15, plateauWidth: 3, volatility: 0.10 },
+    // The pro's bat (0.59.0): the hitter mirror of the pitcher
+    // crafty_vet — a late peak, a wide plateau, and a slow fade. With
+    // skill-specific aging he literally ages INTO his discipline
+    // profile: the legs go, the walk rate doesn't, and he's still a
+    // useful bat at 38.
+    { key: 'crafty_vet', weight: 0.06, peakAge: [29, 31], riseRate: 0.20, declineRate: 0.08, plateauWidth: 4, volatility: 0.08 },
     // The overachiever (0.58.0): the inverse of the bust. Born with a
     // genuinely modest ceiling (the low-30s card the scouts show is
     // TRUE at signing), but the ceiling itself climbs year after year
@@ -69,7 +75,7 @@ window.BBGM_CONSTANTS = {
     { key: 'late_bloomer', weight: 0.10, peakAge: [30, 33], riseRate: 0.10, declineRate: 0.20, plateauWidth: 2, volatility: 0.15, breakoutAge: [26, 28] },
     { key: 'early_peak', weight: 0.12, peakAge: [23, 25], riseRate: 0.40, declineRate: 0.18, plateauWidth: 2, volatility: 0.15 },
     { key: 'one_year_wonder', weight: 0.05, peakAge: [24, 26], riseRate: 0.30, declineRate: 0.25, plateauWidth: 1, volatility: 0.30, reversionLikelihood: 0.85 },
-    { key: 'steady_decliner', weight: 0.10, peakAge: [22, 24], riseRate: 0.45, declineRate: 0.10, plateauWidth: 4, volatility: 0.08 },
+    { key: 'steady_decliner', weight: 0.08, peakAge: [22, 24], riseRate: 0.45, declineRate: 0.10, plateauWidth: 4, volatility: 0.08 },
     { key: 'quad_a', weight: 0.08, peakAge: [25, 27], riseRate: 0.30, declineRate: 0.20, plateauWidth: 2, volatility: 0.15, ceilingCap: 50 },
     { key: 'slow_burn', weight: 0.10, peakAge: [30, 32], riseRate: 0.15, declineRate: 0.10, plateauWidth: 3, volatility: 0.08 },
     { key: 'volatile', weight: 0.05, peakAge: [27, 29], riseRate: 0.25, declineRate: 0.15, plateauWidth: 2, volatility: 0.40 },

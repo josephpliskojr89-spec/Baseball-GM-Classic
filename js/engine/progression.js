@@ -25,6 +25,34 @@ window.BBGM_PROGRESSION = (function () {
   function rint(lo, hi) { return lo + Math.floor(rand() * (hi - lo + 1)); }
   function clamp(x, lo, hi) { return Math.max(lo, Math.min(hi, x)); }
 
+  // ---- Skill-specific aging (0.59.0) ---------------------------------------
+  // Aging has a shape: the legs go first, the eye goes last. AGE_SHIFT
+  // moves a tool's internal clock — positive tools age EARLY (speed,
+  // velocity start fading before the archetype peak), negative tools age
+  // LATE (discipline and command keep growing past it). Early-aging
+  // shifts ramp in from age 24 so a teenager's wheels never decay.
+  // DECLINE_MUL scales the post-peak fade per tool: the classic aging
+  // slugger loses his legs and range while the walk rate barely moves —
+  // and a pitcher's velocity leaves years before his command does
+  // (that's WHY the crafty-vet reinvention exists).
+  const AGE_SHIFT = {
+    speed: 2, defense: 1,             // legs and range go first
+    discipline: -2,                   // the eye ages last
+    powerVsR: -1, powerVsL: -1,       // pop holds into the 30s
+    velocity: 2, stuff: 1,            // the arm goes early
+    control: -2, movement: -1,        // feel and command age last
+  };
+  const DECLINE_MUL = {
+    speed: 1.5, defense: 1.2, contactVsR: 0.9, contactVsL: 0.9,
+    discipline: 0.45, bunting: 0.6,
+    velocity: 1.45, stuff: 1.15, movement: 0.7, control: 0.45,
+  };
+  function agedAge(age, k) {
+    const s = AGE_SHIFT[k] || 0;
+    if (s <= 0) return age + s;
+    return age + Math.min(s, Math.max(0, age - 24));
+  }
+
   function archetypeDef(p) {
     const defs = p.isPitcher ? C.PITCHER_ARCHETYPES : C.HITTER_ARCHETYPES;
     return defs.find((a) => a.key === p.hidden.archetype) || defs[0];
@@ -172,18 +200,23 @@ window.BBGM_PROGRESSION = (function () {
       const devCeil = (k === 'stamina' && penRole) ? Math.min(ceil, PEN_STA_CEIL) : ceil;
       let change = 0;
 
-      if (age < h.peakAge) {
+      // Each tool runs on its own clock (0.59.0): legs/velocity read a
+      // couple years older than the birth certificate, the eye and the
+      // command a couple younger. Frailty accel stays on real age.
+      const ageK = agedAge(age, k);
+      if (ageK < h.peakAge) {
         change = arch.riseRate * ANNUAL_SHARE * Math.max(0, devCeil - cur) * posMod;
         // Coach project (0.48.0): the year a coach makes this player his
         // personal project, HIS specialty attributes develop 60% faster.
         // Rise only — a project never softens decline or beats the ceiling.
         if (p.devProject && p.devProject.attrs.includes(k)) change *= 1.6;
         if (breakoutNow) change += (0.3 + rand() * 0.2) * Math.max(0, devCeil - cur);
-      } else if (age < h.peakAge + (arch.plateauWidth || 2)) {
+      } else if (ageK < h.peakAge + (arch.plateauWidth || 2)) {
         change = 0; // plateau — variance only
       } else {
         const accel = age >= 35 ? 1.5 : 1;
-        change = -arch.declineRate * ANNUAL_SHARE * Math.max(0, cur - RATING_FLOOR) * accel;
+        change = -arch.declineRate * ANNUAL_SHARE * Math.max(0, cur - RATING_FLOOR) *
+          accel * (DECLINE_MUL[k] || 1);
       }
 
       // Pen-stamina erosion: conditioning above the reliever ceiling
@@ -229,16 +262,19 @@ window.BBGM_PROGRESSION = (function () {
       const devCeil = (k === 'stamina' && penRole) ? Math.min(ceil, PEN_STA_CEIL) : ceil;
       let change = 0;
 
-      if (age < h.peakAge) {
+      // Same per-tool clocks as the annual pass (0.59.0).
+      const ageK = agedAge(age, k);
+      if (ageK < h.peakAge) {
         change = arch.riseRate * frac * Math.max(0, devCeil - cur) * posMod;
         // Coach project boost (0.48.0) — the in-season share, so the
         // project visibly moves during the year.
         if (p.devProject && p.devProject.attrs.includes(k)) change *= 1.6;
-      } else if (age < h.peakAge + (arch.plateauWidth || 2)) {
+      } else if (ageK < h.peakAge + (arch.plateauWidth || 2)) {
         change = 0;
       } else {
         const accel = age >= 35 ? 1.5 : 1;
-        change = -arch.declineRate * frac * Math.max(0, cur - RATING_FLOOR) * accel;
+        change = -arch.declineRate * frac * Math.max(0, cur - RATING_FLOOR) *
+          accel * (DECLINE_MUL[k] || 1);
       }
 
       // Pen-stamina erosion (0.40.0) — the in-season share of the fade,

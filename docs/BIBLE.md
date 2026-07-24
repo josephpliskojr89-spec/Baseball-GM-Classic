@@ -3925,6 +3925,28 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > battery; the dynasty soak's survivorship table now prints the
 > overachiever row.
 
+> **Status (0.59.0) — skill-specific aging + the pro's bat (user
+> approval: brainstorm items 1 and 3).** Aging now has a SHAPE.
+> Every tool runs on its own clock (progression.js AGE_SHIFT):
+> speed +2 and defense +1 (the legs and range age early — ramped in
+> from age 24 so a teenager's wheels never decay), discipline −2
+> (the eye ages last), power −1; for pitchers velocity +2 and stuff
+> +1 (the arm goes early) vs control −2 and movement −1 (command
+> and feel age last). The shifted clock walks each tool through
+> plateau and decline earlier or later than the birth certificate,
+> so a 29-year-old "still rising" is already flat in the legs, and
+> a 32-year-old ace is losing his fastball while his command holds.
+> DECLINE_MUL then scales the fade per tool (speed 1.5, velocity
+> 1.45, discipline/control 0.45, movement 0.7...): the classic
+> aging slugger silhouette — legs −25, eye −7 by 37 — and the
+> reason the crafty-vet reinvention exists. Applied identically in
+> the annual pass and the in-season ticks; frailty accel (35+)
+> stays on real age. NEW hitter archetype crafty_vet (0.06, carved
+> from traditional/steady_decliner): peak 29-31, wide plateau, slow
+> fade — with shaped aging he ages INTO his discipline profile and
+> is still a ~56 OVR bat at 36 while a steady decliner is done at
+> 45. Verified by an 18-check aging suite plus the full battery.
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):
