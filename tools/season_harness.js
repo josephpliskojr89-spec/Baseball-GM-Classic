@@ -829,6 +829,13 @@ if (seasonsArg > 1) {
       `        ${(100 * r55 / list.length).toFixed(0).padStart(4)}%`);
   }
 
+  // Optional final-state dump for offline size profiling:
+  //   BBGM_DUMP_STATE=/path/out.json node tools/season_harness.js SEED N
+  if (process.env.BBGM_DUMP_STATE) {
+    require('fs').writeFileSync(process.env.BBGM_DUMP_STATE, JSON.stringify(state));
+    console.log('state dumped to', process.env.BBGM_DUMP_STATE);
+  }
+
   console.log('\n--- Injury layer (does proneness differentiate?) ---');
   const buckets = { 'prone 1-3': [], 'prone 4-7': [], 'prone 8-10': [] };
   for (const id in careerTrack) {
