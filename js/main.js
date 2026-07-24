@@ -601,6 +601,50 @@ window.BBGM_MAIN = (function () {
       }
     }
 
+    // 0.55.1: the DH Silver Slugger fallback double-awarded a position
+    // winner (a 1B could collect 1B AND DH the same year). Scrub the
+    // duplicates from profile stamps (keep the real-position one) and
+    // from the award-history archive (the DH slot stays honestly vacant
+    // those years).
+    if (versionLt(saveVersion, '0.55.1')) {
+      let cleaned = 0;
+      const family = (name) => String(name).replace(/ \([^)]*\)$/, '');
+      for (const id in state.players) {
+        const ach = state.players[id].achievements;
+        if (!ach || !ach.awards || ach.awards.length < 2) continue;
+        const seen = {};
+        const keep = [];
+        const sorted = ach.awards.slice().sort((a, b) =>
+          (String(a.name).includes('(DH)') ? 1 : 0) - (String(b.name).includes('(DH)') ? 1 : 0));
+        for (const a of sorted) {
+          const key = a.year + '|' + family(a.name);
+          if (seen[key]) { cleaned++; continue; }
+          seen[key] = true;
+          keep.push(a);
+        }
+        if (keep.length !== ach.awards.length) {
+          keep.sort((a, b) => a.year - b.year);
+          ach.awards = keep;
+        }
+      }
+      const hist = (state.history && state.history.awards) || {};
+      for (const y in hist) {
+        for (const lg of ['east', 'west']) {
+          const entry = hist[y] && hist[y][lg];
+          if (!entry || !entry.ss || !entry.ss.DH) continue;
+          const dhId = entry.ss.DH.id;
+          if (Object.keys(entry.ss).some((pos) => pos !== 'DH' && entry.ss[pos].id === dhId)) {
+            delete entry.ss.DH;
+            cleaned++;
+          }
+        }
+      }
+      if (cleaned) {
+        console.log(`0.55.1 migration: scrubbed ${cleaned} duplicate Silver Slugger entries.`);
+        window.BBGM_STATE.set(state);
+      }
+    }
+
     // Stamp the save forward now that every migration has run. This is
     // what makes the versionLt gates above one-shot, and it makes the
     // Menu's "Save version" reflect the code the save actually runs under

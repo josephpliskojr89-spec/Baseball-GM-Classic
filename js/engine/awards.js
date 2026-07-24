@@ -244,8 +244,12 @@ window.BBGM_AWARDS = (function () {
           (e.p.stats[year].pa || 0) >= seasonGames * 1.85)
           .map((e) => ({ e, s: hitterValue(e.p.stats[year]) + rnorm(0, 1.5) }))
           .sort((a, b) => b.s - a.s)[0];
-        // A DH-less DH league year (all DHs platooned): best remaining bat.
-        const fallback = !best && pool.filter((e) => !e.p.isPitcher && (e.p.stats[year].pa || 0) >= seasonGames * 1.85)
+        // A DH-less DH league year (all DHs platooned): best remaining bat
+        // — excluding anyone who already won at his own position (0.55.1:
+        // the fallback used to hand a 1B a second Silver Slugger at DH).
+        const taken = new Set(Object.values(ss).map((w) => w.id));
+        const fallback = !best && pool.filter((e) => !e.p.isPitcher && !taken.has(e.p.id) &&
+          (e.p.stats[year].pa || 0) >= seasonGames * 1.85)
           .map((e) => ({ e, s: hitterValue(e.p.stats[year]) }))
           .sort((a, b) => b.s - a.s)[0];
         const pick = best || fallback;

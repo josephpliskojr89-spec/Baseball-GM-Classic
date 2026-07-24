@@ -3845,6 +3845,22 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > with club or retirement year), tapping opens the full card with
 > his complete kept career.
 
+> **Status (0.55.1) — one trophy per season (user report: a 1B/DH
+> won the Silver Slugger at BOTH positions the same year, three
+> times).** The DH-league fallback (fires when no DH-primary meets
+> the PA bar) picked "the best remaining bat" without excluding
+> players already holding a Silver Slugger that year — so a great
+> first baseman collected two. The fallback now excludes the year's
+> winners; a one-shot migration scrubs existing saves (profile
+> stamps keep the real-position award and drop the DH duplicate;
+> the award-history archive's DH slot goes honestly vacant those
+> years — hofScore deflates accordingly, which is correct: the bug
+> inflated it). Also per user direction, the player card's Awards
+> tab now CONSOLIDATES by award in prestige order — MVP ×2 — 2028,
+> 2030; then Cy Young, Rookie of the Year, Reliever, Comeback,
+> All-Star MVP, Silver Slugger, Gold Glove — each line carrying the
+> count, years, and position for the per-position hardware.
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):

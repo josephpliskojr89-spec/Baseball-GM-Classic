@@ -393,8 +393,30 @@ window.BBGM_UI_PLAYER = (function () {
     if (ach.awards && ach.awards.length) {
       any = true;
       body.appendChild(U.el('div', { class: 'card-title', style: { 'margin-top': '12px' } }, 'Awards'));
+      // Consolidated by award (0.55.1): all MVPs first, then the rest in
+      // prestige order — each line carries the count and the year list
+      // (with the position for the per-position hardware).
+      const ORDER = ['MVP', 'Cy Young', 'Rookie of the Year', 'Reliever of the Year',
+        'Comeback Player of the Year', 'All-Star MVP', 'World Series MVP',
+        'Silver Slugger', 'Gold Glove'];
+      const family = (name) => String(name).replace(/ \([^)]*\)$/, '');
+      const groups = {};
       for (const a of ach.awards) {
-        body.appendChild(U.el('p', { style: { 'font-size': '13px', margin: '4px 0' } }, `${a.name} (${a.year})`));
+        const f = family(a.name);
+        (groups[f] = groups[f] || []).push(a);
+      }
+      const keys = Object.keys(groups).sort((a, b) => {
+        const ia = ORDER.indexOf(a), ib = ORDER.indexOf(b);
+        return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || a.localeCompare(b);
+      });
+      for (const f of keys) {
+        const list = groups[f].slice().sort((a, b) => a.year - b.year);
+        const detail = list.map((a) => {
+          const m = String(a.name).match(/\(([^)]*)\)$/);
+          return m ? `${a.year} (${m[1]})` : String(a.year);
+        }).join(', ');
+        body.appendChild(U.el('p', { style: { 'font-size': '13px', margin: '4px 0' } },
+          `${list.length > 1 ? `${f} ×${list.length}` : f} — ${detail}`));
       }
     }
 
