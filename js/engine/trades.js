@@ -458,6 +458,12 @@ window.BBGM_TRADES = (function () {
           p.rosterStatus = '26-man';
         }
         p.acquiredVia = { type: 'trade', year, fromTeamId: p.teamId === teamA.id ? teamB.id : teamA.id };
+        // Trade adjustment (0.61.0): a low-makeup player needs about a
+        // month to settle into a new clubhouse — the sim reads
+        // .adjusting until it expires. High-makeup pros settle overnight.
+        if (((p.hidden && p.hidden.makeupGrade) || 5) <= 3) {
+          p.adjusting = { until: window.BBGM_DATES.addDays(state.meta.currentDate, 30) };
+        }
       }
     }
     moveOut(teamA, playersA);

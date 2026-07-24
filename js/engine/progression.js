@@ -89,6 +89,22 @@ window.BBGM_PROGRESSION = (function () {
     return 0;
   }
 
+  // Demotion response (0.61.0, the makeup layer): a young player who
+  // tasted the bigs this season (5+ MLB games) but sits in the minors
+  // answers the demotion by his makeup — the high-makeup pro attacks
+  // the winter with something to prove, the low-makeup kid sulks and
+  // loses part of the year. Data-driven, no stamps: works for options,
+  // merit moves, and IL squeezes alike.
+  function demotionMod(p, year) {
+    if (p.status !== 'minors' || p.age > 27) return 0;
+    const line = p.stats && p.stats[year];
+    if (!line || (line.g || 0) < 5) return 0;
+    const mk = (p.hidden && p.hidden.makeupGrade) || 5;
+    if (mk >= 8) return 0.08;
+    if (mk <= 3) return -0.12;
+    return 0;
+  }
+
   // Injury drag (9.3): a severe stint in the season just played slows the
   // year's development.
   function injuryMod(p, year) {
@@ -154,7 +170,8 @@ window.BBGM_PROGRESSION = (function () {
       }
     }
     const coach = (coachMod || 0) * (age < 27 ? 1 : 0.4);
-    const posMod = 1 + workEthicMod(p) + coach - injuryMod(p, year) - levelPenalty(p);
+    const posMod = 1 + workEthicMod(p) + coach - injuryMod(p, year) - levelPenalty(p) +
+      demotionMod(p, year);
 
     // Late-bloomer breakout (9.2): one-time jump of 30-50% of the
     // remaining ceiling gap at the stamped breakout age.
@@ -252,7 +269,7 @@ window.BBGM_PROGRESSION = (function () {
     const h = p.hidden;
     const keys = p.isPitcher ? PITCHER_KEYS : HITTER_KEYS;
     const age = p.age;
-    const posMod = 1 + workEthicMod(p) - levelPenalty(p);
+    const posMod = 1 + workEthicMod(p) - levelPenalty(p) + demotionMod(p, year);
 
     const penRole = p.isPitcher && (p.primaryPosition === 'RP' || p.primaryPosition === 'CP');
     for (const k of keys) {

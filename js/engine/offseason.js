@@ -485,6 +485,8 @@ window.BBGM_OFFSEASON = (function () {
     for (const id in players) {
       const p = players[id];
       if (p.retired) continue;
+      // Makeup layer hygiene (0.61.0): trade adjustments never winter over.
+      if (p.adjusting) delete p.adjusting;
       const leap = PROG().rollGenerationalLeap(p, year);
       if (leap) {
         summary.leaps.push({ playerId: p.id, name: p.name, teamId: p.teamId,

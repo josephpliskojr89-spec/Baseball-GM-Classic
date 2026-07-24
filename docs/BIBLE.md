@@ -3966,6 +3966,28 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > departed players. Verified by a 13-check suite plus the full
 > battery.
 
+> **Status (0.61.0) — the makeup layer (user approval: brainstorm
+> item 4).** hidden.makeupGrade — previously read only by scout
+> blurbs and the retired-to-coaching odds — is now the ADVERSITY
+> stat (work ethic keeps owning long-run development). Three
+> effects, all small, all invisible on the card: (1) OCTOBER
+> FACTOR (simulation.js makeupMod + per-game gameCtx): in
+> postseason games only, makeup 9-10 plays +2 effective grades and
+> 1-2 plays −2, hitters and pitchers both — measured worth ~0.7
+> runs/game at full-roster extremes, zero in the regular season.
+> (2) TRADE ADJUSTMENT (trades.js): a makeup ≤3 player moved in a
+> trade carries .adjusting for ~30 days and plays −3 effective
+> until it expires (lazily, the first game past the date); high
+> makeup settles overnight; the rollover clears all stamps. (3)
+> DEMOTION RESPONSE (progression.js demotionMod): a player ≤27 who
+> played 5+ MLB games this season but sits in the minors at
+> rollover answers by makeup — ≥8 gets +8% development (something
+> to prove), ≤3 loses 12% (the sulk); data-driven from stats, no
+> stamps, so options/merit-moves/IL squeezes all count; career
+> farmhands unaffected. Verified by an 8-check suite (run-diff
+> October measurement, stamp/expiry/hygiene, dev ordering) plus
+> the full battery with league calibration on target.
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):

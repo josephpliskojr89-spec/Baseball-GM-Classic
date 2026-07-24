@@ -22,12 +22,43 @@ window.BBGM_SIM = (function () {
   // Convert 20-80 grade to a scaled multiplier centered at 1.0 for grade 50.
   function grade(r) { return (r - 50) / 25; } // -1.2 to 1.2 typical
 
+  // ---- The makeup layer (0.61.0) -------------------------------------------
+  // Hidden makeupGrade is the ADVERSITY stat (work ethic owns long-run
+  // development): how a player answers pressure and upheaval. Two sim
+  // effects, both small and both invisible on the card:
+  //   October factor — in the postseason the extremes show up: a 9-10
+  //   makeup plays a shade over his card, a 1-2 shrinks.
+  //   Trade adjustment — a low-makeup player traded mid-season carries
+  //   .adjusting for ~a month and plays under his card until he settles.
+  // gameCtx is stamped by simulateGame each game (synchronous sim; it is
+  // simply overwritten by the next game, never read outside one).
+  let gameCtx = null;
+  function makeupMod(pl) {
+    if (!gameCtx || !pl || !pl.hidden) return 0;
+    const mk = pl.hidden.makeupGrade || 5;
+    let mod = 0;
+    if (gameCtx.postseason) {
+      if (mk >= 9) mod += 2;
+      else if (mk <= 2) mod -= 2;
+    }
+    if (pl.adjusting) {
+      const D = window.BBGM_DATES;
+      if (D.compare(gameCtx.date, pl.adjusting.until) < 0) mod -= 3;
+      else delete pl.adjusting; // settled — expire lazily
+    }
+    return mod;
+  }
+
   // Simulate one game, mutating player stats and returning a result.
   function simulateGame(state, game) {
     const home = state.league.teams.find((t) => t.id === game.homeId);
     const away = state.league.teams.find((t) => t.id === game.awayId);
     const players = state.players;
     const year = state.meta.currentDate.year;
+    // Per-game context for the makeup layer (0.61.0): resolveAtBat has
+    // no game handle, so the module remembers what kind of night it is.
+    // Synchronous sim — simply overwritten by the next game.
+    gameCtx = { postseason: !!game.postseason, date: game.date || state.meta.currentDate };
 
     // Starters first — lineup choice depends on the opposing starter's hand.
     const homeSP = pickStarter(home, players, state);
@@ -956,14 +987,18 @@ window.BBGM_SIM = (function () {
           power -= fatPenalty;
         }
       }
+      // Makeup layer (0.61.0): October nerves/heroics + trade adjustment.
+      const bMk = makeupMod(batter);
+      if (bMk) { contact += bMk; power += bMk; }
       discipline = r.discipline;
       batterSpeed = r.speed;
     }
 
-    const stuff = applyFatigue(p.stuff, pitcher, def);
-    const control = applyFatigue(p.control, pitcher, def);
-    const movement = applyFatigue(p.movement, pitcher, def);
-    const velocity = applyFatigue(p.velocity, pitcher, def);
+    const pMk = makeupMod(pitcher);
+    const stuff = applyFatigue(p.stuff, pitcher, def) + pMk;
+    const control = applyFatigue(p.control, pitcher, def) + pMk;
+    const movement = applyFatigue(p.movement, pitcher, def) + pMk;
+    const velocity = applyFatigue(p.velocity, pitcher, def) + pMk;
 
     // Base rates - calibrated to target league averages.
     // K rate: 17%. Driven by stuff+velocity vs contact+discipline.
