@@ -509,6 +509,57 @@ if (seasonsArg > 1) {
   console.log('\n=== FRANCHISE MODE: ' + seasonsArg + ' seasons ===');
   const retirementCounts = [];
   let totalNewPlayers = 0;
+  // ---- Dynasty instrumentation (0.53.1 audit soak) ----
+  // Career tracking survives retiree pruning: every player is recorded
+  // the first year he's seen, his max overall updates while active, and
+  // his retirement age is captured the winter it happens.
+  const careerTrack = {};
+  const yearlyHealth = [];
+  const trackYear = () => {
+    const R = W.BBGM_ROSTER;
+    let hof = 0, p65 = 0, p60 = 0, p55 = 0, payrollTot = 0, payrollMax = 0, active = 0;
+    for (const t of state.league.teams) {
+      let pr = 0;
+      for (const id of t.roster.concat(t.il || [])) {
+        const p = state.players[id];
+        if (p && p.contract) pr += p.contract.annualSalary || 0;
+        if (p && t.roster.includes(id)) {
+          const o = R.overall(p);
+          if (o >= 65) p65++; if (o >= 60) p60++; if (o >= 55) p55++;
+        }
+      }
+      payrollTot += pr;
+      payrollMax = Math.max(payrollMax, pr);
+    }
+    for (const id in state.players) {
+      const p = state.players[id];
+      if (p.hof) hof++;
+      if (!p.retired) active++;
+      if (!p.hidden || !p.hidden.archetype) continue;
+      let tr = careerTrack[id];
+      if (!tr) {
+        const defs = p.isPitcher ? W.BBGM_CONSTANTS.PITCHER_ARCHETYPES : W.BBGM_CONSTANTS.HITTER_ARCHETYPES;
+        const arch = defs.find((a) => a.key === p.hidden.archetype);
+        tr = careerTrack[id] = {
+          arch: p.hidden.archetype, isP: p.isPitcher,
+          peakLo: arch ? arch.peakAge[0] : 27,
+          prone: p.hidden.injuryProneness || 5,
+          maxOvr: 0, retiredAge: null, inj: 0,
+        };
+      }
+      if (!p.retired) {
+        tr.maxOvr = Math.max(tr.maxOvr, W.BBGM_ROSTER.overall(p));
+        tr.inj = Math.max(tr.inj, (p.injuryHistory || []).length);
+      } else if (tr.retiredAge == null) {
+        tr.retiredAge = p.retired.age;
+      }
+    }
+    yearlyHealth.push({
+      year: state.meta.currentDate.year, hof, p65, p60, p55,
+      payrollTot: Math.round(payrollTot), payrollMax: Math.round(payrollMax),
+      active, saveMB: Math.round(JSON.stringify(state).length / 1048576 * 100) / 100,
+    });
+  };
   for (let si = 1; si <= seasonsArg; si++) {
     const gamesBefore = totalGames, errBefore = simErrors, tiesBefore = ties;
     const runsBefore = runsByLeague.east + runsByLeague.west;
@@ -529,6 +580,7 @@ if (seasonsArg > 1) {
     }
     retirementCounts.push(summary.retirements.length);
     totalNewPlayers += summary.newPlayers;
+    trackYear();
     const faSigned = state.faMarket ? state.faMarket.entries.filter((e) => e.signedTeamId).length : 0;
     const faUnsigned = state.faMarket ? state.faMarket.entries.length - faSigned : 0;
     const champ = state.league.teams.find((t) => t.id === summary.postseason.champion.id);
@@ -730,4 +782,44 @@ if (seasonsArg > 1) {
       return `$${Math.min(...ps).toFixed(0)}M - $${Math.max(...ps).toFixed(0)}M`;
     })());
   console.log('save size:', (JSON.stringify(state).length / 1024 / 1024).toFixed(2), 'MB');
+
+  // ---- Dynasty report (0.53.1 audit soak) ----
+  console.log('\n--- Dynasty health by year ---');
+  console.log('year  HoF  65+/60+/55+   payroll(tot/max)  active  saveMB');
+  for (const y of yearlyHealth) {
+    console.log(`${y.year}  ${String(y.hof).padStart(3)}  ${String(y.p65).padStart(3)}/${String(y.p60).padStart(3)}/${String(y.p55).padStart(3)}` +
+      `   $${y.payrollTot}M/$${y.payrollMax}M   ${y.active}   ${y.saveMB}`);
+  }
+
+  console.log('\n--- Archetype survivorship (do slow developers live to bloom?) ---');
+  const byArch = {};
+  for (const id in careerTrack) {
+    const tr = careerTrack[id];
+    (byArch[tr.arch] = byArch[tr.arch] || []).push(tr);
+  }
+  console.log('arch              n     retired<peak   reached 50+   reached 55+');
+  for (const key of ['traditional', 'early_peak', 'late_bloomer', 'slow_burn', 'late_reinvent', 'crafty_vet', 'workhorse', 'steady_decliner', 'bust', 'quad_a']) {
+    const list = byArch[key] || [];
+    if (!list.length) continue;
+    const done = list.filter((t) => t.retiredAge != null);
+    const beforePeak = done.filter((t) => t.retiredAge < t.peakLo).length;
+    const r50 = list.filter((t) => t.maxOvr >= 50).length;
+    const r55 = list.filter((t) => t.maxOvr >= 55).length;
+    console.log(`${key.padEnd(16)} ${String(list.length).padStart(5)}   ` +
+      `${(done.length ? (100 * beforePeak / done.length).toFixed(0) : '—').padStart(6)}%` +
+      `        ${(100 * r50 / list.length).toFixed(0).padStart(4)}%` +
+      `        ${(100 * r55 / list.length).toFixed(0).padStart(4)}%`);
+  }
+
+  console.log('\n--- Injury layer (does proneness differentiate?) ---');
+  const buckets = { 'prone 1-3': [], 'prone 4-7': [], 'prone 8-10': [] };
+  for (const id in careerTrack) {
+    const tr = careerTrack[id];
+    if (tr.maxOvr < 40) continue; // careers too short to accumulate data
+    const b = tr.prone <= 3 ? 'prone 1-3' : tr.prone <= 7 ? 'prone 4-7' : 'prone 8-10';
+    buckets[b].push(tr.inj);
+  }
+  for (const b in buckets) {
+    console.log(`${b}: n=${buckets[b].length}, mean career injuries ${avg(buckets[b]).toFixed(2)}`);
+  }
 }
