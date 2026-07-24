@@ -475,6 +475,25 @@ window.BBGM_OFFSEASON = (function () {
     // player's POTENTIAL genuinely grows — a velocity jump, a swing
     // rework. Rolled before progression so this same winter's development
     // starts climbing toward the new ceiling. ~15-25 league-wide per year.
+    // 4.85. Mound conversions (0.62.0): the Jansen/Doolittle second
+    // life. AI orgs quietly move one dead-bat cannon-arm to the pen a
+    // winter when a candidate exists; the USER'S candidates are skipped
+    // here — his pitching coach proposes by letter instead (main.js).
+    // Runs before breakouts/progression so the new arm develops as a
+    // pitcher this same winter.
+    summary.moundConversions = [];
+    for (const t of teams) {
+      if (t.id === state.meta.userTeamId) continue;
+      const cands = (t.minors || []).map((id) => players[id])
+        .filter((p) => window.BBGM_ROSTER.moundCandidate(p))
+        .sort((a, b) => (b.ratings.arm || 0) - (a.ratings.arm || 0));
+      if (cands.length && Math.random() < 0.35) {
+        const p = cands[0];
+        window.BBGM_ROSTER.convertToMound(p);
+        summary.moundConversions.push({ playerId: p.id, name: p.name, teamId: t.id });
+      }
+    }
+
     summary.breakouts = [];
     // 0.57.0: the generational leap — the lottery ticket above the
     // ordinary breakout. When everything lines up (age window, work

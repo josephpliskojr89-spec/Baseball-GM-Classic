@@ -3988,6 +3988,28 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > October measurement, stamp/expiry/hygiene, dev ordering) plus
 > the full battery with league calibration on target.
 
+> **Status (0.62.0) — the mound conversion (user approval:
+> brainstorm item 5, the Jansen/Doolittle second life).** A minors
+> position player whose bat died but whose arm didn't can convert
+> to a relief project. CANDIDATE (roster.js moundCandidate): age
+> 23-27, in the minors, overall < 42, arm ≥ 58 with arm ceiling
+> ≥ 60 — rare by construction (an 8-season soak produced ONE
+> natural AI conversion). REBUILD (convertToMound): becomes an RP;
+> velocity inherits the cannon (arm − 8 + noise), everything else
+> starts raw with real-but-modest ceilings (control is the classic
+> conversion problem; mean converted ceiling ≈ 51 OVR from a 65
+> arm); hidden identity resets to reliever_conv with hitter-life
+> stamps wiped (growth destiny, scout grade, curve state) while
+> the PERSON persists (work ethic, makeup, proneness); old hitter
+> stat lines stay — the career happened. WIRING: offseason step
+> 4.85 lets each AI org convert its best candidate at 35%/winter
+> (news on the wire, tappable); the user org NEVER auto-converts —
+> the pitching coach proposes by letter ("that arm is REAL"), one
+> ask per player ever, one-tap approve via the moundConvert inbox
+> action (guarded). Verified by a 20-check suite plus the full
+> battery; the harness prints conversions per winter so a flood
+> would be caught.
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):

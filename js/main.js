@@ -895,6 +895,25 @@ window.BBGM_MAIN = (function () {
         window.BBGM_STATE.set(s);
         return true;
       }});
+    } else if (m.action && m.action.type === 'moundConvert') {
+      // The pitching coach's second-life project (0.62.0): move a
+      // dead-bat cannon-arm farmhand to the pen. Guarded — he must
+      // still be an org hitter who fits the profile.
+      actions.push({ label: 'Move Him to the Mound', kind: 'primary', onClick: () => {
+        const s = window.BBGM_STATE.get();
+        const team = s.league.teams.find((t) => t.id === s.meta.userTeamId);
+        const p = s.players[m.action.playerId];
+        const inOrg = p && (team.roster.includes(p.id) || team.minors.includes(p.id));
+        if (!p || p.isPitcher || !inOrg || p.retired) {
+          U.showToast('That window has passed — he\'s not available for the project.', 'warning', 4000);
+          return true;
+        }
+        window.BBGM_ROSTER.convertToMound(p);
+        U.showToast(`${p.name} reports to the pen — a raw arm with a real fastball.`, 'success', 4000);
+        window.BBGM_STATE.set(s);
+        window.BBGM_MAIN.refresh();
+        return true;
+      }});
     } else if (m.action && m.action.type === 'closerProposal') {
       // The manager's ninth-inning pick (0.48.0) — runs through the same
       // Name Closer path the pitching tab uses.
@@ -1738,6 +1757,40 @@ window.BBGM_MAIN = (function () {
               `waiting for the card to show up and it hasn't. The projection I filed is dead — ` +
               `what you see now is close to what he is. Plan the depth chart accordingly.`,
           action: { type: 'viewPlayer', playerId: rg.playerId },
+        });
+      }
+    }
+
+    // Mound conversions (0.62.0): AI second-life projects make the
+    // wire; the user's own candidate arrives as a pitching-coach
+    // proposal with a one-tap approval. Asked once per player, ever.
+    for (const mc of summary.moundConversions || []) {
+      const t = teamOf(mc.teamId);
+      state.news.push({
+        date: nov(14 + (Math.abs(mc.playerId.length) % 6)),
+        body: `<strong>${mc.name}</strong>${t ? ` (${t.abbr})` : ''} is moving to the mound. ` +
+              `The bat never came, but the organization believes the arm plays in relief.`,
+        go: { type: 'player', id: mc.playerId },
+      });
+    }
+    {
+      const ut = teamOf(userTeamId);
+      const cands = (ut.minors || []).map((id) => state.players[id])
+        .filter((p) => p && window.BBGM_ROSTER.moundCandidate(p) && !(p.hidden && p.hidden.moundAsked))
+        .sort((a, b) => (b.ratings.arm || 0) - (a.ratings.arm || 0));
+      if (cands.length) {
+        const p = cands[0];
+        p.hidden.moundAsked = true;
+        const coach = ut.pitchingCoachId && state.staff && state.staff.coaches[ut.pitchingCoachId];
+        window.BBGM_INBOX.push(state, {
+          from: coach ? `${coach.name} (Pitching Coach)` : 'Player Development',
+          subject: `A second life for ${p.name}`,
+          body: `Straight talk: ${p.name} (${p.primaryPosition}, ${p.age}) isn't going to hit ` +
+                `his way out of the minors — everybody in the building knows it. But I've watched ` +
+                `his throws across the diamond for two years and that arm is REAL. Give him to me ` +
+                `as a relief project. He'll be raw — the fastball shows up long before the ` +
+                `command does — but arms like that don't grow on trees.`,
+          action: { type: 'moundConvert', playerId: p.id },
         });
       }
     }

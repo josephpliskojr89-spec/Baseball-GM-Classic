@@ -699,6 +699,10 @@ if (seasonsArg > 1) {
       console.log(`  ⚡ GENERATIONAL LEAP: ${lp.name} (${lp.isPitcher ? 'P' : 'H'}, ` +
         `team ${lp.teamId}) ceiling ${lp.before} → ${lp.after}`);
     }
+    // 0.62.0 mound conversions: a handful a year league-wide is the
+    // target — a flood means the dead-bat/cannon gates got too loose.
+    const mcN = (summary.moundConversions || []).length;
+    if (mcN) console.log(`  🧤→⚾ mound conversions: ${mcN} (${(summary.moundConversions || []).map((m) => m.name).join(', ')})`);
 
     if (si === seasonsArg) break;
     runSeason();

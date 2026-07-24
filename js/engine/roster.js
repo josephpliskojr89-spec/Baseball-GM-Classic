@@ -632,11 +632,71 @@ window.BBGM_ROSTER = (function () {
     return events;
   }
 
+  // ---- Failed-hitter-to-mound conversion (0.62.0) --------------------------
+  // The Kenley Jansen / Sean Doolittle path: a minors position player
+  // whose bat has died but whose arm hasn't gets a second life as a
+  // relief project. Rare by construction — the candidate needs a dead
+  // bat AND a cannon in the prospect window.
+  function moundCandidate(p) {
+    if (!p || p.retired || p.isPitcher) return false;
+    if (p.status !== 'minors') return false;
+    if (p.age < 23 || p.age > 27) return false;
+    if (overall(p) >= 42) return false;                 // the bat is dead
+    const arm = p.ratings.arm || 0;
+    const armCeil = (p.hidden && p.hidden.ceiling && p.hidden.ceiling.arm) || arm;
+    return arm >= 58 && armCeil >= 60;                  // the arm isn't
+  }
+
+  // Rebuilds the player as a raw relief arm: velocity inherits the
+  // cannon, everything else starts raw with real-but-modest ceilings
+  // (control is the classic conversion problem). Hidden identity resets
+  // to reliever_conv — curve state, growth destiny, and scout stamps
+  // from his hitter life are wiped so every downstream system re-reads
+  // him fresh. Old hitter stat lines stay: the career happened.
+  function convertToMound(p) {
+    const r1 = (x) => Math.round(x * 10) / 10;
+    const cl = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
+    const arm = p.ratings.arm || 55;
+    const armCeil = (p.hidden && p.hidden.ceiling && p.hidden.ceiling.arm) || arm;
+    p.isPitcher = true;
+    p.primaryPosition = 'RP';
+    p.secondaryPositions = [];
+    p.ratings = {
+      stamina: r1(28 + Math.random() * 8),
+      velocity: r1(cl(arm - 8 + Math.random() * 8, 40, 72)),
+      movement: r1(26 + Math.random() * 10),
+      control: r1(24 + Math.random() * 10),
+      stuff: r1(28 + Math.random() * 12),
+    };
+    const h = p.hidden || (p.hidden = {});
+    h.archetype = 'reliever_conv';
+    delete h.growth;
+    delete h.scoutGrade;
+    delete h.peakAge;
+    delete h.breakoutAge;
+    delete h.breakoutDone;
+    delete h.spikeAmounts;
+    delete h.spikeDone;
+    h.ceiling = {
+      stamina: r1(38 + Math.random() * 10),
+      velocity: r1(cl(Math.max(armCeil - 2, p.ratings.velocity + 6), 50, 78)),
+      movement: r1(40 + Math.random() * 14),
+      control: r1(38 + Math.random() * 16),
+      stuff: r1(44 + Math.random() * 16),
+    };
+    for (const k in p.ratings) {
+      if (p.ratings[k] > h.ceiling[k]) p.ratings[k] = h.ceiling[k];
+    }
+    p.rosterStatus = demotionLevel(p);
+    return p;
+  }
+
   return {
     placeOnILWithMove, activateFromIL, replaceRefs, bestCallUp, overall, demotionLevel,
     weakestDemotable,
     newPlayerId, safeRebuild, midSeasonMoves, msDayIndex: dayIndex,
     applyRoleShift, roleShiftPreview,
     callUpCandidates, callUpNeedFor, executeILCallUp, ensureStaffIntegration,
+    moundCandidate, convertToMound,
   };
 })();
