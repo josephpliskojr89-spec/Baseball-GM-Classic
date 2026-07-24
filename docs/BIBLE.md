@@ -3947,6 +3947,25 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > is still a ~56 OVR bat at 36 while a steady decliner is done at
 > 45. Verified by an 18-check aging suite plus the full battery.
 
+> **Status (0.60.0) — scout re-grades (user approval: brainstorm
+> item 2, surfacing the moving projections).** Each winter, after
+> progression, the head scout re-reads the org's young players
+> (age ≤ 26, roster + minors) and writes when a projection has
+> genuinely MOVED since his last stamped look (scouting.js
+> pickRegrades; stamp in hidden.scoutGrade). "Raising my grade on
+> X" for the climbing card — the overachiever's creep, a breakout
+> — and "Taking X off my list" for the dying one — the bust's
+> decay. Direction only, no numbers; the fog holds. Rules: first
+> sight stamps silently (no new-save flood); moves under 4 OVR
+> points of ceiling accumulate against the stamp until they cross;
+> max 2 letters a winter, biggest movements first, near-missers
+> keep their stamps and write the next winter; a fresh generational
+> leap is re-stamped WITHOUT a letter (that story arrives with its
+> own coach letter and league news). Letters carry a new
+> 'viewPlayer' inbox action ("Open the Card"), guarded against
+> departed players. Verified by a 13-check suite plus the full
+> battery.
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):

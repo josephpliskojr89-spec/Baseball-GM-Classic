@@ -558,12 +558,53 @@ window.BBGM_SCOUT = (function () {
     return i >= 0 ? i + 1 : null;
   }
 
+  // ---- Scout re-grades (0.60.0) --------------------------------------------
+  // Each winter the head scout re-reads the org's young players and
+  // writes when a projection has genuinely MOVED since his last stamped
+  // look — the overachiever's climbing card, the bust's dying dream, a
+  // breakout's new lid. Direction only; the numbers stay in the fog.
+  // First sight stamps silently (no new-save inbox flood); small moves
+  // accumulate against the stamp until they cross the threshold. A
+  // fresh generational leap is re-stamped silently — that story already
+  // arrives with its own letter and league-wide news. Max 2 letters a
+  // winter, biggest movements first. Called at rollover, AFTER
+  // progression, from the winter development news block.
+  const REGRADE_THRESHOLD = 4;
+  function pickRegrades(state) {
+    const ut = state.league.teams.find((t) => t.id === state.meta.userTeamId);
+    if (!ut || !state.players) return [];
+    const R = window.BBGM_ROSTER;
+    const freshLeapYear = state.meta.currentDate.year + 1;
+    const movers = [];
+    for (const id of [...(ut.roster || []), ...(ut.minors || [])]) {
+      const p = state.players[id];
+      if (!p || p.retired || p.age > 26 || !p.hidden || !p.hidden.ceiling) continue;
+      const ceilOvr = Math.round(R.overall({ ...p, ratings: { ...p.ratings, ...p.hidden.ceiling } }) * 10) / 10;
+      const g = p.hidden.scoutGrade;
+      if (!g || (p.hidden.leap && p.hidden.leap.year === freshLeapYear)) {
+        p.hidden.scoutGrade = { ovr: ceilOvr };
+        continue;
+      }
+      const delta = ceilOvr - g.ovr;
+      if (Math.abs(delta) < REGRADE_THRESHOLD) continue;
+      movers.push({ playerId: p.id, name: p.name, pos: p.primaryPosition,
+        age: p.age, up: delta > 0, mag: Math.abs(Math.round(delta)), newOvr: ceilOvr });
+    }
+    movers.sort((a, b) => b.mag - a.mag);
+    const picked = movers.slice(0, 2);
+    for (const r of picked) {
+      state.players[r.playerId].hidden.scoutGrade = { ovr: r.newOvr };
+      delete r.newOvr; // internal bookkeeping — not for the letter
+    }
+    return picked;
+  }
+
   return {
     TIERS, tierOf, tierIdx, tierDef, tierCost,
     defaultTierFor, ensureTiers, ensureOps,
     requestTier, runScoutingOffseason,
     modeFor, report, poolView, aiDraftDiscipline, potentialBand, prospectNotes,
     targetedLooks, hasTargetedLook, medicalRead,
-    prospectRankings, pipelineRank, intlScoutMods,
+    prospectRankings, pipelineRank, intlScoutMods, pickRegrades,
   };
 })();

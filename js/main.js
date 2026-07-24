@@ -832,6 +832,18 @@ window.BBGM_MAIN = (function () {
         setTimeout(() => navigate(m.action.tab, m.action.opts || {}), 0);
         return true;
       }});
+    } else if (m.action && m.action.type === 'viewPlayer') {
+      // Open a player card straight from a letter (0.60.0 scout
+      // re-grades). Guarded — the player may have left the game.
+      actions.push({ label: 'Open the Card', kind: 'primary', onClick: () => {
+        const s = window.BBGM_STATE.get();
+        if (s.players[m.action.playerId]) {
+          setTimeout(() => window.BBGM_UI_PLAYER.show(m.action.playerId), 0);
+        } else {
+          U.showToast('He\'s no longer in the game.', 'warning');
+        }
+        return true;
+      }});
     } else if (m.action && m.action.type === 'coachProject') {
       // Approve a coach's personal project (0.48.0). Guarded: the player
       // must still be in the org and not already someone's project.
@@ -1701,6 +1713,31 @@ window.BBGM_MAIN = (function () {
                 `a winter like the one ${lp.name} just had. Whatever ceiling we had on him, throw ` +
                 `it out. This isn't a kid taking a step — this is a player becoming somebody ` +
                 `else. Get to camp early and watch him yourself.`,
+        });
+      }
+    }
+
+    // Scout re-grades (0.60.0): the head scout re-reads the org's young
+    // players each winter and writes when a projection has genuinely
+    // moved since his last look — the overachiever's climbing card, the
+    // bust's dying dream. Direction only; the numbers stay in the fog.
+    const regrades = (window.BBGM_SCOUT && window.BBGM_SCOUT.pickRegrades)
+      ? window.BBGM_SCOUT.pickRegrades(state) : [];
+    if (regrades.length) {
+      const ut = teamOf(userTeamId);
+      const sc = window.BBGM_STAFF.scoutFor ? window.BBGM_STAFF.scoutFor(state, ut) : null;
+      for (const rg of regrades) {
+        window.BBGM_INBOX.push(state, {
+          from: sc ? `${sc.name} (Head Scout)` : 'Scouting Department',
+          subject: rg.up ? `Raising my grade on ${rg.name}` : `Taking ${rg.name} off my list`,
+          body: rg.up
+            ? `I re-graded the org this winter and ${rg.name} (${rg.pos}, ${rg.age}) is not the ` +
+              `player I filed last time. Whatever he's doing, it's working — the projection is ` +
+              `meaningfully up, and I don't move a grade without being sure. Worth your attention this spring.`
+            : `Honest winter read: I'm coming down on ${rg.name} (${rg.pos}, ${rg.age}). I keep ` +
+              `waiting for the card to show up and it hasn't. The projection I filed is dead — ` +
+              `what you see now is close to what he is. Plan the depth chart accordingly.`,
+          action: { type: 'viewPlayer', playerId: rg.playerId },
         });
       }
     }
