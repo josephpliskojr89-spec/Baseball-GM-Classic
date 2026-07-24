@@ -4010,6 +4010,29 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > battery; the harness prints conversions per winter so a flood
 > would be caught.
 
+> **Status (0.62.1) — HOTFIX: the intl board leaked identities
+> (user screenshot: rank-2 and rank-9 kids showing 27-45 bands
+> with top-5 asks).** The intl board sat in GENERATION-SLOT order:
+> each slot's rank lift raised ceilings toward a target, then the
+> archetype clamp (quad-A cap since 0.53.1, overachiever squash
+> since 0.58.0) pulled some kids straight back down — but they
+> kept the slot's rank and ask, so any high-rank/low-band kid was
+> a GUARANTEED quad-A or overachiever. The fog was broken; the
+> 0.58.0 note's promise ("he ranks deep in the boards where the
+> story belongs") was only true for the DRAFT, which re-ranks by
+> scouted score. Fix (intl.js rankBoard): after generation the
+> board re-ranks by consensus — scout band midpoint 0.5 + true
+> avg ceiling 0.2 + avg current 0.1 + noise σ4 (wider than the
+> draft's σ2; teenagers, thin data) — and asks re-derive from the
+> new order, so the squashed kid now sits deep and signs for
+> pennies, which is the whole point of him. Verified: 0 sub-50
+> bands in any top-15 across 5 classes (was 2 in one top-10);
+> squashed identities average rank ~66; the crapshoot survives
+> (dozens of kids sit 5+ slots from their true rank). Migration:
+> on load, any class still in its scouting phase is re-ranked in
+> place (ids stable, targeted looks unaffected); a class already
+> in its signing window is left alone — bids are live.
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):

@@ -645,6 +645,19 @@ window.BBGM_MAIN = (function () {
       }
     }
 
+    // 0.62.1: the intl board sat in generation-slot order, so a kid
+    // whose ceilings the archetype clamp pulled down (quad-A cap,
+    // overachiever squash) kept a top-5 rank AND ask over a 27-45 band
+    // — a guaranteed identity leak. Re-rank any still-scouting class by
+    // the same consensus the fixed generator now uses. A class already
+    // in its signing window (or done) is left alone — bids are live.
+    if (versionLt(saveVersion, '0.62.1') && state.intl &&
+        state.intl.phase === 'scouting' && window.BBGM_INTL.rankBoard) {
+      window.BBGM_INTL.rankBoard(state.intl);
+      console.log('0.62.1 migration: re-ranked the international board by scouted consensus.');
+      window.BBGM_STATE.set(state);
+    }
+
     // Stamp the save forward now that every migration has run. This is
     // what makes the versionLt gates above one-shot, and it makes the
     // Menu's "Save version" reflect the code the save actually runs under

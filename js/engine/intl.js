@@ -269,6 +269,31 @@ window.BBGM_INTL = (function () {
     return budgets;
   }
 
+  // Consensus board (0.62.1): rank what the scouts SEE, not the
+  // generation slot. The generation loop hands each slot a ceiling
+  // target, but the archetype clamp (quad-A cap, overachiever squash)
+  // pulls some kids' ceilings straight back down — and leaving them at
+  // their slot leaked identity: a top-5 "prospect" showing a 27-45 band
+  // was a GUARANTEED quad-A/overachiever, with a top-5 ask to boot.
+  // Same recipe as the draft board, with wider noise (teenagers, thin
+  // data) so the crapshoot stays alive. Asks re-derive from the new
+  // consensus order — the squashed kid now signs for pennies, which is
+  // the whole point of him.
+  function consensusScore(p) {
+    const keys = talentKeys(p);
+    const seen = (p.scout.ceilLo + p.scout.ceilHi) / 2;
+    const avgCeil = keys.reduce((s, k) => s + p.hidden.ceiling[k], 0) / keys.length;
+    const avgCur = keys.reduce((s, k) => s + p.ratings[k], 0) / keys.length;
+    return seen * 0.5 + avgCeil * 0.2 + avgCur * 0.1 + rnorm(0, 4);
+  }
+  function rankBoard(intl) {
+    intl.board = intl.board
+      .map((id) => ({ id, s: consensusScore(intl.prospects[id]) }))
+      .sort((a, b) => b.s - a.s)
+      .map((x) => x.id);
+    intl.board.forEach((id, i) => { intl.prospects[id].ask = askFor(i + 1); });
+  }
+
   function generateClass(state, year) {
     const prospects = {};
     const board = [];
@@ -290,6 +315,7 @@ window.BBGM_INTL = (function () {
       userFocus: null,          // region key the head scout works (0.47.0)
       tripSpend: 0,             // pool $ the user burned on extra trips
     };
+    rankBoard(state.intl);
     // AI scouting economics (0.47.0): information is bought with signing
     // money. Each AI club diverts an archetype-driven slice of its pool to
     // trips up front — analytics clubs buy sharp reads and bid with thin
@@ -823,7 +849,7 @@ window.BBGM_INTL = (function () {
 
   return {
     CLASS_SIZE,
-    generateClass, ensureClass, windowPending,
+    generateClass, ensureClass, windowPending, rankBoard,
     openWindow, advanceWindow, userSign, autoRunWindow, closeWindow,
     unsignedBoard, remainingFor, computeBudgets,
     rollOffseasonEvents,
