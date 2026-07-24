@@ -504,6 +504,13 @@ window.BBGM_ROSTER = (function () {
       if (c != null) {
         p.hidden.ceiling[k] = Math.round(clamp01(c + d, ROLE_HARD_MIN, ROLE_CEIL_CAP) * 10) / 10;
       }
+      // Overachiever (0.58.0): a role shift moves the hidden destiny by
+      // the same amount, or the ceiling creep would quietly refund a
+      // stretch-out's cost / double-pay the pen bump.
+      const g = p.hidden.growth;
+      if (g && g.dest && g.dest[k] != null) {
+        g.dest[k] = Math.round(clamp01(g.dest[k] + d, ROLE_HARD_MIN, ROLE_CEIL_CAP) * 10) / 10;
+      }
       const cur = p.ratings[k];
       if (cur != null) {
         const ceil = p.hidden.ceiling[k] != null ? p.hidden.ceiling[k] : ROLE_CEIL_CAP;

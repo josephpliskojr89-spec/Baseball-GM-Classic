@@ -823,7 +823,7 @@ if (seasonsArg > 1) {
     (byArch[tr.arch] = byArch[tr.arch] || []).push(tr);
   }
   console.log('arch              n     retired<peak   reached 50+   reached 55+');
-  for (const key of ['traditional', 'early_peak', 'late_bloomer', 'slow_burn', 'late_reinvent', 'crafty_vet', 'workhorse', 'steady_decliner', 'bust', 'quad_a']) {
+  for (const key of ['traditional', 'overachiever', 'early_peak', 'late_bloomer', 'slow_burn', 'late_reinvent', 'crafty_vet', 'workhorse', 'steady_decliner', 'bust', 'quad_a']) {
     const list = byArch[key] || [];
     if (!list.length) continue;
     const done = list.filter((t) => t.retiredAge != null);

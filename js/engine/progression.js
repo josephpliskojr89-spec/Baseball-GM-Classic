@@ -93,6 +93,38 @@ window.BBGM_PROGRESSION = (function () {
     const h = p.hidden;
     const keys = p.isPitcher ? PITCHER_KEYS : HITTER_KEYS;
     const age = p.age;
+
+    // Overachiever creep (0.58.0): the ceiling itself climbs toward the
+    // hidden destiny, finishing around growth.doneAge — a linear share
+    // of the remaining gap each winter, jittered so no two climbs read
+    // identical. Climb only (Math.max guard): a breakout or leap that
+    // already lifted a ceiling past destiny is never pulled back down.
+    if (h.growth && h.growth.dest && h.ceiling) {
+      const yearsLeft = Math.max(1, (h.growth.doneAge || 26) - age);
+      for (const k of keys) {
+        const dest = h.growth.dest[k];
+        if (dest == null || h.ceiling[k] == null) continue;
+        const gap = dest - h.ceiling[k];
+        if (gap <= 0) continue;
+        const step = Math.max(0, (gap / yearsLeft) * (0.8 + rand() * 0.4));
+        h.ceiling[k] = Math.round(Math.min(dest, h.ceiling[k] + step) * 10) / 10;
+      }
+    }
+
+    // Bust decay (0.58.0): the mirror. The talent really was there, but
+    // once his window opens and the progression never comes, the
+    // projection dies with it — each year past the peak's front edge the
+    // ceiling sinks toward what he actually is. Re-scouts watch the
+    // dream fade; the card stops lying about what he'll never become.
+    if (arch.key === 'bust' && age >= arch.peakAge[0] && h.ceiling) {
+      for (const k of keys) {
+        const cur = p.ratings[k];
+        if (cur == null || h.ceiling[k] == null) continue;
+        const excess = h.ceiling[k] - cur;
+        if (excess <= 0) continue;
+        h.ceiling[k] = Math.round(Math.max(cur, h.ceiling[k] - excess * 0.18) * 10) / 10;
+      }
+    }
     const coach = (coachMod || 0) * (age < 27 ? 1 : 0.4);
     const posMod = 1 + workEthicMod(p) + coach - injuryMod(p, year) - levelPenalty(p);
 

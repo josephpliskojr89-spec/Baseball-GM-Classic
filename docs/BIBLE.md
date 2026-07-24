@@ -3898,6 +3898,33 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > rollover with forced alignment surfaces summary.leaps and
 > suppresses duplicate breakouts) plus the standard full battery.
 
+> **Status (0.58.0) — the overachiever (user direction: the inverse
+> of the bust — the late pick / pennies signing who outgrows his
+> card).** New archetype in BOTH tables (weight 0.07, carved from
+> traditional and quad-A; tables still sum to 1.0). At generation his
+> normally-rolled ceilings become a hidden DESTINY (h.growth.dest)
+> and the visible ceiling is squashed 14-20 grades below it — the
+> low-30s potential the scouts read is TRUE at signing, so he ranks
+> deep in the draft/July 2 boards where the story belongs. Each
+> offseason the ceiling itself creeps a linear share of the remaining
+> gap, finishing by ~26 as a 48-55 solid regular; current ratings
+> chase the climb through normal progression, and re-scouts watch
+> the band rise. Rules: pitcher stamina and hitter speed carry no
+> destiny (workload/body traits — never squashed, never crept);
+> pipeline slot/gem/signing-day/rank lifts re-clamp to the born card
+> (applyArchetypeCap, same sanctity rule as quad-A); role shifts move
+> destiny with the ceiling; the creep only climbs (a breakout or leap
+> is never clawed back); overachievers are leap-ELIGIBLE — the Altuve
+> arc, two lotteries compounding; their hidden work ethic never rolls
+> the bottom of the scale (the climb is a makeup story). MIRROR
+> completed per user direction: bust ceilings now genuinely SINK —
+> from the peak window's front edge each winter shaves 18% of the
+> ceiling-over-current excess, converging on what he actually is and
+> never dipping below it; before the window the illusion stays
+> frozen. Verified by a 21-check engine suite plus the standard full
+> battery; the dynasty soak's survivorship table now prints the
+> overachiever row.
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):

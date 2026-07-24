@@ -27,7 +27,24 @@ window.BBGM_PLAYER_GEN = (function () {
   function applyArchetypeCap(p) {
     const defs = p.isPitcher ? C.PITCHER_ARCHETYPES : C.HITTER_ARCHETYPES;
     const arch = defs.find((a) => a.key === (p.hidden && p.hidden.archetype));
-    if (!arch || !arch.ceilingCap || !p.hidden || !p.hidden.ceiling) return false;
+    if (!arch || !p.hidden || !p.hidden.ceiling) return false;
+    // Overachiever (0.58.0): the identity is the modest card. Pipeline
+    // lifts get re-clamped to the born (age-interpolated) ceilings the
+    // squash stamped — an overachiever can't be a top-ranked gem; his
+    // climb happens in progression, not in the rankings.
+    if (p.hidden.growth && p.hidden.growth.cap) {
+      const cap = p.hidden.growth.cap;
+      for (const k in p.hidden.ceiling) {
+        if (cap[k] != null && p.hidden.ceiling[k] > cap[k]) {
+          p.hidden.ceiling[k] = cap[k];
+          if (p.ratings && p.ratings[k] != null && p.ratings[k] > cap[k]) {
+            p.ratings[k] = cap[k];
+          }
+        }
+      }
+      return true;
+    }
+    if (!arch.ceilingCap) return false;
     for (const k in p.hidden.ceiling) {
       if (p.isPitcher && k === 'stamina') continue;
       if (p.hidden.ceiling[k] > arch.ceilingCap) {
@@ -239,7 +256,7 @@ window.BBGM_PLAYER_GEN = (function () {
     const { primaryPosition, secondaryPositions, isPitcher } = resolvePositions(rng, slotPos);
 
     // Ratings
-    const { ratings, ceiling, archetype } = generateRatings(rng, { primaryPosition, isPitcher, age, tier, isProspect });
+    const { ratings, ceiling, archetype, growth } = generateRatings(rng, { primaryPosition, isPitcher, age, tier, isProspect });
 
     // Bats / throws
     const throws = isPitcher ? (rng() < 0.28 ? 'L' : 'R') : (rng() < 0.18 ? 'L' : 'R');
@@ -274,7 +291,10 @@ window.BBGM_PLAYER_GEN = (function () {
       ceiling,
       archetype,
       injuryProneness: rint(rng, 1, 10),
-      workEthic: rint(rng, 1, 10),
+      // Overachievers grind by definition — the climb IS a makeup story,
+      // so their hidden work ethic never rolls the bottom of the scale.
+      workEthic: growth ? Math.max(rint(rng, 1, 10), rint(rng, 6, 9)) : rint(rng, 1, 10),
+      ...(growth ? { growth } : {}),
       makeupGrade: rint(rng, 1, 10),
       // Durability: feeds fatigue recovery and rest scheduling. A 10 with
       // sturdy health is the rare "iron man" who plays every day (10.8).
@@ -443,6 +463,36 @@ window.BBGM_PLAYER_GEN = (function () {
       }
     }
 
+    // Overachiever squash (0.58.0): the inverse of the bust. The
+    // normally generated ceilings become his DESTINY (kept hidden);
+    // what the world sees at signing is a genuinely modest card — the
+    // low-30s potential the scouts read is TRUE that day. The ceiling
+    // then climbs back toward destiny year by year (progression.js).
+    // Stamina (pitchers) and speed (hitters) are workload/body traits,
+    // not talent — they're exempt so the squash can't produce broken
+    // currents-over-ceilings or un-body-given wheels. Players generated
+    // mid-career start partway up the climb.
+    let growth = null;
+    if (archDef.growth) {
+      const drop = archDef.growth.drop[0] +
+        rng() * (archDef.growth.drop[1] - archDef.growth.drop[0]);
+      const doneAge = archDef.growth.doneAge;
+      const f = clamp((age - 18) / (doneAge - 18), 0, 1); // climb already made
+      const dest = {}, cap = {};
+      for (const k of ratingKeys) {
+        const exempt = (isPitcher && k === 'stamina') || (!isPitcher && k === 'speed');
+        // Exempt keys carry NO destiny: the creep only rebuilds what the
+        // squash took, so pipeline shifts to body/workload traits stand.
+        if (!exempt) {
+          dest[k] = ceiling[k];
+          const born = clamp(ceiling[k] - drop, 26, 80);
+          ceiling[k] = Math.round((born + (dest[k] - born) * f) * 10) / 10;
+        }
+        cap[k] = ceiling[k];
+      }
+      growth = { dest, cap, doneAge };
+    }
+
     // Current ratings: closer to ceiling for older players.
     const peakAge = (archDef.peakAge[0] + archDef.peakAge[1]) / 2;
     let progressFraction;
@@ -471,7 +521,7 @@ window.BBGM_PLAYER_GEN = (function () {
       ratings[k] = clamp(Math.round(cur * 10) / 10, 20, 80);
     }
 
-    return { ratings, ceiling, archetype };
+    return { ratings, ceiling, archetype, growth };
   }
 
   function positionAdjust(rng, pos, ratingKey, c) {
