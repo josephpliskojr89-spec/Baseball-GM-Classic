@@ -710,6 +710,31 @@ window.BBGM_MAIN = (function () {
       window.BBGM_STATE.set(state);
     }
 
+    // 0.66.1: rewind the pre-ramp phenom generation (user approved).
+    // Saves that ran under the old age-blind growth engine carry teens
+    // who banked years of too-fast development; re-run those careers
+    // under the youth ramp backwards (closed-form gap correction in
+    // rampRewind). League-wide, downward only, ceilings untouched. One
+    // letter explains the winter the industry corrected itself.
+    if (versionLt(saveVersion, '0.66.1')) {
+      const n = window.BBGM_PROGRESSION.rampRewind(state.players, state.meta.currentDate.year);
+      if (n) {
+        console.log(`0.66.1 migration: rewound ${n} young career(s) onto the youth ramp.`);
+        window.BBGM_INBOX.push(state, {
+          from: 'Player Development',
+          subject: 'The kids are still kids',
+          body: 'Front offices across the league spent the winter re-running their development ' +
+                'models, and the conclusion is the same everywhere: the industry got ahead of ' +
+                'itself on teenagers. The tools are real and the projections stand — but the ' +
+                'polish everyone thought had already arrived hasn\'t, not yet. Expect the young ' +
+                'players in every system, ours included, to look a little rawer this spring ' +
+                'than last year\'s scouting had them. They\'ll get there. It just takes the ' +
+                'years it was always going to take.',
+        });
+      }
+      window.BBGM_STATE.set(state);
+    }
+
     // Stamp the save forward now that every migration has run. This is
     // what makes the versionLt gates above one-shot, and it makes the
     // Menu's "Save version" reflect the code the save actually runs under

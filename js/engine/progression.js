@@ -470,6 +470,68 @@ window.BBGM_PROGRESSION = (function () {
     return true;
   }
 
+  // 0.66.1 migration helper (main.js): re-run every young career under
+  // the youth ramp, BACKWARDS. The rise closes a fixed fraction of the
+  // ceiling gap per year, so the correction has a closed form: today's
+  // remaining gap widens by the ratio of ramped to unramped closure
+  // over the SIMULATED years the kid actually lived (first stats year
+  // to last completed season, only ages the ramp touches). Uses his own
+  // archetype's rise rate; shared modifiers (level fit, work ethic)
+  // appear in both worlds and approximately cancel in the ratio.
+  // Ceilings, archetypes, and peaks untouched — he keeps his destiny
+  // and re-earns the last stretch on the new curve. Downward only,
+  // never above his current card, never below the hard floor. Skips:
+  // 22+, retired, generational (the ramp never applied to him), busts
+  // (nothing ever grew), and pool prospects with no simulated seasons
+  // (their currents were generated, not grown). Kids already pinned to
+  // their ceiling carry a zero gap and stay — rare, and inventing a
+  // starting point would be guesswork where everything else here is
+  // arithmetic.
+  function rampRewind(players, currentYear) {
+    let corrected = 0;
+    for (const id in players) {
+      const p = players[id];
+      if (!p || p.retired || p.age > 21) continue;
+      if (!p.hidden || !p.hidden.ceiling || p.hidden.generational) continue;
+      const years = Object.keys(p.stats || {}).map(Number).filter((y) => y < currentYear);
+      if (!years.length) continue;
+      const entryYear = Math.min(...years);
+      const arch = archetypeDef(p);
+      const r = Math.min(0.45, (arch && arch.riseRate) || 0.25);
+      if (r <= 0.03) continue;
+      let factor = 1;
+      for (let y = entryYear; y < currentYear; y++) {
+        const a = p.age - (currentYear - y);
+        const m = YOUTH_RAMP[a];
+        if (m == null) continue;
+        factor *= (1 - r * m) / (1 - r);
+      }
+      if (factor <= 1.001) continue;
+      // Entry floor: the earliest ratingsHistory snapshot is the card he
+      // showed in his first recorded season — the rewind never takes a
+      // tool below where it STARTED. Without it (very old saves), the
+      // hard floor is the only guard; a kid whose drags kept him from
+      // growing at all (the proportional model's blind spot) would
+      // otherwise over-correct below his signing level.
+      const hist = p.ratingsHistory || {};
+      const histYears = Object.keys(hist).map(Number);
+      const firstSnap = histYears.length ? hist[Math.min(...histYears)] : null;
+      const keys = p.isPitcher ? PITCHER_KEYS : HITTER_KEYS;
+      let moved = false;
+      for (const k of keys) {
+        const cur = p.ratings[k];
+        const ceil = p.hidden.ceiling[k];
+        if (cur == null || ceil == null || ceil <= cur) continue;
+        const floorK = Math.max(HARD_MIN,
+          firstSnap && firstSnap[k] != null ? firstSnap[k] : HARD_MIN);
+        const nv = Math.round(clamp(ceil - (ceil - cur) * factor, Math.min(floorK, cur), cur) * 10) / 10;
+        if (nv < cur) { p.ratings[k] = nv; moved = true; }
+      }
+      if (moved) corrected++;
+    }
+    return corrected;
+  }
+
   return { progressPlayer, inSeasonTick, rollRetirement, retirementProb, levelPenalty,
-    rollCeilingBreakout, rollGenerationalLeap };
+    rollCeilingBreakout, rollGenerationalLeap, rampRewind };
 })();

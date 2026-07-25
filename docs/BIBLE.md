@@ -4238,6 +4238,28 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > engine suites, e2e (141, exit 0), and 4+8-season instrumented
 > soaks.
 
+> **Status (0.66.1) — the ramp rewind (user approved: heal the
+> pre-ramp phenom generation in live saves).** One-shot migration:
+> rampRewind (progression.js) re-runs every young career under
+> the youth ramp BACKWARDS. Closed form: today's remaining ceiling
+> gap widens by Π[(1−r·m)/(1−r)] over the SIMULATED years the kid
+> lived (first stats year → last completed season, ramp ages
+> only), with r = his own archetype's rise rate. Ceilings,
+> archetypes, peaks untouched — he keeps the destiny and re-earns
+> the arrival on the new curve. Guards: age ≤21 only, downward
+> only, league-wide; per-key floor = his EARLIEST ratingsHistory
+> snapshot (the rewind never takes a tool below where it started
+> — the proportional model's blind spot for drag-stalled kids),
+> hard floor 20 otherwise. Skips: 22+, generational, busts
+> (nothing grew), pool prospects and this-year signees (currents
+> were generated, not grown), retired. Flagship case: a 19yo who
+> entered at 16 at 58-current lands ~49-51, matching the ramp
+> soak's trajectory. One Player Development letter ("The kids are
+> still kids") explains the winter the industry corrected itself.
+> Fresh saves no-op (no completed seasons). Verified by an
+> 11-check rewind suite + the full 28-suite battery, harness, and
+> e2e (141, exit 0).
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):
