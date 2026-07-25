@@ -12,7 +12,7 @@ window.BBGM_UI_MENU = (function () {
     // Build constant is bumped with every release so the user can tell at a
     // glance which dashboard.js the browser actually loaded. Save version
     // is the save-schema version and changes only when the schema changes.
-    const BUILD = 'v0.65.2-stats-tm-1';
+    const BUILD = 'v0.66.0-maturation-1';
     card.appendChild(U.el('div', { class: 'inset-list', style: { 'border': 'none' } }, [
       insetRow('Team', userTeam.name),
       insetRow('Date', window.BBGM_DATES.format(state.meta.currentDate)),
@@ -158,6 +158,7 @@ window.BBGM_UI_MENU = (function () {
     ['Player Development', [
       'Players develop along hidden career paths. Some rise steadily to a mid-career peak, some peak young and fade, some bloom late — and some never develop at all, no matter what the projection said. The most honest signal you have is the attribute history chart on the player card: watch whether the numbers actually move.',
       'Development is shaped by age, playing at the right minor-league level, work habits you can\'t see directly, injuries, and your coaches. A coach may ask to make one young player his personal project for a season — his specialty, worked hard. Rarely, a player finds a whole new gear in an offseason.',
+      'Teenagers grow into their tools over calendar years — even the best kid in the sport usually needs his early twenties to put it all together, and the ladder gives him a level at a time. Once in a great while, one doesn\'t wait. When your coaches tell you a kid can\'t be denied, believe them.',
       'Pitchers can change roles: a starter can move to the pen (his stuff often plays up), and a reliever with the tank for it can be stretched out to start — at a cost while he builds up.',
     ]],
     ['The Season', [

@@ -4204,6 +4204,40 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > 7-check Playwright suite (column, stamped vs live club, toggle
 > cycle) + the full battery and e2e (141, exit 0).
 
+> **Status (0.66.0) — the maturation patch (user report: "the
+> whole top 10 of the pipeline are teenagers who are either ready
+> or close to it").** Root cause: the rise term is proportional
+> gap closure with no age factor, so 16-19 were the fastest-
+> growing years of a career — measured pipeline top-10 went 6-8
+> teenagers with 57-59-current 19yos by year 3-4 of a save. Three
+> parts, one design: (1) THE YOUTH RAMP — the rise (annual pass
+> AND in-season ticks) scales by age (16-17 ×0.5, 18 ×0.65, 19
+> ×0.8, 20 ×0.9, 21+ full); ceilings and peaks untouched, so only
+> the ARRIVAL AGE moves (22-24 now; a ramped elite kid averages
+> ~51 tools at 19, was ~59). (2) THE GENERATIONAL TALENT — ~11%
+> of draft classes (young top-8 kid) and July 2 classes carry at
+> most ONE anointed unicorn: hidden.generational exempts him from
+> the ramp (the old full-speed engine IS his archetype), best-
+> tool ceiling 76-80, WE/makeup floored high, traditional curve,
+> band recomputed loud pre-consensus. Never via the weight table
+> (~450 new players/yr; rarity is the identity — ~1 every 4-5
+> years league-wide). Injuries + adversity apply in full; NOTHING
+> user-facing reads the flag. (3) CAN'T BE DENIED —
+> recommendedLevel lets ability lift the age cap ONE rung (18+,
+> placementRating ≥ next level's bar +8; 17 stays hard); at his
+> bent level a phenom eats no dominating-drag, and AI
+> reassignment + demotion landing inherit the seam. A coach
+> letter fires once-ever when a user farmhand is ≤21 with 55+ OVR
+> (visible ability, not the flag — false messiahs possible by
+> design). Measured on the same seed: top-10 teens 2/8/6/7 →
+> 1/3/5/3 across 4 years, ready-teens-in-top-100 0 across 12
+> seasons of soak; 55+ inflation over 8 years eased (~+81% vs
+> ~doubling) but NOT cured — active population growth (1855→2163)
+> remains the open suspect, still owed. Verified by a 16-check
+> maturation suite, a 5-check letter Playwright suite, all 27
+> engine suites, e2e (141, exit 0), and 4+8-season instrumented
+> soaks.
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):

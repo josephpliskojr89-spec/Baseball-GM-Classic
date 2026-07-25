@@ -24,6 +24,50 @@ window.BBGM_PLAYER_GEN = (function () {
   // the main talent pipeline. Pitcher stamina stays exempt (workload,
   // not talent — the same rule generation applies). Ratings re-clamp
   // beneath any lowered ceiling.
+  // The generational talent (0.66.0): the unicorn who grows through the
+  // youth ramp like it isn't there — Soto, Harper, the kid who arrives
+  // at 19 because he really is that different. Anointed at CLASS
+  // generation (draft.js / intl.js roll ~11% per class, at most one
+  // kid), never via the archetype weight table — the game mints ~450
+  // new players a year and rarity IS the identity. What it does: a
+  // loud, real destiny (best tool 76-80), a head as loud as the tools
+  // (work ethic and makeup floored high), a clean traditional curve,
+  // and the hidden.generational flag progression reads for the ramp
+  // exemption. What it does NOT do: touch current ratings (he signs
+  // raw), shield him from injuries or the adversity layer, or leak —
+  // nothing user-facing may ever read the flag; the hype must come
+  // from what he does on the field, so a bust with a seductive card
+  // can be crowned by mistake, exactly like life.
+  function anointGenerational(p, randFn) {
+    const rand = randFn || Math.random;
+    const h = p.hidden;
+    h.generational = true;
+    h.archetype = 'traditional';
+    h.peakAge = null;         // re-stamped lazily from the traditional curve
+    delete h.growth;          // no squash identities on a unicorn
+    delete h.breakoutAge;
+    const keys = p.isPitcher
+      ? ['velocity', 'movement', 'control', 'stuff']
+      : ['contactVsR', 'contactVsL', 'powerVsR', 'powerVsL', 'discipline', 'speed', 'defense', 'arm'];
+    let bestKey = keys[0];
+    for (const k of keys) if (h.ceiling[k] > h.ceiling[bestKey]) bestKey = k;
+    const target = 76 + rand() * 4;
+    const delta = target - h.ceiling[bestKey];
+    for (const k of keys) {
+      // Same speed carve-out as the class-gen slot lift (Phase 16): the
+      // anointment raises the bat, not the legs.
+      if (!p.isPitcher && k === 'speed' && bestKey !== 'speed') {
+        h.ceiling.speed = Math.round(clamp(h.ceiling.speed + Math.max(0, delta) * 0.15, 25, 80) * 10) / 10;
+        continue;
+      }
+      const spread = k === bestKey ? 0 : rand() * 6;
+      h.ceiling[k] = Math.round(clamp(h.ceiling[k] + delta - spread, 25, 82) * 10) / 10;
+    }
+    h.workEthic = Math.max(h.workEthic || 5, 8 + Math.round(rand() * 2));
+    h.makeupGrade = Math.max(h.makeupGrade || 5, 7 + Math.round(rand() * 3));
+    return p;
+  }
+
   function applyArchetypeCap(p) {
     const defs = p.isPitcher ? C.PITCHER_ARCHETYPES : C.HITTER_ARCHETYPES;
     const arch = defs.find((a) => a.key === (p.hidden && p.hidden.archetype));
@@ -984,7 +1028,7 @@ window.BBGM_PLAYER_GEN = (function () {
   }
 
   return {
-    generate, validateLeagueReadiness, assignBullpenRoles,
+    generate, validateLeagueReadiness, assignBullpenRoles, anointGenerational,
     // Exposed for the roster-management UI: position eligibility checks and
     // single-team readiness validation after user-driven roster moves.
     canPlay, aptitudeFor, syncPositions,

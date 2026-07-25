@@ -2560,6 +2560,32 @@ window.BBGM_MAIN = (function () {
       }
     }
 
+    // Can't be denied (0.66.0): the day a kid in the user's system is
+    // both this young and this good, the coach says what the whole org
+    // is thinking. Keyed on VISIBLE ability, not any hidden flag — a
+    // fast-developing non-unicorn can absolutely earn this letter.
+    // Once per player, ever.
+    {
+      const ut = state.league.teams.find((t) => t.id === state.meta.userTeamId);
+      const phenom = (ut.minors || []).map((id) => state.players[id])
+        .find((p) => p && p.age <= 21 && !(p.hidden && p.hidden.deniedNoted) &&
+          window.BBGM_ROSTER.overall(p) >= 55 && window.BBGM_INJURIES.isAvailable(p));
+      if (phenom) {
+        phenom.hidden.deniedNoted = true;
+        const coachId = phenom.isPitcher ? ut.pitchingCoachId : ut.hittingCoachId;
+        const coach = coachId && state.staff && state.staff.coaches[coachId];
+        window.BBGM_INBOX.push(state, {
+          from: coach ? `${coach.name} (${phenom.isPitcher ? 'Pitching' : 'Hitting'} Coach)` : 'Player Development',
+          subject: `${phenom.name} can't be denied`,
+          about: phenom.id,
+          body: `I've run out of things to teach ${phenom.name}. He's ${phenom.age}, he's the best ` +
+                `player on the field every night, and the level he's at has nothing left for him. ` +
+                `I know the book says bring him slow. Throw the book out — some kids only come ` +
+                `along once. He's ready for whatever you'll give him.`,
+        });
+      }
+    }
+
     maybeRivalPitch(state, today);
 
     // Generate news for any noteworthy results

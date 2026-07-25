@@ -252,6 +252,26 @@ window.BBGM_DRAFT = (function () {
       // The gem hides because scouts don't see it: his public band stays low.
     }
 
+    // The generational talent (0.66.0): ~11% of classes carry one — a
+    // few per decade across draft + July 2 combined. Drawn from the
+    // young top of the class (a 22-year-old college senior can't be
+    // "generational"; the ramp barely applies to him). Unlike the gem,
+    // his band is recomputed LOUD — the whole industry sees the card;
+    // what nobody sees is the flag that makes it real. A bust in the
+    // same slot shows the same kind of card, which is the point.
+    if (rand() < 0.11) {
+      const star = list.slice(0, 8).find((q) => q.age <= 19);
+      if (star) {
+        GEN().anointGenerational(star, rand);
+        const fz = star.background === 'HS' ? 6 : 3;
+        const bk = Math.max(...talentKeys(star).map((k) => star.hidden.ceiling[k]));
+        star.scout = {
+          ceilLo: Math.round(bk - fz - rand() * 2),
+          ceilHi: Math.round(bk + fz + rand() * 2),
+        };
+      }
+    }
+
     // Industry consensus board: true-talent score plus scouting noise. The
     // slot bands were assigned in order, so the board is roughly generation
     // order with local reshuffling — reaches and steals both exist.

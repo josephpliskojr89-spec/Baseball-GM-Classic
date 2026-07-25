@@ -177,7 +177,21 @@ window.BBGM_MINORS = (function () {
     let target = ORDER.indexOf(targetLevel(p));
     if (p.age >= 23) target = Math.max(target, 1);
     if (p.age >= 26) target = Math.max(target, 2);
-    target = Math.min(target, maxLevelIdxForAge(p.age));
+    let cap = maxLevelIdxForAge(p.age);
+    // Can't be denied (0.66.0): a kid whose game already dominates the
+    // next level up forces the age ladder open ONE rung — the ability
+    // has to clear the higher level's entry bar with real margin, so
+    // this is the phenom door, not a fast lane. 17 stays hard (Rookie
+    // complex only); the door moves with him year by year, so even a
+    // unicorn climbs 18 → A/AA → 19-20 → AAA → the show, never
+    // teleports. AI reassignment and the scouts' arrows both read this
+    // seam, so the whole league promotes its phenoms the same way.
+    const NEXT_BAR = [null, 35, 40, 45];
+    if (p.age >= 18 && cap < ORDER.length - 1 &&
+        placementRating(p) >= NEXT_BAR[cap + 1] + 8) {
+      cap += 1;
+    }
+    target = Math.min(target, cap);
     return ORDER[target];
   }
 

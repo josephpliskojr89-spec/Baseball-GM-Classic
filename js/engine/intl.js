@@ -302,6 +302,22 @@ window.BBGM_INTL = (function () {
       prospects[p.id] = p;
       board.push(p.id);
     }
+    // The generational talent (0.66.0): the July 2 mirror of the draft
+    // roll — ~11% of classes carry one, drawn from the top of the
+    // board (the Soto case: the 16-year-old everyone already knows
+    // about). Band recomputed loud BEFORE rankBoard, so the consensus
+    // and his ask price the card the industry actually sees. The flag
+    // stays hidden; a bust in the same slot shows the same kind of
+    // card.
+    if (rand() < 0.11) {
+      const star = prospects[board[Math.floor(rand() * 8)]];
+      window.BBGM_PLAYER_GEN.anointGenerational(star, rand);
+      const bk = Math.max(...talentKeys(star).map((k) => star.hidden.ceiling[k]));
+      star.scout = {
+        ceilLo: Math.round(bk - 8 - rand() * 3),
+        ceilHi: Math.round(bk + 8 + rand() * 3),
+      };
+    }
     state.intl = {
       year,
       prospects, board,

@@ -131,6 +131,25 @@ window.BBGM_PROGRESSION = (function () {
   // drag, and the full volatility jolt remain annual-only events.
   const ANNUAL_SHARE = 0.65;
 
+  // The youth ramp (0.66.0): the rise term closes a fixed fraction of
+  // the ceiling gap per year, which — with no age term — made 16-19 the
+  // fastest-growing years of a career (the gap is never bigger) and
+  // filled the pipeline's top 10 with MLB-ready teenagers by year three
+  // of a save. Real development runs the other way: the teenage years
+  // are raw-tools years, and the consolidation that closes the gap
+  // happens 20-24. The ramp damps the rise while the body and the
+  // brain catch up; ceilings and peak ages are untouched, so the
+  // DESTINATION never changes — only the arrival age (now 22-24).
+  // The generational talent (0.66.0) is exempt: growing through the
+  // ramp like it isn't there IS his archetype — the Soto/Harper case,
+  // at most one anointed per class, a few per decade league-wide.
+  const YOUTH_RAMP = { 16: 0.5, 17: 0.5, 18: 0.65, 19: 0.8, 20: 0.9 };
+  function youthMul(p) {
+    if (p.hidden && p.hidden.generational) return 1;
+    const m = YOUTH_RAMP[p.age];
+    return m != null ? m : 1;
+  }
+
   function progressPlayer(p, year, coachMod) {
     const arch = archetypeDef(p);
     ensureCurveState(p, arch);
@@ -222,7 +241,7 @@ window.BBGM_PROGRESSION = (function () {
       // command a couple younger. Frailty accel stays on real age.
       const ageK = agedAge(age, k);
       if (ageK < h.peakAge) {
-        change = arch.riseRate * ANNUAL_SHARE * Math.max(0, devCeil - cur) * posMod;
+        change = arch.riseRate * ANNUAL_SHARE * Math.max(0, devCeil - cur) * posMod * youthMul(p);
         // Coach project (0.48.0): the year a coach makes this player his
         // personal project, HIS specialty attributes develop 60% faster.
         // Rise only — a project never softens decline or beats the ceiling.
@@ -279,10 +298,11 @@ window.BBGM_PROGRESSION = (function () {
       const devCeil = (k === 'stamina' && penRole) ? Math.min(ceil, PEN_STA_CEIL) : ceil;
       let change = 0;
 
-      // Same per-tool clocks as the annual pass (0.59.0).
+      // Same per-tool clocks as the annual pass (0.59.0), and the same
+      // youth ramp (0.66.0) — the in-season share slows with it too.
       const ageK = agedAge(age, k);
       if (ageK < h.peakAge) {
-        change = arch.riseRate * frac * Math.max(0, devCeil - cur) * posMod;
+        change = arch.riseRate * frac * Math.max(0, devCeil - cur) * posMod * youthMul(p);
         // Coach project boost (0.48.0) — the in-season share, so the
         // project visibly moves during the year.
         if (p.devProject && p.devProject.attrs.includes(k)) change *= 1.6;
