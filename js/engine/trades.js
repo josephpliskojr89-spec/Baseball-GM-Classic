@@ -59,16 +59,28 @@ window.BBGM_TRADES = (function () {
       i.severity === '60-day' || i.severity === 'season-ending').length;
     tv *= Math.max(0.7, 1 - severe * 0.07);
 
+    // Upside (0.63.1, audit fix): a young active carries his remaining
+    // ceiling. Before this, a 23yo 47-OVR with a 70 ceiling priced
+    // BELOW a 29yo 52-OVR journeyman — pre-breakout major leaguers
+    // were free money. Scaled by youth, capped so current production
+    // still leads the price.
+    if (p.age <= 26 && p.hidden && p.hidden.ceiling) {
+      const ceilOvr = ROSTER().overall({ ...p, ratings: { ...p.ratings, ...p.hidden.ceiling } });
+      const gap = Math.max(0, ceilOvr - ovr);
+      tv += Math.min(38, gap * (27 - p.age) * 0.35);
+    }
+
     return clamp(tv, 0, 100);
   }
 
   function prospectValue(p) {
-    const c = p.hidden.ceiling;
-    const keys = Object.keys(c);
-    let ceilAvg = 0;
-    for (const k of keys) ceilAvg += c[k];
-    ceilAvg /= keys.length;
-    let tv = clamp((ceilAvg - 44) * 2.0, 0, 62);
+    // Position-weighted ceiling (0.63.1): the flat all-keys mean let a
+    // hitter's bunting and a relief prospect's stamina drag his price —
+    // the overall formula's own weighting is the honest read of what
+    // the ceiling is worth. Same curve, same scale (measured
+    // mean-preserving within ~1 TV on generated farms).
+    const ceilOvr = ROSTER().overall({ ...p, ratings: { ...p.ratings, ...p.hidden.ceiling } });
+    let tv = clamp((ceilOvr - 44) * 2.0, 0, 62);
     tv *= LEVEL_RISK[p.rosterStatus] != null ? LEVEL_RISK[p.rosterStatus] : 0.5;
     // Young-for-level is the classic breakout indicator.
     const youngAge = { AAA: 23, AA: 22, A: 20, Rookie: 19 }[p.rosterStatus] || 22;
@@ -118,7 +130,24 @@ window.BBGM_TRADES = (function () {
     }
     // A team's need at the player's position sweetens their view slightly.
     if (!p.isPitcher && teamNeeds(team, windowPlayers(team)).includes(p.primaryPosition)) tv *= 1.1;
-    return tv;
+
+    // Premium cap (0.63.1, audit fix): fit makes a club PAY a little
+    // over market, never wildly over — the stacked window/owner/need
+    // multipliers used to run to ~1.44×, and paired with fire-sale
+    // outgoing discounts they powered a confirmed +93%-per-cycle
+    // buy-low/sell-high pump. Discounts below market stay uncapped:
+    // refusing to overpay for what doesn't fit the plan makes trades
+    // harder, not exploitable.
+    return Math.min(tv, tradeValue(p) * 1.1);
+  }
+
+  // What a club charges for its OWN player (0.63.1, audit fix): sellers
+  // are motivated, not stupid — whatever the window says, they know the
+  // league-wide market and never let a player go below ~95% of it. The
+  // acquiring-side eagerness stays in teamValueOf; this floors only the
+  // selling side, which is where the arbitrage pump lived.
+  function sellValueOf(team, p) {
+    return Math.max(tradeValue(p) * 0.95, teamValueOf(team, p));
   }
 
   let _playersRef = null;
@@ -346,7 +375,9 @@ window.BBGM_TRADES = (function () {
     const POOL_TV = 1.5;
     const incoming = give.reduce((s, p) => s + teamValueOf(aiTeam, p), 0) +
       (cashGive || 0) * CASH_TV + (poolGive || 0) * POOL_TV;
-    const outgoing = get.reduce((s, p) => s + teamValueOf(aiTeam, p), 0) +
+    // Outgoing prices through the seller floor (0.63.1): eagerness makes
+    // them ANSWER the phone, not give the player away.
+    const outgoing = get.reduce((s, p) => s + sellValueOf(aiTeam, p), 0) +
       (cashGet || 0) * CASH_TV + (poolGet || 0) * POOL_TV;
 
     if (outgoing <= 0.01) return { verdict: 'reject', feedback: 'They aren\'t interested in moving nothing.' };
@@ -587,9 +618,12 @@ window.BBGM_TRADES = (function () {
       if (pkg) break;
     }
     if (!pkg) return;
-    // Seller must value the prospect package enough.
+    // Seller must value the prospect package enough — priced through the
+    // same seller floor the user faces (0.63.1), with the tick's usual
+    // slack. Measured league volume holds in the historical 35-50 band
+    // per 3 seasons under the floor.
     const sellerIn = pkg.reduce((s, p) => s + teamValueOf(seller, p), 0);
-    if (sellerIn < teamValueOf(seller, vet) * 0.8) return;
+    if (sellerIn < sellValueOf(seller, vet) * 0.8) return;
     if (validateTradeShape(state, seller, [vet], buyer, pkg)) return;
 
     const entry = executeTrade(state, seller, [vet], buyer, pkg, 0, 0);
@@ -644,7 +678,7 @@ window.BBGM_TRADES = (function () {
   }
 
   return {
-    tradeValue, teamValueOf, teamNeeds, needsReport, findAvailable, poolTradeBlocker,
+    tradeValue, teamValueOf, sellValueOf, teamNeeds, needsReport, findAvailable, poolTradeBlocker,
     expectedAAV, setPlayersRef,
     evaluateProposal, suggestAddition, executeTrade, tradeNews,
     validateTradeShape, tradesAllowed, aiTradeTick,

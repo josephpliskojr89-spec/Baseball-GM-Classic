@@ -4076,6 +4076,34 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > toggle defaults off and flips, a Sim-7-Days run halts on the
 > first letter) plus the full battery.
 
+> **Status (0.63.1) — trade valuation calibration (user approval
+> of all three audit findings; the "what would it take?" button
+> explicitly NOT built).** The AI valuation audit confirmed a
+> +93%-per-cycle arbitrage pump end-to-end: window/owner
+> multipliers applied to BOTH sides let the user buy prospects
+> from win-now clubs (own-prospect outgoing at 0.65×) and flip
+> them to rebuilding clubs (incoming at ~1.44×). Fixes: (1)
+> sellValueOf — a club never prices its OWN outgoing player under
+> 95% of neutral market (motivated, not stupid); used by
+> evaluateProposal's outgoing side and the AI-AI tick's seller
+> gate. The Trade Finder's eagerness labels intentionally keep
+> reading the UNFLOORED internal view — motivation shows in
+> labels and quick acceptance of fair offers, not fire-sale
+> prices. (2) teamValueOf incoming premiums cap at 1.10× neutral;
+> incoming DISCOUNTS stay uncapped (refusing to overpay for what
+> doesn't fit makes trades harder, not exploitable). Measured:
+> the exact confirmed flip drops +93% → +20%; spread max 2.73× →
+> 1.43× with zero pairs over 1.5×; stars remain unstrippable
+> (0/29); AI-AI volume holds in the historical 35-50-per-3-season
+> band. (3) mlbValue prices remaining ceiling for actives ≤26
+> (gap × youth × 0.35, capped +38): the 23yo 47-OVR/70-ceil
+> pre-breakout now 59 TV vs 26.5 before — young major leaguers
+> are no longer free money. (4) prospectValue uses the
+> position-weighted ceiling overall instead of the flat all-keys
+> mean — a ±40-point bunting ceiling now moves a prospect's price
+> ~0 (was ~9 TV). Verified by a 9-check calibration suite plus
+> the full battery.
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):
