@@ -5,7 +5,7 @@
 //   offseason  -> countdown + draft history
 //   May-June   -> tabbed class preview: Overview (scout read + mock draft
 //                 + history), Big Board (full filterable prospect list),
-//                 Targets (the user's flagged players)
+//                 My Board (the 30 names the user's scouts follow, 0.65.0)
 //   June 30    -> the draft room: on-the-clock strip, live pick tracker,
 //                 pick screen with scouting recommendation, quick-draft
 //   post-draft -> recap: your class, round 1 results, signing fallout
@@ -32,7 +32,13 @@ window.BBGM_UI_DRAFT = (function () {
     // otherwise-unscouted prospect; if the tier already covers him, the
     // better read wins.
     let widen = pv.visible ? pv.widen : null;
-    if (SC.hasTargetedLook(state, pool, p.id)) {
+    if (pool === 'draft' && SC.draftBoardWiden) {
+      // The big board (0.65.0): a boarded kid's read sharpens with every
+      // week of attention — the best read always wins, and board
+      // membership opens a report on an otherwise-unscouted name.
+      const bw = SC.draftBoardWiden(state, p);
+      if (bw != null) widen = widen == null ? bw : Math.min(widen, bw);
+    } else if (SC.hasTargetedLook(state, pool, p.id)) {
       const lk = SC.targetedLooks(state, pool);
       widen = widen == null ? lk.widen : Math.min(widen, lk.widen);
     }
@@ -87,7 +93,7 @@ window.BBGM_UI_DRAFT = (function () {
       return;
     }
 
-    // Tabbed hub — Overview / Big Board / Targets for the draft class,
+    // Tabbed hub — Overview / Big Board / My Board for the draft class,
     // Int'l for the July 2 signing pool (bible 14). Event hero cards sit
     // ABOVE the tabs so they're visible no matter which tab is open.
     if (isDraftDay) renderDraftDayCard(container, state);
@@ -98,7 +104,7 @@ window.BBGM_UI_DRAFT = (function () {
     const tabDefs = [
       { key: 'overview', label: 'Overview' },
       { key: 'board', label: 'Big Board' },
-      { key: 'targets', label: targetCount ? `Targets (${targetCount})` : 'Targets' },
+      { key: 'targets', label: targetCount ? `My Board (${targetCount})` : 'My Board' },
       { key: 'intl', label: 'Int’l' },
       { key: 'top100', label: 'Top 100' },
     ];
@@ -211,12 +217,12 @@ window.BBGM_UI_DRAFT = (function () {
         'No draft class on the board. Rankings release May 1.'));
       return;
     }
-    // Targeted looks (0.24.0): trips-remaining line for this class. Only
-    // meaningful for tiers whose coverage leaves unscouted names.
-    const looks = window.BBGM_SCOUT.targetedLooks(state, 'draft');
+    // The big board (0.65.0): thirty names your scouts FOLLOW. Reads on
+    // boarded kids sharpen every week — early conviction is the edge.
+    const bi = window.BBGM_SCOUT.draftBoardInfo(state);
     container.appendChild(U.el('p', { class: 'muted', style: { 'font-size': '12px', 'margin-bottom': '8px' } },
-      `Targeted scouting trips: ${looks.remaining} of ${looks.budget} left this class — ` +
-      `open an unscouted prospect to send a scout for a closer look.`));
+      `Your board: ${bi.used} of ${bi.cap} names — reads on boarded kids sharpen every week ` +
+      `your scouts follow them. Open a prospect to add him.`));
     renderBigBoard(container, state, { pickMode: false });
   }
 
@@ -229,27 +235,42 @@ window.BBGM_UI_DRAFT = (function () {
     renderTargets(container, state);
   }
 
-  // ---- Targets tab: the user's flagged prospects ------------------------------
+  // ---- My Board tab (0.65.0): the thirty names your scouts follow -------------
 
   function renderTargets(container, state) {
     const draft = state.draft;
     const ids = draft.userBoard || [];
     if (!ids.length) {
       container.appendChild(U.el('div', { class: 'empty-state' },
-        'No targets flagged yet. Open a prospect from the Big Board and tap ' +
-        '"☆ Flag as Target" — targets pin to the top of your list on draft day.'));
+        'Your board is empty. Open a prospect from the Big Board and tap ' +
+        '"☆ Add to Board" — your scouts follow every name on it and their reads ' +
+        'sharpen each week. Thirty spots; boarded kids pin to the top of your ' +
+        'list on draft day.'));
       return;
     }
+    const bi = window.BBGM_SCOUT.draftBoardInfo(state);
+    container.appendChild(U.el('p', { class: 'muted', style: { 'font-size': '12px', 'margin-bottom': '8px' } },
+      `${bi.used} of ${bi.cap} spots used. Sorted by YOUR read, best first — ` +
+      `the number badge is the industry's rank. Where they disagree is where the edge lives.`));
+    // Sort by the sharpened band midpoint, not board order or consensus:
+    // this tab is the payoff surface for weeks of attention.
+    const entries = ids
+      .map((id) => {
+        const p = draft.prospects[id];
+        if (!p) return null;
+        const rank = draft.board.indexOf(p.id) + 1;
+        const b = poolBand(state, p, rank, 'draft');
+        return { p, rank, mid: b ? (b[0] + b[1]) / 2 : -1 };
+      })
+      .filter(Boolean)
+      .sort((a, b) => b.mid - a.mid);
     const list = U.el('div', { class: 'roster-list' });
-    for (const id of ids) {
-      const p = draft.prospects[id];
-      if (!p) continue;
-      const rank = draft.board.indexOf(p.id) + 1;
-      list.appendChild(prospectRow(state, p, rank, true, { pickMode: false }));
+    for (const e of entries) {
+      list.appendChild(prospectRow(state, e.p, e.rank, true, { pickMode: false }));
     }
     container.appendChild(list);
     container.appendChild(U.el('p', { class: 'muted', style: { 'font-size': '11px', 'margin-top': '8px' } },
-      'Badge = consensus board rank. Tap a target to review his report or remove the flag.'));
+      'Tap a name for the full book your scouts have built on him.'));
   }
 
   // ---- Offseason / pre-May --------------------------------------------------
@@ -524,41 +545,25 @@ window.BBGM_UI_DRAFT = (function () {
     else body.appendChild(U.el('p', { class: 'muted', style: { 'font-size': '12px', 'margin-bottom': '10px' } },
       'Tool grades are thin at your scouting tier — upgrade the department (GM → Staff) for full reports this deep in the class.'));
     const SC = window.BBGM_SCOUT;
-    const looks = SC.targetedLooks(state, 'draft');
-    const looked = SC.hasTargetedLook(state, 'draft', p.id);
     const db = poolBand(state, p, rank, 'draft');
+    // Weeks of board coverage — the sharpening story, told in scout-speak.
+    const addedOn = isTarget && draft.boardAdded && draft.boardAdded[p.id];
+    const weeksOn = addedOn
+      ? Math.floor(window.BBGM_DATES.diffDays(addedOn, state.meta.currentDate) / 7) : 0;
     body.appendChild(U.el('p', { style: { 'font-size': '13px' } }, db ? [
       'Projected ceiling: ',
       U.el('span', { class: U.gradeClass((db[0] + db[1]) / 2), style: { 'font-weight': '700' } },
         `${db[0]}–${db[1]}`),
-      looked
-        ? ' on his best tool — from your scout\'s targeted trip, one look rather than full coverage.'
+      isTarget
+        ? ` on his best tool — your scouts have followed him ${weeksOn < 1 ? 'less than a week'
+            : weeksOn === 1 ? 'for a week' : `for ${weeksOn} weeks`}; the read sharpens the longer he's on the board.`
         : ` on his best tool. ${p.background === 'HS'
           ? 'High schooler — wide error bars, long development runway.'
           : 'College product — tighter projection, closer to ready.'}`,
-    ] : looks.remaining > 0
-      ? 'Your scouts have no real book on him — but you could send one for a closer look.'
-      : 'Your scouts have no real book on him — a name on a list, and the travel budget for this class is spent.'));
+    ] : 'Your scouts have no real book on him — put him on the board and they\'ll build one.'));
     if (db) appendScoutNotes(body, state, p, 'draft');
 
     const actions = [];
-    // Targeted look (0.24.0): same trips-and-quality budget as the intl
-    // pool, spent on this class's deep cuts.
-    if (!db && looks.remaining > 0) {
-      actions.push({
-        label: `Send a Scout (${looks.remaining} trip${looks.remaining !== 1 ? 's' : ''} left)`,
-        kind: 'primary',
-        onClick: () => {
-          if (!draft.userLooks) draft.userLooks = [];
-          draft.userLooks.push(p.id);
-          window.BBGM_STATE.set(state);
-          U.showToast(`Scout dispatched — report on ${p.name} is in.`, 'success');
-          window.BBGM_MAIN.refresh();
-          setTimeout(() => showProspect(state, p.id, opts), 0);
-          return true;
-        },
-      });
-    }
     if (opts.pickMode && DRAFT().isUserOnClock(state)) {
       const otc = DRAFT().onTheClock(state);
       actions.push({
@@ -571,11 +576,21 @@ window.BBGM_UI_DRAFT = (function () {
         },
       });
     }
+    // The big board (0.65.0): membership IS the scouting. Adding stamps
+    // the clock; dropping a name throws away the accumulated read.
+    const bi = SC.draftBoardInfo(state);
     actions.push({
-      label: isTarget ? '★ Remove Target' : '☆ Flag as Target', kind: 'secondary',
+      label: isTarget ? '★ Drop from Board' : `☆ Add to Board (${bi.used}/${bi.cap})`,
+      kind: 'secondary',
       onClick: () => {
-        if (isTarget) targets.splice(targets.indexOf(p.id), 1);
-        else targets.push(p.id);
+        if (isTarget) {
+          SC.draftBoardRemove(state, p.id);
+          U.showToast(`${p.name} dropped — the book your scouts built on him goes cold.`, 'info', 3500);
+        } else {
+          const r = SC.draftBoardAdd(state, p.id);
+          if (!r.ok) { U.showToast(r.reason, 'warning', 4000); return true; }
+          U.showToast(`${p.name} is on the board — your scouts start following him today.`, 'success', 3500);
+        }
         window.BBGM_STATE.set(state);
         window.BBGM_MAIN.refresh();
         return true;

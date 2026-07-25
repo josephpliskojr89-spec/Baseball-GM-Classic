@@ -12,7 +12,7 @@ window.BBGM_UI_MENU = (function () {
     // Build constant is bumped with every release so the user can tell at a
     // glance which dashboard.js the browser actually loaded. Save version
     // is the save-schema version and changes only when the schema changes.
-    const BUILD = 'v0.64.1-fa-card-first-1';
+    const BUILD = 'v0.65.0-big-board-1';
     card.appendChild(U.el('div', { class: 'inset-list', style: { 'border': 'none' } }, [
       insetRow('Team', userTeam.name),
       insetRow('Date', window.BBGM_DATES.format(state.meta.currentDate)),
@@ -152,7 +152,7 @@ window.BBGM_UI_MENU = (function () {
       'Potential is a projection, not a promise. Some players never become what the card said they could be — and a few become more.',
     ]],
     ['Scouting & the Fog', [
-      'You almost never see a prospect\'s true ability — you see your scouting department\'s read: a band, not a number. Better departments cost more and read tighter. Targeted trips buy a sharper look at one kid.',
+      'You almost never see a prospect\'s true ability — you see your scouting department\'s read: a band, not a number. Better departments cost more and read tighter. On the international side, targeted trips buy a sharper look at one kid.',
       'Your head scout is one man with one reputation. His reads have a personality — over a few classes you may learn how his misses lean. He\'ll write you each winter about where to focus, and occasionally about a deep-pool kid he has a hunch on. The deeper in the class you shop, the more of a crapshoot every read becomes — for everyone, at any budget.',
     ]],
     ['Player Development', [
@@ -173,7 +173,7 @@ window.BBGM_UI_MENU = (function () {
       'International signing-pool money is its own pot, granted each year: it signs the July 2 class, and it pays for extra scouting trips on that class. Information competes with bidding power — every dollar spent learning about a kid is a dollar you can\'t offer him.',
     ]],
     ['Draft & International', [
-      'The amateur draft runs June 30 — scout the board through the spring, flag your targets, and remember that a projection on a teenager carries the widest error bars in the sport. High-school picks are the boom-or-bust end.',
+      'The amateur draft runs June 30. Every club keeps a thirty-man board — the names your scouts actually follow. The longer a kid sits on your board, the better your book on him gets, so early conviction is worth more than a late scramble; drop a name and the book goes cold. A projection on a teenager still carries the widest error bars in the sport, and high-school picks are the boom-or-bust end.',
       'The international class signs July 2. It skews younger (16-17), rawer, and riskier than the draft: budgets are limited, the offer ladder decides contested kids, and the top of the class is fought over while the deep pool is a lottery. Your scout\'s winter focus region sharpens his reads there.',
     ]],
     ['Your Staff', [

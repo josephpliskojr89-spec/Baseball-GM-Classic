@@ -4137,6 +4137,31 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > profile, action on card, confirm, signs to the farm and leaves
 > the pool) plus e2e and the nearby engine suites.
 
+> **Status (0.65.0) — the draft big board (design approved: "30
+> flat for everyone… elite scouting is too generous").** Targeted
+> scouting trips are now INTERNATIONAL-ONLY; the domestic class
+> runs on a 30-man big board, the same cap for every club. Board
+> membership is the deep read: a boarded kid's band starts at the
+> tier's entry widen ([7,5,3,2] by tier) and sharpens every week
+> your scouts follow him (speed [0.7,0.9,1.3,1.8]/wk) toward a
+> tier floor ([1,0,-2,-4]) — tier buys SPEED and the floor, never
+> the cap, so a bare-bones club that commits in week one out-reads
+> an elite club that never pointed anywhere. Dropping a name
+> deletes the accumulated book; re-adding restarts the clock
+> (commitment is the mechanic). Draft coverage baselines got
+> honester in trade ([9,6,3,1], elite −3 → +1) since the deep read
+> moved to the board. The old Targets tab is now My Board: sorted
+> by YOUR sharpened read with the consensus rank on the badge —
+> divergence is the edge surface. The head scout writes a
+> conviction letter ~June 1 about his two best boarded reads (or a
+> "give me names" nudge over an empty board). Migration seeds the
+> board from a save's trip'd + flagged kids (≤30, stamped today)
+> and deletes draft userLooks. Verified by a 22-check bigboard
+> suite (cap, idempotent add, weekly sharpening to floors per
+> tier, committed-bare beats uncommitted-elite, drop-loses-the-
+> book, conviction picks, migration seed/cap) plus the full
+> battery and e2e.
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):

@@ -286,10 +286,112 @@ window.BBGM_SCOUT = (function () {
       return { visible: ti >= 3 && rank <= 45, widen: 6 };
     }
     if (rank > topDepth) return { visible: false, widen: 0 };
-    const widenByTier = [8, 4, 0, -3];
+    // Draft baseline honester at every tier (0.65.0, approved): no
+    // department deeply knows 350 amateurs — coverage reads got wider
+    // (elite −3 → +1) and the DEEP read moved to the 30-man big board,
+    // where weeks of committed attention buy what money alone used to.
+    const widenByTier = pool === 'draft' ? [9, 6, 3, 1] : [8, 4, 0, -3];
     // Deep cuts stay fuzzier than the top of the board.
     const depthPenalty = rank > 15 ? 2 : 0;
     return { visible: true, widen: widenByTier[ti] + depthPenalty };
+  }
+
+  // ---- The draft big board (0.65.0) ----------------------------------------
+  // Thirty targets, flat for every club — the real-world number. Being
+  // on the board is what buys the DEEP read: a boarded kid's band
+  // sharpens every week your scouts follow him, converging toward a
+  // tier floor tighter than any coverage read. The tier buys SPEED and
+  // the floor, never the cap: a bare-bones department that commits in
+  // week one still out-scouts an elite one that never pointed anywhere.
+  // Scouting trips (targetedLooks) are international-only from 0.65.0.
+  const DRAFT_BOARD_CAP = 30;
+  const BOARD_START = [7, 5, 3, 2];    // widen the day he's added
+  const BOARD_SPEED = [0.7, 0.9, 1.3, 1.8]; // widen shed per week followed
+  const BOARD_FLOOR = [1, 0, -2, -4];  // the best read each tier can build
+
+  function draftBoardInfo(state) {
+    const used = (state.draft && state.draft.userBoard ? state.draft.userBoard.length : 0);
+    return { cap: DRAFT_BOARD_CAP, used, remaining: Math.max(0, DRAFT_BOARD_CAP - used) };
+  }
+
+  function draftBoardAdd(state, prospectId) {
+    const d = state.draft;
+    if (!d) return { ok: false, reason: 'No draft class open.' };
+    if (!d.userBoard) d.userBoard = [];
+    if (!d.boardAdded) d.boardAdded = {};
+    if (d.userBoard.includes(prospectId)) return { ok: true };
+    if (d.userBoard.length >= DRAFT_BOARD_CAP) {
+      return { ok: false, reason: `The board is full — thirty names is the book. Drop someone first.` };
+    }
+    d.userBoard.push(prospectId);
+    d.boardAdded[prospectId] = { ...state.meta.currentDate };
+    return { ok: true };
+  }
+
+  function draftBoardRemove(state, prospectId) {
+    const d = state.draft;
+    if (!d || !d.userBoard) return;
+    const i = d.userBoard.indexOf(prospectId);
+    if (i >= 0) d.userBoard.splice(i, 1);
+    if (d.boardAdded) delete d.boardAdded[prospectId];
+    // The accumulated read is GONE — re-adding starts the clock over.
+    // Commitment is the mechanic; churn punishes itself.
+  }
+
+  // Widen for a boarded kid, or null if he isn't on the board. Weeks
+  // are counted from the add date, so early conviction is the edge.
+  function draftBoardWiden(state, p) {
+    const d = state.draft;
+    if (!d || !d.userBoard || !d.userBoard.includes(p.id)) return null;
+    const team = state.league.teams.find((t) => t.id === state.meta.userTeamId);
+    const ti = tierIdx(team);
+    const added = d.boardAdded && d.boardAdded[p.id];
+    const D = window.BBGM_DATES;
+    const weeks = added ? Math.max(0, D.diffDays(added, state.meta.currentDate)) / 7 : 0;
+    return Math.max(BOARD_FLOOR[ti], BOARD_START[ti] - weeks * BOARD_SPEED[ti]);
+  }
+
+  // 0.65.0 migration helper (called from main.js): seed the board from
+  // whatever the save already invested in — trip'd kids first, then
+  // flagged targets, capped at 30, all stamped as boarded today. The
+  // clock on their reads starts now; nobody loses a report they'd
+  // earned. Returns how many names were seeded.
+  function draftBoardSeed(state) {
+    const d = state.draft;
+    if (!d) return 0;
+    if (!d.boardAdded) d.boardAdded = {};
+    const invested = [...(d.userLooks || []), ...(d.userBoard || [])];
+    d.userBoard = [];
+    for (const id of invested) {
+      if (d.userBoard.length >= DRAFT_BOARD_CAP) break;
+      if (!d.userBoard.includes(id) && d.prospects && d.prospects[id]) {
+        d.userBoard.push(id);
+        d.boardAdded[id] = { ...state.meta.currentDate };
+      }
+    }
+    delete d.userLooks;
+    return d.userBoard.length;
+  }
+
+  // The scout's conviction letter (0.65.0): by June the department has
+  // lived with the board for weeks — the head scout writes about the
+  // one or two boarded kids he believes in most. His belief is the
+  // SCOUTED band midpoint (what the user already sees), so the letter
+  // pounds the table without ever leaking a true number. Divergence
+  // from the consensus rank is the story: conviction is only
+  // interesting where the industry disagrees.
+  function draftConvictions(state) {
+    const d = state.draft;
+    if (!d || !d.userBoard || !d.userBoard.length || !d.prospects) return [];
+    const entries = [];
+    for (const id of d.userBoard) {
+      const p = d.prospects[id];
+      if (!p || !p.scout) continue;
+      const rank = d.board.indexOf(id) + 1;
+      entries.push({ p, rank, mid: (p.scout.ceilLo + p.scout.ceilHi) / 2 });
+    }
+    entries.sort((a, b) => b.mid - a.mid);
+    return entries.slice(0, 2);
   }
 
   // ---- Scout notes (0.19.2) -------------------------------------------------
@@ -465,21 +567,28 @@ window.BBGM_SCOUT = (function () {
     return { widenDelta, shift, floor };
   }
 
-  // ---- Targeted looks (0.23.0 intl, 0.24.0 draft) ---------------------------
-  // Tier coverage leaves part of every class as "??" names — most of the
-  // intl pool at low tiers, everything past rank 10/50 in the draft for
-  // bare-bones/standard departments. A targeted look sends a scout for a
-  // closer read on ONE unscouted prospect: the department's budget caps
-  // how many trips EACH class gets (draft and intl budgets are separate),
-  // and the tier caps how good the resulting report is — a bare-bones
-  // look brings back a rough number and no tool grades; an elite look is
-  // nearly full coverage. Spent looks live on the class object
-  // (state.draft.userLooks / state.intl.userLooks), so a fresh class
-  // resets the budget each year.
+  // ---- Targeted looks (0.23.0, intl-only since 0.65.0) ----------------------
+  // Tier coverage leaves most of the intl pool as "??" names at low
+  // tiers. A targeted look sends a scout for a closer read on ONE
+  // unscouted prospect: the department's budget caps how many trips the
+  // class gets, and the tier caps how good the resulting report is — a
+  // bare-bones look brings back a rough number and no tool grades; an
+  // elite look is nearly full coverage. Spent looks live on the class
+  // object (state.intl.userLooks), so a fresh class resets the budget
+  // each year. The DOMESTIC class runs on the big board instead — the
+  // draft branch below answers in board terms for API compatibility.
   function targetedLooks(state, pool) {
     const team = state.league.teams.find((t) => t.id === state.meta.userTeamId);
     const ti = tierIdx(team);
-    const cls = pool === 'draft' ? state.draft : state.intl;
+    // Draft (0.65.0): trips are intl-only; the board is the draft's
+    // mechanism. Kept API-compatible for stray callers: budget is the
+    // board cap and tools are always in a board report.
+    if (pool === 'draft') {
+      const bi = draftBoardInfo(state);
+      return { budget: bi.cap, used: bi.used, remaining: bi.remaining,
+        widen: 1, tools: true, extraUsed: 0, extraRemaining: 0, nextExtraCost: null };
+    }
+    const cls = state.intl;
     const used = (cls && cls.userLooks) ? cls.userLooks.length : 0;
     const budget = [2, 4, 6, 9][ti];
     // Paid extras (0.47.0, intl only): past the free allowance, each trip
@@ -501,7 +610,12 @@ window.BBGM_SCOUT = (function () {
   }
 
   function hasTargetedLook(state, pool, prospectId) {
-    const cls = pool === 'draft' ? state.draft : state.intl;
+    // Draft (0.65.0): the big board replaced trips — membership IS the
+    // look. Intl keeps the trip ledger.
+    if (pool === 'draft') {
+      return !!(state.draft && (state.draft.userBoard || []).includes(prospectId));
+    }
+    const cls = state.intl;
     return !!(cls && (cls.userLooks || []).includes(prospectId));
   }
 
@@ -605,6 +719,7 @@ window.BBGM_SCOUT = (function () {
     requestTier, runScoutingOffseason,
     modeFor, report, poolView, aiDraftDiscipline, potentialBand, prospectNotes,
     targetedLooks, hasTargetedLook, medicalRead,
+    draftBoardInfo, draftBoardAdd, draftBoardRemove, draftBoardWiden, draftConvictions, draftBoardSeed,
     prospectRankings, pipelineRank, intlScoutMods, pickRegrades,
   };
 })();

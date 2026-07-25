@@ -276,7 +276,8 @@ window.BBGM_DRAFT = (function () {
       phase: 'preview',            // preview -> live -> complete
       round: 1, pickInRound: 1,
       picks: [],
-      userBoard: [],               // user-flagged target ids (13.4)
+      userBoard: [],               // the user's 30-man big board (0.65.0)
+      boardAdded: {},              // id -> date boarded; drives read sharpening
       mock: null, mockDate: null,
       recap: null,
     };
@@ -655,6 +656,7 @@ window.BBGM_DRAFT = (function () {
     draft.board = [];
     draft.mock = null;
     draft.userBoard = [];
+    draft.boardAdded = {};
 
     // Headlines: the #1 pick, plus the user's top selection.
     if (!state.news) state.news = [];

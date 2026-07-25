@@ -685,6 +685,19 @@ window.BBGM_MAIN = (function () {
       window.BBGM_STATE.set(state);
     }
 
+    // 0.65.0: the draft big board replaced targeted scouting trips for
+    // the domestic class (trips are intl-only now). Seed the board from
+    // whatever the save already invested in: trip'd kids plus flagged
+    // targets, capped at 30, all stamped as boarded today — the clock
+    // on their reads starts now, nobody loses a report they'd earned.
+    if (versionLt(saveVersion, '0.65.0') && state.draft) {
+      const seeded = window.BBGM_SCOUT.draftBoardSeed(state);
+      if (seeded) {
+        console.log(`0.65.0 migration: seeded the draft big board with ${seeded} name(s).`);
+      }
+      window.BBGM_STATE.set(state);
+    }
+
     // Stamp the save forward now that every migration has run. This is
     // what makes the versionLt gates above one-shot, and it makes the
     // Menu's "Save version" reflect the code the save actually runs under
@@ -2489,9 +2502,50 @@ window.BBGM_MAIN = (function () {
       window.BBGM_INBOX.push(state, {
         from: 'Amateur Scouting',
         subject: `${draftClass.year} draft board is live`,
-        body: `${flavor} The full board is in the Draft Hub — flag your targets and we'll keep the reports current through June 30.`,
+        body: `${flavor} The full board is in the Draft Hub. Give us thirty names to follow — ` +
+              `every week a kid spends on your board, our book on him gets thicker. The earlier ` +
+              `you point us, the better the read on draft day.`,
         action: { type: 'navigate', tab: 'draft', opts: { tab: 'board' } },
       });
+    }
+
+    // The scout's conviction letter (0.65.0): with a month of board work
+    // behind him and draft day four weeks out, the head scout writes about
+    // the boarded kids he believes in — or, if the board is still empty,
+    // asks for names. Once per class either way.
+    if (state.draft && state.draft.phase === 'preview' &&
+        state.draft.year === today.year && !state.draft.convictionSent &&
+        today.month === 6 && today.day <= 7) {
+      state.draft.convictionSent = true;
+      const ut = state.league.teams.find((t) => t.id === state.meta.userTeamId);
+      const sc = window.BBGM_STAFF.scoutFor ? window.BBGM_STAFF.scoutFor(state, ut) : null;
+      const from = sc ? `${sc.name} (Head Scout)` : 'Amateur Scouting';
+      const conv = window.BBGM_SCOUT.draftConvictions(state);
+      if (conv.length) {
+        const lines = conv.map((c) => {
+          const p = c.p;
+          const stance = c.rank > 15
+            ? `the room has him #${c.rank} and the room is wrong`
+            : `the industry sees it too (#${c.rank}), but our book runs deeper`;
+          return `${p.name} (${p.primaryPosition}, ${p.age}, ${p.school}) — ${stance}.`;
+        });
+        window.BBGM_INBOX.push(state, {
+          from,
+          subject: 'Where I\'d pound the table',
+          body: `Four weeks out, and the board work is paying off. If you're asking where my conviction is: ` +
+                lines.join(' ') + ' The full book on every boarded kid is in the Draft Hub.',
+          action: { type: 'navigate', tab: 'draft', opts: { tab: 'targets' } },
+        });
+      } else {
+        window.BBGM_INBOX.push(state, {
+          from,
+          subject: 'Give me names',
+          body: `Draft day is four weeks out and your board is empty — my guys are watching the same ` +
+                `broadcasts as everyone else. Put names on the board and we'll start building real books ` +
+                `on them. Thirty spots; every week counts.`,
+          action: { type: 'navigate', tab: 'draft', opts: { tab: 'board' } },
+        });
+      }
     }
 
     maybeRivalPitch(state, today);
