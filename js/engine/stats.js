@@ -97,6 +97,10 @@ window.BBGM_STATS = (function () {
 
   function addStat(target, source) {
     for (const k in source) {
+      // teamId (0.65.2) is a numeric identity stamp on season lines,
+      // not a counting stat — summing it would write junk into career
+      // totals and team aggregates.
+      if (k === 'teamId') continue;
       if (typeof source[k] === 'number') target[k] = (target[k] || 0) + source[k];
     }
   }
@@ -120,6 +124,11 @@ window.BBGM_STATS = (function () {
   function aggregateSeasonIntoCareer(player, year) {
     const season = player.stats[year];
     if (!season) return [];
+    // Who he wore (0.65.2): stamp the club on the season line as it's
+    // archived — the team he finished the year with. The player card's
+    // career table reads this; a teamless line (released before the
+    // rollover) stays unstamped and renders blank.
+    if (player.teamId != null) season.teamId = player.teamId;
     if (!player.careerStats) player.careerStats = player.isPitcher ? emptyPitcher() : emptyHitter();
     const before = { ...player.careerStats };
     addStat(player.careerStats, season); // nested batting/postseason objects skipped (non-numeric)
@@ -137,6 +146,29 @@ window.BBGM_STATS = (function () {
       for (const m of crossed) player.achievements.milestones.push({ year, ...m });
     }
     return crossed;
+  }
+
+  // 0.65.2 migration helper (main.js): best-effort team stamps for
+  // seasons archived before the stamp existed. Years since the player's
+  // last recorded acquisition get his current club; earlier years get
+  // the club he was acquired FROM (right for the final stretch there,
+  // unknowable further back). Teamless players keep blank lines.
+  function backfillSeasonTeams(players) {
+    let stamped = 0;
+    for (const id in players) {
+      const p = players[id];
+      if (!p || !p.stats) continue;
+      const acqYear = p.acquiredVia ? p.acquiredVia.year : null;
+      for (const y in p.stats) {
+        const s = p.stats[y];
+        if (!s || typeof s !== 'object' || s.teamId != null) continue;
+        if (p.teamId == null) continue;
+        if (acqYear == null || +y >= acqYear) s.teamId = p.teamId;
+        else if (p.acquiredVia.fromTeamId != null) s.teamId = p.acquiredVia.fromTeamId;
+        if (s.teamId != null) stamped++;
+      }
+    }
+    return stamped;
   }
 
   function teamHittingTotals(team, players, year) {
@@ -244,7 +276,7 @@ window.BBGM_STATS = (function () {
 
   return {
     ensureSeason, ensurePitcherBatting, emptyHitter, emptyPitcher,
-    setStatBucket, aggregateSeasonIntoCareer,
+    setStatBucket, aggregateSeasonIntoCareer, backfillSeasonTeams,
     avg, obp, slg, ops, tb,
     era, whip, k9, bb9, hr9,
     fmtAvg, fmtIP, addStat,

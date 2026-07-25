@@ -350,7 +350,7 @@ window.BBGM_UI_PLAYER = (function () {
       return;
     }
     body.appendChild(U.el('div', { class: 'card-title', style: { 'margin-top': '12px' } }, 'Career'));
-    body.appendChild(careerTable(p, years));
+    body.appendChild(careerTable(state, p, years));
   }
 
   // ---- Contract: current deal + salary ledger ------------------------------
@@ -704,22 +704,34 @@ window.BBGM_UI_PLAYER = (function () {
     return grid;
   }
 
-  function careerTable(p, years) {
+  function careerTable(state, p, years) {
     const isP = p.isPitcher;
+    // Who he wore (0.65.2): season lines carry the club he finished the
+    // year with (stamped at rollover, backfilled by migration); the
+    // in-progress season reads the LIVE roster so a July trade shows
+    // immediately. Unknown history renders as a quiet dash.
+    const curYear = state.meta.currentDate.year;
+    const abbrOf = (tid) => {
+      const t = tid != null && state.league.teams.find((tt) => tt.id === tid);
+      return t ? t.abbr : '—';
+    };
+    const teamFor = (y, s) =>
+      (+y === curYear && !p.retired && p.teamId != null) ? abbrOf(p.teamId) : abbrOf(s.teamId);
     const wrap = U.el('div', { class: 'stats-scroll' });
     const table = U.el('table', { class: 'stats-table' });
     const thead = U.el('thead');
     const trh = U.el('tr');
     const headers = isP
-      ? ['Year', 'G', 'GS', 'W', 'L', 'SV', 'IP', 'ERA', 'WHIP', 'K', 'BB']
-      : ['Year', 'G', 'AB', 'H', 'HR', 'RBI', 'SB', 'AVG', 'OBP', 'SLG'];
+      ? ['Year', 'Tm', 'G', 'GS', 'W', 'L', 'SV', 'IP', 'ERA', 'WHIP', 'K', 'BB']
+      : ['Year', 'Tm', 'G', 'AB', 'H', 'HR', 'RBI', 'SB', 'AVG', 'OBP', 'SLG'];
     for (const h of headers) trh.appendChild(U.el('th', {}, h));
     thead.appendChild(trh);
     table.appendChild(thead);
 
-    const rowFor = (label, s, cls) => {
+    const rowFor = (label, s, cls, tm) => {
       const tr = U.el('tr', cls ? { style: { color: 'var(--text-muted)' } } : {});
       tr.appendChild(U.el('td', {}, label));
+      tr.appendChild(U.el('td', {}, tm || ''));
       if (isP) {
         tr.appendChild(U.el('td', {}, String(s.g || 0)));
         tr.appendChild(U.el('td', {}, String(s.gs || 0)));
@@ -746,14 +758,23 @@ window.BBGM_UI_PLAYER = (function () {
     };
 
     const tbody = U.el('tbody');
+    // Playoff lines collapse behind one toggle (0.65.2) — a long career
+    // doubles its row count with October lines otherwise.
+    const psRows = [];
     for (const y of years) {
       const s = p.stats[y];
+      const tm = teamFor(y, s);
       const playedMLB = isP ? (s.ipOuts || 0) > 0 || (s.g || 0) > 0 : (s.pa || 0) > 0;
-      if (playedMLB) tbody.appendChild(rowFor(y, s));
+      if (playedMLB) tbody.appendChild(rowFor(y, s, false, tm));
       // Minor-league season line (stamped at rollover) — shown muted.
-      if (s.minorsLine) tbody.appendChild(rowFor(`${y} ${s.minorsLine.level}`, s.minorsLine, true));
-      // Postseason line, muted, tagged.
-      if (s.postseason) tbody.appendChild(rowFor(`${y} PS`, s.postseason, true));
+      if (s.minorsLine) tbody.appendChild(rowFor(`${y} ${s.minorsLine.level}`, s.minorsLine, true, tm));
+      // Postseason line, muted, tagged, hidden until the toggle opens.
+      if (s.postseason) {
+        const tr = rowFor(`${y} PS`, s.postseason, true, tm);
+        tr.style.display = 'none';
+        psRows.push(tr);
+        tbody.appendChild(tr);
+      }
     }
     // Career MLB totals (aggregated at each rollover).
     const c = p.careerStats;
@@ -765,7 +786,21 @@ window.BBGM_UI_PLAYER = (function () {
     }
     table.appendChild(tbody);
     wrap.appendChild(table);
-    return wrap;
+    if (!psRows.length) return wrap;
+    const container = U.el('div');
+    let open = false;
+    const btn = U.el('button', {
+      class: 'btn-secondary btn-sm',
+      style: { 'margin-bottom': '8px' },
+      on: { click: () => {
+        open = !open;
+        for (const r of psRows) r.style.display = open ? '' : 'none';
+        btn.textContent = open ? '▾ Hide Playoffs' : `▸ Show Playoffs (${psRows.length})`;
+      }},
+    }, `▸ Show Playoffs (${psRows.length})`);
+    container.appendChild(btn);
+    container.appendChild(wrap);
+    return container;
   }
 
   function contractBlock(p) {

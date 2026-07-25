@@ -4186,6 +4186,24 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > design). Verified by a 12-check scarcity suite plus tradecal
 > (9), the full battery, and e2e (141, exit 0).
 
+> **Status (0.65.2) — player-card stats: Tm column + collapsible
+> playoffs (user request).** Season stat lines now carry `teamId`
+> — stamped in aggregateSeasonIntoCareer at rollover (the club he
+> finished the year with); addStat explicitly skips the stamp so
+> career totals and team aggregates never absorb it. The card's
+> career table grows a Tm column beside Year: archived seasons
+> read the stamp, the in-progress season reads the LIVE roster (a
+> July trade shows immediately), unknown history renders a dash.
+> Postseason lines start hidden behind a "▸ Show Playoffs (n)"
+> toggle — long careers doubled their row count with October
+> lines. Migration backfills old saves best-effort from
+> acquiredVia: years since the last acquisition get the current
+> club, years just before it get the club he came from, deeper
+> history stays blank rather than guessed. Verified by a 12-check
+> engine suite (stamp, fold-guard, backfill heuristics) + a
+> 7-check Playwright suite (column, stamped vs live club, toggle
+> cycle) + the full battery and e2e (141, exit 0).
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):

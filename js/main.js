@@ -698,6 +698,18 @@ window.BBGM_MAIN = (function () {
       window.BBGM_STATE.set(state);
     }
 
+    // 0.65.2: season stat lines now carry the club the player finished
+    // the year with (the card's career table shows a Tm column). Old
+    // seasons predate the stamp — backfill best-effort from acquiredVia:
+    // years since the last acquisition get the current club, the years
+    // just before it get the club he came from, deeper history stays
+    // blank rather than guessed.
+    if (versionLt(saveVersion, '0.65.2')) {
+      const stamped = window.BBGM_STATS.backfillSeasonTeams(state.players);
+      if (stamped) console.log(`0.65.2 migration: stamped teams on ${stamped} archived season line(s).`);
+      window.BBGM_STATE.set(state);
+    }
+
     // Stamp the save forward now that every migration has run. This is
     // what makes the versionLt gates above one-shot, and it makes the
     // Menu's "Save version" reflect the code the save actually runs under
