@@ -4284,6 +4284,32 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > aligned, hash parity) + the full 29-suite battery, harness
 > (retirements/calibration in band), and e2e (141, exit 0).
 
+> **Status (0.67.0) — the indie radar (user reports: a 50-OVR
+> undrafted indie kid sat unsigned forever AND demanded
+> mid-rotation money).** Three fixes, one theme: the league now
+> watches the unsigned kids. (1) NO SERVICE, NO LEVERAGE —
+> askingPrice returns 1yr/$0.74M for a true FA who has never
+> played an MLB inning (zero service years, zero career games);
+> scoped to status 'FA' so extension math for rostered prospects
+> is untouched; a single cup of coffee buys back market pricing.
+> (2) THE AI STASH LANE — aiMidSeasonTick gains a second pass:
+> ~35% per tick (3 ticks/month), one AI club signs the best
+> zero-service FA at 46-51 OVR (age ≤27) to a MINOR-LEAGUE deal
+> via signMidSeason — the Cervantes case lands on somebody's farm
+> within days-to-weeks instead of never; sub-46 bodies are left
+> alone; the 52+ immediate-upgrade sweep is unchanged. (3) THE
+> SCOUT'S LETTER — on the 3rd/13th/23rd the head scout flags the
+> best unsigned zero-service kid at 48+ (once per player, ever,
+> h.indieNoted; names his indie league, tappable) — the AI lane
+> is racing the user to him, which the letter says out loud.
+> Cleanup: the harness's youth-ceiling invariant now reads the
+> shared minors.js allowedLevelIdx seam (age cap + the 0.66.0
+> phenom bend) instead of the raw age cap — an 18yo phenom in AA
+> is the design working, and seed 313 proved the old check stale.
+> Verified by a 9-check indie engine suite + 4-check letter
+> Playwright suite, the full 30-suite battery, harness (seed 313
+> now green), and e2e (141, exit 0).
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):

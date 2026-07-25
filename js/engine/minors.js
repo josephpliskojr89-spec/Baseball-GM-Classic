@@ -173,25 +173,30 @@ window.BBGM_MINORS = (function () {
     return ORDER.length - 1;            // 21+: no cap
   }
 
-  function recommendedLevel(p) {
-    let target = ORDER.indexOf(targetLevel(p));
-    if (p.age >= 23) target = Math.max(target, 1);
-    if (p.age >= 26) target = Math.max(target, 2);
+  // The highest level a kid may legally occupy: the age cap, bent one
+  // rung by "can't be denied" (0.66.0) — a kid whose game already
+  // dominates the next level up forces the ladder open. The ability has
+  // to clear the higher level's entry bar with real margin, so this is
+  // the phenom door, not a fast lane. 17 stays hard (Rookie complex
+  // only); the door moves with him year by year, so even a unicorn
+  // climbs 18 → A/AA → 19-20 → AAA → the show, never teleports. AI
+  // reassignment, the scouts' arrows, demotion landings, AND the
+  // harness's youth-ceiling invariant all read this one seam.
+  function allowedLevelIdx(p) {
     let cap = maxLevelIdxForAge(p.age);
-    // Can't be denied (0.66.0): a kid whose game already dominates the
-    // next level up forces the age ladder open ONE rung — the ability
-    // has to clear the higher level's entry bar with real margin, so
-    // this is the phenom door, not a fast lane. 17 stays hard (Rookie
-    // complex only); the door moves with him year by year, so even a
-    // unicorn climbs 18 → A/AA → 19-20 → AAA → the show, never
-    // teleports. AI reassignment and the scouts' arrows both read this
-    // seam, so the whole league promotes its phenoms the same way.
     const NEXT_BAR = [null, 35, 40, 45];
     if (p.age >= 18 && cap < ORDER.length - 1 &&
         placementRating(p) >= NEXT_BAR[cap + 1] + 8) {
       cap += 1;
     }
-    target = Math.min(target, cap);
+    return cap;
+  }
+
+  function recommendedLevel(p) {
+    let target = ORDER.indexOf(targetLevel(p));
+    if (p.age >= 23) target = Math.max(target, 1);
+    if (p.age >= 26) target = Math.max(target, 2);
+    target = Math.min(target, allowedLevelIdx(p));
     return ORDER[target];
   }
 
@@ -218,5 +223,5 @@ window.BBGM_MINORS = (function () {
     p.rosterStatus = ORDER[clamp(next, 0, ORDER.length - 1)];
   }
 
-  return { simSeasonLine, monthlyLine, reassignLevel, targetLevel, recommendedLevel, levelFitDelta, placementRating, maxLevelIdxForAge, LEVELS, ORDER };
+  return { simSeasonLine, monthlyLine, reassignLevel, targetLevel, recommendedLevel, levelFitDelta, placementRating, maxLevelIdxForAge, allowedLevelIdx, LEVELS, ORDER };
 })();

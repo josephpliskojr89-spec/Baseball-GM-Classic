@@ -2647,6 +2647,37 @@ window.BBGM_MAIN = (function () {
       }
     }
 
+    // The indie radar, user side (0.67.0): a few times a month the head
+    // scout flags the best unsigned kid with zero service time — the
+    // undrafted college bat playing indie ball. Once per player, ever;
+    // the AI's own stash lane (freeagency.js) is racing you to him.
+    if (today.day === 3 || today.day === 13 || today.day === 23) {
+      const R = window.BBGM_ROSTER;
+      const find = (state.freeAgents || []).map((id) => state.players[id])
+        .filter((p) => p && !p.retired && p.status === 'FA' && p.age <= 27 &&
+          !(p.hidden && p.hidden.indieNoted) &&
+          (!p.serviceTime || !p.serviceTime.years) &&
+          (!p.careerStats || !(p.careerStats.g > 0)) &&
+          R.overall(p) >= 48)
+        .sort((a, b) => R.overall(b) - R.overall(a))[0];
+      if (find) {
+        find.hidden.indieNoted = true;
+        const ut = state.league.teams.find((t) => t.id === state.meta.userTeamId);
+        const sc = window.BBGM_STAFF.scoutFor ? window.BBGM_STAFF.scoutFor(state, ut) : null;
+        const lg = find.playsIn ? `the ${find.playsIn}` : 'independent ball';
+        window.BBGM_INBOX.push(state, {
+          from: sc ? `${sc.name} (Head Scout)` : 'Scouting',
+          subject: `Unsigned kid worth a look: ${find.name}`,
+          about: find.id,
+          body: `My guys keep coming back from ${lg} talking about ${find.name} ` +
+                `(${find.primaryPosition}, ${find.age}). Everybody passed on him in June and he's ` +
+                `playing like it was everybody's mistake. No service time, no leverage — he'd take ` +
+                `a minor-league deal today and cost us nothing but a roster card. Kids like this ` +
+                `don't stay secrets; if we like him, we should move.`,
+        });
+      }
+    }
+
     maybeRivalPitch(state, today);
 
     // Generate news for any noteworthy results

@@ -657,12 +657,14 @@ if (seasonsArg > 1) {
       if (p.retired || p.status !== 'minors') continue;
       const idx = MINR.ORDER.indexOf(p.rosterStatus);
       if (idx < 0) continue;
-      if (idx > MINR.maxLevelIdxForAge(p.age)) capViolations++;
+      // allowedLevelIdx (0.67.0): the age cap PLUS the can't-be-denied
+      // bend — an 18yo phenom in AA is the design working, not a bug.
+      if (idx > MINR.allowedLevelIdx(p)) capViolations++;
       if (p.rosterStatus === 'AA') youngest.AA = Math.min(youngest.AA, p.age);
       if (p.rosterStatus === 'AAA') youngest.AAA = Math.min(youngest.AAA, p.age);
     }
     console.log(`  youth ceiling: violations ${capViolations} (must be 0)` +
-      ` | youngest AA ${youngest.AA} (t 19+) | youngest AAA ${youngest.AAA} (t 21+)`);
+      ` | youngest AA ${youngest.AA} (t 19+, 18 = phenom door) | youngest AAA ${youngest.AAA} (t 21+, 19-20 = phenom door)`);
     if (capViolations > 0) {
       console.log('✗ YOUTH CEILING VIOLATED');
       process.exit(1);

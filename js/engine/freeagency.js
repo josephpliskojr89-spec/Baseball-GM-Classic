@@ -36,6 +36,17 @@ window.BBGM_FA = (function () {
 
   function askingPrice(p) {
     const ovr = ROSTER().overall(p);
+    // No service, no leverage (0.67.0, user report: an undrafted indie
+    // kid was asking mid-rotation money). A free agent who has never
+    // played an MLB inning — the undrafted college bat, the intl
+    // washout — signs a minor-league deal at the minimum and says
+    // thank you. His talent is his upside, not his ask. Scoped to true
+    // FAs so extension math for rostered prospects is untouched.
+    const neverPlayed = (!p.serviceTime || !p.serviceTime.years) &&
+      (!p.careerStats || !(p.careerStats.g > 0));
+    if (p.status === 'FA' && neverPlayed) {
+      return { years: 1, aav: 0.74, total: 0.74 };
+    }
     let aav = TRADES().expectedAAV(ovr, p.age);
     // Premium positions command premiums; cautious pricing for volatile
     // archetypes (16.4).
@@ -427,6 +438,28 @@ window.BBGM_FA = (function () {
         console.error(`Mid-season signing rebuild failed for ${best.team.abbr}:`, e);
       }
       signings.push({ playerId: p.id, teamId: best.team.id, aav });
+    }
+
+    // The indie radar (0.67.0, user report): every club's scouts watch
+    // the unsigned kids too. The 52+ sweep above signs immediate
+    // big-league upgrades; this lane stashes the obvious ORG player —
+    // the undrafted college bat at 46-51 with zero service time — on a
+    // minor-league deal before he sits all summer. One kid, ~35% per
+    // tick (three ticks a month): the window to beat the league to him
+    // is real but short — days to weeks, not forever.
+    if (rand() < 0.35) {
+      const stash = (state.freeAgents || []).map((id) => players[id])
+        .filter((p) => p && !p.retired && p.status === 'FA' && p.age <= 27 &&
+          (!p.serviceTime || !p.serviceTime.years) &&
+          (!p.careerStats || !(p.careerStats.g > 0)))
+        .filter((p) => { const o = R.overall(p); return o >= 46 && o < 52; })
+        .sort((a, b) => R.overall(b) - R.overall(a))[0];
+      if (stash) {
+        const clubs = state.league.teams.filter((t) => t.id !== state.meta.userTeamId);
+        const club = clubs[Math.floor(rand() * clubs.length)];
+        signMidSeason(state, club, stash.id);
+        signings.push({ playerId: stash.id, teamId: club.id, aav: 0.74, minors: true });
+      }
     }
     return signings;
   }
