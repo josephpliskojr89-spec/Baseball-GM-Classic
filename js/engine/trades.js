@@ -96,8 +96,12 @@ window.BBGM_TRADES = (function () {
     let tv = tradeValue(p);
     const win = team.competitiveWindow;
     const isProspect = p.status === 'minors';
-    const expiring = !isProspect && p.contract && p.contract.years <= 1;
-    const youngControlled = !isProspect && p.age <= 26 && p.contract && p.contract.years >= 3;
+    // Control reality (0.65.1): pre-arb and arb players ride serial
+    // 1-year renewals (11.4), so contract years say NOTHING about
+    // control under 27 — a 22yo on $0.7M × 1y is controlled for years,
+    // not expiring. Before this, every pre-arb kid read as a rental.
+    const expiring = !isProspect && p.age >= 27 && p.contract && p.contract.years <= 1;
+    const youngControlled = !isProspect && p.age <= 26;
 
     if (win === 'rebuilding') {
       if (isProspect) tv *= 1.25;
@@ -141,13 +145,33 @@ window.BBGM_TRADES = (function () {
     return Math.min(tv, tradeValue(p) * 1.1);
   }
 
+  // The keep-premium (0.65.1): what a club refuses to sell cheap.
+  // Sellers aren't just market-aware (the 0.63.1 floor) — they have a
+  // plan, and some players ARE the plan. A cheap young star on a
+  // rebuilding club is the rebuild; a contender's under-27 core is why
+  // they contend. Nobody moves that profile for fair value — scarcity
+  // is the defining fact of the real trade market. Farm prospects stay
+  // at 1×: the farm is the currency trades are paid in.
+  function keepMul(team, p) {
+    if (p.status === 'minors' || p.age > 26) return 1;
+    const ovr = ROSTER().overall(p);
+    const hoarder = team.competitiveWindow === 'rebuilding' ||
+      team.competitiveWindow === 'retooling';
+    if (ovr >= 55) return hoarder ? 1.6 : 1.35;  // the cornerstone
+    if (ovr >= 48) return hoarder ? 1.25 : 1.1;  // the young regular
+    return 1;
+  }
+
   // What a club charges for its OWN player (0.63.1, audit fix): sellers
   // are motivated, not stupid — whatever the window says, they know the
   // league-wide market and never let a player go below ~95% of it. The
   // acquiring-side eagerness stays in teamValueOf; this floors only the
-  // selling side, which is where the arbitrage pump lived.
+  // selling side, which is where the arbitrage pump lived. The keep-
+  // premium (0.65.1) stacks on top: young cornerstones cost well OVER
+  // market, and the finder shows the same number, so "unlisted costs a
+  // premium" is enforced math, not just flavor text.
   function sellValueOf(team, p) {
-    return Math.max(tradeValue(p) * 0.95, teamValueOf(team, p));
+    return Math.max(tradeValue(p) * 0.95, teamValueOf(team, p) * keepMul(team, p));
   }
 
   let _playersRef = null;
@@ -256,10 +280,16 @@ window.BBGM_TRADES = (function () {
         if (inSeason && pos === 'SP' && spCount <= 5) continue;
         const market = tradeValue(p);
         if (market <= 6) continue; // fringe filler is waived, not "found"
-        const ratio = teamValueOf(t, p) / market;
+        // Keep-adjusted internal view (0.65.1): the same keep-premium
+        // sellValueOf charges, read unfloored so the eagerness bands
+        // below still differentiate. Young cornerstones price far over
+        // market for every window and drop off the list entirely —
+        // before this, a retooling club's neutral 1.0 ratio listed its
+        // 22yo ace as "will listen", which no real front office would.
+        const ratio = (teamValueOf(t, p) * keepMul(t, p)) / market;
         // Above-market internal value (a contender's star, a needed
-        // position) = they want a premium; the finder lists only clubs
-        // that would take roughly fair value or less.
+        // position, a young cornerstone) = they want a premium; the
+        // finder lists only clubs that would take roughly fair value.
         if (ratio > 1.02) continue;
         out.push({
           playerId: p.id, teamId: t.id, ratio,
@@ -643,9 +673,11 @@ window.BBGM_TRADES = (function () {
     const target = targets[Math.floor(rand() * targets.length)];
     const targetTV = tradeValue(target);
 
-    // Their offer: pieces summing to ~95-110% of a fair price.
+    // Their offer: pieces summing to ~95-110% of a fair price. A club
+    // never dangles its own young cornerstone unsolicited (0.65.1) —
+    // young regulars can headline a challenge trade, the core can't.
     const pool = aiTeam.roster.concat(aiTeam.minors || []).map((id) => players[id])
-      .filter((p) => p && window.BBGM_INJURIES.isAvailable(p))
+      .filter((p) => p && window.BBGM_INJURIES.isAvailable(p) && keepMul(aiTeam, p) < 1.35)
       .sort((a, b) => tradeValue(b) - tradeValue(a));
     let offer = null;
     for (let i = 0; i < pool.length; i++) {
@@ -678,7 +710,7 @@ window.BBGM_TRADES = (function () {
   }
 
   return {
-    tradeValue, teamValueOf, sellValueOf, teamNeeds, needsReport, findAvailable, poolTradeBlocker,
+    tradeValue, teamValueOf, sellValueOf, keepMul, teamNeeds, needsReport, findAvailable, poolTradeBlocker,
     expectedAAV, setPlayersRef,
     evaluateProposal, suggestAddition, executeTrade, tradeNews,
     validateTradeShape, tradesAllowed, aiTradeTick,

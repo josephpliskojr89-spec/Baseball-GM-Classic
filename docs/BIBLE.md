@@ -4162,6 +4162,30 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > book, conviction picks, migration seed/cap) plus the full
 > battery and e2e.
 
+> **Status (0.65.1) — trade-market scarcity: the keep-premium
+> (user report: the Trade Finder listed a retooling club's 22yo
+> 60-OVR pre-arb ace as "will listen").** Two defects: (1) the
+> finder judged availability with the club's ACQUIRING lens
+> (teamValueOf), and retooling is a neutral window — ratio 1.0
+> listed nearly the whole roster; (2) `youngControlled`/`expiring`
+> read contract years, but pre-arb players ride serial 1-year
+> renewals (11.4), so every cheap young star scanned as a rental.
+> Fix: keepMul(team, p) — a club's own under-27 MLB player prices
+> over market to SELL: 55+ OVR ×1.6 on rebuilding/retooling clubs
+> (he IS the plan) and ×1.35 on contenders, 48-54 OVR ×1.25/×1.1;
+> prospects and 27+ vets ×1. Wired into sellValueOf (so
+> evaluateProposal charges it), findAvailable (same number,
+> unfloored, so the eagerness labels stay honest), and the
+> unsolicited-offer pool (clubs never dangle their own
+> cornerstones); rival pitches inherit via findAvailable. Control
+> fix: expiring now requires age ≥27; youngControlled is simply
+> age ≤26. Measured: zero under-27 48+ OVR players listed
+> league-wide (was the whole complaint), the top of the SP finder
+> is now 28-31yo vets, AI-AI volume holds at 38-47/3yr (band
+> 35-50 — the AI-AI path only shops 28+ vets, untouched by
+> design). Verified by a 12-check scarcity suite plus tradecal
+> (9), the full battery, and e2e (141, exit 0).
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):
