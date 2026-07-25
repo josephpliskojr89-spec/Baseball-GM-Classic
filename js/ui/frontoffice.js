@@ -1163,7 +1163,8 @@ window.BBGM_UI_FRONTOFFICE = (function () {
     const head = U.el('div', { class: 'card', style: { 'margin-bottom': '10px' } });
     head.appendChild(U.el('div', { class: 'card-title' }, 'Ownership'));
     head.appendChild(U.el('div', { style: { 'font-size': '13px' } },
-      `${team.ownerName} • ${team.market === 'large' ? 'Large' : team.market === 'small' ? 'Small' : 'Mid'} market`));
+      `${team.ownerPerson ? team.ownerPerson + ' — ' : ''}${team.ownerName} • ` +
+      `${team.market === 'large' ? 'Large' : team.market === 'small' ? 'Small' : 'Mid'} market`));
     head.appendChild(U.el('p', { class: 'muted', style: { 'font-size': '11px', 'margin-top': '4px' } },
       'Two ledgers: player payroll and the operating budget. The July 2 signing pool is its own money (Draft Hub).'));
     container.appendChild(head);

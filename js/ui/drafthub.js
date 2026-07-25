@@ -1258,7 +1258,7 @@ window.BBGM_UI_DRAFT = (function () {
     if (!pen || !window.BBGM_INBOX) return;
     const ut = state.league.teams.find((t) => t.id === state.meta.userTeamId);
     window.BBGM_INBOX.push(state, {
-      from: `${ut.ownerName} (Owner)`,
+      from: `${ut.ownerPerson || ut.ownerName} (Owner)`,
       subject: 'About that international budget…',
       body: `You ran ${pen.overPct}% over the pool. The league office is ` +
             `${pen.overPct > 15 ? 'HALVING' : 'trimming'} next class's allotment` +

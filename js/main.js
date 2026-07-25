@@ -1510,7 +1510,7 @@ window.BBGM_MAIN = (function () {
           aggressive: 'If a deal makes us better, make the call.',
         })[userTeam.owner] || 'Make me proud.';
         window.BBGM_INBOX.push(state, {
-          from: `${userTeam.ownerName} (Owner)`,
+          from: `${userTeam.ownerPerson || userTeam.ownerName} (Owner)`,
           subject: `${summary.newYear} marching orders`,
           body: `The writers project us at ${projWins}-${162 - projWins}. ${outlook} ` +
                 `The board has set the payroll budget at $${userTeam.payrollBase}M. ${ownerFlavor}`,
@@ -2184,7 +2184,7 @@ window.BBGM_MAIN = (function () {
         : `No knock on what you're running out at ${pos} — we just think this makes you better.`;
     state.meta.lastRivalPitch = { ...today };
     window.BBGM_INBOX.push(state, {
-      from: `${t.abbr} Front Office`,
+      from: t.gmName ? `${t.gmName} (${t.abbr} GM)` : `${t.abbr} Front Office`,
       subject: `Interested in ${p.name}?`,
       about: p.id,
       body: `${opener} We'd move ${p.name} ` +
@@ -2387,7 +2387,7 @@ window.BBGM_MAIN = (function () {
         const ut = state.league.teams.find((t) => t.id === state.meta.userTeamId);
         const pct = ut.seasonRecord.w / Math.max(1, ut.seasonRecord.w + ut.seasonRecord.l);
         window.BBGM_INBOX.push(state, {
-          from: `${ut.ownerName} (Owner)`,
+          from: `${ut.ownerPerson || ut.ownerName} (Owner)`,
           subject: 'The deadline is Thursday',
           body: pct >= 0.54
             ? 'We\'re in this. If a piece puts us over the top, you have my blessing to move prospects — within reason.'

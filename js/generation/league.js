@@ -63,6 +63,10 @@ window.BBGM_LEAGUE_GEN = (function () {
         // ---- Per-save randomized ----
         owner: ownerKey,
         ownerName: owner.name,
+        // The people behind the club (0.64.0): drawn seeded so harness
+        // runs are reproducible; ensureStaff backfills old saves.
+        ownerPerson: `${window.BBGM_NAMES.firstNames[rint(rng, 0, window.BBGM_NAMES.firstNames.length - 1)]} ${window.BBGM_NAMES.lastNames[rint(rng, 0, window.BBGM_NAMES.lastNames.length - 1)]}`,
+        gmName: `${window.BBGM_NAMES.firstNames[rint(rng, 0, window.BBGM_NAMES.firstNames.length - 1)]} ${window.BBGM_NAMES.lastNames[rint(rng, 0, window.BBGM_NAMES.lastNames.length - 1)]}`,
         payrollBase: baseBudget,
         ballpark,
         foundedYear: rint(rng, 1900, 1995),

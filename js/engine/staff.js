@@ -294,6 +294,11 @@ window.BBGM_STAFF = (function () {
     const S = state.staff;
     if (!S.scouts) S.scouts = {}; // lazy migration (0.47.0)
     for (const team of state.league.teams) {
+      // Front-office names (0.64.0): the owner and the GM across the
+      // table are people, not just archetypes — pure flavor, drawn from
+      // the same pool as staff and backfilled lazily for old saves.
+      if (!team.ownerPerson) team.ownerPerson = randomName();
+      if (!team.gmName) team.gmName = randomName();
       if (!team.managerId || !S.managers[team.managerId]) {
         const mgr = hireBestFromPool(state, team) || createAndHire(state, team);
         void mgr;

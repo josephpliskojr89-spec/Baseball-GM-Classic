@@ -4104,6 +4104,28 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > ~0 (was ~9 TV). Verified by a 9-check calibration suite plus
 > the full battery.
 
+> **Status (0.64.0) — named owners and GMs (user direction: pure
+> flavor).** Every club's owner and GM are now people:
+> team.ownerPerson and team.gmName, drawn from the staff name pool
+> — seeded at league generation (harness runs stay reproducible)
+> and backfilled lazily in ensureStaff, so old saves get their
+> people on the next load with no migration. The archetype label
+> (ownerName) SURVIVES everywhere it carries information (trade
+> partner rows, league lists, team select). Surfaces: owner
+> letters (marching orders, pool-penalty) signed by the person;
+> rival trade pitches now from "<name> (ABR GM)"; the team page
+> gets Owner "<person> (<archetype>)" and a General Manager row
+> ("You" for the user's club); the Finances Ownership header leads
+> with the person. ALSO: the makeup suite's October outcome check
+> was rebuilt as a controlled experiment — postseason both arms,
+> extremes vs all-neutral on one seeded stream — after the
+> PS-vs-RS design was found confounded by playoff rest policy
+> (allowRest off shifts results by bench depth alone). CORRECTED
+> measurement: the October factor is worth ~+1.2 runs/game at
+> full-roster extremes (the 0.62.2 note's ~+0.13 was the
+> confounded reading; the mechanism itself is unchanged).
+> Verified by a 6-check names suite plus the full battery.
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):

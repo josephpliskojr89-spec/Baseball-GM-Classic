@@ -297,7 +297,10 @@ window.BBGM_UI_TEAM = (function () {
     ul.appendChild(insetRow('Position Players', `${hCount}`));
     ul.appendChild(insetRow('Payroll',
       `$${window.BBGM_FA.computePayroll(team, players).toFixed(1)}M / $${team.payrollBase}M`));
-    ul.appendChild(insetRow('Owner', team.ownerName));
+    ul.appendChild(insetRow('Owner', team.ownerPerson
+      ? `${team.ownerPerson} (${team.ownerName})` : team.ownerName));
+    ul.appendChild(insetRow('General Manager',
+      team.id === state.meta.userTeamId ? 'You' : (team.gmName || '—')));
     ul.appendChild(insetRow('Ballpark', team.ballpark.name));
     card.appendChild(ul);
     container.appendChild(card);
