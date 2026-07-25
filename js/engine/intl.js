@@ -163,7 +163,8 @@ window.BBGM_INTL = (function () {
       id: `int${year}_${rank}`,
     });
     p.age = age;
-    p.birthYear = year - age;
+    // Birthday-consistent (0.66.2): pinned to his class-day age.
+    window.BBGM_PROGRESSION.alignBirthdate(p, state.meta.currentDate);
     p.teamId = null;
     p.contract = null;
     p.serviceTime = { years: 0, days: 0 };
@@ -759,7 +760,7 @@ window.BBGM_INTL = (function () {
       id,
     });
     p.age = opts.age;
-    p.birthYear = state.meta.currentDate.year - opts.age;
+    window.BBGM_PROGRESSION.alignBirthdate(p, state.meta.currentDate);
     p.teamId = null;
     p.origin = opts.country;
     p.intlEvent = opts.event;

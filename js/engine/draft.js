@@ -118,7 +118,9 @@ window.BBGM_DRAFT = (function () {
       id: `dr${year}_${idx + 1}`,
     });
     p.age = age;
-    p.birthYear = year - age;
+    // Birthday-consistent (0.66.2): the birth fields pin to his class-day
+    // age, so the card's birth line and age agree from the first look.
+    window.BBGM_PROGRESSION.alignBirthdate(p, state.meta.currentDate);
     p.teamId = null;
     p.contract = null;
     p.serviceTime = { years: 0, days: 0 };

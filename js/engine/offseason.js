@@ -552,7 +552,9 @@ window.BBGM_OFFSEASON = (function () {
       const mods = p.teamId && coachModByTeam[p.teamId];
       const coachMod = mods ? (p.isPitcher ? mods.pitching : mods.hitting) : 0;
       PROG().progressPlayer(p, year, coachMod);
-      p.age++;
+      // Age no longer bumps here (0.66.2): players age ON their birthday
+      // via the daily birthdayTick, so the card's birth line and the age
+      // beside it finally agree year-round.
       // Fill-out (0.49.0): the wiry kid grows into his adult frame a few
       // pounds a winter — signed at 16 around 155, listed near his frame
       // weight by his mid-20s. Cosmetic only; no rating reads weight.
@@ -1061,6 +1063,10 @@ window.BBGM_OFFSEASON = (function () {
         status: 'active', rosterStatus: '26-man',
         id: nextGenId(state),
       });
+      // makePlayer stamps a START_YEAR birthYear; re-anchor to TODAY
+      // (0.66.2) or the birthday tick would misread a year-5 signee as
+      // years older than he is.
+      PROG().alignBirthdate(p, state.meta.currentDate);
       players[p.id] = p;
       team.roster.push(p.id);
       summary.newPlayers++;
@@ -1140,6 +1146,7 @@ window.BBGM_OFFSEASON = (function () {
         status: 'minors', rosterStatus: level,
         id: nextGenId(state),
       });
+      PROG().alignBirthdate(p, state.meta.currentDate); // 0.66.2
       players[p.id] = p;
       team.minors.push(p.id);
       summary.newPlayers++;
@@ -1156,6 +1163,7 @@ window.BBGM_OFFSEASON = (function () {
         status: 'minors', rosterStatus: 'AAA',
         id: nextGenId(state),
       });
+      PROG().alignBirthdate(p, state.meta.currentDate); // 0.66.2
       players[p.id] = p;
       team.minors.push(p.id);
       summary.newPlayers++;

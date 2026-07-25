@@ -4260,6 +4260,30 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > 11-check rewind suite + the full 28-suite battery, harness, and
 > e2e (141, exit 0).
 
+> **Status (0.66.2) — birthday aging (user report: birthdates and
+> ages don't line up with the league calendar).** Ages bumped +1
+> for EVERYONE at the November rollover while the card showed a
+> real generated birthdate — most players read a year out of step
+> with their own birth line most of the year. Now players age ON
+> the birthday: progression.js gains alignBirthdate (pins birth
+> year so calendar age == p.age on a given date; month/day
+> preserved — stored fields or the bioOf hash, kept byte-identical
+> so displayed dates never move), calendarAge, and birthdayTick —
+> a daily catch-up sync in simOneDay (and the harness) that
+> RAISES age to calendar age, so any calendar jump self-heals the
+> next simulated day. The rollover's mass p.age++ is gone. Every
+> generation site aligns at creation: genesis (main.js new-game +
+> harness), draft classes, intl classes, intl special events, and
+> the three offseason backfill spawns — the last of which fixes a
+> latent bug (backfill birthYears were pinned to START_YEAR
+> forever, which the tick would have misread as instant extra
+> years). Migration re-anchors every living player + in-progress
+> class pools; the retired keep their frozen cards. Verified by a
+> 14-check birthday suite (align both sides of the birthday, tick
+> on/after, jump catch-up, never-lower, retired, all gen sites
+> aligned, hash parity) + the full 29-suite battery, harness
+> (retirements/calibration in band), and e2e (141, exit 0).
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):

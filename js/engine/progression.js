@@ -470,6 +470,52 @@ window.BBGM_PROGRESSION = (function () {
     return true;
   }
 
+  // ---- Birthday aging (0.66.2) ---------------------------------------------
+  // Ages used to bump +1 for everyone at the November rollover while the
+  // card showed a real generated birthdate — so most players read a year
+  // out of step with their own birth line most of the calendar. Age now
+  // increments ON the birthday. The tick is a catch-up sync, not an
+  // exact-day match, so any calendar jump self-heals on the next day.
+  // The hash fallback below MUST stay byte-identical to the UI's bioOf
+  // (player.js) — it's what keeps every previously-displayed birthdate
+  // exactly where the user already saw it.
+  function birthdateOf(p) {
+    if (p.birthMonth != null && p.birthDay != null) return { m: p.birthMonth, d: p.birthDay };
+    let h = 0;
+    for (let i = 0; i < p.id.length; i++) h = (h * 31 + p.id.charCodeAt(i)) >>> 0;
+    return { m: 1 + ((h >>> 8) % 12), d: 1 + ((h >>> 12) % 28) };
+  }
+
+  // Pin the birth fields so that calendar age on `today` equals p.age —
+  // called at every generation site and once by the 0.66.2 migration.
+  // Month/day are preserved (stored or hash); only the YEAR moves.
+  function alignBirthdate(p, today) {
+    const b = birthdateOf(p);
+    p.birthMonth = b.m;
+    p.birthDay = b.d;
+    const passed = today.month > b.m || (today.month === b.m && today.day >= b.d);
+    p.birthYear = today.year - p.age - (passed ? 0 : 1);
+  }
+
+  function calendarAge(p, today) {
+    const b = birthdateOf(p);
+    const passed = today.month > b.m || (today.month === b.m && today.day >= b.d);
+    return today.year - p.birthYear - (passed ? 0 : 1);
+  }
+
+  // Daily pass (main.js simOneDay + the harness): raise age to calendar
+  // age. Never lowers — a pre-alignment birthYear can only under-count.
+  function birthdayTick(players, today) {
+    let aged = 0;
+    for (const id in players) {
+      const p = players[id];
+      if (!p || p.retired || p.birthYear == null) continue;
+      const ca = calendarAge(p, today);
+      if (ca > p.age) { p.age = ca; aged++; }
+    }
+    return aged;
+  }
+
   // 0.66.1 migration helper (main.js): re-run every young career under
   // the youth ramp, BACKWARDS. The rise closes a fixed fraction of the
   // ceiling gap per year, so the correction has a closed form: today's
@@ -533,5 +579,6 @@ window.BBGM_PROGRESSION = (function () {
   }
 
   return { progressPlayer, inSeasonTick, rollRetirement, retirementProb, levelPenalty,
-    rollCeilingBreakout, rollGenerationalLeap, rampRewind };
+    rollCeilingBreakout, rollGenerationalLeap, rampRewind,
+    alignBirthdate, birthdayTick, calendarAge };
 })();

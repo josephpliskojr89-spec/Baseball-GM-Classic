@@ -70,6 +70,8 @@ const state = {
   players,
   news: [],
 };
+// Birthday-consistent genesis (0.66.2, mirrors main.js new-game).
+for (const id in players) W.BBGM_PROGRESSION.alignBirthdate(players[id], state.meta.currentDate);
 // Staff the league (Phase 10), assign scouting tiers (Phase 13), and let
 // each manager set his lineups.
 W.BBGM_STAFF.ensureStaff(state);
@@ -103,6 +105,8 @@ function applyCeilingDrop(p) {
 
 function simOneDay(state) {
   const today = state.meta.currentDate;
+  // Birthday aging (0.66.2, mirrors main.js).
+  W.BBGM_PROGRESSION.birthdayTick(state.players, today);
   const games = state.league.schedule.games.filter((g) => !g.played && D.eq(g.date, today));
   for (const g of games) {
     try {

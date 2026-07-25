@@ -184,6 +184,13 @@ window.BBGM_MAIN = (function () {
           return;
         }
 
+        // Birthday-consistent cards from day one (0.66.2): pin every
+        // genesis player's birth year to his age as of opening day, so
+        // the daily birthday tick and the card's birth line agree.
+        for (const id in players) {
+          window.BBGM_PROGRESSION.alignBirthdate(players[id], { year: C.START_YEAR, month: 3, day: 28 });
+        }
+
         const state = {
           version: C.VERSION,
           meta: {
@@ -732,6 +739,31 @@ window.BBGM_MAIN = (function () {
                 'years it was always going to take.',
         });
       }
+      window.BBGM_STATE.set(state);
+    }
+
+    // 0.66.2: birthdates and ages finally agree (user report). Ages
+    // used to bump at the rollover regardless of birthday; now players
+    // age ON the birthday (simOneDay's birthdayTick). Re-anchor every
+    // living player's birth year — month and day stay exactly where
+    // the card already showed them — so calendar age equals his age
+    // today, and the tick keeps them in step forever after. Pool
+    // prospects (draft/intl classes in progress) align too.
+    if (versionLt(saveVersion, '0.66.2')) {
+      const PR = window.BBGM_PROGRESSION;
+      const today = state.meta.currentDate;
+      let aligned = 0;
+      for (const id in state.players) {
+        const p = state.players[id];
+        if (!p || p.retired) continue;
+        PR.alignBirthdate(p, today);
+        aligned++;
+      }
+      for (const pool of [state.draft && state.draft.prospects, state.intl && state.intl.prospects]) {
+        if (!pool) continue;
+        for (const id in pool) { PR.alignBirthdate(pool[id], today); aligned++; }
+      }
+      console.log(`0.66.2 migration: aligned ${aligned} birthdates to the calendar.`);
       window.BBGM_STATE.set(state);
     }
 
@@ -2247,6 +2279,10 @@ window.BBGM_MAIN = (function () {
 
   function simOneDay(state) {
     const today = state.meta.currentDate;
+    // Birthday aging (0.66.2): players turn a year older ON the
+    // birthday, not en masse at the rollover. Catch-up sync, so any
+    // calendar jump self-heals the next simulated day.
+    window.BBGM_PROGRESSION.birthdayTick(state.players, today);
     // Mail stop (0.63.0): snapshot the inbox so any letter written
     // during this day can halt a sim run (Menu → Simulation Stops →
     // New mail). Newest-id check catches the cap-pruned edge where a
