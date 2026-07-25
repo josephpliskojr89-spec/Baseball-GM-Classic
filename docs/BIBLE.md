@@ -4057,6 +4057,25 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > statistical noise at n=250); the makeup suite now verifies the
 > mechanism exactly and keeps a directional seeded outcome check.
 
+> **Status (0.63.0) — inbox UX (user direction: tappable players
+> from letters + a mail sim-stop).** (1) Inbox messages carry an
+> optional `about` playerId (inbox.js push); the letter modal
+> renders a guarded "View <name>" tap for it WITHOUT displacing the
+> letter's own action — one letter, one decision, plus the man it
+> concerns. Stamped on every single-player letter: coach project
+> proposals and reports, midseason check-ins, leap letters, mound
+> conversion proposals, the manager's closer recommendation, rival
+> trade pitches, promotion pushes (re-grade letters keep their
+> primary viewPlayer action). Departed players render no tap. (2)
+> New Simulation Stop 'New mail' (default OFF — hands-free behavior
+> unchanged): simOneDay snapshots the inbox and queues a "You Have
+> Mail" halt (with an Open-the-Inbox tap) when a letter lands
+> mid-run; newest-id comparison catches the cap-pruned edge where
+> the box length doesn't grow. Verified by an 8-check Playwright
+> suite (View tap opens the card, ghost letters render clean, the
+> toggle defaults off and flips, a Sim-7-Days run halts on the
+> first letter) plus the full battery.
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):

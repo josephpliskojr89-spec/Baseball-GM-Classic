@@ -3,10 +3,13 @@
 // GENERATION lives in main.js and the UI resolve paths, so headless
 // harnesses never load or need it.
 //
-// Message shape: { id, date, from, subject, body, read, action }
+// Message shape: { id, date, from, subject, body, read, action, about }
 //   action: null
 //         | { type: 'trade', teamId, playerId }   → builder, preloaded
 //         | { type: 'navigate', tab, opts }       → app navigation
+//   about (0.63.0): optional playerId the letter is about — the inbox
+//   modal renders a guarded "View <name>" tap so any letter about a
+//   player opens his card, without displacing the letter's own action.
 window.BBGM_INBOX = (function () {
   const CAP = 60;
 
@@ -20,6 +23,7 @@ window.BBGM_INBOX = (function () {
       subject: msg.subject,
       body: msg.body,
       action: msg.action || null,
+      about: msg.about || null,
       read: false,
     });
     // Cap the box: drop the oldest READ message first; only eat unread

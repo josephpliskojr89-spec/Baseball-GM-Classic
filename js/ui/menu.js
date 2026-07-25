@@ -12,7 +12,7 @@ window.BBGM_UI_MENU = (function () {
     // Build constant is bumped with every release so the user can tell at a
     // glance which dashboard.js the browser actually loaded. Save version
     // is the save-schema version and changes only when the schema changes.
-    const BUILD = 'v0.62.2-stale-il-fix-1';
+    const BUILD = 'v0.63.0-inbox-ux-1';
     card.appendChild(U.el('div', { class: 'inset-list', style: { 'border': 'none' } }, [
       insetRow('Team', userTeam.name),
       insetRow('Date', window.BBGM_DATES.format(state.meta.currentDate)),
@@ -94,6 +94,7 @@ window.BBGM_UI_MENU = (function () {
       ['waiverWire', 'Waiver wire', 'Stop when a claimable player (48+ OVR) is waived'],
       ['promotion', 'Promotion push', 'Stop when a farmhand outplays a big-league roster spot'],
       ['dayToDay', 'Day-to-day knocks', 'Stop for minor injuries with no roster move'],
+      ['inboxMail', 'New mail', 'Stop a sim run when a letter lands in your inbox'],
     ];
     const toggles = U.el('div', { class: 'inset-list', style: { border: 'none' } });
     for (const [key, label, desc] of STOP_DEFS) {

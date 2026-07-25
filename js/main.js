@@ -969,6 +969,19 @@ window.BBGM_MAIN = (function () {
         return true;
       }});
     }
+    // Any letter about a player opens his card (0.63.0): the `about`
+    // stamp adds a guarded View tap WITHOUT displacing the letter's own
+    // action — one letter, one decision, plus the man it concerns.
+    // Skipped when the action already IS a view (0.60.0 re-grades).
+    if (m.about && (!m.action || m.action.type !== 'viewPlayer')) {
+      const aboutP = state.players[m.about];
+      if (aboutP) {
+        actions.push({ label: `View ${aboutP.name}`, kind: 'secondary', onClick: () => {
+          setTimeout(() => window.BBGM_UI_PLAYER.show(m.about), 0);
+          return true;
+        }});
+      }
+    }
     actions.push({ label: 'Back to Inbox', kind: 'secondary', onClick: () => {
       setTimeout(() => showInbox(), 0);
       return true;
@@ -1367,6 +1380,7 @@ window.BBGM_MAIN = (function () {
           window.BBGM_INBOX.push(state, {
             from: coach ? `${coach.name} (${coach.role === 'pitching' ? 'Pitching' : 'Hitting'} Coach)` : 'Player Development',
             subject: `Project report: ${v.name}`,
+            about: v.playerId,
             body: up
               ? `A year of extra work with ${v.name} and the results are on the card — up ${v.delta} grades where I teach. Give me another one next spring.`
               : flat
@@ -1508,6 +1522,7 @@ window.BBGM_MAIN = (function () {
           window.BBGM_INBOX.push(state, {
             from: `${pr.coachName} (${pr.domain === 'pitching' ? 'Pitching' : 'Hitting'} Coach)`,
             subject: `Give me ${pr.playerName} for the year`,
+            about: pr.playerId,
             body: `${pr.playerName} (${pr.playerPos}, ${pr.playerAge}) is my guy. ` +
                   (pr.specialty ? `${pr.specialty} is what I do, and ` : '') +
                   `there's real headroom right where I teach. Sign off and he's my ` +
@@ -1543,6 +1558,7 @@ window.BBGM_MAIN = (function () {
               window.BBGM_INBOX.push(state, {
                 from: `${mgr.name} (Manager)`,
                 subject: 'My plan for the season',
+                about: pick.id,
                 body: planTxt + `One change I want: ${pick.name} closing games for me` +
                       ((t.leverage || 5) >= 6
                         ? ' — the best stuff in the pen gets the ninth.'
@@ -1773,6 +1789,7 @@ window.BBGM_MAIN = (function () {
         window.BBGM_INBOX.push(state, {
           from: coach ? `${coach.name} (${coach.role === 'pitching' ? 'Pitching' : 'Hitting'} Coach)` : 'Player Development',
           subject: `You need to see ${lp.name}`,
+          about: lp.playerId,
           body: `I've been doing this a long time and I don't say this lightly: I have never seen ` +
                 `a winter like the one ${lp.name} just had. Whatever ceiling we had on him, throw ` +
                 `it out. This isn't a kid taking a step — this is a player becoming somebody ` +
@@ -1830,6 +1847,7 @@ window.BBGM_MAIN = (function () {
         window.BBGM_INBOX.push(state, {
           from: coach ? `${coach.name} (Pitching Coach)` : 'Player Development',
           subject: `A second life for ${p.name}`,
+          about: p.id,
           body: `Straight talk: ${p.name} (${p.primaryPosition}, ${p.age}) isn't going to hit ` +
                 `his way out of the minors — everybody in the building knows it. But I've watched ` +
                 `his throws across the diamond for two years and that arm is REAL. Give him to me ` +
@@ -2168,6 +2186,7 @@ window.BBGM_MAIN = (function () {
     window.BBGM_INBOX.push(state, {
       from: `${t.abbr} Front Office`,
       subject: `Interested in ${p.name}?`,
+      about: p.id,
       body: `${opener} We'd move ${p.name} ` +
             `(${pos}, ${p.age}, $${((p.contract && p.contract.annualSalary) || 0).toFixed(1)}M) ` +
             `for the right return — ${shopLine}. Call us.`,
@@ -2178,6 +2197,12 @@ window.BBGM_MAIN = (function () {
 
   function simOneDay(state) {
     const today = state.meta.currentDate;
+    // Mail stop (0.63.0): snapshot the inbox so any letter written
+    // during this day can halt a sim run (Menu → Simulation Stops →
+    // New mail). Newest-id check catches the cap-pruned edge where a
+    // letter arrives but the box length doesn't grow.
+    const mailBefore = (state.inbox || []).length;
+    const mailTopBefore = state.inbox && state.inbox[0] ? state.inbox[0].id : null;
 
     // Postseason days (bible 3.4): October plays on the calendar. Series
     // results land in the news; the champion modal fires from simDays.
@@ -2484,6 +2509,25 @@ window.BBGM_MAIN = (function () {
     // the at-bat narrative is pruned (the UI shows a "not retained" note).
     pruneOldGameLogs(state, today);
 
+    // Mail stop (0.63.0): a letter landed today and the user asked the
+    // world to wait for his mail.
+    const mailStops = window.BBGM_STATE.simStops(state);
+    if (mailStops.inboxMail && state.inbox && state.inbox.length &&
+        (state.inbox.length > mailBefore ||
+         (state.inbox[0] && state.inbox[0].id !== mailTopBefore))) {
+      const newest = state.inbox[0];
+      const extra = state.inbox.filter((mm) => !mm.read).length - 1;
+      queueHalt({
+        title: 'You Have Mail',
+        body: `"${newest.subject}" — ${newest.from}.` +
+              (extra > 0 ? ` (${extra} more unread.)` : ''),
+        actions: [{ label: 'Open the Inbox', kind: 'primary', onClick: () => {
+          setTimeout(() => showInbox(), 0);
+          return true;
+        }}],
+      });
+    }
+
     // Advance
     state.meta.currentDate = D.addDays(today, 1);
   }
@@ -2546,6 +2590,7 @@ window.BBGM_MAIN = (function () {
           window.BBGM_INBOX.push(state, {
             from: coach ? `${coach.name} (${coach.role === 'pitching' ? 'Pitching' : 'Hitting'} Coach)` : 'Player Development',
             subject: `Midseason check-in: ${p.name}`,
+            about: p.id,
             body: d >= 1.5
               ? `The project is working — ${p.name} is up ${d} grades where I teach since spring. The second half is where it sticks.`
               : d > 0
@@ -2591,6 +2636,7 @@ window.BBGM_MAIN = (function () {
         window.BBGM_INBOX.push(state, {
           from: promoMgr ? `${promoMgr.name} (Manager)` : 'Player Development',
           subject: `${up.name} is forcing the issue`,
+          about: up.id,
           body: promoMgr
             ? `The kid's outplaying ${down ? down.name : 'the back of my roster'}. ` +
               `${up.name} (${up.primaryPosition}, ${up.rosterStatus}) has nothing left to prove down there — ` +
