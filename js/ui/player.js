@@ -161,6 +161,37 @@ window.BBGM_UI_PLAYER = (function () {
       // Farm transactions (0.31.1): promote / level / development /
       // release, straight from the card — same treatment as the 26-man.
       actions.push(...TEAM.minorsCardActions(state, userTeam, p));
+    } else if (!p.retired && (state.freeAgents || []).includes(p.id) &&
+        !state.meta.offseasonPhase && window.BBGM_FA && window.BBGM_FA.signMidSeason) {
+      // In-season free agent (0.64.1): the card comes FIRST — the old
+      // flow jumped straight to the sign-confirm without ever showing
+      // the profile. Same card-first rule as roster, minors, and the
+      // Trade Finder.
+      actions.push({ label: 'Sign — Minor-League Deal…', kind: 'primary', onClick: () => {
+        setTimeout(() => {
+          U.showModal({
+            title: `Sign ${p.name}?`,
+            body: 'Minor-league deal, 1 yr / $0.74M. He reports to AAA.',
+            actions: [
+              { label: 'Cancel', kind: 'secondary', onClick: () => true },
+              { label: 'Sign', kind: 'primary', onClick: () => {
+                const s = window.BBGM_STATE.get();
+                const team = s.league.teams.find((t) => t.id === s.meta.userTeamId);
+                const err = window.BBGM_FA.signMidSeason(s, team, p.id);
+                if (err) {
+                  U.showToast(err, 'danger');
+                } else {
+                  window.BBGM_STATE.set(s);
+                  window.BBGM_MAIN.refresh();
+                  U.showToast(`${p.name} signed — he reports to AAA.`, 'success');
+                }
+                return true;
+              }},
+            ],
+          });
+        }, 0);
+        return true;
+      }});
     } else if (opts.discussTrade && !p.retired && p.teamId && userTeam &&
         p.teamId !== userTeam.id && window.BBGM_UI_FRONTOFFICE &&
         window.BBGM_UI_FRONTOFFICE.startTradeFor) {

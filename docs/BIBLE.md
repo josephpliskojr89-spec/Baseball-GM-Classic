@@ -4126,6 +4126,17 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > confounded reading; the mechanism itself is unchanged).
 > Verified by a 6-check names suite plus the full battery.
 
+> **Status (0.64.1) — card-first in-season FA signing (user
+> report: tapping a free agent jumped straight to the sign-confirm
+> without ever showing the profile).** The in-season FA list's row
+> tap now opens the PLAYER CARD (the standing card-first rule from
+> 0.31.x); the card gains a "Sign — Minor-League Deal…" primary
+> action — gated on state.freeAgents membership and the season
+> being live — which fronts the same 1yr/$0.74M confirm and runs
+> signMidSeason. Verified by a 5-check Playwright suite (row →
+> profile, action on card, confirm, signs to the farm and leaves
+> the pool) plus e2e and the nearby engine suites.
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):

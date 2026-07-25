@@ -193,23 +193,12 @@ window.BBGM_UI_FRONTOFFICE = (function () {
     const needSet = new Set(TRADES().teamNeeds(userTeam, state.players));
     const list = U.el('div', { class: 'roster-list' });
     for (const p of pool.slice(0, 50)) {
+      // Card-first (0.64.1): the row opens the PROFILE; the sign action
+      // lives on the card — the old flow confirmed a deal for a player
+      // the user had never even looked at.
       const row = U.el('button', {
         class: 'roster-row',
-        on: { click: () => {
-          U.showModal({
-            title: `Sign ${p.name}?`,
-            body: `Minor-league deal, 1 yr / $0.74M. He reports to AAA.`,
-            actions: [
-              { label: 'Cancel', kind: 'secondary', onClick: () => true },
-              { label: 'Sign', kind: 'primary', onClick: () => {
-                const err = FA().signMidSeason(state, userTeam, p.id);
-                if (err) U.showToast(err, 'danger');
-                else { window.BBGM_STATE.set(state); window.BBGM_MAIN.refresh(); }
-                return true;
-              }},
-            ],
-          });
-        }},
+        on: { click: () => window.BBGM_UI_PLAYER.show(p.id) },
       });
       row.appendChild(U.posBadge(p));
       const info = U.el('div', { class: 'player-row-info' });
