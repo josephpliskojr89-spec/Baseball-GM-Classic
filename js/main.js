@@ -2358,10 +2358,11 @@ window.BBGM_MAIN = (function () {
 
   function simOneDay(state) {
     const today = state.meta.currentDate;
-    // Birthday aging (0.66.2): players turn a year older ON the
-    // birthday, not en masse at the rollover. Catch-up sync, so any
-    // calendar jump self-heals the next simulated day.
-    window.BBGM_PROGRESSION.birthdayTick(state.players, today);
+    // Birthday aging (0.66.2, pools included 0.68.0): players AND pool
+    // prospects turn a year older ON the birthday, not en masse at the
+    // rollover. Catch-up sync, so any calendar jump self-heals the next
+    // simulated day.
+    window.BBGM_PROGRESSION.birthdayTickAll(state, today);
     // Mail stop (0.63.0): snapshot the inbox so any letter written
     // during this day can halt a sim run (Menu → Simulation Stops →
     // New mail). Newest-id check catches the cap-pruned edge where a

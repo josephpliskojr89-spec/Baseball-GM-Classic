@@ -218,8 +218,15 @@ window.BBGM_FA = (function () {
       const aggression = { win_now: 1.1, old_school: 1.05, aggressive: 1.0, analytics: 0.92, patient: 0.95, cheap: 0.85 }[team.owner] || 1;
       let years = clamp(entry.askYears + (rand() < 0.25 ? -1 : 0), 1, 8);
       if (team.owner === 'patient' && years > 4) years = 4; // no mega-deals (16.7)
-      const aav = Math.min(room, entry.askAAV * aggression * (0.92 + rand() * 0.16));
-      if (aav < 0.74) continue;
+      // Audit W2 (0.68.0): $0.74M is the league minimum — no contract
+      // exists below it. Any bid formula landing under the minimum
+      // rounds UP to it (room permitting) instead of dying at the
+      // hard-reject below. Without this, the whole min-ask cohort (the
+      // 0.67.0 no-leverage kids) was unsignable: analytics' ceiling was
+      // 0.74×0.92×1.08 ≈ $0.73M — every bid died at generation and the
+      // 0.50.0 desperation machinery never got a bid to accept.
+      const aav = Math.max(0.74, Math.min(room, entry.askAAV * aggression * (0.92 + rand() * 0.16)));
+      if (room < 0.74) continue;
       if (!desperation && aav < entry.askAAV * (lateRound ? 0.3 : 0.6)) continue;
       // A pillow bid well under ask never carries a long commitment.
       if (lateRound && aav < entry.askAAV * 0.6) years = Math.min(years, desperation ? 1 : 2);
@@ -249,7 +256,9 @@ window.BBGM_FA = (function () {
       // offers is telling the agent something.
       if (tierActive(entry.tier, market.round - 1)) {
         const erode = entry.offersThisRound === 0 ? 0.88 : 0.94;
-        entry.askAAV = Math.round(entry.askAAV * erode * 10) / 10;
+        // The ask never erodes below the league minimum (0.68.0) — an
+        // agent can't advertise a contract that cannot legally exist.
+        entry.askAAV = Math.max(0.74, Math.round(entry.askAAV * erode * 10) / 10);
         entry.askTotal = Math.round(entry.askAAV * entry.askYears * 10) / 10;
       }
 

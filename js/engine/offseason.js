@@ -242,6 +242,11 @@ window.BBGM_OFFSEASON = (function () {
     if (!state.postseason) startPostseason(state);
     let guard = 0;
     while (state.postseason.phase === 'active' && guard++ < 80) {
+      // October birthdays fire here too (0.68.0) — the browser plays
+      // these days through simOneDay's tick; this one-shot loop (the
+      // harness path) used to skip them, so ~8% of the league entered
+      // Part A a year young in soaks but not in real play.
+      PROG().birthdayTickAll(state, state.meta.currentDate);
       simPostseasonDay(state, state.meta.currentDate);
       if (state.postseason.phase === 'active') {
         state.meta.currentDate = D().addDays(state.meta.currentDate, 1);
@@ -261,6 +266,10 @@ window.BBGM_OFFSEASON = (function () {
     const year = state.meta.currentDate.year;
     const players = state.players;
     const teams = state.league.teams;
+    // Winter runs on real ages (0.68.0): catch up before the offseason's
+    // age-gated decisions — retirement, arbitration, conversions — read
+    // p.age. Every calendar jump below re-ticks the same way.
+    PROG().birthdayTickAll(state, state.meta.currentDate);
 
     // 0. Waiver-wire hygiene (0.22.0): nobody winters on the wire —
     // unresolved entries clear to free agency before anything else runs.
@@ -750,6 +759,7 @@ window.BBGM_OFFSEASON = (function () {
     FA().buildMarket(state);
     state.meta.offseasonPhase = 'freeAgency';
     state.meta.currentDate = D().fromYMD(year, 11, 15);
+    PROG().birthdayTickAll(state, state.meta.currentDate); // 0.68.0
     return summary;
   }
 
@@ -761,6 +771,7 @@ window.BBGM_OFFSEASON = (function () {
     if (state.meta.offseasonPhase !== 'freeAgency') return { signings: [], done: true };
     const signings = FA().resolveRound(state);
     state.meta.currentDate = D().addDays(state.meta.currentDate, 12);
+    PROG().birthdayTickAll(state, state.meta.currentDate); // 0.68.0
     TRADES().aiTradeTick(state, state.meta.currentDate);
     const market = state.faMarket;
     return { signings, round: market.round, done: market.round >= market.totalRounds };
@@ -771,6 +782,10 @@ window.BBGM_OFFSEASON = (function () {
   function runSeasonRolloverPartB(state) {
     const players = state.players;
     const teams = state.league.teams;
+    // Real ages before the farm-cut and top-up gates read them (0.68.0)
+    // — the age<=25 hard-delete gate was deleting kids who were already
+    // 26 by the calendar.
+    PROG().birthdayTickAll(state, state.meta.currentDate);
     const summary = { newPlayers: 0 };
     const year = state.history.seasons[state.history.seasons.length - 1].year;
 
@@ -995,6 +1010,7 @@ window.BBGM_OFFSEASON = (function () {
     state.league.schedule = schedule;
     state.meta.gamesPlayedByTeam = {};
     state.meta.currentDate = { ...schedule.openingDay };
+    PROG().birthdayTickAll(state, state.meta.currentDate); // 0.68.0: spring birthdays
     summary.newYear = newYear;
     return summary;
   }

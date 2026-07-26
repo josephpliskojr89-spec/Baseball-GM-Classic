@@ -339,6 +339,7 @@ window.BBGM_PROGRESSION = (function () {
   function rollCeilingBreakout(p) {
     const h = p.hidden;
     if (!h || !h.ceiling) return null;
+    if (h.generational) return null; // his gift is the ramp exemption (0.68.0)
     if (p.age > 26) return null;
     const we = h.workEthic || 5;
     if (rand() >= 0.008 + we * 0.002) return null;
@@ -379,6 +380,13 @@ window.BBGM_PROGRESSION = (function () {
   function rollGenerationalLeap(p, year) {
     const h = p.hidden;
     if (!h || !h.ceiling || h.leap) return null;          // once per career
+    // Audit W2 (0.68.0): the anointed generational talent is EXCLUDED.
+    // His floored work ethic auto-passed the gym-rat gate, 'traditional'
+    // isn't in LEAP_BLOCKED, and coach projects preferentially pick his
+    // huge ceiling gap — the rarest player in the game was the most
+    // likely leaper, stacking to an all-82 monster. His ramp exemption
+    // IS his once-in-a-generation gift; he doesn't get two.
+    if (h.generational) return null;
     if (p.age < 21 || p.age > 27) return null;            // the window
     if ((h.workEthic || 5) < 8) return null;              // gym rat only
     if (LEAP_BLOCKED[h.archetype]) return null;           // identity is sacred
@@ -516,6 +524,21 @@ window.BBGM_PROGRESSION = (function () {
     return aged;
   }
 
+  // Audit W2 (0.68.0): the whole world ages, not just signed players.
+  // Pool prospects (draft + intl classes) live outside state.players
+  // until they sign and used to sit at their generation age for up to
+  // eight months — a kid "signed at 16" whose card read 17 the next
+  // day, and signing-day placement logic reading a stale age. The
+  // offseason's calendar jumps (postseason, Part A, FA rounds, Part B)
+  // call this too, so winter decisions (arbitration, farm cuts, role
+  // conversions) price real ages instead of postseason-end ones.
+  function birthdayTickAll(state, today) {
+    let aged = birthdayTick(state.players, today);
+    if (state.draft && state.draft.prospects) aged += birthdayTick(state.draft.prospects, today);
+    if (state.intl && state.intl.prospects) aged += birthdayTick(state.intl.prospects, today);
+    return aged;
+  }
+
   // 0.66.1 migration helper (main.js): re-run every young career under
   // the youth ramp, BACKWARDS. The rise closes a fixed fraction of the
   // ceiling gap per year, so the correction has a closed form: today's
@@ -580,5 +603,5 @@ window.BBGM_PROGRESSION = (function () {
 
   return { progressPlayer, inSeasonTick, rollRetirement, retirementProb, levelPenalty,
     rollCeilingBreakout, rollGenerationalLeap, rampRewind,
-    alignBirthdate, birthdayTick, calendarAge };
+    alignBirthdate, birthdayTick, birthdayTickAll, calendarAge };
 })();

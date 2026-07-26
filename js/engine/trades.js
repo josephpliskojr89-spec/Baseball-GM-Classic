@@ -676,15 +676,24 @@ window.BBGM_TRADES = (function () {
     // Their offer: pieces summing to ~95-110% of a fair price. A club
     // never dangles its own young cornerstone unsolicited (0.65.1) —
     // young regulars can headline a challenge trade, the core can't.
+    // Audit W2 (0.68.0): pieces are priced at what the club would SELL
+    // them for (sellValueOf — market floor plus the keep-premium), not
+    // raw market. Before this, a rebuilding club's keepMul-1.25 young
+    // regular could arrive by phone at flat market value — and the
+    // accept path executes directly, so the 0.65.1 "nobody sells that
+    // profile for fair value" invariant held on every path except the
+    // one where the AI dialed. Now their eagerness to buy never
+    // discounts their own kids.
+    const priceOf = (p) => sellValueOf(aiTeam, p);
     const pool = aiTeam.roster.concat(aiTeam.minors || []).map((id) => players[id])
       .filter((p) => p && window.BBGM_INJURIES.isAvailable(p) && keepMul(aiTeam, p) < 1.35)
-      .sort((a, b) => tradeValue(b) - tradeValue(a));
+      .sort((a, b) => priceOf(b) - priceOf(a));
     let offer = null;
     for (let i = 0; i < pool.length; i++) {
-      const one = tradeValue(pool[i]);
+      const one = priceOf(pool[i]);
       if (one >= targetTV * 0.95 && one <= targetTV * 1.15) { offer = [pool[i]]; break; }
       for (let j = i + 1; j < pool.length; j++) {
-        const two = one + tradeValue(pool[j]);
+        const two = one + priceOf(pool[j]);
         if (two >= targetTV * 0.98 && two <= targetTV * 1.15) { offer = [pool[i], pool[j]]; break; }
       }
       if (offer) break;

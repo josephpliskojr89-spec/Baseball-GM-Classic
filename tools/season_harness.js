@@ -105,8 +105,11 @@ function applyCeilingDrop(p) {
 
 function simOneDay(state) {
   const today = state.meta.currentDate;
-  // Birthday aging (0.66.2, mirrors main.js).
-  W.BBGM_PROGRESSION.birthdayTick(state.players, today);
+  // Birthday aging (0.66.2, pools included 0.68.0 — mirrors main.js).
+  W.BBGM_PROGRESSION.birthdayTickAll(state, today);
+  // Waiver wire (0.68.0 parity): main.js runs the daily tick — AI DFAs,
+  // claims, and clears feed the FA pool; soaks must exercise it too.
+  W.BBGM_WAIVERS.dailyTick(state, today);
   const games = state.league.schedule.games.filter((g) => !g.played && D.eq(g.date, today));
   for (const g of games) {
     try {

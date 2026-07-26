@@ -4347,6 +4347,50 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > refused) + the full 31-suite battery, harness, and e2e (141,
 > exit 0).
 
+> **Status (0.68.0) — audit Wave 2 (MED batch: simulation
+> correctness).** Four fixes plus one honest all-clear. (1)
+> GENERATIONAL EXCLUSIVITY: anointed generational kids can no
+> longer ALSO roll a generational leap or a ceiling breakout —
+> their gift is the youth-ramp exemption, and stacking a
+> through-the-ceiling event on top produced impossible
+> double-blessed careers. Both rollGenerationalLeap and
+> rollCeilingBreakout return null on h.generational (verified:
+> 0/3000 events for anointed twins vs 134 leaps / 85 breakouts
+> for their un-anointed controls). (2) WINTER BIRTHDAYS:
+> birthdays now tick through the offseason. New
+> birthdayTickAll(state, today) covers players PLUS draft and
+> intl prospect pools, and is called at six winter seams —
+> the postseason day loop, rollover Part A entry, the Nov-15
+> jump, each FA-round advance (+12d), Part B entry, and the
+> opening-day jump. Before this, every date jump silently froze
+> ages: winter decisions (arb, non-tenders, FA pricing, the
+> age≤25 farm-cut delete gate) ran on stale ages, and a kid
+> whose birthday fell in the skipped span aged a year late.
+> Full-rollover integration check: 0 of ~1576 living players
+> behind calendar age at opening day. (3) OFFER-PATH PREMIUM:
+> tryAiOfferToUser now prices and band-matches its pieces via
+> sellValueOf (which applies 0.65.1's keepMul keep-premium)
+> instead of raw tradeValue — an AI club would headline an
+> unsolicited offer with the very cornerstone it refuses to
+> list in the Trade Finder, and price him below its own ask.
+> Challenge trades still flow (121 offers in the probe window);
+> they're just fully priced now. (4) MIN-ASK MARKET: FA ask
+> erosion floors at the $0.74M league minimum (an agent can't
+> advertise a contract that can't legally exist) and AI bids
+> round UP to the minimum instead of skipping — a min-ask
+> fringe player was unsignable by AI clubs because every bid
+> computed below 0.74 and got discarded. Also: the season
+> harness now runs the waiver dailyTick in simOneDay for parity
+> with the main loop. ALL-CLEAR NOTE: the audit's scariest
+> claim — "the AI offer path is dead, 0 offers ever" — was a
+> probe artifact (the probe passed a `today` 9 days past the
+> state date, so the tick's own 7-day pruner deleted each fresh
+> offer at end of call). Instrumented correctly, the path is
+> alive at ~61 offers per 2000 ticks, unchanged before/after.
+> Verified by a 16-check engine suite + the full 32-suite
+> battery, two harness seeds (0 errors, 0 youth-ceiling
+> violations), and e2e (141, exit 0).
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):
