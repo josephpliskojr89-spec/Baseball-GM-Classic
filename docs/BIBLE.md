@@ -4702,6 +4702,34 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > the farewell wire lands) + the full 37-suite battery and e2e
 > (141, exit 0).
 
+> **Status (0.72.0) — veteran assignment consent (user
+> request: "not all veterans would accept the move to the
+> minors").** Any 26-man player could be optioned to the farm
+> without a word. Now five years of MLB service buy the right
+> to refuse the assignment (roster.js acceptsMinors): a vet
+> with a real card (OVR ≥48) ALWAYS says no; a fringe vet
+> sometimes swallows his pride and reports (~40%,
+> deterministic per player-year — a reload can't change his
+> mind). Where it bites: (1) the user's Send Down flow — a
+> refusing vet gets his own modal ("N years of big-league
+> service give him the right to say no — and he's saying no")
+> with two honest outs: keep him, or Designate for Assignment,
+> which routes into the existing 0.22.0 waiver flow (2-day
+> wire, claim takes the contract, clear = FA on your dime);
+> (2) the promote-swap picker never offers a refusing vet as
+> the send-down side; (3) the AI merit sweep skips refusing
+> vets when picking who goes down — no club quietly stashes an
+> 8-year man in AAA. The e2e's phenom send-down rig gained a
+> rookie service clock (its donor vet's 9-year clock now
+> triggers the refusal — the feature working, not the check's
+> subject). Verified by a 5-check engine suite (service gate,
+> real-card always-refuses, ~40% fringe split, determinism,
+> merit-sweep respect) + a 4-check Playwright suite (refusal
+> modal on the real card, DFA routes to the wire, the man
+> lands on it, the swap picker excludes him) + the full
+> 38-suite battery, 3-season harness (0 errors), and e2e
+> (141, exit 0).
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):

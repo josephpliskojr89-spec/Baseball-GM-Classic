@@ -550,6 +550,21 @@ window.BBGM_ROSTER = (function () {
 
   function dayIndex(d) { return d.year * 372 + d.month * 31 + d.day; }
 
+  // Veteran assignment consent (0.72.0, user request: "not all veterans
+  // would accept the move to the minors"). Five years of MLB service buy
+  // the right to refuse an assignment — a man with a resume doesn't
+  // report to Toledo, he makes you cut him. Fringe vets (sub-48 OVR)
+  // sometimes swallow their pride and take the uniform anyway (~40%),
+  // deterministic per (player, year) so a reload can't change his mind.
+  function acceptsMinors(p, year) {
+    if (((p.serviceTime && p.serviceTime.years) || 0) < 5) return true;
+    if (overall(p) >= 48) return false;
+    let h = (year || 0) >>> 0;
+    const s = String(p.id);
+    for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+    return (h % 10) < 4;
+  }
+
   function msSwapForTeam(state, team, today, execute) {
     const players = state.players;
     const inj = INJ();
@@ -573,6 +588,7 @@ window.BBGM_ROSTER = (function () {
         if (!inj.isAvailable(p)) return false;    // never demote the hurt
         if (p.ilCallUpFor) return false;          // stint covers leave via activation
         if (p.msMoved && idx - p.msMoved < MS_COOLDOWN) return false;
+        if (!acceptsMinors(p, today.year)) return false; // the vet says no (0.72.0)
         if (side) {
           if (p.id === team.closer) return false;
           if (p.primaryPosition === 'SP' && spCount <= 5 && up.primaryPosition !== 'SP') return false;
@@ -705,7 +721,7 @@ window.BBGM_ROSTER = (function () {
 
   return {
     placeOnILWithMove, activateFromIL, replaceRefs, bestCallUp, overall, demotionLevel,
-    weakestDemotable,
+    weakestDemotable, acceptsMinors,
     newPlayerId, safeRebuild, midSeasonMoves, msDayIndex: dayIndex,
     applyRoleShift, roleShiftPreview,
     callUpCandidates, callUpNeedFor, executeILCallUp, ensureStaffIntegration,

@@ -356,6 +356,27 @@ window.BBGM_UI_TEAM = (function () {
   function confirmSendDown(state, team, p) {
     const players = state.players;
     const R = window.BBGM_ROSTER;
+    // Veteran consent (0.72.0): 5+ years of service buy the right to
+    // refuse the assignment. Your remaining moves are his terms: keep
+    // him, or designate him for assignment and let the wire sort it out.
+    if (!R.acceptsMinors(p, state.meta.currentDate.year)) {
+      const sv = (p.serviceTime && p.serviceTime.years) || 0;
+      U.showModal({
+        title: `${p.name} refuses the assignment`,
+        body: `${sv} years of big-league service give him the right to say no to the minors — ` +
+              `and he's saying no. If he doesn't fit the roster, the move is to designate him ` +
+              `for assignment: the wire gets him for 2 days, and if nobody claims the contract ` +
+              `he becomes a free agent on your dime.`,
+        actions: [
+          { label: 'Keep Him', kind: 'secondary', onClick: () => true },
+          { label: 'Designate for Assignment…', kind: 'danger', onClick: () => {
+            setTimeout(() => confirmRelease(state, team, p, false), 0);
+            return true;
+          }},
+        ],
+      });
+      return;
+    }
     const lvl = R.demotionLevel(p);
     const rest = team.roster.map((id) => players[id]).filter((q) => q && q.id !== p.id);
     // Floors his departure would break → cover them with a call-up.
@@ -1088,10 +1109,13 @@ window.BBGM_UI_TEAM = (function () {
       render(document.getElementById('mainView'), state);
       return;
     }
-    // Full 26-man: same-type swap keeps the 13 pitchers / 13 hitters split intact.
+    // Full 26-man: same-type swap keeps the 13 pitchers / 13 hitters split
+    // intact. Veterans who'd refuse the assignment (0.72.0) aren't
+    // offered — DFA them from their card if they have to go.
     const candidates = team.roster
       .map((id) => state.players[id])
-      .filter((p) => p && p.isPitcher === minorsP.isPitcher)
+      .filter((p) => p && p.isPitcher === minorsP.isPitcher &&
+        window.BBGM_ROSTER.acceptsMinors(p, state.meta.currentDate.year))
       .sort((a, b) => (minorsP.isPitcher ? overallPitcher(a) - overallPitcher(b) : overallHitter(a) - overallHitter(b)));
     pickerModal(state, `Send down for ${minorsP.name}`, candidates,
       (p) => `${p.primaryPosition} • Age ${p.age} • OVR ${U.gradeFor(p.isPitcher ? overallPitcher(p) : overallHitter(p))}`,
