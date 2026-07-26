@@ -317,6 +317,17 @@ window.BBGM_MAIN = (function () {
     // why ungated migrations re-ran forever).
     const saveVersion = state.version || '0.1.0';
 
+    // Audit W1 (0.67.1): the chain is exception-safe. Saves are BLOCKED
+    // for the whole run — the per-migration set() calls below become
+    // no-ops — and one persist happens after the version stamp. If any
+    // migration throws, nothing mutated ever reaches disk (the debounced
+    // writer used to fire mid-chain and persist half-migrated state
+    // UNSTAMPED, so the gates re-ran on the next load and non-idempotent
+    // migrations like the 0.66.1 rewind compounded). The chain keeps its
+    // original indentation; try/catch bounds are marked BEGIN/END.
+    window.BBGM_STATE.setSaveBlocked(true);
+    try { // BEGIN migration chain
+
     // Migration: pre-0.10 saves have no staff — hire the league out of a
     // fresh pool so managers exist mid-save (Pillar 4).
     if (!state.staff) {
@@ -460,6 +471,7 @@ window.BBGM_MAIN = (function () {
             .sort((a, b) => R.overall(a) - R.overall(b))[0];
           if (!weakest) break;
           t.roster.splice(t.roster.indexOf(weakest.id), 1);
+          if (!Array.isArray(t.minors)) t.minors = []; // 0.67.1: chain must not throw
           t.minors.push(weakest.id);
           weakest.status = 'minors';
           weakest.rosterStatus = R.demotionLevel(weakest);
@@ -666,6 +678,7 @@ window.BBGM_MAIN = (function () {
           const weakest = R.weakestDemotable(t, state.players);
           if (!weakest) break;
           t.roster.splice(t.roster.indexOf(weakest.id), 1);
+          if (!Array.isArray(t.minors)) t.minors = []; // 0.67.1: chain must not throw
           t.minors.push(weakest.id);
           weakest.status = 'minors';
           weakest.rosterStatus = R.demotionLevel(weakest);
@@ -723,7 +736,11 @@ window.BBGM_MAIN = (function () {
     // under the youth ramp backwards (closed-form gap correction in
     // rampRewind). League-wide, downward only, ceilings untouched. One
     // letter explains the winter the industry corrected itself.
-    if (versionLt(saveVersion, '0.66.1')) {
+    if (versionLt(saveVersion, '0.66.1') && !state.meta.rampRewound) {
+      // Belt and braces (0.67.1): the version gate is one-shot only if
+      // the stamp lands; this marker makes the NON-IDEMPOTENT rewind
+      // single-fire even if some future path re-enters the gate.
+      state.meta.rampRewound = true;
       const n = window.BBGM_PROGRESSION.rampRewind(state.players, state.meta.currentDate.year);
       if (n) {
         console.log(`0.66.1 migration: rewound ${n} young career(s) onto the youth ramp.`);
@@ -761,9 +778,44 @@ window.BBGM_MAIN = (function () {
       }
       for (const pool of [state.draft && state.draft.prospects, state.intl && state.intl.prospects]) {
         if (!pool) continue;
-        for (const id in pool) { PR.alignBirthdate(pool[id], today); aligned++; }
+        for (const id in pool) {
+          const q = pool[id];
+          if (q && q.age != null) { PR.alignBirthdate(q, today); aligned++; }
+        }
       }
       console.log(`0.66.2 migration: aligned ${aligned} birthdates to the calendar.`);
+      window.BBGM_STATE.set(state);
+    }
+
+    // 0.67.1 (audit W1): the intl signing-day ceiling swing skipped
+    // applyArchetypeCap (the draft's has honored it since 0.53.1), so
+    // quad-A July 2 signees could break their identity caps at signing.
+    // Heal: re-clamp every living ceilingCap-archetype player (the cap
+    // is static and no legitimate path crosses it — quad-A is
+    // leap-blocked), plus growth-cap kids still inside their SIGNING
+    // window (July-Oct of the class year, before the first rollover) —
+    // older overachievers are skipped because their legitimate ceiling
+    // creep is indistinguishable from the swing after a winter.
+    if (versionLt(saveVersion, '0.67.1')) {
+      let healed = 0;
+      const y = state.meta.currentDate.year;
+      const m = state.meta.currentDate.month;
+      for (const id in state.players) {
+        const p = state.players[id];
+        if (!p || p.retired || !p.hidden || !p.hidden.ceiling) continue;
+        const defs = p.isPitcher ? C.PITCHER_ARCHETYPES : C.HITTER_ARCHETYPES;
+        const arch = defs.find((a) => a.key === p.hidden.archetype);
+        const staticCap = arch && arch.ceilingCap &&
+          Object.keys(p.hidden.ceiling).some((k) =>
+            !(p.isPitcher && k === 'stamina') && p.hidden.ceiling[k] > arch.ceilingCap);
+        const freshGrowth = p.hidden.growth && p.hidden.growth.cap &&
+          p.intl && p.intl.year === y && m >= 7 && m <= 10;
+        if (staticCap || freshGrowth) {
+          window.BBGM_PLAYER_GEN.applyArchetypeCap(p);
+          if (staticCap) healed++;
+        }
+      }
+      if (healed) console.log(`0.67.1 migration: re-clamped ${healed} cap-broken signee(s).`);
       window.BBGM_STATE.set(state);
     }
 
@@ -773,7 +825,24 @@ window.BBGM_MAIN = (function () {
     // rather than the release it was created in.
     if (state.version !== C.VERSION) {
       state.version = C.VERSION;
-      window.BBGM_STATE.set(state);
+    }
+
+    // Success: unblock and make the chain's single persist.
+    window.BBGM_STATE.setSaveBlocked(false);
+    window.BBGM_STATE.set(state);
+    } catch (e) { // END migration chain
+      // Saves stay BLOCKED: the persisted save on disk is untouched, so
+      // a reload retries the whole chain from clean state.
+      console.error('Migration chain failed:', e);
+      document.getElementById('splash').classList.remove('hidden');
+      U.showModal({
+        title: 'Save Update Failed',
+        body: 'The game hit an error while updating your save to this version. ' +
+              'Your save on disk was NOT changed. Reload to try again — if this ' +
+              'keeps happening, export your save from a previous version.',
+        actions: [{ label: 'Reload', kind: 'primary', onClick: () => { location.reload(); return false; } }],
+      });
+      return;
     }
 
     if (state.meta.userTeamId) {
@@ -1025,8 +1094,13 @@ window.BBGM_MAIN = (function () {
         const s = window.BBGM_STATE.get();
         const team = s.league.teams.find((t) => t.id === s.meta.userTeamId);
         const p = s.players[m.action.playerId];
-        const inOrg = p && (team.roster.includes(p.id) || team.minors.includes(p.id));
-        if (!p || p.isPitcher || !inOrg || p.retired) {
+        // Audit W1 (0.67.1): the letter is only ever written about a
+        // FARMHAND. A stale letter tapped after he's been called up must
+        // not convert an active 26-man hitter — convertToMound stamps a
+        // minors level and flips isPitcher with no roster validation on
+        // this path.
+        const onFarm = p && team.minors.includes(p.id) && p.status === 'minors';
+        if (!p || p.isPitcher || !onFarm || p.retired) {
           U.showToast('That window has passed — he\'s not available for the project.', 'warning', 4000);
           return true;
         }
@@ -1043,7 +1117,12 @@ window.BBGM_MAIN = (function () {
         const s = window.BBGM_STATE.get();
         const team = s.league.teams.find((t) => t.id === s.meta.userTeamId);
         const p = s.players[m.action.playerId];
-        if (!p || !p.isPitcher || !team.roster.includes(p.id) || team.closer === p.id) {
+        // Audit W1 (0.67.1): mirror the Pitching tab's guard — a stale
+        // letter must not name a since-converted STARTER the closer
+        // (nameCloser only converts RP→CP, so the same arm would sit in
+        // the rotation and the ninth simultaneously).
+        if (!p || !p.isPitcher || !team.roster.includes(p.id) || team.closer === p.id ||
+            (team.rotation || []).includes(p.id) || p.primaryPosition === 'SP') {
           U.showToast('That arm is no longer available for the ninth.', 'warning', 4000);
           return true;
         }

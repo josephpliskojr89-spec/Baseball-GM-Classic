@@ -4310,6 +4310,43 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > Playwright suite, the full 30-suite battery, harness (seed 313
 > now green), and e2e (141, exit 0).
 
+> **Status (0.67.1) — audit Wave 1 (four-auditor sweep; every
+> finding re-verified against source before fixing).** (1)
+> SAFEREBUILD BIRTHDATES: both emergency-patch generators in
+> safeRebuild (roster.js) now alignBirthdate — they were the only
+> 2 of 8 generateNewPlayer sites that didn't, so in a year-k save
+> a repair-path player was born START_YEAR-relative and the
+> birthday tick aged him +k years overnight. No retro-heal:
+> victims are indistinguishable post-jump (the tick made their
+> age/birthYear self-consistent); fixed forward. (2)
+> EXCEPTION-SAFE MIGRATIONS: the whole startGame chain now runs
+> under setSaveBlocked with ONE persist after the version stamp —
+> previously the debounced writer could persist half-migrated
+> state UNSTAMPED after a mid-chain throw, and the non-idempotent
+> 0.66.1 rewind would re-apply and compound on every retry. Also:
+> rampRewound belt-and-braces marker, t.minors guards in the
+> 0.31.1/0.62.2 trims, null guard in the 0.66.2 pool loop; on
+> failure a modal says the on-disk save was untouched. (3) INTL
+> CAP LEAK: the July 2 signing-day ceiling swing (and the Cuban
+> defector swing) now call applyArchetypeCap, mirroring the
+> draft's 0.53.1 fix — a positive swing was breaking ~⅓ of quad-A
+> signees over their 50 cap. Heal migration: re-clamp every
+> living ceilingCap-archetype player (static cap, no legit
+> crossing — quad-A is leap-blocked); growth-cap kids only inside
+> their signing window (Jul-Oct of class year) since later creep
+> is indistinguishable from the swing. (4) STALE LETTERS: the
+> mound-conversion letter now requires the kid still be a
+> FARMHAND (a stale tap was converting an active 26-man hitter
+> with zero roster validation), and the closer letter refuses
+> rotation members/SPs (double-duty arm). Verified by a 6-check
+> engine suite (patch alignment in a year-6 save, 60 forced
+> quad-A signings with zero cap breaks, heal-scoping
+> documentation) + a 5-check Playwright suite driving the REAL
+> reload migration chain (poisoned quad-A healed, mid-career
+> overachiever creep survives, stamp lands, both stale letters
+> refused) + the full 31-suite battery, harness, and e2e (141,
+> exit 0).
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):

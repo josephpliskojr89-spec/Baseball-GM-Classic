@@ -401,6 +401,10 @@ window.BBGM_ROSTER = (function () {
               status: 'active', rosterStatus: '26-man',
               id: newPlayerId(state),
             });
+            // Audit W1 (0.67.1): makePlayer stamps a START_YEAR birth
+            // year; without re-anchoring, the birthday tick ages this
+            // patch by the save's entire elapsed years the next morning.
+            window.BBGM_PROGRESSION.alignBirthdate(patch, state.meta.currentDate);
             players[patch.id] = patch;
           }
           team.roster.push(patch.id);
@@ -433,6 +437,7 @@ window.BBGM_ROSTER = (function () {
             status: 'active', rosterStatus: '26-man',
             id: newPlayerId(state),
           });
+          window.BBGM_PROGRESSION.alignBirthdate(p, state.meta.currentDate); // 0.67.1
           players[p.id] = p;
           team.roster.push(p.id);
           protectedIds.add(p.id);

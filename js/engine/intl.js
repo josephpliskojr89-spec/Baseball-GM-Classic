@@ -490,6 +490,10 @@ window.BBGM_INTL = (function () {
       p.hidden.ceiling[k] = Math.round(clamp(p.hidden.ceiling[k] + swing, 25, 82) * 10) / 10;
       p.ratings[k] = Math.min(p.ratings[k], Math.max(20, p.hidden.ceiling[k] - 4));
     }
+    // Audit W1 (0.67.1): the signing-day swing honors the archetype cap,
+    // mirroring the draft (0.53.1) — a positive swing was breaking a
+    // third of quad-A/overachiever signees out of their identity caps.
+    GEN().applyArchetypeCap(p);
 
     p.status = 'minors';
     p.teamId = teamId;
@@ -817,6 +821,7 @@ window.BBGM_INTL = (function () {
         p.hidden.ceiling[k] = Math.round(clamp(p.hidden.ceiling[k] + swing, 25, 82) * 10) / 10;
         p.ratings[k] = Math.min(p.ratings[k], Math.max(20, p.hidden.ceiling[k] - 2));
       }
+      GEN().applyArchetypeCap(p); // the swing honors the cap (0.67.1)
       events.push({ kind: 'defector', playerId: p.id, name: p.name, pos: p.primaryPosition, age: p.age });
     }
 
