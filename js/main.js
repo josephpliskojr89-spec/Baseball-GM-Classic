@@ -857,6 +857,23 @@ window.BBGM_MAIN = (function () {
       window.BBGM_STATE.set(state);
     }
 
+    // Migration (0.71.4): any club running a short rotation (an SP on
+    // the 60-day IL, a walked FA) gets a rebuild under the new
+    // spot-starter rule — the manager stretches his best remaining arms
+    // to five, so the roster-move floors and the rebuild finally agree.
+    if (versionLt(saveVersion, '0.71.4')) {
+      let padded = 0;
+      for (const t of state.league.teams) {
+        if ((t.rotation || []).length < 5 && (t.roster || []).length >= 10) {
+          try { window.BBGM_ROSTER.safeRebuild(state, t); padded++; } catch (e) {
+            console.error('0.71.4 rotation-pad rebuild failed for', t.abbr, e);
+          }
+        }
+      }
+      if (padded) console.log(`0.71.4 migration: stretched ${padded} short rotation(s) to five.`);
+      window.BBGM_STATE.set(state);
+    }
+
     // Migration (0.69.0): open the Scout's Book — every young org player
     // gets his first stamped read so the trajectory starts now. History
     // that was never recorded can't be reconstructed; the book fills in

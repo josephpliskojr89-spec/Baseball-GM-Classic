@@ -4637,6 +4637,31 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > block the call-up; the staff rebuilds around the arrival) +
 > the full 37-suite battery, harness, and e2e (141, exit 0).
 
+> **Status (0.71.4) — the deadlock's ROOT: spot starters
+> (user screenshot: still rejected after 0.71.3; an SP on the
+> 60-day IL).** 0.71.3's ghost sweep was real but wasn't the
+> whole story. The screenshot shape: all five rotation entries
+> legitimately ON the club — the fifth chair held by an IL
+> COVER (a relief arm seated by executeILCallUp when the
+> starter hit the 60-day IL). No ghost to sweep. But
+> assignLineupsAndPitching rebuilt the rotation from
+> SP-PRIMARIES ONLY (sps.slice(0,5)) — so a club with 4
+> SP-primaries rebuilt to a 4-chair rotation and lost to the
+> 5-chair "no worse than before" floor on EVERY roster move:
+> the floor measured array length, the rebuild measured
+> SP-primaries, and the two disagreed whenever a non-SP held
+> a chair. Fix at the root: the rebuild now STRETCHES the best
+> remaining arms into the empty chairs (spot starters — someone
+> has to take the ball every day), always leaving at least one
+> arm for the ninth. Floors and rebuild finally measure the
+> same thing. A 0.71.4 migration rebuilds any club sitting on
+> a short rotation. Starter-workload calibration unmoved (max
+> GS 34, t ≤35). Playwright suite extended to 6 checks — the
+> ghost shape AND the exact screenshot shape (SP on the 60-day
+> IL, RP cover in his chair) both call up cleanly now + the
+> full 37-suite battery, 3-season harness (0 errors), and e2e
+> (141, exit 0).
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):

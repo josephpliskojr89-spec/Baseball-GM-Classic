@@ -694,6 +694,22 @@ window.BBGM_PLAYER_GEN = (function () {
       (a.ratings.stamina + a.ratings.stuff + a.ratings.control)
     );
     team.rotation = sps.slice(0, 5).map((p) => p.id);
+    // Spot starters (0.71.4, user report: call-ups rejected "rotation
+    // size 4, expected at least 5"). When SP-primaries run short — the
+    // 60-day IL, a walked free agent — the manager stretches his best
+    // remaining arms rather than running a short rotation: someone HAS
+    // to take the ball every day. Without this, a rebuild on an SP-short
+    // club produced 4 chairs against the 5-chair floor and every roster
+    // move was rejected. Always leave at least one arm for the ninth.
+    if (team.rotation.length < 5) {
+      const spare = pitchers.filter((p) => !team.rotation.includes(p.id)).sort((a, b) =>
+        (b.ratings.stamina + b.ratings.stuff + b.ratings.control) -
+        (a.ratings.stamina + a.ratings.stuff + a.ratings.control)
+      );
+      while (team.rotation.length < 5 && spare.length > 1) {
+        team.rotation.push(spare.shift().id);
+      }
+    }
 
     // Closer: best CP, fallback best RP, fallback best non-rotation arm.
     const cps = pitchers.filter((p) => p.primaryPosition === 'CP');
