@@ -128,6 +128,17 @@ window.BBGM_DRAFT = (function () {
     p.school = schoolFor(bg);
     p.draftClass = year;
 
+    // Signability (0.71.0): every June has its tough signs — the HS kid
+    // with the ironclad commitment, the advisor floating a number the
+    // slot can't cover. PUBLIC info (this stuff leaks every year), so
+    // the flag sits on the card and the whole league prices the gamble:
+    // burn the pick and pay over slot, or let him slide. Seniors have
+    // no leverage — nobody plays hardball with nowhere to go.
+    const toughOdds = bg.key === 'HS' ? 0.14
+      : bg.key === 'Fr' || bg.key === 'So' ? 0.08
+      : bg.key === 'Jr' ? 0.06 : 0;
+    if (rand() < toughOdds) p.toughSign = true;
+
     // Shift ceilings so the BEST tool lands in the slot's band (6.5 bands
     // are "on best ratings", not across the board). Additive shift keeps
     // the tool spread; non-best tools get extra spread so a top pick is a
@@ -275,6 +286,45 @@ window.BBGM_DRAFT = (function () {
           ceilLo: Math.round(bk - fz - rand() * 2),
           ceilHi: Math.round(bk + fz + rand() * 2),
         };
+      }
+    }
+
+    // Re-entries (0.71.0): unsigned picks from prior Junes come back into
+    // the pool — older, more polished from campus reps, leverage spent.
+    // Their ceiling bands were honest then and stay honest now; what
+    // changed is how much of the ceiling they've already reached.
+    {
+      const due = (state.draftReentry || []).filter((e) => e.availableYear <= year);
+      if (due.length) {
+        state.draftReentry = state.draftReentry.filter((e) => e.availableYear > year);
+        for (const e of due) {
+          const p = e.player;
+          const elapsed = Math.max(1, year - e.prior.year);
+          p.age += elapsed;
+          window.BBGM_PROGRESSION.alignBirthdate(p, state.meta.currentDate);
+          // Campus reps close ~13% of the remaining gap per year —
+          // visible polish without minting a finished teen (the league's
+          // talent curve is calibrated on raw draft classes).
+          for (const k of talentKeys(p)) {
+            const gap = p.hidden.ceiling[k] - p.ratings[k];
+            if (gap > 0) {
+              p.ratings[k] = Math.round(clamp(
+                p.ratings[k] + gap * 0.13 * elapsed, 20, p.hidden.ceiling[k]) * 10) / 10;
+            }
+          }
+          if (p.background === 'HS') {
+            p.background = 'So';
+            p.school = schoolFor({ key: 'So' });
+          } else {
+            p.background = 'Sr';
+          }
+          delete p.toughSign; // the leverage is spent — he wants pro ball now
+          p.reentry = { year: e.prior.year, round: e.prior.round,
+            overall: e.prior.overall, teamId: e.prior.teamId };
+          p.draftClass = year;
+          prospects[p.id] = p;
+          list.push(p);
+        }
       }
     }
 
@@ -439,6 +489,14 @@ window.BBGM_DRAFT = (function () {
       } else if (owner === 'cheap' && round <= 3) {
         w *= p.background === 'Sr' ? 1.35 : 1; // signability seniors
       }
+      // Signability slide (0.71.0): most rooms won't burn a premium pick
+      // on an advisor's number, so the flagged kid falls — and somebody's
+      // late-round flyer on him is the story of every June. Cheap owners
+      // won't touch the ask at all up high.
+      if (p.toughSign) {
+        w *= round <= 2 ? 0.35 : round <= 4 ? 0.6 : 1.05;
+        if (owner === 'cheap' && round <= 4) w *= 0.3;
+      }
       // Light org-need tilt: no young talent anywhere at his position.
       if (team && !p.isPitcher) {
         const orgIds = (team.roster || []).concat(team.minors || []);
@@ -564,10 +622,16 @@ window.BBGM_DRAFT = (function () {
     return Math.round(v * 100) / 100;
   }
 
-  function signRateFor(round, background) {
+  function signRateFor(round, p) {
+    // The tough sign's advisor meant it (0.71.0): early-round money is
+    // real enough to flip him a bit better than a coin; anything later
+    // and he's on campus in the fall.
+    if (p.toughSign) {
+      return round <= 1 ? 0.66 : round <= 3 ? 0.55 : round <= 7 ? 0.40 : 0.22;
+    }
     let rate = round <= 3 ? 0.97 : round <= 7 ? 0.92 : 0.82;
     // Late-round HS picks often honor college commitments instead.
-    if (round >= 8 && background === 'HS') rate = 0.70;
+    if (round >= 8 && p.background === 'HS') rate = 0.70;
     return rate;
   }
 
@@ -596,13 +660,33 @@ window.BBGM_DRAFT = (function () {
     draft.phase = 'complete';
     const year = draft.year;
 
+    const reentryQueued = new Set();
     for (const pick of draft.picks) {
       const p = draft.prospects[pick.prospectId];
       if (!p) continue;
-      const signs = rand() < signRateFor(pick.round, p.background);
+      const signs = rand() < signRateFor(pick.round, p);
       pick.signed = signs;
-      if (!signs) continue; // returns to school; failed pick is forfeited (13.7)
-      pick.bonus = Math.round(slotValue(pick.overall) * rfloat(0.85, 1.15) * 100) / 100;
+      if (!signs) {
+        // Re-entry (0.71.0): he didn't vanish — he went back to campus.
+        // College kids return next June (a senior now, leverage spent);
+        // HS kids surface two Junes later as college underclassmen. A
+        // kid who has already re-entered once is out of road — the
+        // undrafted-FA machinery is all that's left for him.
+        if (!p.reentry && p.background !== 'Sr') {
+          if (!state.draftReentry) state.draftReentry = [];
+          state.draftReentry.push({
+            availableYear: year + (p.background === 'HS' ? 2 : 1),
+            player: p,
+            prior: { year, round: pick.round, overall: pick.overall, teamId: pick.teamId },
+          });
+          reentryQueued.add(p.id);
+        }
+        continue; // failed pick is forfeited (13.7)
+      }
+      // The tough sign who DOES sign got paid — the over-slot number the
+      // advisor was floating all spring (0.71.0).
+      pick.bonus = Math.round(slotValue(pick.overall) *
+        (p.toughSign ? rfloat(1.35, 1.7) : rfloat(0.85, 1.15)) * 100) / 100;
 
       // Development reality (6.5 "the 1st-rounder who never develops"):
       // the scouted ceiling is a projection, not a promise. Attained
@@ -643,6 +727,7 @@ window.BBGM_DRAFT = (function () {
         if (intake >= UNDRAFTED_FA_MAX) break;
         const p = draft.prospects[id];
         if (!p || signedSet.has(id)) continue;
+        if (reentryQueued.has(id)) continue; // he's going back to campus, not indie ball (0.71.0)
         if (p.background === 'HS') continue; // back to school
         p.status = 'FA';
         p.rosterStatus = 'FA';

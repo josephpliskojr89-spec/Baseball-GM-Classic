@@ -4523,6 +4523,48 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > reopen, stiffened meet-ask signs) + the full 35-suite
 > battery, harness, and e2e (141, exit 0).
 
+> **Status (0.71.0) — signability + draft re-entry (13.7
+> deepened; user request after an unsigned first-rounder).**
+> Signing was a post-hoc dice roll with no pre-draft signal,
+> and unsigned kids vanished. Now the gamble is priced up
+> front and the kid comes back. (1) TOUGH SIGNS: rolled at
+> class generation — 14% of HS kids, 8% of college under-
+> classmen, 6% of juniors, never seniors (no leverage, no
+> hardball). PUBLIC disclosure like medicals (the advisor's
+> number leaks every spring): ⚠ on board rows, a warning line
+> on the prospect card ("could slide… or walk"). (2) THE
+> SLIDE: AI rooms discount flagged kids hard in premium
+> rounds (×0.35 in R1-2, ×0.6 in R3-4, slight PREMIUM ×1.05
+> in R5+ — the late flyer is the classic move), cheap owners
+> won't touch the ask at all up high. Measured: the board's #2
+> falls from avg pick 4 to avg pick 7+ when flagged. (3) THE
+> BET: per-player sign rates — a tough sign taken in R1 signs
+> ~66% (R2-3 55%, later he's on campus); when he DOES sign he
+> got PAID, 1.35-1.7× slot (everyone else stays 0.85-1.15×).
+> Normal rates unchanged. (4) RE-ENTRY: an unsigned pick
+> queues in state.draftReentry — college kids return NEXT June
+> as seniors, HS kids surface TWO Junes later as college
+> underclassmen with a new school. Campus reps close ~13% of
+> the remaining gap to ceiling per year (tempered from 18%
+> after a harness calibration breach — best teen signee must
+> stay ≤45 OVR; the league's talent curve is calibrated on
+> raw classes). Leverage spent: toughSign clears on re-entry.
+> The card carries the history ("↩ Re-entry — passed on CLE
+> at #9 in 2027"), the recap's Signing Fallout says where he
+> went and when to look for him, and a re-entry-queued kid is
+> excluded from the undrafted-FA intake (no double-dipping
+> into indie ball). A kid with no eligibility left (unsigned
+> senior / second failure) is out of road — never re-queued.
+> Verified by a 10-check engine suite (flag rates, the slide
+> A/B measured across full drafts, 250-run Monte Carlo sign
+> rates + over-slot bonuses + queue calendars + FA-leak
+> guard, two-step class injection with development and the
+> out-of-road guard) + a 3-check Playwright suite (board
+> markers, both card lines) + the full 36-suite battery,
+> 4-season harness (0 errors, 0 violations, sign counts
+> 249-266/300, teen calibration back in target), and e2e
+> (141, exit 0).
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):

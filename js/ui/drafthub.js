@@ -449,7 +449,8 @@ window.BBGM_UI_DRAFT = (function () {
     const info = U.el('div', { class: 'player-row-info' });
     const med = window.BBGM_SCOUT.medicalRead(p);
     info.appendChild(U.el('div', { class: 'player-row-name' },
-      `${isTarget ? '★ ' : ''}${med && med.flagged ? '⚕ ' : ''}${p.name}`));
+      `${isTarget ? '★ ' : ''}${med && med.flagged ? '⚕ ' : ''}` +
+      `${p.toughSign ? '⚠ ' : ''}${p.reentry ? '↩ ' : ''}${p.name}`));
     info.appendChild(U.el('div', { class: 'player-row-meta' },
       `${p.primaryPosition} • ${p.bats}/${p.throws} • ${p.age} • ${p.school}`));
     row.appendChild(info);
@@ -490,6 +491,28 @@ window.BBGM_UI_DRAFT = (function () {
     }, `⚕ ${med.label}`);
   }
 
+  // Signability + re-entry (0.71.0). Like medicals, this is league
+  // disclosure — the advisor's number leaks every spring, and everyone
+  // remembers who passed on whom.
+  function signabilityLine(state, p) {
+    if (p.toughSign) {
+      return U.el('p', {
+        style: { 'font-size': '12px', 'margin-bottom': '8px', 'font-weight': '600',
+          color: 'var(--warning, #d29922)' },
+      }, '⚠ Signability concerns — his advisor is floating a big number and a firm ' +
+         'college commitment. He could slide… or walk.');
+    }
+    if (p.reentry) {
+      const t = state.league.teams.find((x) => x.id === p.reentry.teamId);
+      return U.el('p', {
+        style: { 'font-size': '12px', 'margin-bottom': '8px', 'font-weight': '600' },
+        class: 'muted',
+      }, `↩ Re-entry — passed on ${t ? t.abbr : 'a club'} at #${p.reentry.overall} ` +
+         `in ${p.reentry.year} and went back to school.`);
+    }
+    return null;
+  }
+
   // "From our scouts" (0.19.2): the draft-guide blurb — the department's
   // strengths/weaknesses read, as right or wrong as the tier that wrote it.
   function appendScoutNotes(body, state, p, pool) {
@@ -525,6 +548,8 @@ window.BBGM_UI_DRAFT = (function () {
     body.appendChild(prospectBioLine(p));
     const medEl = medicalLine(p);
     if (medEl) body.appendChild(medEl);
+    const signEl = signabilityLine(state, p);
+    if (signEl) body.appendChild(signEl);
 
     const toolPairs = p.isPitcher
       ? [['VEL', p.ratings.velocity], ['STF', p.ratings.stuff], ['MOV', p.ratings.movement],
@@ -808,8 +833,13 @@ window.BBGM_UI_DRAFT = (function () {
       const card2 = U.el('div', { class: 'card', style: { padding: '8px 12px' } });
       for (const pk of recap.unsignedNotable) {
         const t = teamOf(state, pk.teamId);
+        const back = pk.background === 'HS'
+          ? `he heads to campus — look for him in the ${recap.year + 2} class`
+          : pk.background === 'Sr'
+            ? 'he\'s out of eligibility'
+            : `he returns to school — a senior in the ${recap.year + 1} class`;
         card2.appendChild(U.el('p', { style: { 'font-size': '12px', margin: '3px 0' } },
-          `${t ? t.abbr : '?'} fail to sign R${pk.round} pick ${pk.name} (${pk.pos}) — he returns to school.`));
+          `${t ? t.abbr : '?'} fail to sign R${pk.round} pick ${pk.name} (${pk.pos}) — ${back}.`));
       }
       container.appendChild(card2);
     }
@@ -1087,7 +1117,8 @@ window.BBGM_UI_DRAFT = (function () {
     const info = U.el('div', { class: 'player-row-info' });
     const med = window.BBGM_SCOUT.medicalRead(p);
     info.appendChild(U.el('div', { class: 'player-row-name' },
-      `${isTarget ? '★ ' : ''}${med && med.flagged ? '⚕ ' : ''}${p.name}`));
+      `${isTarget ? '★ ' : ''}${med && med.flagged ? '⚕ ' : ''}` +
+      `${p.toughSign ? '⚠ ' : ''}${p.reentry ? '↩ ' : ''}${p.name}`));
     const signedTeam = signedRec
       ? state.league.teams.find((t) => t.id === signedRec.teamId) : null;
     info.appendChild(U.el('div', { class: 'player-row-meta' },
