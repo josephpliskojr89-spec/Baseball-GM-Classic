@@ -30,6 +30,7 @@ window.BBGM_WAIVERS = (function () {
       if (i >= 0) arr.splice(i, 1);
     }
     ROSTER().replaceRefs(team, state.players, p.id, null);
+    ROSTER().logTx(state, p, `Designated for assignment by ${team.abbr} — placed on waivers`);
     p.formerTeamId = p.teamId;
     p.teamId = null;
     p.status = 'waivers';
@@ -83,6 +84,7 @@ window.BBGM_WAIVERS = (function () {
     p.status = 'active';
     p.rosterStatus = '26-man';
     p.acquiredVia = { type: 'waiver', year: state.meta.currentDate.year, fromTeamId: p.formerTeamId };
+    ROSTER().logTx(state, p, `Claimed off waivers by ${team.abbr}`);
     team.roster.push(p.id);
     let demoted = null;
     if (team.roster.length > 26) {

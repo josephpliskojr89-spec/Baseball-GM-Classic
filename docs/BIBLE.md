@@ -4838,6 +4838,29 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > round-trip, zero-pool audit), new abroad UI suite 5 (real
 > reload migration, card copy, no sign button, engine guard).
 
+> **Status note (v0.75.0):** The File (user request: the Contract
+> tab renamed and expanded into the player's full front-office
+> file). Four sections: Current Deal + extension talks, Salary
+> History (both as before), a new career Transactions log, and
+> Injury History (recorded by the trainer since day one, finally
+> on the card — ⚠ marks career-altering stints). Transactions
+> come from p.txLog, stamped by ROSTER.logTx at every move:
+> drafted (with bonus), did-not-sign (school / overseas detour),
+> int'l signing, posting/defection arrivals, FA deals (major- and
+> minor-league), trades (both sides), DFA + waiver claims,
+> releases / non-tenders / expirations, extensions (user + AI),
+> and the return from abroad. Hard cap 40 lines, newest kept;
+> the retiree diet drops txLog with the rest of the non-HoF
+> archive. Routine option/recall shuttles deliberately NOT
+> logged (13 scattered mutation sites, noisy value). One-shot
+> 0.75.0 migration seeds living players' files from the origin
+> story — draft, int'l signing, overseas detour, and the latest
+> acquisition (only while still with that club, since acquiredVia
+> forgets destinations). New file suite 11 (draft/re-entry/abroad
+> stamps, trade both sides, DFA+claim, non-tender, minors deal,
+> extension, cap 40) + file UI suite 6 (reload migration seeds in
+> order, tab renamed, three sections, ⚠, honest empty states).
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):

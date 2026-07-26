@@ -462,6 +462,7 @@ window.BBGM_OFFSEASON = (function () {
           delete p.ratingsHistory;
           delete p.salaryHistory;
           delete p.injuryHistory;
+          delete p.txLog;
           for (const y of years) {
             const s = p.stats[y];
             if (s) { delete s.minorsLine; delete s.batting; }
@@ -1264,6 +1265,7 @@ window.BBGM_OFFSEASON = (function () {
         delete p.abroadYear;
         p.faSeasons = 0;
         if (!state.freeAgents.includes(id)) state.freeAgents.push(id);
+        ROSTER().logTx(state, p, `Returned stateside from the ${from || 'overseas league'} — entered free agency`);
         if (summary && summary.abroadReturns) {
           summary.abroadReturns.push({
             playerId: id, name: p.name, pos: p.primaryPosition, age: p.age,

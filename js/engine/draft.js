@@ -694,6 +694,11 @@ window.BBGM_DRAFT = (function () {
             prior: { year, round: pick.round, overall: pick.overall, teamId: pick.teamId },
           });
           reentryQueued.add(p.id);
+          {
+            const dt = state.league.teams.find((t) => t.id === pick.teamId);
+            window.BBGM_ROSTER.logTx(state, p,
+              `Did not sign with ${dt ? dt.abbr : '?'} (R${pick.round}, #${pick.overall} overall) — returned to school`);
+          }
         } else if (p.background === 'Sr') {
           // The overseas detour (0.74.0, user report: an unsigned senior
           // first-rounder surfaced in indie ball, signable for $0.74M
@@ -719,6 +724,11 @@ window.BBGM_DRAFT = (function () {
           state.abroadIds.push(p.id);
           pick.wentAbroad = window.BBGM_FLAVOR
             ? window.BBGM_FLAVOR.leagueName(p.playsIn) : p.playsIn;
+          {
+            const dt = state.league.teams.find((t) => t.id === pick.teamId);
+            window.BBGM_ROSTER.logTx(state, p,
+              `Did not sign with ${dt ? dt.abbr : '?'} (R${pick.round}) — one-year deal in the ${pick.wentAbroad}`);
+          }
         }
         continue; // failed pick is forfeited (13.7)
       }
@@ -751,6 +761,8 @@ window.BBGM_DRAFT = (function () {
       };
       state.players[p.id] = p;
       team.minors.push(p.id);
+      window.BBGM_ROSTER.logTx(state, p,
+        `Drafted R${pick.round} (#${pick.overall} overall) by ${team.abbr} — signed, $${pick.bonus}M bonus`);
     }
 
     // Undrafted paths (0.41.0). High schoolers head to campus — they

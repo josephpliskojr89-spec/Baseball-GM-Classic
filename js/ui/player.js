@@ -121,7 +121,7 @@ window.BBGM_UI_PLAYER = (function () {
     const tabDefs = [
       { key: 'overview', label: 'Overview' },
       { key: 'stats', label: 'Stats' },
-      { key: 'contract', label: 'Contract' },
+      { key: 'contract', label: 'File' },
       { key: 'achievements', label: 'Awards' },
     ];
     const content = U.el('div');
@@ -433,6 +433,37 @@ window.BBGM_UI_PLAYER = (function () {
     } else {
       body.appendChild(U.el('p', { class: 'muted', style: { 'font-size': '12px', 'margin-top': '12px' } },
         'Salary history starts recording from this season on.'));
+    }
+
+    // Transactions (0.75.0): the career paper trail — drafted, signed,
+    // traded, claimed, released, extended, went overseas. Newest first.
+    body.appendChild(U.el('div', { class: 'card-title', style: { 'margin-top': '16px' } }, 'Transactions'));
+    const tx = (p.txLog || []).slice().reverse();
+    if (tx.length) {
+      for (const e of tx) {
+        body.appendChild(U.el('p', { style: { 'font-size': '13px', margin: '4px 0' } },
+          `${e.y} — ${e.t}`));
+      }
+    } else {
+      body.appendChild(U.el('p', { class: 'muted', style: { 'font-size': '12px' } },
+        'No transactions on file yet — moves record from here on.'));
+    }
+
+    // Injury history (0.75.0): the trainer's file has recorded every
+    // stint since day one — now it's on the card. ⚠ marks the injuries
+    // that changed a career.
+    body.appendChild(U.el('div', { class: 'card-title', style: { 'margin-top': '16px' } }, 'Injury History'));
+    const inj = (p.injuryHistory || []).slice().reverse();
+    if (inj.length) {
+      for (const e of inj) {
+        const stint = e.ilType ? `${e.ilType} IL` : 'day-to-day';
+        body.appendChild(U.el('p', { style: { 'font-size': '13px', margin: '4px 0' } },
+          `${e.year} — ${e.name || 'Injury'} (${stint}, ${e.daysOut} day${e.daysOut === 1 ? '' : 's'})` +
+          (e.careerAltering ? ' ⚠' : '')));
+      }
+    } else {
+      body.appendChild(U.el('p', { class: 'muted', style: { 'font-size': '12px' } },
+        'Clean bill of health — no injuries on file.'));
     }
   }
 

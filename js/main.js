@@ -962,6 +962,57 @@ window.BBGM_MAIN = (function () {
       }
     }
 
+    // Migration (0.75.0): open the transaction file. Moves that were
+    // never logged can't be reconstructed, but the origin story can:
+    // draft day, the int'l signing, the overseas detour, and the most
+    // recent acquisition seed each living player's file — everything
+    // else records from here on.
+    if (versionLt(saveVersion, '0.75.0')) {
+      const abbrOf = (tid) => {
+        const t = state.league.teams.find((x) => x.id === tid);
+        return t ? t.abbr : null;
+      };
+      let seeded = 0;
+      for (const id in state.players) {
+        const p = state.players[id];
+        if (!p || p.retired || Array.isArray(p.txLog)) continue;
+        const log = [];
+        if (p.draft) {
+          const ab = abbrOf(p.draft.teamId);
+          log.push({ y: p.draft.year,
+            t: `Drafted R${p.draft.round} (#${p.draft.overall} overall)${ab ? ` by ${ab}` : ''} — signed, $${p.draft.bonus}M bonus` });
+        }
+        if (p.intl) {
+          log.push({ y: p.intl.year,
+            t: `Signed int'l — ${p.intl.country} (#${p.intl.rank}), $${p.intl.bonus}M bonus` });
+        }
+        if (p.faReason === 'wentAbroad' && p.abroadYear != null) {
+          const lg = (window.BBGM_FLAVOR && window.BBGM_FLAVOR.leagueName(p.playsIn)) || 'NPB (Japan)';
+          log.push({ y: p.abroadYear, t: `Went unsigned in the draft — one-year deal in the ${lg}` });
+        }
+        // The latest acquisition — only when he's still with that club
+        // (acquiredVia doesn't remember the destination once he's gone).
+        if (p.acquiredVia && p.acquiredVia.year != null && p.teamId != null) {
+          const cur = abbrOf(p.teamId);
+          const from = p.acquiredVia.fromTeamId != null ? abbrOf(p.acquiredVia.fromTeamId) : null;
+          if (p.acquiredVia.type === 'trade') {
+            log.push({ y: p.acquiredVia.year, t: `Traded to ${cur || '?'}${from ? ` by ${from}` : ''}` });
+          } else if (p.acquiredVia.type === 'waiver') {
+            log.push({ y: p.acquiredVia.year, t: `Claimed off waivers by ${cur || '?'}` });
+          } else if (p.acquiredVia.type === 'fa') {
+            log.push({ y: p.acquiredVia.year, t: `Signed with ${cur || '?'} as a free agent` });
+          }
+        }
+        if (log.length) {
+          log.sort((a, b) => a.y - b.y);
+          p.txLog = log;
+          seeded++;
+        }
+      }
+      if (seeded) console.log(`0.75.0 migration: opened the transaction file on ${seeded} player(s).`);
+      window.BBGM_STATE.set(state);
+    }
+
     // Migration (0.69.0): open the Scout's Book — every young org player
     // gets his first stamped read so the trajectory starts now. History
     // that was never recorded can't be reconstructed; the book fills in

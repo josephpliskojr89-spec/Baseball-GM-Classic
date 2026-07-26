@@ -118,6 +118,12 @@ window.BBGM_FA = (function () {
   function releaseToPool(state, p, reason) {
     const team = state.league.teams.find((t) => t.id === p.teamId);
     if (team) {
+      ROSTER().logTx(state, p,
+        reason === 'non-tendered' ? `Non-tendered by ${team.abbr} — entered free agency`
+          : reason === 'contract-expired' ? `Contract with ${team.abbr} expired — entered free agency`
+            : `Released by ${team.abbr}`);
+    }
+    if (team) {
       for (const arr of [team.roster, team.minors, team.roster40, team.il]) {
         if (!arr) continue;
         const i = arr.indexOf(p.id);
@@ -329,6 +335,7 @@ window.BBGM_FA = (function () {
     p.contract = { years, annualSalary: aav, totalValue: total, signedAt: 'FA' };
     p.teamId = team.id;
     p.acquiredVia = { type: 'fa', year: state.meta.currentDate.year };
+    ROSTER().logTx(state, p, `Signed with ${team.abbr} as a free agent — ${years} yr / $${total}M`);
     const isMLBDeal = aav >= 1.5 || ROSTER().overall(p) >= 46;
     if (isMLBDeal) {
       team.roster.push(p.id);
@@ -405,6 +412,7 @@ window.BBGM_FA = (function () {
     p.status = 'minors';
     p.rosterStatus = ROSTER().demotionLevel(p);
     p.acquiredVia = { type: 'fa', year: state.meta.currentDate.year };
+    ROSTER().logTx(state, p, `Signed a minor-league deal with ${team.abbr}`);
     team.minors.push(p.id);
     const fi = (state.freeAgents || []).indexOf(p.id);
     if (fi >= 0) state.freeAgents.splice(fi, 1);
@@ -555,6 +563,8 @@ window.BBGM_FA = (function () {
       delete p.extTalks;
       if (!state.news) state.news = [];
       const team = state.league.teams.find((t) => t.id === p.teamId);
+      ROSTER().logTx(state, p,
+        `Signed a ${years}-yr / $${p.contract.totalValue}M extension${team ? ` with ${team.abbr}` : ''}`);
       state.news.push({
         date: { ...state.meta.currentDate },
         body: `<strong>${team ? team.abbr : ''}</strong> extend <strong>${p.name}</strong> — ${years} yr / $${total}M.`,
@@ -615,6 +625,8 @@ window.BBGM_FA = (function () {
         if (aav > room) continue; // can't afford the number
         p.contract = { years: ask.years, annualSalary: aav,
           totalValue: Math.round(aav * ask.years * 10) / 10, signedAt: 'extension' };
+        ROSTER().logTx(state, p,
+          `Signed a ${ask.years}-yr / $${p.contract.totalValue}M extension with ${team.abbr}`);
         delete p.extTalks;
         room -= aav;
         extended++;

@@ -719,12 +719,24 @@ window.BBGM_ROSTER = (function () {
     return p;
   }
 
+  // The transaction log (0.75.0): every acquisition and disposition
+  // stamps a line on the player's file — drafted, signed, traded,
+  // claimed, released, extended, went overseas. The card's File tab
+  // renders it. Small strings, hard cap; the retiree diet drops it
+  // with the rest of the non-HoF archive.
+  function logTx(state, p, text) {
+    if (!p || !text) return;
+    if (!Array.isArray(p.txLog)) p.txLog = [];
+    p.txLog.push({ y: state.meta.currentDate.year, t: text });
+    while (p.txLog.length > 40) p.txLog.shift();
+  }
+
   return {
     placeOnILWithMove, activateFromIL, replaceRefs, bestCallUp, overall, demotionLevel,
     weakestDemotable, acceptsMinors,
     newPlayerId, safeRebuild, midSeasonMoves, msDayIndex: dayIndex,
     applyRoleShift, roleShiftPreview,
     callUpCandidates, callUpNeedFor, executeILCallUp, ensureStaffIntegration,
-    moundCandidate, convertToMound,
+    moundCandidate, convertToMound, logTx,
   };
 })();

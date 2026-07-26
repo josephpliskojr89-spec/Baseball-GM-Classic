@@ -525,6 +525,11 @@ window.BBGM_TRADES = (function () {
           p.rosterStatus = '26-man';
         }
         p.acquiredVia = { type: 'trade', year, fromTeamId: p.teamId === teamA.id ? teamB.id : teamA.id };
+        {
+          const fromT = state.league.teams.find((t) => t.id === p.acquiredVia.fromTeamId);
+          window.BBGM_ROSTER.logTx(state, p,
+            `Traded to ${team.abbr}${fromT ? ` by ${fromT.abbr}` : ''}`);
+        }
         // Trade adjustment (0.61.0): a low-makeup player needs about a
         // month to settle into a new clubhouse — the sim reads
         // .adjusting until it expires. High-makeup pros settle overnight.

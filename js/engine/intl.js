@@ -506,6 +506,8 @@ window.BBGM_INTL = (function () {
     p.intl = { year: intl.year, country: p.origin, rank, bonus };
     state.players[p.id] = p;
     team.minors.push(p.id);
+    window.BBGM_ROSTER.logTx(state, p,
+      `Signed int'l with ${team.abbr} — ${p.origin} (#${rank}), $${bonus}M bonus`);
 
     const rec = { prospectId, teamId, bonus, rank, name: p.name, pos: p.primaryPosition, age: p.age, country: p.origin };
     intl.signings.push(rec);
@@ -775,6 +777,10 @@ window.BBGM_INTL = (function () {
     if (!state.freeAgents) state.freeAgents = [];
     state.freeAgents.push(p.id);
     p.faSeasons = 0;
+    window.BBGM_ROSTER.logTx(state, p,
+      opts.event === 'posting' ? 'Posted from NPB — entered NABL free agency'
+        : opts.event === 'defector' ? 'Defected from Cuba — entered NABL free agency'
+          : 'Left the KBO — entered NABL free agency');
     return p;
   }
 
