@@ -4584,6 +4584,34 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > on the ledger alongside the star) + the full 36-suite
 > battery, harness, and e2e (141, exit 0).
 
+> **Status (0.71.2) — the star curve (12.2/12.3 deepened; user
+> request: "I'd like to see some prospects dominating, or an
+> independent league guy tear it up").** Minors and flavor
+> lines already scaled with talent-vs-anchor, but the response
+> was shallow and linear — a bat 20 points past his level hit
+> a polite .330, never a league-breaking .360. lineChunk's
+> talent response is now piecewise (levelDelta): LINEAR within
+> ±8 of the level anchor (ordinary assignments untouched —
+> verified: an anchor-level AA bat still hits .264, an average
+> arm still runs 4.36), slope ×1.8 above +8 (the phenom's
+> monster year: tools-62 at AA now hits .356 with 24 HR; the
+> elite arm runs 1.88/9.9 K/9), slope ×1.5 below −8 (the
+> rushed kid doesn't scuffle politely, he drowns: .197 with
+> 24% K). Applied per-term — avg/HR/BB/K for hitters,
+> ERA/K9/BB9 for pitchers — with caps widened a notch (avg
+> .440, HR-rate .075, K/9 14.5, ERA floor 0.80, BB/9 floor
+> 0.8). Flavor leagues inherit automatically through the
+> shared lineChunk + monthlyLine anchor opts: the 50-OVR
+> undrafted kid in the Frontier League (anchor 35) now hits
+> .325 with 19 HR — the story of the league, which is exactly
+> how the indie-radar letters read. Pure immersion, zero
+> mechanical impact: minorsLine numbers feed no development or
+> valuation math. Verified by a 7-check Monte Carlo suite
+> (200-run means for dominator/average/drowning hitter, elite/
+> average arm, the Frontier MVP via monthlyLine opts, and the
+> ladder still separating levels) + the full 37-suite battery,
+> harness (0 errors), and e2e (141, exit 0).
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):

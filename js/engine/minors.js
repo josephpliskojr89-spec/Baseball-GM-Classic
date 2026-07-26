@@ -26,6 +26,21 @@ window.BBGM_MINORS = (function () {
     Rookie: { anchor: 31, noise: 2.0 },
   };
 
+  // Star curve (0.71.2, user request: "I'd like to see some prospects
+  // dominating"): the talent-vs-anchor response is linear only NEAR the
+  // level. Past +8 the slope steepens — a bat that has nothing left to
+  // learn at a stop doesn't hit .300 there, he hits .360 and makes the
+  // league look silly (the indie-league MVP, the phenom's monster
+  // month). Past −8 it steepens the other way: an overmatched kid
+  // doesn't scuffle politely, he drowns. Ordinary assignments (within
+  // ±8 of the anchor) are untouched.
+  function levelDelta(x, anchor) {
+    const d = x - anchor;
+    if (d > 8) return 8 + (d - 8) * 1.8;
+    if (d < -8) return -8 + (d + 8) * 1.5;
+    return d;
+  }
+
   // Generate a stat-line CHUNK for one player at a quality anchor.
   // frac = 1 is a full season; frac ≈ 1/6 is one month (0.41.0 monthly
   // lines). Rates are computed fresh from current ratings each chunk, so
@@ -35,13 +50,13 @@ window.BBGM_MINORS = (function () {
     if (!p.isPitcher) {
       const contact = (r.contactVsR + r.contactVsL) / 2;
       const power = (r.powerVsR + r.powerVsL) / 2;
-      const delta = ((contact + power + r.discipline) / 3) - lvl.anchor;
+      const delta = levelDelta((contact + power + r.discipline) / 3, lvl.anchor);
 
       const pa = Math.round(rint(380, 560) * frac);
-      const bbRate = clamp(0.080 + (r.discipline - lvl.anchor) * 0.0016 + rnorm(0, 0.008 * lvl.noise), 0.03, 0.17);
-      const kRate = clamp(0.20 - (contact - lvl.anchor) * 0.002 + rnorm(0, 0.012 * lvl.noise), 0.07, 0.38);
-      const avg = clamp(0.262 + delta * 0.0032 + rnorm(0, 0.016 * lvl.noise * Math.sqrt(1 / Math.max(frac, 0.05))), 0.140, 0.430);
-      const hrRate = clamp(0.018 + (power - lvl.anchor) * 0.0011 + rnorm(0, 0.004 * lvl.noise), 0.001, 0.065);
+      const bbRate = clamp(0.080 + levelDelta(r.discipline, lvl.anchor) * 0.0016 + rnorm(0, 0.008 * lvl.noise), 0.03, 0.19);
+      const kRate = clamp(0.20 - levelDelta(contact, lvl.anchor) * 0.002 + rnorm(0, 0.012 * lvl.noise), 0.06, 0.40);
+      const avg = clamp(0.262 + delta * 0.0032 + rnorm(0, 0.016 * lvl.noise * Math.sqrt(1 / Math.max(frac, 0.05))), 0.140, 0.440);
+      const hrRate = clamp(0.018 + levelDelta(power, lvl.anchor) * 0.0011 + rnorm(0, 0.004 * lvl.noise), 0.001, 0.075);
 
       const bb = Math.round(pa * bbRate);
       const ab = pa - bb - Math.round(pa * 0.012); // walks + a few HBP/sac
@@ -59,13 +74,13 @@ window.BBGM_MINORS = (function () {
       };
     }
     const stuffish = (r.stuff + r.velocity) / 2;
-    const delta = ((stuffish + r.control + r.movement) / 3) - lvl.anchor;
+    const delta = levelDelta((stuffish + r.control + r.movement) / 3, lvl.anchor);
     const isSP = p.primaryPosition === 'SP';
     const ipOuts = Math.round((isSP ? rint(110, 155) : rint(48, 72)) * frac) * 3;
-    const era = clamp(4.35 - delta * 0.085 + rnorm(0, 0.45 * lvl.noise * Math.sqrt(1 / Math.max(frac, 0.05))), 0.90, 9.90);
+    const era = clamp(4.35 - delta * 0.085 + rnorm(0, 0.45 * lvl.noise * Math.sqrt(1 / Math.max(frac, 0.05))), 0.80, 9.90);
     const ip = ipOuts / 3;
-    const k9 = clamp(7.2 + (stuffish - lvl.anchor) * 0.09 + rnorm(0, 0.5 * lvl.noise), 3.5, 13.5);
-    const bb9 = clamp(3.6 - (r.control - lvl.anchor) * 0.055 + rnorm(0, 0.4 * lvl.noise), 1.0, 7.5);
+    const k9 = clamp(7.2 + levelDelta(stuffish, lvl.anchor) * 0.09 + rnorm(0, 0.5 * lvl.noise), 3.5, 14.5);
+    const bb9 = clamp(3.6 - levelDelta(r.control, lvl.anchor) * 0.055 + rnorm(0, 0.4 * lvl.noise), 0.8, 7.5);
     const er = Math.round(era * ip / 9);
     const g = isSP ? Math.round(ip / 5.3) : Math.round(rint(35, 55) * frac);
     return {
