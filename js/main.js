@@ -2130,6 +2130,26 @@ window.BBGM_MAIN = (function () {
               `rather than pay a $${nt.salary}M arbitration raise.`,
       });
     }
+    // Expiring-contracts ledger (0.71.1): one letter each winter from
+    // your own front office listing EVERY player entering his final
+    // contract season — the full picture the individual agent letters
+    // don't give. Extend them, shop them by July, or watch them walk.
+    if ((summary.expiring || []).length) {
+      const list = summary.expiring.slice()
+        .sort((a, b) => b.ovr - a.ovr)
+        .map((e) => `${e.name} (${e.pos}, ${e.age}) — ${U.gradeFor(e.ovr)} OVR, $${e.salary}M`);
+      const n = list.length;
+      window.BBGM_INBOX.push(state, {
+        from: 'Front Office (Contracts)',
+        subject: `Expiring deals: ${n} player${n === 1 ? '' : 's'} in a walk year`,
+        body: `The ledger for the coming season: ${n === 1 ? 'this deal expires' : 'these deals expire'} ` +
+              `in November, and ${n === 1 ? 'he walks' : 'they all walk'} to free agency. ` +
+              list.join('. ') + '. ' +
+              `Anyone we want to keep, this winter is the cheap conversation — and anyone we ` +
+              `don't should be on the phone lines before the deadline, not walking for nothing.`,
+        action: { type: 'navigate', tab: 'team' },
+      });
+    }
     // Walk-year letters (0.70.0): the agent of a user-team regular
     // entering his final control season opens the door — tap through to
     // the extension table before November does the negotiating for you.

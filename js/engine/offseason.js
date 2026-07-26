@@ -680,6 +680,7 @@ window.BBGM_OFFSEASON = (function () {
     //    (11.4's simplified arbitration: automatic salary steps, no
     //    hearing process).
     summary.walkYears = [];
+    summary.expiring = [];
     for (const id in players) {
       const p = players[id];
       if (p.retired) continue;
@@ -699,9 +700,14 @@ window.BBGM_OFFSEASON = (function () {
         // control season gets an agent letter — the clock on an extension
         // is now visibly ticking. Once per contract.
         if (p.contract.years === 1 && p.teamId === state.meta.userTeamId &&
-            (p.serviceTime.years || 0) + 1 >= 6 && !p.contract.walkNoted) {
+            (p.serviceTime.years || 0) + 1 >= 6) {
           const wOvr = ROSTER().overall(p);
-          if (wOvr >= 55) {
+          // Every FA-bound expiring deal lands on the front office's
+          // winter ledger letter (0.71.1), stars or not.
+          summary.expiring.push({ playerId: p.id, name: p.name, age: p.age,
+            pos: p.primaryPosition, ovr: Math.round(wOvr),
+            salary: p.contract.annualSalary || 0 });
+          if (wOvr >= 55 && !p.contract.walkNoted) {
             p.contract.walkNoted = true;
             summary.walkYears.push({ playerId: p.id, name: p.name, age: p.age,
               pos: p.primaryPosition, ovr: Math.round(wOvr) });

@@ -4565,6 +4565,25 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > 249-266/300, teen calibration back in target), and e2e
 > (141, exit 0).
 
+> **Status (0.71.1) — the expiring-contracts ledger (user
+> request).** The 0.70.0 walk-year agent letters cover only
+> OVR ≥55 stars, one at a time — there was no full picture.
+> Each winter the front office now writes ONE roundup letter
+> listing EVERY user player entering his final contract season
+> (FA-bound at expiry: contract.years hits 1 with 6+ service
+> by then), sorted by OVR with position, age, grade, and
+> salary — stars and journeymen alike. The letter frames the
+> decision: extend them this winter (the cheap conversation),
+> shop them before the deadline, or watch them walk for
+> nothing. Engine: summary.expiring collected in the same
+> Part A tick-loop pass as walkYears (no OVR gate, no
+> once-ever flag — it's a yearly ledger); letter written in
+> main.js's winter block, tap-through to the Team view.
+> Verified by an added check in the extension suite (17
+> checks: a sub-55 journeyman entering his walk year appears
+> on the ledger alongside the star) + the full 36-suite
+> battery, harness, and e2e (141, exit 0).
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):
