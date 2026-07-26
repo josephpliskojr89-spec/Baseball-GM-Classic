@@ -115,10 +115,20 @@ window.BBGM_ROSTER = (function () {
     const roster = team.roster.map((id) => players[id]).filter(Boolean);
     const cCount = roster.filter((q) => !q.isPitcher && q.primaryPosition === 'C').length;
     const spCount = roster.filter((q) => q.isPitcher && q.primaryPosition === 'SP').length;
+    // Composition floors (0.75.2, soak finding): trade trims and waiver
+    // claims picked the weakest by OVR with no side-of-the-roster guard,
+    // so clubs bled position players one trim at a time until a 26-man
+    // carried 17 arms and 9 bats — one day-to-day knock from a lineup
+    // the sim cannot field (the "hitters 7 < 8" crash). A hitter is
+    // untouchable at 12 bats, an arm at 11.
+    const hitCount = roster.filter((q) => !q.isPitcher).length;
+    const pitCount = roster.length - hitCount;
     const byOverall = (a, b) => overall(a) - overall(b);
     const eligible = roster.filter((q) => !excludeIds.includes(q.id) && q.id !== team.closer &&
         !(q.primaryPosition === 'C' && cCount <= 2) &&
-        !(q.primaryPosition === 'SP' && spCount <= 5))
+        !(q.primaryPosition === 'SP' && spCount <= 5) &&
+        !(!q.isPitcher && hitCount <= 12) &&
+        !(q.isPitcher && pitCount <= 11))
       .sort(byOverall);
     if (eligible.length) return eligible[0];
     const anyone = roster.filter((q) => !excludeIds.includes(q.id)).sort(byOverall);
@@ -627,6 +637,104 @@ window.BBGM_ROSTER = (function () {
     return { type: 'swap', teamId: team.id, upId: up.id, downId: down.id };
   }
 
+  // Composition repair (0.75.2): the weekly cure for the drifted 26-man
+  // the floors above can no longer prevent (rosters inherited from old
+  // saves, IL churn, degenerate trades). A club short of 12 bats or 11
+  // arms promotes the best healthy farmhand of the missing type and
+  // sends down the weakest consenting player from the surplus side —
+  // repeatedly, until the roster can survive a bad week. Merit gaps and
+  // swap cooldowns don't apply: this is triage, not development.
+  function msCompositionRepair(state, team, today) {
+    const players = state.players;
+    const inj = INJ();
+    const idx = dayIndex(today);
+    const events = [];
+    let guard = 0;
+    while (guard++ < 4) {
+      const roster = team.roster.map((id) => players[id]).filter(Boolean);
+      const hitCount = roster.filter((p) => !p.isPitcher).length;
+      const pitCount = roster.length - hitCount;
+      const needPitcher = pitCount < 11;
+      const needHitter = hitCount < 12;
+      if (!needHitter && !needPitcher) return events;
+      const wantPitcher = needPitcher; // the missing type comes up
+      const up = (team.minors || []).map((id) => players[id])
+        .filter((p) => p && p.isPitcher === wantPitcher && inj.isAvailable(p) &&
+          (p.rosterStatus === 'AAA' || p.rosterStatus === 'AA' || p.rosterStatus === 'A'))
+        .sort((a, b) => overall(b) - overall(a))[0];
+      if (!up) { // barren farm — nothing to promote
+        events.push({ type: 'compStall', teamId: team.id, reason: 'noFarm', hit: hitCount, pit: pitCount });
+        return events;
+      }
+      const down = roster.filter((p) => {
+        if (p.isPitcher === wantPitcher) return false; // surplus side only
+        if (!inj.isAvailable(p)) return false;
+        if (p.ilCallUpFor) return false;
+        if (p.id === team.closer) return false;
+        if (p.isPitcher && p.primaryPosition === 'SP' &&
+            roster.filter((q) => q.isPitcher && q.primaryPosition === 'SP').length <= 5) return false;
+        if (!p.isPitcher && p.primaryPosition === 'C' &&
+            roster.filter((q) => !q.isPitcher && q.primaryPosition === 'C').length <= 2) return false;
+        if (!acceptsMinors(p, today.year)) return false; // the vet says no (0.72.0)
+        return true;
+      }).sort((a, b) => overall(a) - overall(b))[0];
+      if (!down) { // everybody on the surplus side is protected or refused
+        // Crisis fallback: below a fieldable margin (fewer than 10 bats
+        // or 9 arms) every excuse expires. The real-world move when the
+        // veteran refuses assignment is a DFA — 0.72.0's own rule — so
+        // the weakest unprotected surplus player hits the wire and the
+        // farmhand comes up anyway.
+        const critical = wantPitcher ? pitCount < 9 : hitCount < 10;
+        const WV = window.BBGM_WAIVERS;
+        const victim = !critical || !WV || !WV.place ? null : roster.filter((p) => {
+          if (p.isPitcher === wantPitcher) return false;
+          if (!inj.isAvailable(p)) return false;
+          if (p.ilCallUpFor) return false;
+          if (p.id === team.closer) return false;
+          if (p.isPitcher && p.primaryPosition === 'SP' &&
+              roster.filter((q) => q.isPitcher && q.primaryPosition === 'SP').length <= 5) return false;
+          if (!p.isPitcher && p.primaryPosition === 'C' &&
+              roster.filter((q) => !q.isPitcher && q.primaryPosition === 'C').length <= 2) return false;
+          return true;
+        }).sort((a, b) => overall(a) - overall(b))[0];
+        if (victim) {
+          WV.place(state, team, victim);
+          const vi = team.minors.indexOf(up.id);
+          if (vi >= 0) team.minors.splice(vi, 1);
+          team.roster.push(up.id);
+          up.status = 'active';
+          up.rosterStatus = '26-man';
+          up.msMoved = idx;
+          ensureStaffIntegration(state, team, up);
+          events.push({ type: 'compFix', teamId: team.id, upId: up.id, downId: victim.id, dfa: true });
+          continue;
+        }
+        const surplus = roster.filter((p) => p.isPitcher !== wantPitcher);
+        const refusals = surplus.filter((p) => inj.isAvailable(p) && !p.ilCallUpFor &&
+          p.id !== team.closer && !acceptsMinors(p, today.year)).length;
+        events.push({ type: 'compStall', teamId: team.id,
+          reason: refusals ? `refusals:${refusals}` : 'protected', hit: hitCount, pit: pitCount });
+        return events;
+      }
+      const ri = team.roster.indexOf(down.id);
+      if (ri >= 0) team.roster.splice(ri, 1);
+      down.status = 'minors';
+      down.rosterStatus = demotionLevel(down);
+      down.msMoved = idx;
+      const mi = team.minors.indexOf(up.id);
+      if (mi >= 0) team.minors.splice(mi, 1);
+      team.minors.push(down.id);
+      team.roster.push(up.id);
+      up.status = 'active';
+      up.rosterStatus = '26-man';
+      up.msMoved = idx;
+      replaceRefs(team, players, down.id, up.id);
+      ensureStaffIntegration(state, team, up);
+      events.push({ type: 'compFix', teamId: team.id, upId: up.id, downId: down.id });
+    }
+    return events;
+  }
+
   function midSeasonMoves(state, today, opts = {}) {
     const events = [];
     if (state.meta && state.meta.offseasonPhase) return events;
@@ -641,6 +749,13 @@ window.BBGM_ROSTER = (function () {
     for (const team of state.league.teams) {
       if (weekly) {
         const isUser = team.id === userId;
+        // Composition triage first (0.75.2) — AI clubs only; the user's
+        // roster is the user's to shape, and the engine-side floors
+        // already stop drift on every path the user doesn't drive.
+        if (!isUser) {
+          const fixes = msCompositionRepair(state, team, today);
+          if (fixes.length) events.push(...fixes);
+        }
         const ev = msSwapForTeam(state, team, today, !isUser || !!opts.userAuto);
         if (ev) events.push(ev);
       }

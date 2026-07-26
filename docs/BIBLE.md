@@ -4879,6 +4879,30 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > suite. New october suite 7 (queue-jump, 7-day shape, short-rest
 > discount both directions, gassed-staff fallthrough).
 
+> **Status note (v0.75.2):** Roster composition floors (dynasty-
+> soak finding: 26-man rosters drifted to 17 arms / 9 bats — the
+> trade-trim/waiver-claim picker took the weakest by OVR with no
+> side-of-roster guard — and one day-to-day knock produced the
+> "lineup hitters 7 < 8" sim crash, 62 times in one soak season
+> plus a playoff-game hard crash). Fixes: (1) weakestDemotable
+> now refuses to demote a hitter at ≤12 bats or a pitcher at ≤11
+> arms — every trim and claim path inherits the floor; (2) new
+> msCompositionRepair triage in the weekly midSeasonMoves pass —
+> an AI club short of the floors promotes its best healthy farm
+> player of the missing type and sends down the weakest
+> CONSENTING surplus player (veteran refusal honored; stands
+> down cleanly if everyone says no), repeating up to 4× per
+> week; the user's club is never auto-managed — the engine-side
+> floors protect it on every path the user doesn't drive; (3)
+> the season harness now counts thin-club weeks (any 26-man
+> under 9 healthy hitters, target 0) as a permanent regression
+> guard. Acceptance: 3 × 14-season soaks — zero thin-club
+> events, zero sim errors, zero crashes (pre-fix: 2-5 clubs per
+> run hit the spiral). Deathspiral suite 6 (both floors, claim
+> integration, 9→12 triage, veteran stand-down, user autonomy).
+> Star-scarcity recalibration (the talent-inflation half of the
+> investigation) is the planned follow-up.
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):

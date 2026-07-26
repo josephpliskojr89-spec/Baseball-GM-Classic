@@ -96,6 +96,10 @@ let consecDayViolations = 0; // reliever appearing on a 4th straight day
 let devBase = null;          // May 1 pre-tick OVR/age snapshot
 let msSwaps = 0, msLevelMoves = 0;
 let msSwapsPrev = 0, msLevelPrev = 0;
+// 0.75.2 regression guard: weekly count of clubs that couldn't survive a
+// bad day — fewer than 9 healthy hitters on the 26-man. The composition
+// floors + repair should hold this at zero forever.
+let thinClubWeeks = 0;
 
 function applyCeilingDrop(p) {
   const c = p.hidden.ceiling;
@@ -141,6 +145,18 @@ function simOneDay(state) {
     const spid = winSide === 'home' ? r.homeSPid : r.awaySPid;
     if (wp && wp !== spid) relieverWins++;
     fieldingErrors += (r.homeErrors || 0) + (r.awayErrors || 0);
+  }
+  // Thin-club watch (0.75.2): weekly, any 26-man under 9 healthy hitters
+  // is one knock from an unfillable lineup — count it.
+  if (today.day % 7 === 0) {
+    for (const t of state.league.teams) {
+      let healthyHit = 0;
+      for (const pid of t.roster) {
+        const p = state.players[pid];
+        if (p && !p.isPitcher && INJ.isAvailable(p)) healthyHit++;
+      }
+      if (healthyHit < 9) thinClubWeeks++;
+    }
   }
   // Rest-rule audit: consecPitchDays is stamped at game end, so a value of
   // 4+ on a pitcher who worked today means a 4th consecutive day of use.
@@ -444,6 +460,7 @@ const totalRuns = runsByLeague.east + runsByLeague.west;
 console.log('errors/team:', (fieldingErrors / 30).toFixed(0), '(t ~100-120) | unearned run share:',
   pct((pitTot.r - pitTot.er) / (pitTot.r || 1)), '(MLB ~7-8%)');
 console.log('CG:', cgTotal, '| SHO:', shoTotal, '| reliever 4th-straight-day appearances (soft rule; depleted-pen fallback only):', consecDayViolations);
+console.log('thin-club weeks (26-man under 9 healthy hitters; t 0 — composition floors 0.75.2):', thinClubWeeks);
 console.log('--- Usage (7.4.7) ---');
 console.log('SP IP/start avg:', avg(spLines).toFixed(2), '(t 5.5-6.5) range', Math.min(...spLines).toFixed(2), '-', Math.max(...spLines).toFixed(2));
 console.log('setup G avg:', avg(setupG).toFixed(0), '(t 60-75) | middle:', avg(middleG).toFixed(0),
