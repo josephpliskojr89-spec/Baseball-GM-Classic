@@ -278,9 +278,14 @@ window.BBGM_SCOUT = (function () {
   function poolView(state, rank, pool) {
     const team = state.league.teams.find((t) => t.id === state.meta.userTeamId);
     const ti = tierIdx(team);
-    const topDepth = pool === 'intl'
-      ? [10, 20, 30, 30][ti]
-      : [10, 50, 350, 350][ti]; // draft: standard sees the full class thinly
+    // Draft: EVERY tier sees the whole class (0.77.1, user catch — a
+    // pre-0.65.0 depth gate [10,50,350,350] survived the big-board
+    // redesign and contradicted it: you can't board a kid whose row
+    // never renders, and boarding is the whole mechanic). The tier
+    // difference lives in the coverage widen below and in board
+    // speed/floor — never in who exists. Intl keeps its depth gate:
+    // the top-30 structure is that market's own design (6.7).
+    const topDepth = pool === 'intl' ? [10, 20, 30, 30][ti] : 350;
     if (pool === 'intl' && rank > 30) {
       // Bottom 70: minimal info at every tier (6.7).
       return { visible: ti >= 3 && rank <= 45, widen: 6 };

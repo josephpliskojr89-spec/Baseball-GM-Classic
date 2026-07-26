@@ -4953,6 +4953,20 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > Intlrank suite 11 (posting/KBO rates, dry-winter rarity,
 > letter-field integrity).
 
+> **Status note (v0.77.1):** Full draft class visible at every
+> scouting tier (user catch: a pre-0.65.0 depth gate —
+> [10,50,350,350] by tier — survived the big-board redesign and
+> contradicted its approved design; a bare-bones club literally
+> couldn't render, let alone board, anyone past the consensus
+> top 10, and boarding is the whole mechanic). poolView's draft
+> topDepth is now 350 for all tiers: everyone sees every kid,
+> the tier difference lives entirely in coverage band width
+> ([9,6,3,1] + deep-cut penalty) and board sharpening
+> speed/floor. The int'l depth gate ([10,20,30,30]) is that
+> market's own 6.7 design and is untouched. Bigboard suite 24
+> (rank-200/349 visible at bare-bones with +11 widen; intl gate
+> intact).
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):
