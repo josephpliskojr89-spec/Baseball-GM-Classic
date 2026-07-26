@@ -240,15 +240,19 @@ window.BBGM_DRAFT = (function () {
       const target = rfloat(68, 76);
       let bestKey = keys[0];
       for (const k of keys) if (gem.hidden.ceiling[k] > gem.hidden.ceiling[bestKey]) bestKey = k;
-      const delta = target - gem.hidden.ceiling[bestKey];
+      // Raise-only, clamp 82 (W3, 0.68.1): same guard as the anointment —
+      // a gem whose best tool already clears the target keeps what he
+      // has, and the lift ceiling matches the 82 used everywhere else.
+      const delta = Math.max(0, target - gem.hidden.ceiling[bestKey]);
       for (const k of keys) {
         if (!gem.isPitcher && k === 'speed' && bestKey !== 'speed') {
           gem.hidden.ceiling.speed = Math.round(clamp(
-            gem.hidden.ceiling.speed + Math.max(0, delta) * 0.15, 25, 80) * 10) / 10;
+            gem.hidden.ceiling.speed + delta * 0.15, 25, 80) * 10) / 10;
           continue;
         }
         const spread = k === bestKey ? 0 : rfloat(0, 7);
-        gem.hidden.ceiling[k] = Math.round(clamp(gem.hidden.ceiling[k] + delta - spread, 25, 80) * 10) / 10;
+        const lifted = clamp(gem.hidden.ceiling[k] + delta - spread, 25, 82);
+        gem.hidden.ceiling[k] = Math.round(Math.max(gem.hidden.ceiling[k], lifted) * 10) / 10;
       }
       GEN().applyArchetypeCap(gem); // the gem lift honors the cap too (0.53.1)
       // The gem hides because scouts don't see it: his public band stays low.

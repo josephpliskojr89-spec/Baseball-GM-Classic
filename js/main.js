@@ -317,6 +317,15 @@ window.BBGM_MAIN = (function () {
     // why ungated migrations re-ran forever).
     const saveVersion = state.version || '0.1.0';
 
+    // Audit W3 (0.68.1): detect a rolled-back app — old code (a stale
+    // service-worker cache or a reverted deploy) opening a save last run
+    // under NEWER code. The chain below is harmless in that case (every
+    // gate is versionLt(saveVersion, ...), all false), but the stamp at
+    // the end must never move the save's version BACKWARD: that would
+    // re-arm every one-shot gate, and the next forward update would
+    // re-run the whole chain against already-migrated data.
+    const saveFromFuture = versionLt(C.VERSION, saveVersion);
+
     // Audit W1 (0.67.1): the chain is exception-safe. Saves are BLOCKED
     // for the whole run — the per-migration set() calls below become
     // no-ops — and one persist happens after the version stamp. If any
@@ -822,14 +831,31 @@ window.BBGM_MAIN = (function () {
     // Stamp the save forward now that every migration has run. This is
     // what makes the versionLt gates above one-shot, and it makes the
     // Menu's "Save version" reflect the code the save actually runs under
-    // rather than the release it was created in.
-    if (state.version !== C.VERSION) {
+    // rather than the release it was created in. FORWARD-only (W3): a
+    // rolled-back app must not un-stamp a newer save.
+    if (versionLt(saveVersion, C.VERSION)) {
       state.version = C.VERSION;
     }
 
     // Success: unblock and make the chain's single persist.
     window.BBGM_STATE.setSaveBlocked(false);
     window.BBGM_STATE.set(state);
+
+    if (saveFromFuture) {
+      U.showModal({
+        title: 'Newer Save, Older Game',
+        body: `This save was last run under v${saveVersion}, but the game ` +
+              `code loaded right now is v${C.VERSION}. This usually means a ` +
+              'cached older version of the game is being served. Your save ' +
+              'has not been changed. Reloading may pick up the newer version; ' +
+              'you can also keep playing, but features from the newer ' +
+              'version may misbehave.',
+        actions: [
+          { label: 'Reload', kind: 'primary', onClick: () => { location.reload(); return false; } },
+          { label: 'Keep Playing', kind: 'secondary', onClick: () => true },
+        ],
+      });
+    }
     } catch (e) { // END migration chain
       // Saves stay BLOCKED: the persisted save on disk is untouched, so
       // a reload retries the whole chain from clean state.
@@ -1037,14 +1063,18 @@ window.BBGM_MAIN = (function () {
       }});
     } else if (m.action && m.action.type === 'coachProject') {
       // Approve a coach's personal project (0.48.0). Guarded: the player
-      // must still be in the org and not already someone's project.
+      // must still be in the org, not already someone's project, and the
+      // letter must be from THIS season (W3) — the proposal was "for the
+      // year", and an old letter approved next spring would start a
+      // project on a season the coach never scouted.
       actions.push({ label: 'Approve the Project', kind: 'primary', onClick: () => {
         const s = window.BBGM_STATE.get();
         const p = s.players[m.action.playerId];
         const team = s.league.teams.find((t) => t.id === s.meta.userTeamId);
         const inOrg = p && team && (team.roster.includes(p.id) ||
           team.minors.includes(p.id) || (team.il || []).includes(p.id));
-        if (!p || !inOrg || p.devProject) {
+        const stale = m.action.year != null && m.action.year !== s.meta.currentDate.year;
+        if (!p || !inOrg || p.devProject || stale) {
           U.showToast('That project is no longer on the table.', 'warning', 4000);
           return true;
         }
@@ -2370,6 +2400,18 @@ window.BBGM_MAIN = (function () {
     const mailBefore = (state.inbox || []).length;
     const mailTopBefore = state.inbox && state.inbox[0] ? state.inbox[0].id : null;
 
+    // One-shot latches for the day's league ticks (W3, 0.68.1). A mid-day
+    // sim error leaves the date unadvanced, so the next Advance Day
+    // re-runs this SAME day — games and injuries already carry their own
+    // idempotence flags (played / injProcessed), but the league ticks
+    // below did not, so a retry double-fired AI signings, AI trades,
+    // waiver movement, and the day's news digest.
+    const dayKey = `${today.year}-${today.month}-${today.day}`;
+    if (!state.meta.dayTicks || state.meta.dayTicks.day !== dayKey) {
+      state.meta.dayTicks = { day: dayKey };
+    }
+    const dayTicks = state.meta.dayTicks;
+
     // Postseason days (bible 3.4): October plays on the calendar. Series
     // results land in the news; the champion modal fires from simDays.
     if (state.postseason && state.postseason.phase === 'active') {
@@ -2474,13 +2516,19 @@ window.BBGM_MAIN = (function () {
 
     // AI mid-season FA sweep (0.50.0): clubs scoop stranded pool talent
     // a few times a month — a star free agent no longer sits all year.
-    window.BBGM_FA.aiMidSeasonTick(state, today);
+    if (!dayTicks.fa) {
+      dayTicks.fa = true;
+      window.BBGM_FA.aiMidSeasonTick(state, today);
+    }
 
     // AI trade activity (bible 15.7): AI-AI deals and occasional
     // unsolicited offers to the user, up to the July 31 deadline.
     // A NEW offer to the user is a sim-stop event when the toggle is on.
     const offersBefore = (state.pendingTradeOffers || []).length;
-    window.BBGM_TRADES.aiTradeTick(state, today);
+    if (!dayTicks.trades) {
+      dayTicks.trades = true;
+      window.BBGM_TRADES.aiTradeTick(state, today);
+    }
     if (stops.tradeOffer && (state.pendingTradeOffers || []).length > offersBefore) {
       const offer = state.pendingTradeOffers[state.pendingTradeOffers.length - 1];
       const from = state.league.teams.find((t) => t.id === offer.fromTeamId);
@@ -2498,7 +2546,11 @@ window.BBGM_MAIN = (function () {
     // Waiver wire (0.22.0): AI clubs occasionally DFA a squeezed-out vet,
     // and entries that have sat their 2 days resolve — worst record
     // claims first, unclaimed players clear to free agency.
-    const wvEvents = window.BBGM_WAIVERS.dailyTick(state, today);
+    let wvEvents = [];
+    if (!dayTicks.waivers) {
+      dayTicks.waivers = true;
+      wvEvents = window.BBGM_WAIVERS.dailyTick(state, today);
+    }
     if (wvEvents.length && !state.news) state.news = [];
     for (const ev of wvEvents) {
       const p = state.players[ev.playerId];
@@ -2712,6 +2764,7 @@ window.BBGM_MAIN = (function () {
         .find((p) => p && p.age <= 21 && !(p.hidden && p.hidden.deniedNoted) &&
           window.BBGM_ROSTER.overall(p) >= 55 && window.BBGM_INJURIES.isAvailable(p));
       if (phenom) {
+        if (!phenom.hidden) phenom.hidden = {};
         phenom.hidden.deniedNoted = true;
         const coachId = phenom.isPitcher ? ut.pitchingCoachId : ut.hittingCoachId;
         const coach = coachId && state.staff && state.staff.coaches[coachId];
@@ -2736,11 +2789,11 @@ window.BBGM_MAIN = (function () {
       const find = (state.freeAgents || []).map((id) => state.players[id])
         .filter((p) => p && !p.retired && p.status === 'FA' && p.age <= 27 &&
           !(p.hidden && p.hidden.indieNoted) &&
-          (!p.serviceTime || !p.serviceTime.years) &&
-          (!p.careerStats || !(p.careerStats.g > 0)) &&
+          window.BBGM_FA.neverPlayedMLB(p) &&
           R.overall(p) >= 48)
         .sort((a, b) => R.overall(b) - R.overall(a))[0];
       if (find) {
+        if (!find.hidden) find.hidden = {};
         find.hidden.indieNoted = true;
         const ut = state.league.teams.find((t) => t.id === state.meta.userTeamId);
         const sc = window.BBGM_STAFF.scoutFor ? window.BBGM_STAFF.scoutFor(state, ut) : null;
@@ -2760,8 +2813,12 @@ window.BBGM_MAIN = (function () {
 
     maybeRivalPitch(state, today);
 
-    // Generate news for any noteworthy results
-    generateDailyNews(state, today, games);
+    // Generate news for any noteworthy results. Latched (W3): the digest
+    // pushes headlines, so a same-day retry would double every story.
+    if (!dayTicks.news) {
+      dayTicks.news = true;
+      generateDailyNews(state, today, games);
+    }
 
     // AB-by-AB log retention guard (bible 8.7.1). Storage moved to
     // IndexedDB in 0.6.0 so quota is no longer the forcing constraint,

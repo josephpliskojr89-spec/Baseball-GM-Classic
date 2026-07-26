@@ -52,16 +52,20 @@ window.BBGM_PLAYER_GEN = (function () {
     let bestKey = keys[0];
     for (const k of keys) if (h.ceiling[k] > h.ceiling[bestKey]) bestKey = k;
     const target = 76 + rand() * 4;
-    const delta = target - h.ceiling[bestKey];
+    // Raise-only (W3, 0.68.1): a kid whose best tool already clears the
+    // target must not be PULLED DOWN by his own anointment — delta went
+    // negative and every ceiling dropped. The blessing lifts or leaves.
+    const delta = Math.max(0, target - h.ceiling[bestKey]);
     for (const k of keys) {
       // Same speed carve-out as the class-gen slot lift (Phase 16): the
       // anointment raises the bat, not the legs.
       if (!p.isPitcher && k === 'speed' && bestKey !== 'speed') {
-        h.ceiling.speed = Math.round(clamp(h.ceiling.speed + Math.max(0, delta) * 0.15, 25, 80) * 10) / 10;
+        h.ceiling.speed = Math.round(clamp(h.ceiling.speed + delta * 0.15, 25, 80) * 10) / 10;
         continue;
       }
       const spread = k === bestKey ? 0 : rand() * 6;
-      h.ceiling[k] = Math.round(clamp(h.ceiling[k] + delta - spread, 25, 82) * 10) / 10;
+      const lifted = clamp(h.ceiling[k] + delta - spread, 25, 82);
+      h.ceiling[k] = Math.round(Math.max(h.ceiling[k], lifted) * 10) / 10;
     }
     h.workEthic = Math.max(h.workEthic || 5, 8 + Math.round(rand() * 2));
     h.makeupGrade = Math.max(h.makeupGrade || 5, 7 + Math.round(rand() * 3));

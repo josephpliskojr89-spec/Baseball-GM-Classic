@@ -438,17 +438,23 @@ window.BBGM_TRADES = (function () {
   }
 
   // Suggest the cheapest user asset that closes the gap (counter mechanics).
-  function suggestAddition(state, userTeam, gap, alreadyGiving) {
+  // Valued through the BUYER's lens (W3, 0.68.1): evaluateProposal counts
+  // the user's pieces at teamValueOf(aiTeam, ...), so a candidate scored
+  // by raw tradeValue could be suggested, added, and STILL not close the
+  // gap — the counter loop was lying to the user. Pass the AI club to
+  // price with the same function acceptance will use.
+  function suggestAddition(state, userTeam, gap, alreadyGiving, aiTeam) {
     setPlayersRef(state.players);
     const players = state.players;
     const giving = new Set(alreadyGiving.map((p) => p.id));
     const pool = userTeam.roster.concat(userTeam.minors || [])
       .map((id) => players[id])
       .filter((p) => p && !giving.has(p.id));
+    const valueOf = (p) => (aiTeam ? teamValueOf(aiTeam, p) : tradeValue(p));
     let best = null;
     for (const p of pool) {
-      const tv = tradeValue(p);
-      if (tv >= gap * 0.9 && (!best || tv < tradeValue(best))) best = p;
+      const tv = valueOf(p);
+      if (tv >= gap * 0.9 && (!best || tv < valueOf(best))) best = p;
     }
     return best;
   }

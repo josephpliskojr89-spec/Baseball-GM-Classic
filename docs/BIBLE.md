@@ -4391,6 +4391,53 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > battery, two harness seeds (0 errors, 0 youth-ceiling
 > violations), and e2e (141, exit 0).
 
+> **Status (0.68.1) — audit Wave 3 (LOW batch: guards and
+> latches).** Nine small fixes closing out the four-auditor
+> sweep. (1) FORWARD-ONLY VERSION STAMP: a rolled-back app (a
+> stale service-worker cache serving old code) opening a save
+> last run under newer code no longer stamps the save's version
+> BACKWARD — that would re-arm every one-shot migration gate,
+> and the next forward update would re-run the whole chain
+> against already-migrated data. The stamp only ever moves
+> forward, and a "Newer Save, Older Game" modal explains what's
+> happening (Reload / Keep Playing). (2) DAY-TICK LATCHES:
+> simOneDay's league ticks (AI FA sweep, AI trades, waiver
+> wire, daily news) each latch on state.meta.dayTicks keyed by
+> date — a mid-day sim error leaves the date unadvanced, and the
+> retry was double-firing all four (double trades, doubled
+> headlines). Games and injuries already had their own flags;
+> now everything in the day does. (3) STALE COACH-PROJECT
+> LETTER: approving "give me him for the year" from a PREVIOUS
+> season is refused — the action's year must match the current
+> calendar. (4) INDIE PREDICATE: new FA.neverPlayedMLB(p) also
+> scans current-season stat lines (careerStats folds in only at
+> the rollover), so a kid who debuted in April and was cut in
+> June no longer reads as a no-leverage min-deal signing — or
+> gets stash-laned/flagged as an undiscovered indie kid. Used by
+> askingPrice, the AI stash lane, and the user's scout letter.
+> (5) ANOINTMENT IS RAISE-ONLY: anointGenerational on a kid
+> whose best tool already cleared the 76-80 target was going
+> NEGATIVE on delta and pulling every ceiling DOWN; now the
+> blessing lifts or leaves. Same guard applied to the
+> hidden-gem lift in draft.js, whose non-speed clamp also moves
+> 80→82 to match every other ceiling site. (6) BUYER'S-LENS
+> COUNTERS: suggestAddition now values candidate pieces with
+> teamValueOf(aiTeam, ...) — the same function evaluateProposal
+> uses to score the deal — so the "Add X" counter suggestion
+> actually closes the gap instead of occasionally lying. (7)
+> JERSEY GUARD: the player-card meta line drops the number
+> segment when p.jersey is missing instead of rendering
+> "#undefined". (8-9) hidden-object writes in the phenom and
+> indie letter blocks create p.hidden if absent. Left alone by
+> choice: the retiree-card birth-year off-by-one (display-only;
+> retirees carry frozen ages, and "fixing" it would desync the
+> shown birthdate from the age). Verified by an 8-check engine
+> suite + a 5-check Playwright suite (real reload with a v9.9.9
+> save: stamp survives, modal shows; day latches present after
+> a simmed day; stale project letter refused; jerseyless card
+> clean) + the full 33-suite battery, harness (0 errors, 0
+> violations), and e2e (141, exit 0).
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):

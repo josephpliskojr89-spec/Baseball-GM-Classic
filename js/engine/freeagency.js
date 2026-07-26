@@ -34,6 +34,20 @@ window.BBGM_FA = (function () {
 
   // ---- Asking price (16.4) ----------------------------------------------
 
+  // Has this player really never seen an MLB field? careerStats only
+  // folds in at the rollover, so a kid who DEBUTED this season and was
+  // cut reads as career-blank until winter — his current-season line
+  // (top-level stats[year].g is MLB-only; farm/indie play lives under
+  // minorsLine) is the tie-breaker (W3, 0.68.1).
+  function neverPlayedMLB(p) {
+    if (p.serviceTime && p.serviceTime.years) return false;
+    if (p.careerStats && p.careerStats.g > 0) return false;
+    for (const y in p.stats || {}) {
+      if (p.stats[y] && p.stats[y].g > 0) return false;
+    }
+    return true;
+  }
+
   function askingPrice(p) {
     const ovr = ROSTER().overall(p);
     // No service, no leverage (0.67.0, user report: an undrafted indie
@@ -42,8 +56,7 @@ window.BBGM_FA = (function () {
     // washout — signs a minor-league deal at the minimum and says
     // thank you. His talent is his upside, not his ask. Scoped to true
     // FAs so extension math for rostered prospects is untouched.
-    const neverPlayed = (!p.serviceTime || !p.serviceTime.years) &&
-      (!p.careerStats || !(p.careerStats.g > 0));
+    const neverPlayed = neverPlayedMLB(p);
     if (p.status === 'FA' && neverPlayed) {
       return { years: 1, aav: 0.74, total: 0.74 };
     }
@@ -459,8 +472,7 @@ window.BBGM_FA = (function () {
     if (rand() < 0.35) {
       const stash = (state.freeAgents || []).map((id) => players[id])
         .filter((p) => p && !p.retired && p.status === 'FA' && p.age <= 27 &&
-          (!p.serviceTime || !p.serviceTime.years) &&
-          (!p.careerStats || !(p.careerStats.g > 0)))
+          neverPlayedMLB(p))
         .filter((p) => { const o = R.overall(p); return o >= 46 && o < 52; })
         .sort((a, b) => R.overall(b) - R.overall(a))[0];
       if (stash) {
@@ -508,7 +520,7 @@ window.BBGM_FA = (function () {
 
   return {
     TOTAL_ROUNDS,
-    computePayroll, askingPrice, prefsText, prefMultiplier,
+    computePayroll, askingPrice, neverPlayedMLB, prefsText, prefMultiplier,
     releaseToPool, buildMarket, addMarketEntry, resolveRound,
     makeUserOffer, withdrawUserOffer, signMidSeason, aiMidSeasonTick,
     extensionAsk, offerExtension, signPlayer,

@@ -89,7 +89,8 @@ window.BBGM_UI_PLAYER = (function () {
     const left = U.el('div', { style: { position: 'relative' } });
     left.appendChild(U.el('div', { class: 'player-profile-name' }, p.name));
     left.appendChild(U.el('div', { class: 'player-profile-meta', style: { opacity: '0.9' } },
-      `${p.primaryPosition} • Age ${p.age} • ${p.bats}/${p.throws} • #${p.jersey}` +
+      `${p.primaryPosition} • Age ${p.age} • ${p.bats}/${p.throws}` +
+      (p.jersey != null ? ` • #${p.jersey}` : '') +
       (p.retired ? ` • Retired ${p.retired.year}` : '')));
     if (hasLaundry) {
       left.appendChild(U.el('div', { class: 'player-profile-team', style: { opacity: '0.9' } }, team.name));

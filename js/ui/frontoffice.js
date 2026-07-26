@@ -717,7 +717,7 @@ window.BBGM_UI_FRONTOFFICE = (function () {
         ],
       });
     } else if (result.verdict === 'counter') {
-      const suggestion = TRADES().suggestAddition(state, userTeam, result.gap, give);
+      const suggestion = TRADES().suggestAddition(state, userTeam, result.gap, give, partner);
       const actions = [{ label: 'Keep Working', kind: 'secondary', onClick: () => true }];
       if (suggestion) {
         actions.unshift({
