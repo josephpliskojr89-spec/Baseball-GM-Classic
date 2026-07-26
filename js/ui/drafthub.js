@@ -847,7 +847,10 @@ window.BBGM_UI_DRAFT = (function () {
         const back = pk.background === 'HS'
           ? `he heads to campus — look for him in the ${recap.year + 2} class`
           : pk.background === 'Sr'
-            ? 'he\'s out of eligibility'
+            ? (pk.wentAbroad
+              ? `no eligibility left and no interest in waiting — he takes a one-year deal in the ` +
+                `${pk.wentAbroad} and comes home to the open market this winter`
+              : 'he\'s out of eligibility')
             : `he returns to school — a senior in the ${recap.year + 1} class`;
         card2.appendChild(U.el('p', { style: { 'font-size': '12px', margin: '3px 0' } },
           `${t ? t.abbr : '?'} fail to sign R${pk.round} pick ${pk.name} (${pk.pos}) — ${back}.`));

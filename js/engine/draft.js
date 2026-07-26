@@ -639,6 +639,10 @@ window.BBGM_DRAFT = (function () {
     if (p.toughSign) {
       return round <= 1 ? 0.66 : round <= 3 ? 0.55 : round <= 7 ? 0.40 : 0.22;
     }
+    // Seniors sign (0.74.0, user report): no eligibility left means no
+    // leverage — the slot money is the only money. The once-in-years
+    // holdout is a story, not a Tuesday.
+    if (p.background === 'Sr') return 0.99;
     let rate = round <= 3 ? 0.97 : round <= 7 ? 0.92 : 0.82;
     // Late-round HS picks often honor college commitments instead.
     if (round >= 8 && p.background === 'HS') rate = 0.70;
@@ -690,6 +694,31 @@ window.BBGM_DRAFT = (function () {
             prior: { year, round: pick.round, overall: pick.overall, teamId: pick.teamId },
           });
           reentryQueued.add(p.id);
+        } else if (p.background === 'Sr') {
+          // The overseas detour (0.74.0, user report: an unsigned senior
+          // first-rounder surfaced in indie ball, signable for $0.74M
+          // within the month). A drafted senior who walks isn't grinding
+          // the Frontier League waiting on the club that lowballed him —
+          // he takes the real money in Japan or Korea on a one-year
+          // deal. He lives in state.players (flavor lines, development,
+          // aging all run) but NOT in state.freeAgents: no FA screen, no
+          // AI signings, no scout letter, no sign button until he comes
+          // home to the winter market at the rollover.
+          p.status = 'FA';
+          p.rosterStatus = 'FA';
+          p.teamId = null;
+          p.faSeasons = 0;
+          p.faReason = 'wentAbroad';
+          p.serviceTime = { years: 0, days: 0 };
+          p.contract = { years: 0, annualSalary: 0, totalValue: 0, signedAt: 'abroad' };
+          p.playsIn = rand() < 0.6 ? 'NPB' : 'KBO';
+          p.playsInYear = year;
+          p.abroadYear = year; // home at the rollover that closes this season
+          state.players[p.id] = p;
+          if (!state.abroadIds) state.abroadIds = [];
+          state.abroadIds.push(p.id);
+          pick.wentAbroad = window.BBGM_FLAVOR
+            ? window.BBGM_FLAVOR.leagueName(p.playsIn) : p.playsIn;
         }
         continue; // failed pick is forfeited (13.7)
       }
@@ -739,12 +768,12 @@ window.BBGM_DRAFT = (function () {
         const p = draft.prospects[id];
         if (!p || signedSet.has(id)) continue;
         if (reentryQueued.has(id)) continue; // he's going back to campus, not indie ball (0.71.0)
-        // Sealed (0.71.5, user report: a pre-0.71.0 unsigned first-rounder
-        // surfaced in indie ball): a DRAFTED player who didn't sign never
-        // reaches the open market unless he's a senior with no eligibility
-        // left — the real rule. Everyone else re-enters a future draft or
-        // stays on campus; rivals don't get your unsigned pick for $0.74M.
-        if (pickedSet.has(id) && p.background !== 'Sr') continue;
+        // Sealed (0.71.5, tightened 0.74.0): a DRAFTED player who didn't
+        // sign NEVER reaches the open pool. Underclassmen re-enter a
+        // future draft or stay on campus; unsigned seniors now take the
+        // overseas detour above. Rivals don't get your unsigned pick
+        // for $0.74M — nobody does, until the winter he comes home.
+        if (pickedSet.has(id)) continue;
         if (p.background === 'HS') continue; // back to school
         p.status = 'FA';
         p.rosterStatus = 'FA';

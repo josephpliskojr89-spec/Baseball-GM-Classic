@@ -274,7 +274,7 @@ window.BBGM_OFFSEASON = (function () {
     // 0. Waiver-wire hygiene (0.22.0): nobody winters on the wire —
     // unresolved entries clear to free agency before anything else runs.
     if (window.BBGM_WAIVERS) window.BBGM_WAIVERS.clearAll(state);
-    const summary = { year, retirements: [], milestones: [], newFAs: 0, nonTenders: [] };
+    const summary = { year, retirements: [], milestones: [], newFAs: 0, nonTenders: [], abroadReturns: [] };
     const arbCases = [];
 
     // 1. Postseason: consume the bracket the user played through day by
@@ -361,6 +361,13 @@ window.BBGM_OFFSEASON = (function () {
       const p = players[id];
       if (!p.retired && p.status === 'FA') p.faSeasons = (p.faSeasons || 0) + 1;
     }
+
+    // 4.2. Back stateside (0.74.0): the unsigned seniors who took the
+    // one-year deal in Japan/Korea after June come home to the winter
+    // market. Only NOW do they join state.freeAgents — all season they
+    // were under contract abroad, posting flavor lines, unsignable.
+    processAbroadReturns(state, year, summary);
+
     for (const id in players) {
       const p = players[id];
       if (p.retired) continue;
@@ -1235,9 +1242,43 @@ window.BBGM_OFFSEASON = (function () {
     return { player: p, entry };
   }
 
+  // The overseas detour ends (0.74.0): unsigned senior picks whose
+  // one-year Japan/Korea deal is up rejoin state.freeAgents at the
+  // rollover. faSeasons resets — he was employed, not idle. Dead
+  // entries (retired/deleted) are purged so the list never leaks.
+  function processAbroadReturns(state, year, summary) {
+    const players = state.players;
+    const due = (state.abroadIds || []).filter((id) => {
+      const p = players[id];
+      return p && !p.retired && (p.abroadYear == null || p.abroadYear <= year);
+    });
+    if ((state.abroadIds || []).length) {
+      state.abroadIds = state.abroadIds.filter((id) => {
+        const p = players[id];
+        return p && !p.retired && !due.includes(id);
+      });
+      if (!state.freeAgents) state.freeAgents = [];
+      for (const id of due) {
+        const p = players[id];
+        const from = window.BBGM_FLAVOR ? window.BBGM_FLAVOR.leagueName(p.playsIn) : null;
+        delete p.abroadYear;
+        p.faSeasons = 0;
+        if (!state.freeAgents.includes(id)) state.freeAgents.push(id);
+        if (summary && summary.abroadReturns) {
+          summary.abroadReturns.push({
+            playerId: id, name: p.name, pos: p.primaryPosition, age: p.age,
+            overall: Math.round(ROSTER().overall(p)), from,
+          });
+        }
+      }
+    }
+    return due.length;
+  }
+
   return {
     runSeasonRollover, runSeasonRolloverPartA, runSeasonRolloverPartB,
     advanceFARound, runPostseason, seedLeague, nonTenderPlayer,
     startPostseason, simPostseasonDay, finalizePostseason,
+    processAbroadReturns,
   };
 })();

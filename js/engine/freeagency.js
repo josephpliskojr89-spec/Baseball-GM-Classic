@@ -396,6 +396,10 @@ window.BBGM_FA = (function () {
   function signMidSeason(state, team, playerId) {
     const p = state.players[playerId];
     if (!p || p.status !== 'FA') return 'Not available.';
+    // Abroad (0.74.0): under contract in Japan/Korea until the winter
+    // rollover brings him home. The pool never lists him, but the guard
+    // holds even if a card reaches this path some other way.
+    if (p.abroadYear != null) return 'He\'s under contract overseas — back on the market this winter.';
     p.contract = { years: 1, annualSalary: 0.74, totalValue: 0.74, signedAt: 'FA-minors' };
     p.teamId = team.id;
     p.status = 'minors';

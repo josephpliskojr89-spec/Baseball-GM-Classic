@@ -4816,6 +4816,28 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > why audit), UI suite 6 (junior reads preference not commitment,
 > two-sport + HS variants), e2e 141.
 
+> **Status note (v0.74.0):** The overseas detour (user report: Lee
+> Bradford, an unsigned senior first-rounder, surfaced in indie
+> ball signable for $0.74M within the month). Drafted seniors now
+> sign at 99% — no eligibility means no leverage. The rare
+> holdout takes a one-year deal in Japan or Korea: he lives in
+> state.players (NPB/KBO flavor lines, development, aging all
+> run) but NOT in state.freeAgents, so no FA screen, AI signing,
+> scout letter, or sign button can touch him; his card says
+> "Under contract overseas," and signMidSeason has a belt-and-
+> suspenders refusal. The rollover's new processAbroadReturns
+> sweep brings him home to the winter market (faSeasons reset,
+> wire story: "back stateside"). The 0.71.5 intake seal tightens:
+> NO picked-unsigned player of any background ever reaches the
+> open pool (true UDFAs still do — that's real baseball). Recap
+> fallout names the league and the return window. One-shot 0.74.0
+> migration heals live saves: pooled unsigned-senior picks from
+> the current draft year take the overseas deal retroactively
+> (older cases stay — they've been market-visible for winters).
+> Signability suite 16 (senior 99.2% sign, abroad shape, sweep
+> round-trip, zero-pool audit), new abroad UI suite 5 (real
+> reload migration, card copy, no sign button, engine guard).
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):

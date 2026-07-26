@@ -259,6 +259,9 @@ window.BBGM_UI_PLAYER = (function () {
     if (p.status === 'FA' && p.playsIn && window.BBGM_FLAVOR) {
       const lg = window.BBGM_FLAVOR.leagueName(p.playsIn);
       if (lg) bioRows.push(insetRow('Playing in', lg));
+      // Abroad (0.74.0): the unsigned senior pick on his one-year deal
+      // overseas — the card says why nobody can touch him yet.
+      if (p.abroadYear != null) bioRows.push(insetRow('Contract', 'Under contract overseas — back on the market this winter'));
     }
     // Farm level-fit note (0.31.1): the old minors action sheet carried
     // the scouts' assignment read — it renders under the bio now.

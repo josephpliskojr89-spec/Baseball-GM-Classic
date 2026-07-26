@@ -916,6 +916,52 @@ window.BBGM_MAIN = (function () {
       window.BBGM_STATE.set(state);
     }
 
+    // Migration (0.74.0, user report: an unsigned senior first-rounder
+    // was signable out of indie ball within the month): unsigned senior
+    // picks from THIS year's draft who reached the open pool under the
+    // 0.71.5 rule take the overseas deal they should have taken in June
+    // — off the market until the winter rollover brings them home.
+    // Older cases have already been market-visible for a winter or
+    // more; yanking a known free agent now would read as a vanish, so
+    // they stay.
+    if (versionLt(saveVersion, '0.74.0')) {
+      const hist = state.draftHistory || [];
+      const last = hist[hist.length - 1];
+      const today = state.meta.currentDate;
+      if (last && last.year === today.year && !(state.meta && state.meta.offseasonPhase)) {
+        const unsignedSr = new Set((last.picks || [])
+          .filter((pk) => pk.signed === false && pk.background === 'Sr')
+          .map((pk) => pk.name));
+        let moved = 0;
+        if (unsignedSr.size) {
+          for (const id of (state.freeAgents || []).slice()) {
+            const p = state.players[id];
+            if (!p || p.retired || p.status !== 'FA') continue;
+            if (p.background !== 'Sr' || p.draftClass !== last.year) continue;
+            if (p.faReason !== 'undrafted' || !unsignedSr.has(p.name)) continue;
+            if (p.serviceTime && p.serviceTime.years) continue;
+            state.freeAgents = state.freeAgents.filter((x) => x !== id);
+            p.faReason = 'wentAbroad';
+            p.playsIn = Math.random() < 0.6 ? 'NPB' : 'KBO';
+            p.playsInYear = today.year;
+            p.abroadYear = last.year;
+            if (!state.abroadIds) state.abroadIds = [];
+            state.abroadIds.push(id);
+            const lg = window.BBGM_FLAVOR ? window.BBGM_FLAVOR.leagueName(p.playsIn) : 'Asia';
+            if (!state.news) state.news = [];
+            state.news.push({
+              date: { ...today },
+              body: `<strong>${p.name}</strong> has signed a one-year deal in the ${lg}. The ` +
+                    `unsigned draft pick is off the open market — back in free agency this winter.`,
+            });
+            moved++;
+          }
+        }
+        if (moved) console.log(`0.74.0 migration: sent ${moved} unsigned senior pick(s) overseas.`);
+        window.BBGM_STATE.set(state);
+      }
+    }
+
     // Migration (0.69.0): open the Scout's Book — every young org player
     // gets his first stamped read so the trajectory starts now. History
     // that was never recorded can't be reconstructed; the book fills in
@@ -2301,6 +2347,17 @@ window.BBGM_MAIN = (function () {
         body = `KBO veteran <strong>${ev.name}</strong> (${ev.pos}, ${ev.age}) declares for free agency.`;
       }
       if (body) state.news.push({ date, body });
+    }
+    // Back stateside (0.74.0): the unsigned senior picks who took the
+    // one-year deal in Japan/Korea after June rejoin the open market at
+    // the rollover — the wire remembers who they are and who passed.
+    for (const ar of summary.abroadReturns || []) {
+      state.news.push({
+        date,
+        body: `<strong>${ar.name}</strong> (${ar.pos}, ${ar.age}) is back stateside — his one-year ` +
+              `deal in ${ar.from || 'Asia'} is up, and this time he's a free agent for real. ` +
+              `Every club that let him walk in June gets another look.`,
+      });
     }
 
     const userTeamObj = teamOf(userTeamId);
