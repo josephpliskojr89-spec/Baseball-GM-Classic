@@ -4770,6 +4770,20 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > 39-suite battery, harness (0 errors), and e2e (141, exit
 > 0).
 
+> **Status (0.73.1) — Ledger corrections (user screenshot:
+> "thinks we've won 10 of 10 when we're clearly 7 and 5…
+> didn't place team abbreviations for the two laughers").**
+> Two first-edition bugs: (1) lastTen stores 'W'/'L' STRINGS
+> and hotAndCold counted truthy entries — an 'L' is truthy,
+> so every club read "10 of their last 10". Wins now count
+> wins. (2) bigGames read g.homeTeamId/awayTeamId but games
+> carry homeId/awayId — the laugher and marathon notes
+> printed dashes where the clubs belonged. Paper suite
+> strengthened to 14 checks: the printed "hottest" count must
+> equal the true league-max W count, and every team-vs-team
+> note must name two real abbreviations with no dash. Full
+> paper UI suite + e2e (141, exit 0) re-verified.
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):

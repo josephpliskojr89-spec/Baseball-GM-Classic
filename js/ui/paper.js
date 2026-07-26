@@ -74,7 +74,9 @@ window.BBGM_PAPER = (function () {
     for (const g of games) {
       const res = g.result;
       const margin = Math.abs((res.homeRuns || 0) - (res.awayRuns || 0));
-      const ha = abbr(state, g.homeTeamId), aa = abbr(state, g.awayTeamId);
+      // Games carry homeId/awayId (0.73.1: the homeTeamId read printed
+      // dashes where the clubs belonged).
+      const ha = abbr(state, g.homeId), aa = abbr(state, g.awayId);
       const score = `${Math.max(res.homeRuns, res.awayRuns)}-${Math.min(res.homeRuns, res.awayRuns)}`;
       if ((res.innings || 9) >= 13) {
         notes.push({ text: `MARATHON: ${aa} and ${ha} played ${res.innings} innings on ` +
@@ -110,7 +112,9 @@ window.BBGM_PAPER = (function () {
   function hotAndCold(state) {
     const rated = state.league.teams.map((t) => {
       const lt = (t.seasonRecord && t.seasonRecord.lastTen) || [];
-      const wins = lt.filter(Boolean).length;
+      // lastTen holds 'W'/'L' strings — count WINS, not truthy entries
+      // (0.73.1: filter(Boolean) made every club 10 of its last 10).
+      const wins = lt.filter((r) => r === 'W' || r === 1 || r === true).length;
       return { t, wins, n: lt.length };
     }).filter((x) => x.n >= 6);
     if (!rated.length) return null;
