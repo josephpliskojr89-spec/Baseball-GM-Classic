@@ -4861,6 +4861,24 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > extension, cap 40) + file UI suite 6 (reload migration seeds in
 > order, tab renamed, three sections, ⚠, honest empty states).
 
+> **Status note (v0.75.1):** The October rotation (user report:
+> playoff managers kept the regular-season 5-man round-robin, so
+> a two-ace club never got its aces maximum playoff starts). In
+> postseason games pickStarter now hands the ball to the BEST
+> eligible rotation arm instead of the next man in the turn.
+> Eligible = 3+ days of rest (idle ≥ 4); an arm one day short of
+> full rest carries a −6 OVR quality discount, so the ace on
+> three days beats the back of the rotation but a near-equal 4th
+> starter on full rest still gets his game. On the daily series
+> calendar this naturally shortens the staff to four arms: a
+> 7-game series runs ace1/ace2/SP3/SP4/ace1/ace2/SP3 — aces
+> double up, the 5th starter never sees an October mound. When
+> nobody has three days of rest, selection falls through to the
+> regular ladders (spot start, emergency arms). Regular-season
+> selection is untouched. pickStarter is now exported for the
+> suite. New october suite 7 (queue-jump, 7-day shape, short-rest
+> discount both directions, gassed-staff fallthrough).
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):

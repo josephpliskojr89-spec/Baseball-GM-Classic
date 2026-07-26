@@ -62,8 +62,8 @@ window.BBGM_SIM = (function () {
     gameCtx = { postseason: !!game.postseason, date: game.date || state.meta.currentDate };
 
     // Starters first — lineup choice depends on the opposing starter's hand.
-    const homeSP = pickStarter(home, players, state);
-    const awaySP = pickStarter(away, players, state);
+    const homeSP = pickStarter(home, players, state, gameCtx.postseason);
+    const awaySP = pickStarter(away, players, state, gameCtx.postseason);
 
     // DH rule follows the HOME team's league (bible 3.1): Eastern League
     // parks use the DH; in Western League parks pitchers bat 9th — for
@@ -1493,7 +1493,7 @@ window.BBGM_SIM = (function () {
     }
   }
 
-  function pickStarter(team, players, state) {
+  function pickStarter(team, players, state, postseason) {
     ensureRotation(team, players);
     if (!team.rotation || team.rotation.length === 0) return null;
     const dayIndex = state.meta.gamesPlayedByTeam ? (state.meta.gamesPlayedByTeam[team.id] || 0) : 0;
@@ -1505,6 +1505,28 @@ window.BBGM_SIM = (function () {
     const idle = (p) => (p.lastPitchedDate ? D.diffDays(p.lastPitchedDate, today) : 99);
     const usable = (p) => p && inj.isAvailable(p) && team.roster.includes(p.id);
     const n = team.rotation.length;
+
+    // October rotation (0.75.1, user report: playoff staffs kept the
+    // regular-season 5-man turn, so a two-ace club never got its aces
+    // their maximum starts). Real clubs shorten up in the postseason:
+    // the BEST eligible starter takes the ball, rotation order be
+    // damned. Eligible = three or more days of rest (idle >= 4); an
+    // arm short of full rest (idle 4, one day early) carries a quality
+    // discount, so the ace on three days beats the back of the
+    // rotation, but a near-equal 4th starter on full rest still gets
+    // his game. On a daily series calendar this naturally shortens the
+    // staff to four arms and hands the 5th starter's Octobers to the
+    // aces.
+    if (postseason) {
+      const q = (p) => window.BBGM_ROSTER.overall(p) - (idle(p) >= 5 ? 0 : 6);
+      const eligible = team.rotation
+        .map((id) => players[id])
+        .filter((p) => usable(p) && idle(p) >= 4)
+        .sort((a, b) => q(b) - q(a));
+      if (eligible[0]) return eligible[0];
+      // Nobody in the rotation has even three days of rest — fall
+      // through to the regular ladders (spot start, emergency arms).
+    }
 
     // Pass 1 — rotation order on normal rest: 4+ full days since the last
     // appearance, i.e. a standard 5-man turn. Walking from today's slot
@@ -1876,5 +1898,5 @@ window.BBGM_SIM = (function () {
   // the October/adjustment effects are deliberately subtle (±2-3
   // effective grades), too small to assert reliably through full-game
   // outcome noise — the mechanism is verified directly instead.
-  return { simulateGame, makeupMod };
+  return { simulateGame, makeupMod, pickStarter };
 })();
