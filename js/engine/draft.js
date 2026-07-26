@@ -722,12 +722,19 @@ window.BBGM_DRAFT = (function () {
     // developing, and stay signable. The rest hang them up.
     {
       const signedSet = new Set(draft.picks.filter((pk) => pk.signed).map((pk) => pk.prospectId));
+      const pickedSet = new Set(draft.picks.map((pk) => pk.prospectId));
       let intake = 0;
       for (const id of draft.board) {
         if (intake >= UNDRAFTED_FA_MAX) break;
         const p = draft.prospects[id];
         if (!p || signedSet.has(id)) continue;
         if (reentryQueued.has(id)) continue; // he's going back to campus, not indie ball (0.71.0)
+        // Sealed (0.71.5, user report: a pre-0.71.0 unsigned first-rounder
+        // surfaced in indie ball): a DRAFTED player who didn't sign never
+        // reaches the open market unless he's a senior with no eligibility
+        // left — the real rule. Everyone else re-enters a future draft or
+        // stays on campus; rivals don't get your unsigned pick for $0.74M.
+        if (pickedSet.has(id) && p.background !== 'Sr') continue;
         if (p.background === 'HS') continue; // back to school
         p.status = 'FA';
         p.rosterStatus = 'FA';

@@ -4662,6 +4662,27 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > full 37-suite battery, 3-season harness (0 errors), and e2e
 > (141, exit 0).
 
+> **Status (0.71.5) — the Kyle Tyson rule: the unsigned-pick
+> pool leak SEALED (user found his pre-0.71.0 unsigned
+> first-rounder pitching indie ball).** Tyson himself is a
+> legacy case — his draft ran under pre-0.71.0 rules, where
+> unsigned college picks fell through to the undrafted-FA
+> intake. 0.71.0's re-entry queue excluded QUEUED kids from
+> the pool, but a crack remained: any unsigned pick who
+> DIDN'T queue (a twice-unsigned re-entry underclassman, and
+> any future non-queued case) still fell through. Sealed:
+> completeDraft's intake now refuses EVERY drafted-but-
+> unsigned player unless he's a senior with no eligibility
+> left — the real rule. Underclassmen re-enter a future draft
+> or stay on campus; rivals never get an unsigned pick for
+> $0.74M. Out-of-eligibility seniors still hit the market
+> (they're genuinely free). Verified by two added checks in
+> the signability suite (12 total): four full REAL drafts,
+> 185 unsigned picks audited, ZERO non-senior leaks (17
+> seniors pooled, allowed), and re-entry-queued kids exist
+> only in the queue — plus the full 37-suite battery,
+> harness, and e2e (141, exit 0).
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):
