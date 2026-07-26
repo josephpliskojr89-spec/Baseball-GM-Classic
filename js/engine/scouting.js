@@ -713,6 +713,72 @@ window.BBGM_SCOUT = (function () {
     return picked;
   }
 
+  // ---- The Scout's Book (0.69.0) -------------------------------------------
+  // A per-player, VISIBLE history of the department's potential reads.
+  // Each entry records the band exactly as the fog showed it that year
+  // (so entries from bare-bones-scouting years are honestly wider) plus
+  // the overall the player carried at the stamp. The archetype game is a
+  // time-series game — a bust reveals himself by sinking, an overachiever
+  // by outplaying his card — and until now the band re-rendered live and
+  // destroyed the trajectory. The book never names an archetype; it just
+  // stops destroying the evidence.
+  const BOOK_MAX_AGE = 27; // potentialBand converges on OVR by 28 — nothing left to track
+  function bookStamp(state, p, year, first) {
+    const band = potentialBand(state, p);
+    if (!band) return false;
+    if (!p.scoutBook) p.scoutBook = [];
+    const existing = p.scoutBook.find((e) => e.year === year);
+    if (existing) {
+      // The winter read supersedes a mid-season first look — one official
+      // entry per year, and November knows more than June.
+      if (existing.first && !first) {
+        existing.lo = band[0]; existing.hi = band[1];
+        existing.ovr = Math.round(window.BBGM_ROSTER.overall(p));
+        delete existing.first;
+        return true;
+      }
+      return false;
+    }
+    const entry = { year, lo: band[0], hi: band[1],
+      ovr: Math.round(window.BBGM_ROSTER.overall(p)) };
+    if (first) entry.first = true;
+    p.scoutBook.push(entry);
+    while (p.scoutBook.length > 14) p.scoutBook.shift();
+    return true;
+  }
+
+  // Winter pass: one stamped read per young org player, called from the
+  // rollover news block BEFORE pickRegrades (letters may cite the book).
+  function stampScoutBook(state) {
+    const ut = state.league.teams.find((t) => t.id === state.meta.userTeamId);
+    if (!ut || !state.players) return 0;
+    const year = state.meta.currentDate.year;
+    let stamped = 0;
+    for (const id of [...(ut.roster || []), ...(ut.minors || []), ...(ut.il || [])]) {
+      const p = state.players[id];
+      if (!p || p.retired || p.age > BOOK_MAX_AGE) continue;
+      if (bookStamp(state, p, year, false)) stamped++;
+    }
+    return stamped;
+  }
+
+  // First-look sweep: any young org player with no book at all gets his
+  // opening page (drafted, traded for, signed mid-year). Idempotent and
+  // cheap — safe to run daily; also serves as the 0.69.0 migration.
+  function scoutBookFirstLooks(state) {
+    const ut = state.league.teams.find((t) => t.id === state.meta.userTeamId);
+    if (!ut || !state.players) return 0;
+    const year = state.meta.currentDate.year;
+    let stamped = 0;
+    for (const id of [...(ut.roster || []), ...(ut.minors || []), ...(ut.il || [])]) {
+      const p = state.players[id];
+      if (!p || p.retired || p.age > BOOK_MAX_AGE) continue;
+      if (p.scoutBook && p.scoutBook.length) continue;
+      if (bookStamp(state, p, year, true)) stamped++;
+    }
+    return stamped;
+  }
+
   return {
     TIERS, tierOf, tierIdx, tierDef, tierCost,
     defaultTierFor, ensureTiers, ensureOps,
@@ -721,5 +787,6 @@ window.BBGM_SCOUT = (function () {
     targetedLooks, hasTargetedLook, medicalRead,
     draftBoardInfo, draftBoardAdd, draftBoardRemove, draftBoardWiden, draftConvictions, draftBoardSeed,
     prospectRankings, pipelineRank, intlScoutMods, pickRegrades,
+    stampScoutBook, scoutBookFirstLooks,
   };
 })();

@@ -339,6 +339,47 @@ window.BBGM_UI_PLAYER = (function () {
           'Projected ranges from your scouting department — the truth may sit outside a band.'));
       }
     }
+
+    // The Scout's Book (0.69.0): the department's stamped potential reads,
+    // year over year. The trend is the tell — a sinking card is the bust
+    // announcing himself, a kid outplaying his band is the overachiever.
+    if (p.scoutBook && p.scoutBook.length) {
+      body.appendChild(U.el('div', { class: 'card-title', style: { 'margin-top': '16px' } },
+        "Scout's Book"));
+      const bookCard = U.el('div', { class: 'card', style: { padding: '10px 12px' } });
+      let prevMid = null;
+      for (const e of p.scoutBook) {
+        const mid = (e.lo + e.hi) / 2;
+        const row = U.el('div', {
+          style: { display: 'flex', 'align-items': 'baseline', gap: '8px', padding: '3px 0' },
+        });
+        row.appendChild(U.el('span', {
+          class: 'muted', style: { 'font-size': '11px', 'min-width': '58px' },
+        }, `${e.year}${e.first ? ' · 1st look' : ''}`));
+        row.appendChild(U.el('span', {
+          class: 'num ' + U.gradeClass(mid),
+          style: { 'font-weight': '700', 'font-variant-numeric': 'tabular-nums', 'min-width': '48px' },
+        }, `${e.lo}–${e.hi}`));
+        if (prevMid != null && Math.abs(mid - prevMid) >= 1) {
+          row.appendChild(U.el('span', {
+            style: {
+              'font-weight': '700', 'font-size': '11px',
+              color: mid > prevMid ? 'var(--success, #3fb950)' : 'var(--danger, #f85149)',
+            },
+          }, mid > prevMid ? '▲' : '▼'));
+        }
+        if (e.ovr != null) {
+          row.appendChild(U.el('span', { class: 'muted', style: { 'font-size': '11px', 'margin-left': 'auto' } },
+            `was a ${e.ovr} OVR`));
+        }
+        bookCard.appendChild(row);
+        prevMid = mid;
+      }
+      bookCard.appendChild(U.el('p', { class: 'muted', style: { 'font-size': '11px', margin: '6px 0 0' } },
+        'Your department\'s stamped winter reads. A card that sinks year over year is a dream ' +
+        'dying; a player who keeps beating his band is telling you the book was too careful.'));
+      body.appendChild(bookCard);
+    }
   }
 
   // ---- Stats: the full career ledger ---------------------------------------

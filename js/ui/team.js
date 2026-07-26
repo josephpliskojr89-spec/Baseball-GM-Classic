@@ -91,6 +91,25 @@ window.BBGM_UI_TEAM = (function () {
     return row;
   }
 
+  // POT chip (0.69.0): the scouting department's potential band, inline
+  // on roster/minors rows so the farm scans without opening every card.
+  // Range text, never a single number — nobody knows potential exactly.
+  function potChip(state, p) {
+    if (p.age > 27) return null; // band has converged on OVR — no story left
+    const band = window.BBGM_SCOUT.potentialBand(state, p);
+    if (!band) return null;
+    const mid = (band[0] + band[1]) / 2;
+    const chip = U.el('span');
+    chip.appendChild(U.el('span', {
+      style: { color: 'var(--text-muted)', 'font-size': '10px', 'margin-right': '3px', 'letter-spacing': '0.4px' },
+    }, 'POT'));
+    chip.appendChild(U.el('span', {
+      class: 'num ' + U.gradeClass(mid),
+      style: { 'font-weight': '700', 'font-variant-numeric': 'tabular-nums' },
+    }, `${band[0]}–${band[1]}`));
+    return chip;
+  }
+
   // ------- Mutation helpers -------
 
   function commit(state) {
@@ -853,10 +872,13 @@ window.BBGM_UI_TEAM = (function () {
     // rival views keep the OVR band alone.
     if (window.BBGM_SCOUT.modeFor(state, p) === 'exact') {
       const r = p.ratings;
-      info.appendChild(p.isPitcher
+      const strip = p.isPitcher
         ? ratingStrip([['VEL', r.velocity], ['STF', r.stuff], ['CTL', r.control], ['STA', r.stamina]])
         : ratingStrip([['CON', (r.contactVsR + r.contactVsL) / 2],
-            ['POW', (r.powerVsR + r.powerVsL) / 2], ['SPD', r.speed], ['DEF', r.defense || 50]]));
+            ['POW', (r.powerVsR + r.powerVsL) / 2], ['SPD', r.speed], ['DEF', r.defense || 50]]);
+      const pc = potChip(state, p);
+      if (pc) strip.appendChild(pc);
+      info.appendChild(strip);
     }
     row.appendChild(info);
     const stats = U.el('div', { class: 'player-row-stats' });
@@ -1105,7 +1127,7 @@ window.BBGM_UI_TEAM = (function () {
     // OVR + the key tools at a glance (0.25.2) — fills the row's dead
     // space so the roster reads without opening every card.
     const r = p.ratings;
-    info.appendChild(p.isPitcher
+    const strip = p.isPitcher
       ? ratingStrip([
           ['OVR', overallPitcher(p)], ['VEL', r.velocity], ['STF', r.stuff],
           ['CTL', r.control], ['STA', r.stamina],
@@ -1113,7 +1135,10 @@ window.BBGM_UI_TEAM = (function () {
       : ratingStrip([
           ['OVR', overallHitter(p)], ['CON', (r.contactVsR + r.contactVsL) / 2],
           ['POW', (r.powerVsR + r.powerVsL) / 2], ['SPD', r.speed], ['DEF', r.defense || 50],
-        ]));
+        ]);
+    const pc = potChip(state, p);
+    if (pc) strip.appendChild(pc);
+    info.appendChild(strip);
     row.appendChild(info);
     const stats = U.el('div', { class: 'player-row-stats' });
     if (p.isPitcher) {

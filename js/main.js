@@ -828,6 +828,17 @@ window.BBGM_MAIN = (function () {
       window.BBGM_STATE.set(state);
     }
 
+    // Migration (0.69.0): open the Scout's Book — every young org player
+    // gets his first stamped read so the trajectory starts now. History
+    // that was never recorded can't be reconstructed; the book fills in
+    // from this save forward.
+    if (versionLt(saveVersion, '0.69.0') && state.meta.userTeamId &&
+        window.BBGM_SCOUT.scoutBookFirstLooks) {
+      const opened = window.BBGM_SCOUT.scoutBookFirstLooks(state);
+      if (opened) console.log(`0.69.0 migration: opened the scout's book on ${opened} player(s).`);
+      window.BBGM_STATE.set(state);
+    }
+
     // Stamp the save forward now that every migration has run. This is
     // what makes the versionLt gates above one-shot, and it makes the
     // Menu's "Save version" reflect the code the save actually runs under
@@ -1989,6 +2000,11 @@ window.BBGM_MAIN = (function () {
       }
     }
 
+    // The Scout's Book (0.69.0): stamp this winter's read on every young
+    // org player BEFORE the re-grade letters, so a letter can cite the
+    // trend the book now preserves.
+    if (window.BBGM_SCOUT.stampScoutBook) window.BBGM_SCOUT.stampScoutBook(state);
+
     // Scout re-grades (0.60.0): the head scout re-reads the org's young
     // players each winter and writes when a projection has genuinely
     // moved since his last look — the overachiever's climbing card, the
@@ -1999,16 +2015,28 @@ window.BBGM_MAIN = (function () {
       const ut = teamOf(userTeamId);
       const sc = window.BBGM_STAFF.scoutFor ? window.BBGM_STAFF.scoutFor(state, ut) : null;
       for (const rg of regrades) {
+        // If the book shows the same direction two winters running, the
+        // scout says so — the letter points at the evidence trail.
+        let streak = '';
+        const book = (state.players[rg.playerId] || {}).scoutBook || [];
+        if (book.length >= 3) {
+          const m = book.slice(-3).map((e) => (e.lo + e.hi) / 2);
+          if (rg.up && m[2] > m[1] && m[1] > m[0]) {
+            streak = ' That\'s two winters straight moving up — the book doesn\'t lie.';
+          } else if (!rg.up && m[2] < m[1] && m[1] < m[0]) {
+            streak = ' His card in the book has been sliding two winters straight now.';
+          }
+        }
         window.BBGM_INBOX.push(state, {
           from: sc ? `${sc.name} (Head Scout)` : 'Scouting Department',
           subject: rg.up ? `Raising my grade on ${rg.name}` : `Taking ${rg.name} off my list`,
-          body: rg.up
+          body: (rg.up
             ? `I re-graded the org this winter and ${rg.name} (${rg.pos}, ${rg.age}) is not the ` +
               `player I filed last time. Whatever he's doing, it's working — the projection is ` +
               `meaningfully up, and I don't move a grade without being sure. Worth your attention this spring.`
             : `Honest winter read: I'm coming down on ${rg.name} (${rg.pos}, ${rg.age}). I keep ` +
               `waiting for the card to show up and it hasn't. The projection I filed is dead — ` +
-              `what you see now is close to what he is. Plan the depth chart accordingly.`,
+              `what you see now is close to what he is. Plan the depth chart accordingly.`) + streak,
           action: { type: 'viewPlayer', playerId: rg.playerId },
         });
       }
@@ -2393,6 +2421,10 @@ window.BBGM_MAIN = (function () {
     // rollover. Catch-up sync, so any calendar jump self-heals the next
     // simulated day.
     window.BBGM_PROGRESSION.birthdayTickAll(state, today);
+    // Scout's Book first looks (0.69.0): a young player who entered the
+    // org without a book page (drafted, traded for, claimed, signed) gets
+    // his opening read. Idempotent — only players with NO book stamp.
+    if (window.BBGM_SCOUT.scoutBookFirstLooks) window.BBGM_SCOUT.scoutBookFirstLooks(state);
     // Mail stop (0.63.0): snapshot the inbox so any letter written
     // during this day can halt a sim run (Menu → Simulation Stops →
     // New mail). Newest-id check catches the cap-pruned edge where a

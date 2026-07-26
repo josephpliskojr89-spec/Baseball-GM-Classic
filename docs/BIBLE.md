@@ -4438,6 +4438,48 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > clean) + the full 33-suite battery, harness (0 errors, 0
 > violations), and e2e (141, exit 0).
 
+> **Status (0.69.0) — the Scout's Book (user request: "no way
+> to track my scout's reads on the potential of my players").**
+> The archetype game is a time-series game — a bust reveals
+> himself by sinking, an overachiever by outplaying his card —
+> but the potential band re-rendered live and destroyed the
+> trajectory. Now the department keeps a book. ENGINE
+> (scouting.js): p.scoutBook — a visible per-player history of
+> stamped potential reads, {year, lo, hi, ovr}. Each winter
+> (rollover news block, BEFORE pickRegrades) stampScoutBook
+> writes one entry per young org player (age ≤27; the band
+> converges on OVR by 28) recording the band AS THE FOG SHOWED
+> IT — entries from bare-bones-scouting years are honestly
+> wider. scoutBookFirstLooks runs daily in simOneDay: a new
+> arrival (draft, trade, claim, signing) gets a flagged "1st
+> look" page; the following winter's read supersedes a same-year
+> first look (one official entry per year, November knows more
+> than June). Book capped at 14 pages; the retiree diet deletes
+> it with the career. Migration: scoutBookFirstLooks doubles as
+> the 0.69.0 gate — existing saves open the book on the whole
+> young org at load (history that was never recorded can't be
+> reconstructed). UI: the player card gains a "Scout's Book"
+> section under the Scouting Report — year rows with the band
+> colored by midpoint, ▲/▼ trend arrows against the previous
+> read, the OVR he carried at each stamp, and a first-look tag.
+> Roster and minors rows gain a POT chip (band range, never a
+> single number — nobody knows potential exactly) next to the
+> tool chips, age ≤27 only. The re-grade letter cites the book
+> when the direction has held two winters running ("his card in
+> the book has been sliding two winters straight"). Fog
+> philosophy intact: the book records the department's reads,
+> never the hidden archetype — you infer "bust" from three
+> sinking bands the way a real GM does. E2e's own-farm fog
+> check re-scoped to the OVR stats column (the POT chip is a
+> band on your own players BY DESIGN). Verified by an 8-check
+> engine suite (coverage, fog-honest entries, one-per-year,
+> supersede, sinking-book trajectory under forced ceiling
+> decay, age-out, cap) + a 4-check Playwright suite (first
+> looks after one simmed day, real reload migration, card
+> section with arrows, POT chips on farm rows) + the full
+> 34-suite battery, harness (0 errors, 0 violations), and e2e
+> (141, exit 0).
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):

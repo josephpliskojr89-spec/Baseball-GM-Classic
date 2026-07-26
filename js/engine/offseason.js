@@ -416,6 +416,7 @@ window.BBGM_OFFSEASON = (function () {
         const p = players[id];
         if (!p.retired) continue;
         if (p.hidden) delete p.hidden;
+        if (p.scoutBook) delete p.scoutBook; // the book closes with the career (0.69.0)
         if (p.hof) continue;
         const retiredFor = year - (p.retired.year || year);
         // Never-MLB retirees leave the archive after two winters (0.46.0)
