@@ -4903,6 +4903,28 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > Star-scarcity recalibration (the talent-inflation half of the
 > investigation) is the planned follow-up.
 
+> **Status note (v0.76.0):** Star-scarcity recalibration (the
+> talent-inflation fix, user-approved after an MLB research
+> pass). The old pipeline minted ~45 star-band ceilings a year
+> (draft top-5 70-80, picks 6-30 65-75, int'l ranks 1-5 75-80,
+> 6-15 65-75); integrated over ~8-year star careers the league
+> plateaued at ~190 players at 55+ OVR vs real MLB's ~55-70 at
+> All-Star-caliber production — every roster read as a wall of
+> 55s. New soak-tuned bands: draft top-5 68-79 (elite tail
+> nearly intact — the MVP tier measured close to right), 6-30
+> 56-68, 31-60 51-61, 61-150 48-58, 151+ 45-55; int'l ranks 1-5
+> 71-79, 6-15 55-65, 16-30 48-58, 31+ 40-52. The generational
+> anoint (76-80) is band-independent and untouched. Three
+> calibration rounds × three 16-season soaks each converged to a
+> FLAT equilibrium: ~87 at 55+ (2.9/club), ~30 at 60+ (one
+> All-Star lock per club), ~8 at 65+ (MVP tier), 26-man league
+> mean 47.8 (was ~51) — the 45-50 OVR everyday regular is the
+> norm again. Genesis generation untouched (day-1 league was
+> always on target); existing saves converge over several
+> seasons as new classes arrive — no hidden-ceiling rewrite of
+> living players. Zero thin-club events or sim errors across all
+> nine calibration soaks (the 0.75.2 floors held).
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):

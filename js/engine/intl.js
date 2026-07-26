@@ -120,11 +120,16 @@ window.BBGM_INTL = (function () {
 
   // Best-tool ceiling band by class rank (6.7). Top of the class matches
   // top-of-the-draft ceilings; the bottom 70 are depth lottery tickets.
+  // Star-scarcity recalibration (0.76.0, mirrors draft.js): the July
+  // class was minting ~15 star-band ceilings a year on top of the
+  // draft's 30 — the measured equilibrium carried ~40 int'l-born stars
+  // vs a realistic ~15-20. The top-5 legends stay nearly untouched;
+  // ranks 6-15 drop out of the star band into high-regular territory.
   function ceilingTargetFor(rank) {
-    if (rank <= 5) return rfloat(75, 80);
-    if (rank <= 15) return rfloat(65, 75);
-    if (rank <= 30) return rfloat(55, 65);
-    return rfloat(40, 55);
+    if (rank <= 5) return rfloat(71, 79);
+    if (rank <= 15) return rfloat(55, 65);
+    if (rank <= 30) return rfloat(48, 58);
+    return rfloat(40, 52);
   }
 
   // Expected signing bonus by rank ($M) — the "preferred range" AI bids

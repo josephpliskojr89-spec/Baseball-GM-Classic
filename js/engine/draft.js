@@ -76,13 +76,21 @@ window.BBGM_DRAFT = (function () {
 
   // Best-tool ceiling band by projected slot (6.5), shifted by class
   // strength — strong classes lift the top of the board hardest.
+  // Star-scarcity recalibration (0.76.0, the talent-inflation fix): the
+  // old bands (top-5 70-80, 6-30 65-75) minted ~30 potential stars every
+  // June — integrated over 8-year star careers that's a ~145-star draft
+  // population at equilibrium vs real MLB's ~55-70 players a season at
+  // All-Star-caliber production. The elite tail stays close to intact
+  // (the MVP tier measured nearly right); the squeeze is the 6-30 band
+  // that fed the surplus. Soak-tuned: 14-year plateau lands 60-90 at
+  // 55+ OVR.
   function ceilingTargetFor(slot, strength) {
     let lo, hi, w;
-    if (slot <= 5)        { lo = 70; hi = 80; w = 2.5; }
-    else if (slot <= 30)  { lo = 65; hi = 75; w = 2.0; }
-    else if (slot <= 60)  { lo = 60; hi = 70; w = 1.25; }
-    else if (slot <= 150) { lo = 55; hi = 65; w = 0.6; }
-    else                  { lo = 50; hi = 60; w = 0.3; }
+    if (slot <= 5)        { lo = 68; hi = 79; w = 2.5; }
+    else if (slot <= 30)  { lo = 56; hi = 68; w = 2.0; }
+    else if (slot <= 60)  { lo = 51; hi = 61; w = 1.25; }
+    else if (slot <= 150) { lo = 48; hi = 58; w = 0.6; }
+    else                  { lo = 45; hi = 55; w = 0.3; }
     return clamp(rfloat(lo, hi) + strength * w, 42, 82);
   }
 
