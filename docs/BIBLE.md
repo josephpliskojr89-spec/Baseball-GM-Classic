@@ -4784,6 +4784,23 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > note must name two real abbreviations with no dash. Full
 > paper UI suite + e2e (141, exit 0) re-verified.
 
+> **Status (0.73.2) — Scout's Book keeps its history (user
+> report: "only showing the potential from the current
+> season").** The 0.69.0 supersede rule — "November knows
+> more than June" — OVERWROTE a same-calendar-year first look
+> with the winter read. Every save's opening year (the
+> migration's first look + that November's stamp) collapsed
+> to a single point, so books never grew a trajectory. Fixed:
+> the winter stamp now APPENDS alongside a same-year first
+> look — first looks are their own points on the trajectory
+> and are never destroyed; still exactly one OFFICIAL winter
+> read per year. Already-merged opening entries can't be
+> recovered (the June band was overwritten in place), but
+> every book grows normally from the next winter. Scoutbook
+> suite updated (9 checks: November JOINS June, both entries
+> survive, official-read dedupe still holds) + scoutbook UI
+> suite + e2e (141, exit 0).
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):

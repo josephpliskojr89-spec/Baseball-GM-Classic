@@ -727,18 +727,13 @@ window.BBGM_SCOUT = (function () {
     const band = potentialBand(state, p);
     if (!band) return false;
     if (!p.scoutBook) p.scoutBook = [];
-    const existing = p.scoutBook.find((e) => e.year === year);
-    if (existing) {
-      // The winter read supersedes a mid-season first look — one official
-      // entry per year, and November knows more than June.
-      if (existing.first && !first) {
-        existing.lo = band[0]; existing.hi = band[1];
-        existing.ovr = Math.round(window.BBGM_ROSTER.overall(p));
-        delete existing.first;
-        return true;
-      }
-      return false;
-    }
+    // One OFFICIAL winter read per year — but a mid-season first look is
+    // its own point on the trajectory and is never overwritten (0.73.2:
+    // the old supersede DESTROYED the first look when the winter read
+    // landed in the same calendar year, leaving every book one entry
+    // deep — history is the whole product).
+    if (!first && p.scoutBook.some((e) => e.year === year && !e.first)) return false;
+    if (first && p.scoutBook.some((e) => e.year === year)) return false;
     const entry = { year, lo: band[0], hi: band[1],
       ovr: Math.round(window.BBGM_ROSTER.overall(p)) };
     if (first) entry.first = true;
