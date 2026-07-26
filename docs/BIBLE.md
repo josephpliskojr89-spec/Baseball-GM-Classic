@@ -4967,6 +4967,24 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > (rank-200/349 visible at bare-bones with +11 widen; intl gate
 > intact).
 
+> **Status note (v0.77.2):** Cross-type roster swaps (user
+> report: a 14-arm / 12-bat roster with six starters had no
+> one-move path back to shape — sending an SP down force-called
+> another SP as "cover," and the full-26 call-up picker offered
+> only same-type send-downs, so fixing the split took a
+> three-move dance). Two fixes: (1) confirmSendDown forces SP
+> cover only on a GENUINE shortage (fewer than 5 SPs remaining)
+> — mere rotation membership stopped mattering in 0.71.4, when
+> rebuilds learned to reseat rotations and pad with spot
+> starters; (2) showPromoteSwap lists cross-type send-down
+> candidates (same-type first) whenever the shrinking side holds
+> the 0.75.2 composition floors (12 bats / 11 arms) and no
+> catcher/SP/closer floor breaks; refusing veterans still
+> excluded per 0.72.0. showPromoteSwap exported for the suite.
+> New crossswap UI suite 5 (the exact reported 14/12 shape: no
+> phantom cover, one-move send-down, open-chair call-up,
+> cross-type picker rows).
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):

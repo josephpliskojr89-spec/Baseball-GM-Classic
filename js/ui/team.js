@@ -383,9 +383,13 @@ window.BBGM_UI_TEAM = (function () {
     let need = null;
     if (!p.isPitcher && p.primaryPosition === 'C' &&
         rest.filter((q) => !q.isPitcher && q.primaryPosition === 'C').length < 2) need = 'C';
-    if (p.isPitcher && ((team.rotation || []).includes(p.id) ||
-        (p.primaryPosition === 'SP' &&
-         rest.filter((q) => q.isPitcher && q.primaryPosition === 'SP').length < 5))) need = 'SP';
+    // SP cover only on a GENUINE shortage (0.77.2, user report: with six
+    // starters rostered, sending one down still force-called another SP
+    // up). Mere rotation membership stopped mattering in 0.71.4 — the
+    // rebuild reseats the rotation from the remaining arms and pads with
+    // spot starters. Fewer than five SPs left is the real emergency.
+    if (p.isPitcher && p.primaryPosition === 'SP' &&
+        rest.filter((q) => q.isPitcher && q.primaryPosition === 'SP').length < 5) need = 'SP';
     let cover = null;
     if (need) {
       cover = R.bestCallUp(team, players, p.isPitcher, need);
@@ -1109,14 +1113,39 @@ window.BBGM_UI_TEAM = (function () {
       render(document.getElementById('mainView'), state);
       return;
     }
-    // Full 26-man: same-type swap keeps the 13 pitchers / 13 hitters split
-    // intact. Veterans who'd refuse the assignment (0.72.0) aren't
-    // offered — DFA them from their card if they have to go.
-    const candidates = team.roster
-      .map((id) => state.players[id])
-      .filter((p) => p && p.isPitcher === minorsP.isPitcher &&
-        window.BBGM_ROSTER.acceptsMinors(p, state.meta.currentDate.year))
-      .sort((a, b) => (minorsP.isPitcher ? overallPitcher(a) - overallPitcher(b) : overallHitter(a) - overallHitter(b)));
+    // Full 26-man: same-type swaps listed first, but CROSS-TYPE swaps are
+    // on the menu too (0.77.2, user report: a 14-arm / 12-bat roster had
+    // no one-move path back to shape — arm-for-arm was forced). A
+    // cross-type candidate is offered while the shrinking side holds the
+    // composition floors (12 bats / 11 arms, 0.75.2) and no catcher/SP/
+    // closer floor breaks. Veterans who'd refuse the assignment (0.72.0)
+    // aren't offered — DFA them from their card if they have to go.
+    const roster = team.roster.map((id) => state.players[id]).filter(Boolean);
+    const hitCount = roster.filter((q) => !q.isPitcher).length;
+    const pitCount = roster.length - hitCount;
+    const cCount = roster.filter((q) => !q.isPitcher && q.primaryPosition === 'C').length;
+    const spCount = roster.filter((q) => q.isPitcher && q.primaryPosition === 'SP').length;
+    const candidates = roster
+      .filter((p) => {
+        if (!window.BBGM_ROSTER.acceptsMinors(p, state.meta.currentDate.year)) return false;
+        if (p.id === team.closer) return false;
+        if (!p.isPitcher && p.primaryPosition === 'C' && cCount <= 2 &&
+            !(!minorsP.isPitcher && minorsP.primaryPosition === 'C')) return false;
+        if (p.isPitcher && p.primaryPosition === 'SP' && spCount <= 5 &&
+            !(minorsP.isPitcher && minorsP.primaryPosition === 'SP')) return false;
+        if (p.isPitcher !== minorsP.isPitcher) {
+          if (p.isPitcher && pitCount <= 11) return false;
+          if (!p.isPitcher && hitCount <= 12) return false;
+        }
+        return true;
+      })
+      .sort((a, b) => {
+        const at = a.isPitcher === minorsP.isPitcher ? 0 : 1;
+        const bt = b.isPitcher === minorsP.isPitcher ? 0 : 1;
+        if (at !== bt) return at - bt;
+        const ov = (q) => (q.isPitcher ? overallPitcher(q) : overallHitter(q));
+        return ov(a) - ov(b);
+      });
     pickerModal(state, `Send down for ${minorsP.name}`, candidates,
       (p) => `${p.primaryPosition} • Age ${p.age} • OVR ${U.gradeFor(p.isPitcher ? overallPitcher(p) : overallHitter(p))}`,
       (p) => swapWithMinors(state, team, minorsP.id, p.id));
@@ -1233,5 +1262,5 @@ window.BBGM_UI_TEAM = (function () {
   // roster surface renders the same attribute chips.
   return { render, overallHitter, overallPitcher, ratingStrip,
     confirmSendDown, confirmRelease, minorsCardActions, minorsScoutNote,
-    nameCloser };
+    nameCloser, showPromoteSwap };
 })();
