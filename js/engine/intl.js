@@ -41,12 +41,19 @@ window.BBGM_INTL = (function () {
 
   // ---- Class generation (6.7) --------------------------------------------
 
+  // Reweighted 0.76.1 (user report: 14 Pacific Rim kids per 100-player
+  // class read wrong). The real July 2 market is overwhelmingly Latin —
+  // roughly three quarters Dominican and Venezuelan — while Japan and
+  // Korea's stars arrive years later through the posting/KBO-FA events
+  // this module already stages separately. The odd Taiwanese or
+  // Australian teen still appears, as in life: a few per class, not a
+  // seventh of it.
   const COUNTRIES = [
-    ['Dominican Republic', 0.35], ['Venezuela', 0.20], ['Cuba', 0.05],
-    ['Mexico', 0.08], ['Puerto Rico', 0.05], ['Colombia', 0.04],
-    ['Panama', 0.03], ['Nicaragua', 0.05], ['Japan', 0.05],
-    ['South Korea', 0.04], ['Taiwan', 0.03], ['Australia', 0.02],
-    ['Curaçao', 0.01],
+    ['Dominican Republic', 0.47], ['Venezuela', 0.27], ['Cuba', 0.04],
+    ['Mexico', 0.06], ['Puerto Rico', 0.02], ['Colombia', 0.03],
+    ['Panama', 0.03], ['Nicaragua', 0.02], ['Japan', 0.01],
+    ['South Korea', 0.01], ['Taiwan', 0.01], ['Australia', 0.01],
+    ['Curaçao', 0.02],
   ];
 
   function rollCountry() {

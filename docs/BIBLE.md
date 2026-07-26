@@ -4925,6 +4925,20 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > living players. Zero thin-club events or sim errors across all
 > nine calibration soaks (the 0.75.2 floors held).
 
+> **Status note (v0.76.1):** Int'l class origins reweighted
+> (user report: ~14 Pacific Rim players per 100-kid class read
+> wrong). July 2 is now a Latin market like the real one: DR
+> 0.47, Venezuela 0.27, Mexico 0.06, Cuba 0.04, Panama/Colombia
+> 0.03 each, Curaçao/Nicaragua/Puerto Rico 0.02 each, and
+> Japan/South Korea/Taiwan/Australia at 0.01 each (~4 per class
+> — the odd Taiwanese or Australian teen, as in life). NPB/KBO
+> stars still arrive through the posting/defection/KBO-FA event
+> machinery, which is the realistic channel for Asian talent.
+> Scouting regions unchanged (a Pacific Rim focus is now a
+> genuine specialty bet). Intlrank suite 8 (origin-distribution
+> checks: DR+VEN ≥60% and measured 74%, Pacific ≤8% and
+> measured 5.6% across 500 sampled prospects).
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):
