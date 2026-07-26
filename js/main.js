@@ -2399,6 +2399,27 @@ window.BBGM_MAIN = (function () {
       }
       if (body) state.news.push({ date, body });
     }
+    // The winter arrivals letter (0.77.0, user request): one inbox item
+    // at the start of every offseason cataloging the international names
+    // on the market — postings, defectors, KBO free agents — so the Hot
+    // Stove's imported storylines never slip past unnoticed.
+    if ((summary.intlEvents || []).length) {
+      const evs = summary.intlEvents;
+      const line = (ev) => `${ev.name} (${ev.pos}, ${ev.age}) — ` +
+        (ev.kind === 'posting' ? `posted from NPB, fee around $${ev.fee}M`
+          : ev.kind === 'defector' ? 'defected from Cuba, big upside and thin data'
+            : 'out of the KBO, proven and affordable');
+      const headliner = evs.find((e) => e.kind === 'posting') || evs[0];
+      window.BBGM_INBOX.push(state, {
+        from: 'Front Office (International)',
+        subject: `International arrivals: ${evs.length} name${evs.length === 1 ? '' : 's'} on the winter market`,
+        about: headliner.playerId,
+        body: `The winter market has an imported flavor this year. ${evs.map(line).join('. ')}. ` +
+              `Every one of them negotiates like a free agent — all thirty clubs can bid, and ` +
+              `the ones who wait for the price to settle usually watch someone else's press conference.`,
+        action: { type: 'viewPlayer', playerId: headliner.playerId },
+      });
+    }
     // Back stateside (0.74.0): the unsigned senior picks who took the
     // one-year deal in Japan/Korea after June rejoin the open market at
     // the rollover — the wire remembers who they are and who passed.

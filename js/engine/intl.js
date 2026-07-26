@@ -812,8 +812,11 @@ window.BBGM_INTL = (function () {
       return 0;
     };
 
-    // Japanese postings: 0-3 MLB-ready NPB stars (25-30).
-    const postings = rollCount([0.40, 0.35, 0.20, 0.05]);
+    // Japanese postings: 0-3 MLB-ready NPB stars (25-30). Rates raised
+    // 0.77.0 (user report: barely saw any) — with the July 2 class now
+    // realistically Latin (0.76.1), the posting system IS the Asian
+    // talent channel; most winters should carry at least one name.
+    const postings = rollCount([0.15, 0.40, 0.30, 0.15]);
     for (let i = 0; i < postings; i++) {
       const p = makeEventPlayer(state, {
         event: 'posting', country: 'Japan', age: rint(25, 30),
@@ -843,8 +846,9 @@ window.BBGM_INTL = (function () {
       events.push({ kind: 'defector', playerId: p.id, name: p.name, pos: p.primaryPosition, age: p.age });
     }
 
-    // KBO declarations: 0-1, older and more affordable.
-    if (rollCount([0.70, 0.30]) === 1) {
+    // KBO declarations: 0-2, older and more affordable (0-1 pre-0.77.0).
+    const kbos = rollCount([0.45, 0.40, 0.15]);
+    for (let i = 0; i < kbos; i++) {
       const p = makeEventPlayer(state, {
         event: 'kbo', country: 'South Korea', age: rint(28, 32),
         tier: rand() < 0.5 ? 'plus' : 'avg', slotPos: EVENT_POS(),

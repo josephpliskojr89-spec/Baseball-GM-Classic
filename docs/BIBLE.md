@@ -4939,6 +4939,20 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > checks: DR+VEN ≥60% and measured 74%, Pacific ≤8% and
 > measured 5.6% across 500 sampled prospects).
 
+> **Status note (v0.77.0):** More imports on the winter wire
+> (user request, the natural pairing with 0.76.1): NPB posting
+> odds raised from [40/35/20/5]% (≈0.9/yr, 40% empty winters)
+> to [15/40/30/15]% (≈1.45/yr), KBO declarations from 0-1 at
+> 30% to 0-2 (≈0.7/yr); Cuban defectors unchanged. Measured: a
+> winter with zero international arrivals is now a ~2% rarity.
+> Plus the winter arrivals letter: one Front Office
+> (International) inbox item at the start of every offseason
+> cataloging the posted/defected/KBO names on the market, with
+> the posting fee and a tap-through to the headliner's card —
+> the Hot Stove's imported storylines never slip past unread.
+> Intlrank suite 11 (posting/KBO rates, dry-winter rarity,
+> letter-field integrity).
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):
