@@ -874,6 +874,48 @@ window.BBGM_MAIN = (function () {
       window.BBGM_STATE.set(state);
     }
 
+    // Migration (0.71.6): one save's story repair. Kyle Tyson — the
+    // pre-0.71.0 unsigned first-rounder who leaked into the FA pool and
+    // resurfaced in indie ball — steps away from the game. His GM lost
+    // him at the deadline, spent big replacing his impact, and getting
+    // him back for the minimum broke the story. The fingerprint is the
+    // full conjunction (name, school, role, birth month) so no
+    // legitimately-generated namesake in any other save can match.
+    if (versionLt(saveVersion, '0.71.6')) {
+      for (const id of Object.keys(state.players)) {
+        const p = state.players[id];
+        if (!p || p.retired) continue;
+        if (p.name !== 'Kyle Tyson' || p.school !== 'Boston Tech') continue;
+        if (!p.isPitcher || p.primaryPosition !== 'SP') continue;
+        if (p.birthYear !== 2009 || p.birthMonth !== 5) continue;
+        if (p.draft) continue; // the real one was never signed out of a draft
+        for (const t of state.league.teams) {
+          const inConfig = (t.rotation || []).includes(id) ||
+            (t.bullpen || []).includes(id) || t.closer === id;
+          let held = false;
+          for (const arr of [t.roster, t.minors, t.roster40, t.il]) {
+            if (!arr) continue;
+            const i = arr.indexOf(id);
+            if (i >= 0) { arr.splice(i, 1); held = true; }
+          }
+          if (inConfig || held) {
+            try { window.BBGM_ROSTER.safeRebuild(state, t); } catch (e) {}
+          }
+        }
+        state.freeAgents = (state.freeAgents || []).filter((x) => x !== id);
+        delete state.players[id];
+        if (!state.news) state.news = [];
+        state.news.push({
+          date: { ...state.meta.currentDate },
+          body: `<strong>Kyle Tyson</strong> is stepping away from baseball. The one-time ` +
+                `first-round pick never signed, resurfaced in indie ball, and has decided ` +
+                `the winding road ends here.`,
+        });
+        console.log('0.71.6 migration: Kyle Tyson steps away from the game.');
+      }
+      window.BBGM_STATE.set(state);
+    }
+
     // Migration (0.69.0): open the Scout's Book — every young org player
     // gets his first stamped read so the trajectory starts now. History
     // that was never recorded can't be reconstructed; the book fills in

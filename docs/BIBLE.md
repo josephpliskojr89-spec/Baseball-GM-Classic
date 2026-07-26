@@ -4683,6 +4683,25 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > only in the queue — plus the full 37-suite battery,
 > harness, and e2e (141, exit 0).
 
+> **Status (0.71.6) — Kyle Tyson steps away (one save's story
+> repair, user request).** The GM lost his unsigned
+> first-rounder under the old rules, spent big on three
+> international arms to replace the impact, then found the kid
+> in indie ball asking the minimum — signing him broke the
+> story the save had already written. A one-shot migration
+> removes him: fingerprinted on the FULL conjunction (name
+> "Kyle Tyson" + school "Boston Tech" + SP + born May 2009 +
+> never draft-signed) so no legitimately-generated namesake in
+> any other save can match. Removal is complete — org lists,
+> team configs (safeRebuild on any club that held him), the FA
+> pool, and the player map — and the wire closes the story
+> in-world: "stepping away from baseball… the winding road
+> ends here." Verified by a 4-check Playwright suite through
+> the REAL reload migration (the man removed with zero
+> dangling ids, a same-name different-school decoy SURVIVES,
+> the farewell wire lands) + the full 37-suite battery and e2e
+> (141, exit 0).
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):
