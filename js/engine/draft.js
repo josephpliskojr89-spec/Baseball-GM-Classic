@@ -137,7 +137,16 @@ window.BBGM_DRAFT = (function () {
     const toughOdds = bg.key === 'HS' ? 0.14
       : bg.key === 'Fr' || bg.key === 'So' ? 0.08
       : bg.key === 'Jr' ? 0.06 : 0;
-    if (rand() < toughOdds) p.toughSign = true;
+    if (rand() < toughOdds) {
+      p.toughSign = true;
+      // WHY he's a tough sign (0.73.3), rolled once so the card copy is
+      // stable. The HS kid holds a college commitment over the room; the
+      // college underclassman just likes his leverage — he'd be fine
+      // with another year on campus. A few of either are two-sport
+      // athletes with the football program still in their ear.
+      p.toughSignWhy = rand() < 0.15 ? 'twoSport'
+        : bg.key === 'HS' ? 'commit' : 'school';
+    }
 
     // Shift ceilings so the BEST tool lands in the slot's band (6.5 bands
     // are "on best ratings", not across the board). Additive shift keeps
@@ -319,6 +328,7 @@ window.BBGM_DRAFT = (function () {
             p.background = 'Sr';
           }
           delete p.toughSign; // the leverage is spent — he wants pro ball now
+          delete p.toughSignWhy;
           p.reentry = { year: e.prior.year, round: e.prior.round,
             overall: e.prior.overall, teamId: e.prior.teamId };
           p.draftClass = year;

@@ -496,11 +496,22 @@ window.BBGM_UI_DRAFT = (function () {
   // remembers who passed on whom.
   function signabilityLine(state, p) {
     if (p.toughSign) {
+      // Age-appropriate flavor (0.73.3, user report: a 22-year-old
+      // junior reading like a high schooler): the HS kid holds a firm
+      // college commitment; the college underclassman merely wouldn't
+      // mind another year on campus — a preference, not a pledge; the
+      // two-sport star has the football program in his ear. Boards
+      // rolled before 0.73.3 carry no why — key off background.
+      const why = p.toughSignWhy || (p.background === 'HS' ? 'commit' : 'school');
+      const flavor = why === 'twoSport'
+        ? 'his advisor is floating a big number, and the football program is still in his ear'
+        : why === 'commit'
+          ? 'his advisor is floating a big number and a firm college commitment'
+          : 'his advisor is floating a big number, and word is he wouldn\'t mind another year on campus';
       return U.el('p', {
         style: { 'font-size': '12px', 'margin-bottom': '8px', 'font-weight': '600',
           color: 'var(--warning, #d29922)' },
-      }, '⚠ Signability concerns — his advisor is floating a big number and a firm ' +
-         'college commitment. He could slide… or walk.');
+      }, `⚠ Signability concerns — ${flavor}. He could slide… or walk.`);
     }
     if (p.reentry) {
       const t = state.league.teams.find((x) => x.id === p.reentry.teamId);

@@ -4801,6 +4801,21 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > survive, official-read dedupe still holds) + scoutbook UI
 > suite + e2e (141, exit 0).
 
+> **Status note (v0.73.3):** Age-appropriate signability flavor
+> (user report: a 22-year-old college junior's card read "firm
+> college commitment" — high-schooler copy). Every tough sign now
+> rolls a stable `toughSignWhy` at generation: HS keeps the
+> advisor + firm-commitment line; college underclassmen read as a
+> PREFERENCE — "word is he wouldn't mind another year on campus";
+> ~15% of either are two-sport athletes ("the football program is
+> still in his ear"), justifying the older tough sign. Wording
+> only — flag odds, sign rates, AI slide, and over-slot bonuses
+> are untouched. Boards rolled pre-0.73.3 fall back on background
+> (HS → commit, college → school). Re-entry injection clears the
+> why alongside the flag. Signability suite 13 (background-true
+> why audit), UI suite 6 (junior reads preference not commitment,
+> two-sport + HS variants), e2e 141.
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):
