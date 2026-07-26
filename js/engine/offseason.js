@@ -417,6 +417,7 @@ window.BBGM_OFFSEASON = (function () {
         if (!p.retired) continue;
         if (p.hidden) delete p.hidden;
         if (p.scoutBook) delete p.scoutBook; // the book closes with the career (0.69.0)
+        if (p.extTalks) delete p.extTalks; // nothing left to negotiate (0.70.0)
         if (p.hof) continue;
         const retiredFor = year - (p.retired.year || year);
         // Never-MLB retirees leave the archive after two winters (0.46.0)
@@ -666,12 +667,19 @@ window.BBGM_OFFSEASON = (function () {
       }
     }
 
+    // 5b. AI winter extensions (0.70.0): clubs re-sign their own
+    //     walk-year players BEFORE the contract tick, so an extended
+    //     cornerstone never reaches the pool. This is why real FA
+    //     classes are thin — the best names rarely make it to market.
+    summary.aiExtensions = FA().aiWinterExtensions(state);
+
     // 6. Service time and contract ticks. Only players with 6+ years of
     //    service reach free agency when their deal expires (bible 11.4);
     //    everyone else is under team control — renewed at the minimum
     //    pre-arb, or with escalating arbitration raises at 3-5 years
     //    (11.4's simplified arbitration: automatic salary steps, no
     //    hearing process).
+    summary.walkYears = [];
     for (const id in players) {
       const p = players[id];
       if (p.retired) continue;
@@ -687,6 +695,18 @@ window.BBGM_OFFSEASON = (function () {
       }
       if (p.contract && p.teamId) {
         p.contract.years = Math.max(0, (p.contract.years || 1) - 1);
+        // Walk-year flag (0.70.0): a user-team regular entering his final
+        // control season gets an agent letter — the clock on an extension
+        // is now visibly ticking. Once per contract.
+        if (p.contract.years === 1 && p.teamId === state.meta.userTeamId &&
+            (p.serviceTime.years || 0) + 1 >= 6 && !p.contract.walkNoted) {
+          const wOvr = ROSTER().overall(p);
+          if (wOvr >= 55) {
+            p.contract.walkNoted = true;
+            summary.walkYears.push({ playerId: p.id, name: p.name, age: p.age,
+              pos: p.primaryPosition, ovr: Math.round(wOvr) });
+          }
+        }
         if (p.contract.years === 0) {
           const sv = p.serviceTime.years || 0;
           if (sv >= 6) {

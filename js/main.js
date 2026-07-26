@@ -2130,6 +2130,21 @@ window.BBGM_MAIN = (function () {
               `rather than pay a $${nt.salary}M arbitration raise.`,
       });
     }
+    // Walk-year letters (0.70.0): the agent of a user-team regular
+    // entering his final control season opens the door — tap through to
+    // the extension table before November does the negotiating for you.
+    for (const wy of summary.walkYears || []) {
+      window.BBGM_INBOX.push(state, {
+        from: `${wy.name}'s agent`,
+        subject: `${wy.name} enters his walk year`,
+        about: wy.playerId,
+        body: `This is ${wy.name}'s (${wy.pos}, ${wy.age}) last season under contract with your ` +
+              `club. My client loves it here — but come November, thirty teams get a phone call. ` +
+              `If you want to talk extension, this winter is the time. The longer you wait, the ` +
+              `closer the open market gets, and the market sets a different kind of price.`,
+        action: { type: 'viewPlayer', playerId: wy.playerId },
+      });
+    }
     // International headline events (bible 14.7).
     for (const ev of summary.intlEvents || []) {
       let body = null;

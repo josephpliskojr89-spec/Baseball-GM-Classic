@@ -4480,6 +4480,49 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > 34-suite battery, harness (0 errors, 0 violations), and e2e
 > (141, exit 0).
 
+> **Status (0.70.0) — contract extensions rebuilt (16.11; user
+> request).** The old flow was a stateless three-button modal:
+> the ask re-rolled per tap, lowball-then-meet-ask had no
+> consequence, nobody ever preferred the market, and AI clubs
+> never extended anyone — every star walked to FA. Now: (1)
+> STATEFUL TALKS (p.extTalks): the ask is stamped once per
+> season; a light offer stiffens it (+3%), an insulting one
+> (sub-85% of fair) counts double, and three strikes close the
+> book until the calendar turns. Talks state persists to the
+> save (no modal-scumming) and clears on signing, on release
+> (they were with the old club), and with the retiree diet. (2)
+> SECURITY-DISCOUNT ECONOMICS (extensionAsk): the further from
+> the market, the cheaper the guarantee — control-years discount
+> 0.78/0.86/0.97 (3+/2/walk), an extra 5% off for a pre-arb kid
+> (age ≤25, sv ≤3) buying his first life-changing guarantee, and
+> young extensions run a year longer (the club buys FA years).
+> (3) MARKET TESTERS: ~40% of walk-year stars (OVR ≥58) want to
+> bet on themselves — deterministic per (player, year) so
+> reload-scumming can't re-roll intentions — and only a
+> blow-away number (ask ×1.12+) keeps them off the market. The
+> modal says so out loud; the third button is now "Blow him
+> away +15%". (4) AI WINTER EXTENSIONS (aiWinterExtensions,
+> offseason Part A, BEFORE the contract tick): clubs re-sign
+> their own walk-year players so extended cornerstones never
+> touch the pool — real FA classes are thin because the best
+> names rarely reach them. keepMul-consistent: contenders keep
+> stars (win-now ×1.2), rebuilders keep only young cornerstones
+> (age ≤27, OVR ≥55) and let vets walk; payroll-room guarded,
+> capped at 2/team/winter; testers make even their own club pay
+> the premium and usually walk anyway; OVR ≥56 extensions make
+> the wire. Harness confirms the pool stays healthy (168-227).
+> (5) WALK-YEAR LETTERS: a user-team regular (OVR ≥55) entering
+> his final control season gets an agent letter at the rollover
+> — tap through to the extension table before November does the
+> negotiating. Once per contract (contract.walkNoted). Verified
+> by a 16-check engine suite (discount ladder, stamp/reset,
+> insult escalation + closure, blow-away threshold, full REAL
+> Part A: AI extensions fire, extended star absent from the
+> pool, user star untouched + walk-year flag) + a 4-check
+> Playwright suite (modal ask, persistent sour state, soured
+> reopen, stiffened meet-ask signs) + the full 35-suite
+> battery, harness, and e2e (141, exit 0).
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):

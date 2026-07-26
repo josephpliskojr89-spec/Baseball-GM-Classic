@@ -133,6 +133,7 @@ window.BBGM_FA = (function () {
     p.rosterStatus = 'FA';
     p.faReason = reason;
     p.faSeasons = 0; // fresh unemployment spell (ticked each rollover)
+    delete p.extTalks; // any extension talks were with the old club (0.70.0)
   }
 
   // Build the market after contracts tick at rollover (offseason.js part A).
@@ -485,37 +486,148 @@ window.BBGM_FA = (function () {
     return signings;
   }
 
-  // ---- Extensions (16.11) ---------------------------------------------------
+  // ---- Extensions (16.11, rebuilt 0.70.0) -----------------------------------
+  // Real negotiations: the ask is STAMPED when talks open (no re-roll per
+  // tap), rejected offers stiffen the camp, insulting ones close the book
+  // for the season, and some players simply want to test the market — a
+  // blow-away offer is the only thing that keeps them off it.
 
-  function extensionAsk(p) {
-    const base = askingPrice(p);
-    // Pre-FA players take a security discount; walk-year players want
-    // near-market money.
-    const discount = (p.contract && p.contract.years > 1) ? 0.85 : 0.97;
-    return {
-      years: base.years,
-      total: Math.round(base.total * discount * 10) / 10,
-      aav: Math.round(base.aav * discount * 10) / 10,
-    };
+  // Deterministic per (player, year): reload-scumming doesn't re-roll a
+  // man's intentions.
+  function extHash(p, year) {
+    let h = year >>> 0;
+    const s = String(p.id);
+    for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+    return h;
   }
 
-  // Returns an error string, or null when the player signs.
-  function offerExtension(state, p, years, total) {
-    const ask = extensionAsk(p);
-    // Compare on a per-value basis, tolerant of different year counts.
-    const offeredValue = total * (0.9 + Math.min(years, ask.years) / ask.years * 0.1);
-    if (offeredValue < ask.total * 0.95) {
-      return `He turned it down — his camp is looking for ~${ask.years} yr / $${ask.total}M.`;
+  function extensionAsk(state, p) {
+    const base = askingPrice(p);
+    const ctrl = p.contract ? (p.contract.years || 0) : 0;
+    // Security discount scales with distance from the open market: a kid
+    // three control years out sells cheap for his first guarantee; a
+    // walk-year man is already smelling November.
+    const discount = ctrl >= 3 ? 0.78 : ctrl === 2 ? 0.86 : 0.97;
+    // First-guarantee youth discount — pre-arb money changes a life.
+    const youth = (p.age <= 25 && (p.serviceTime.years || 0) <= 3) ? 0.95 : 1;
+    // Young extensions run long (the team buys FA years, the kid takes
+    // the decade of certainty).
+    const years = Math.min(8, base.years + (ctrl >= 2 && p.age <= 27 ? 1 : 0));
+    const aav = Math.max(0.74, Math.round(base.aav * discount * youth * 10) / 10);
+    return { years, aav, total: Math.round(aav * years * 10) / 10 };
+  }
+
+  // Open (or resume) this season's talks. Stamps the ask once per year;
+  // insults and closures persist until the calendar turns.
+  function extensionTalks(state, p) {
+    const year = state.meta.currentDate.year;
+    if (!p.extTalks || p.extTalks.year !== year) {
+      const ask = extensionAsk(state, p);
+      const ctrl = p.contract ? (p.contract.years || 0) : 0;
+      const ovr = ROSTER().overall(p);
+      // Market testers: a walk-year star with the leverage to bet on
+      // himself often does. ~40% of them; deterministic per (player, year).
+      const wantsMarket = ctrl <= 1 && ovr >= 58 && (extHash(p, year) % 10) < 4;
+      p.extTalks = { year, askYears: ask.years, askAAV: ask.aav,
+        askTotal: ask.total, insults: 0, closed: false,
+        wantsMarket: wantsMarket || undefined };
     }
-    const aav = Math.round(total / years * 10) / 10;
-    p.contract = { years, annualSalary: aav, totalValue: Math.round(total * 10) / 10, signedAt: 'extension' };
-    if (!state.news) state.news = [];
-    const team = state.league.teams.find((t) => t.id === p.teamId);
-    state.news.push({
-      date: { ...state.meta.currentDate },
-      body: `<strong>${team ? team.abbr : ''}</strong> extend <strong>${p.name}</strong> — ${years} yr / $${total}M.`,
-    });
-    return null;
+    return p.extTalks;
+  }
+
+  // Returns an error/feedback string, or null when the player signs.
+  function offerExtension(state, p, years, total) {
+    const talks = extensionTalks(state, p);
+    if (talks.closed) {
+      return 'His camp has closed the book on extension talks this season — he\'ll listen again next year.';
+    }
+    // Shorter deals need richer per-year money; a market tester only
+    // signs for a number that makes November irrelevant.
+    const fairTotal = talks.askAAV * years * (1 + 0.02 * Math.max(0, talks.askYears - years));
+    const need = talks.wantsMarket ? fairTotal * 1.12 : fairTotal * 0.97;
+    if (total >= need) {
+      const aav = Math.round(total / years * 10) / 10;
+      p.contract = { years, annualSalary: aav, totalValue: Math.round(total * 10) / 10, signedAt: 'extension' };
+      delete p.extTalks;
+      if (!state.news) state.news = [];
+      const team = state.league.teams.find((t) => t.id === p.teamId);
+      state.news.push({
+        date: { ...state.meta.currentDate },
+        body: `<strong>${team ? team.abbr : ''}</strong> extend <strong>${p.name}</strong> — ${years} yr / $${total}M.`,
+      });
+      return null;
+    }
+    // Rejected. A merely-light offer stiffens the ask; an insulting one
+    // (sub-85% of fair) counts double, and three strikes end the talks.
+    talks.insults += total < fairTotal * 0.85 ? 2 : 1;
+    talks.askAAV = Math.round(talks.askAAV * 1.03 * 10) / 10;
+    talks.askTotal = Math.round(talks.askAAV * talks.askYears * 10) / 10;
+    if (talks.insults >= 3) {
+      talks.closed = true;
+      return 'That did it — his agent hung up. Talks are closed for the season; he\'ll see you in the winter.';
+    }
+    if (talks.wantsMarket) {
+      return `He turned it down. His camp wants to test the market — it would take a blow-away ` +
+             `number to keep him off it (think north of $${Math.round(talks.askTotal * 1.12)}M).`;
+    }
+    return `He turned it down — and the tone got cooler. His camp now wants ` +
+           `~${talks.askYears} yr / $${talks.askTotal}M.`;
+  }
+
+  // AI winter extensions (0.70.0): clubs lock up their own walk-year
+  // players BEFORE the contract tick, so a re-signed cornerstone never
+  // touches the pool — real FA classes are thin because the best names
+  // never reach them. keepMul-consistent: contenders keep stars,
+  // rebuilders keep only young cornerstones and let vets walk.
+  function aiWinterExtensions(state) {
+    const players = state.players;
+    const R = ROSTER();
+    const year = state.meta.currentDate.year;
+    const done = [];
+    for (const team of state.league.teams) {
+      if (team.id === state.meta.userTeamId) continue;
+      let room = team.payrollBase - computePayroll(team, players);
+      let extended = 0;
+      const cands = team.roster.map((id) => players[id])
+        .filter((p) => p && !p.retired && p.contract && p.contract.years === 1 &&
+          (p.serviceTime.years || 0) + 1 >= 6 && p.age <= 33)
+        .sort((a, b) => R.overall(b) - R.overall(a));
+      for (const p of cands) {
+        if (extended >= 2) break;
+        const ovr = R.overall(p);
+        if (ovr < 52) continue;
+        const win = team.competitiveWindow;
+        let prob = ovr >= 60 ? 0.65 : ovr >= 56 ? 0.45 : 0.25;
+        if (win === 'rebuilding') prob = (p.age <= 27 && ovr >= 55) ? 0.5 : 0.05;
+        else if (win === 'retooling') prob *= 0.6;
+        else if (win === 'win-now') prob *= 1.2;
+        // His side of the table: a market tester makes even his own club
+        // pay the blow-away premium, and usually walks anyway.
+        const tester = ovr >= 58 && (extHash(p, year) % 10) < 4;
+        if (tester) prob *= 0.35;
+        if (rand() >= prob) continue;
+        const ask = extensionAsk(state, p);
+        const aav = Math.round(ask.aav * (tester ? 1.14 : 1) * 10) / 10;
+        if (aav > room) continue; // can't afford the number
+        p.contract = { years: ask.years, annualSalary: aav,
+          totalValue: Math.round(aav * ask.years * 10) / 10, signedAt: 'extension' };
+        delete p.extTalks;
+        room -= aav;
+        extended++;
+        done.push({ playerId: p.id, teamId: team.id, name: p.name,
+          years: ask.years, total: p.contract.totalValue, ovr: Math.round(ovr) });
+        if (ovr >= 56) {
+          if (!state.news) state.news = [];
+          state.news.push({
+            date: { ...state.meta.currentDate },
+            body: `<strong>${team.abbr}</strong> lock up <strong>${p.name}</strong> before he hits ` +
+                  `the market — ${ask.years} yr / $${p.contract.totalValue}M.`,
+            go: { type: 'player', id: p.id },
+          });
+        }
+      }
+    }
+    return done;
   }
 
   return {
@@ -523,6 +635,6 @@ window.BBGM_FA = (function () {
     computePayroll, askingPrice, neverPlayedMLB, prefsText, prefMultiplier,
     releaseToPool, buildMarket, addMarketEntry, resolveRound,
     makeUserOffer, withdrawUserOffer, signMidSeason, aiMidSeasonTick,
-    extensionAsk, offerExtension, signPlayer,
+    extensionAsk, extensionTalks, offerExtension, aiWinterExtensions, signPlayer,
   };
 })();

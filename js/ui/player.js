@@ -870,7 +870,9 @@ window.BBGM_UI_PLAYER = (function () {
     return grid;
   }
 
-  // Extension offer (bible 16.11) — user-team players only.
+  // Extension offer (bible 16.11, rebuilt 0.70.0) — user-team players
+  // only. Talks are stateful: the ask is stamped for the season, sour
+  // offers stiffen it, and three strikes close the table until winter.
   function extensionSection(p) {
     const state = window.BBGM_STATE.get();
     if (p.retired || p.teamId !== state.meta.userTeamId) return null;
@@ -879,29 +881,45 @@ window.BBGM_UI_PLAYER = (function () {
     wrap.appendChild(U.el('button', {
       class: 'btn-secondary btn-sm', style: { width: '100%' },
       on: { click: () => {
-        const ask = FA.extensionAsk(p);
+        const talks = FA.extensionTalks(state, p);
+        window.BBGM_STATE.set(state); // persist the stamped ask
+        if (talks.closed) {
+          U.showModal({
+            title: `Extend ${p.name}`,
+            body: 'His camp has closed the book on extension talks this season. ' +
+                  'He\'ll listen again next year — or the market will do the talking.',
+            actions: [{ label: 'Close', kind: 'secondary', onClick: () => true }],
+          });
+          return;
+        }
         const mkOffer = (label, years, total) => ({
           label, kind: 'primary',
           onClick: () => {
             const err = FA.offerExtension(state, p, years, Math.round(total * 10) / 10);
-            if (err) U.showToast(err, 'warning', 5000);
+            window.BBGM_STATE.set(state); // insults/closures persist too
+            if (err) U.showToast(err, 'warning', 6000);
             else {
               U.showToast(`${p.name} signs the extension.`, 'success');
-              window.BBGM_STATE.set(state);
               window.BBGM_MAIN.refresh();
             }
             return true;
           },
         });
+        let mood = 'Players still under team control take a security discount; ' +
+                   'walk-year players want market money.';
+        if (talks.wantsMarket) {
+          mood = 'Word is he wants to TEST THE MARKET — only a blow-away number keeps him off it.';
+        } else if (talks.insults > 0) {
+          mood = 'Talks have soured once already — the ask has stiffened, and his patience is thin.';
+        }
         U.showModal({
           title: `Extend ${p.name}`,
-          body: `His camp is looking for roughly ${ask.years} yr / $${ask.total}M ` +
-                `($${ask.aav}M AAV). Players still under team control take a discount; ` +
-                `walk-year players want market money.`,
+          body: `His camp is asking ${talks.askYears} yr / $${talks.askTotal}M ` +
+                `($${talks.askAAV}M AAV). ${mood}`,
           actions: [
-            mkOffer(`Meet ask (${ask.years}y/$${ask.total}M)`, ask.years, ask.total),
-            mkOffer('Lowball −15%', ask.years, ask.total * 0.85),
-            mkOffer('Sweeten +10%', ask.years, ask.total * 1.1),
+            mkOffer(`Meet ask (${talks.askYears}y/$${talks.askTotal}M)`, talks.askYears, talks.askTotal),
+            mkOffer('Lowball −15%', talks.askYears, talks.askTotal * 0.85),
+            mkOffer('Blow him away +15%', talks.askYears, talks.askTotal * 1.15),
             { label: 'Cancel', kind: 'secondary', onClick: () => true },
           ],
         });
