@@ -4612,6 +4612,31 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > ladder still separating levels) + the full 37-suite battery,
 > harness (0 errors), and e2e (141, exit 0).
 
+> **Status (0.71.3) — ghost-config call-up deadlock (user
+> report: "the game isn't allowing me to call up a pitcher in
+> the offseason because I only have 4 in the rotation").** A
+> pitcher who left the club could linger in team.rotation /
+> team.bullpen / team.closer — the player still EXISTS (he's
+> in the FA pool), so validateTeam's existence checks pass,
+> and the UI's row guards hide him, so the Pitching tab
+> honestly shows 4 starters. But mutateTeam's "no worse than
+> before" pre-move floors counted the RAW array length (5),
+> so every honest rebuild came back with 4-5 real starters
+> against a floor inflated by a ghost — legal call-ups
+> deadlocked with "rotation size 4, expected at least 5".
+> Two-layer fix: (1) mutateTeam now sweeps dangling config
+> refs (not in players, or not on the roster) BEFORE
+> snapshotting, and safeRebuilds only when something was
+> actually pruned — a clean team's hand-set lineups are never
+> touched; snapshot, floors, and validation all see the same
+> honest shape. (2) A 0.71.3 migration sweeps every team's
+> config on load and rebuilds only the teams that carried a
+> ghost. Verified by a 4-check Playwright suite driving the
+> REAL promote flow against the rigged ghost shape (reload
+> migration sweeps and honestly reports 4; a live ghost can't
+> block the call-up; the staff rebuilds around the arrival) +
+> the full 37-suite battery, harness, and e2e (141, exit 0).
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):

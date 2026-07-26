@@ -121,6 +121,25 @@ window.BBGM_UI_TEAM = (function () {
   // mutation callback receives a `statuses` object it can use to record
   // player status fields it changes, so they're restored on revert.
   function mutateTeam(state, team, fn) {
+    // Ghost sweep (0.71.3, user report: an offseason call-up rejected
+    // for "rotation size 4, expected at least 5"). A pitcher who left
+    // the club can linger in the config arrays — the UI's row guards
+    // hide him (the Pitching tab honestly shows 4 starters), but the
+    // pre-move floors below counted the RAW array length (5), so every
+    // rebuild was "worse than before" and no legal move could ever
+    // pass. Prune dangling refs FIRST: the snapshot, the floors, and
+    // the validation all see the same honest shape.
+    const onClub = (id) => state.players[id] && team.roster.includes(id);
+    const r0 = (team.rotation || []).length, b0 = (team.bullpen || []).length;
+    team.rotation = (team.rotation || []).filter(onClub);
+    team.bullpen = (team.bullpen || []).filter(onClub);
+    const closerGhost = team.closer && !onClub(team.closer);
+    if (closerGhost) team.closer = null;
+    if (r0 !== team.rotation.length || b0 !== team.bullpen.length || closerGhost) {
+      // The config was lying — rebuild it to a legal shape before the
+      // move begins. Clean teams never reach this (lineups untouched).
+      window.BBGM_ROSTER.safeRebuild(state, team);
+    }
     const snap = {
       roster: team.roster.slice(),
       minors: team.minors.slice(),

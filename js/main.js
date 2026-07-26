@@ -828,6 +828,35 @@ window.BBGM_MAIN = (function () {
       window.BBGM_STATE.set(state);
     }
 
+    // Migration (0.71.3): sweep ghost config refs. A player who left a
+    // club could linger in rotation/bullpen/closer — invisible in the UI
+    // (row guards skip him) but counted by the roster-move floors, which
+    // deadlocked legal call-ups ("rotation size 4, expected at least 5"
+    // on a team whose Pitching tab honestly showed 4). Prune every
+    // team's config to live, on-roster players; rebuild only the teams
+    // that actually carried a ghost (a clean team's lineups are never
+    // touched).
+    if (versionLt(saveVersion, '0.71.3')) {
+      let ghosts = 0, rebuilt = 0;
+      for (const t of state.league.teams) {
+        const onClub = (id) => state.players[id] && t.roster.includes(id);
+        const r0 = (t.rotation || []).length, b0 = (t.bullpen || []).length;
+        t.rotation = (t.rotation || []).filter(onClub);
+        t.bullpen = (t.bullpen || []).filter(onClub);
+        const closerGhost = t.closer && !onClub(t.closer);
+        if (closerGhost) t.closer = null;
+        const pruned = (r0 - t.rotation.length) + (b0 - t.bullpen.length) + (closerGhost ? 1 : 0);
+        if (pruned) {
+          ghosts += pruned;
+          try { window.BBGM_ROSTER.safeRebuild(state, t); rebuilt++; } catch (e) {
+            console.error('0.71.3 ghost-sweep rebuild failed for', t.abbr, e);
+          }
+        }
+      }
+      if (ghosts) console.log(`0.71.3 migration: swept ${ghosts} ghost config ref(s), rebuilt ${rebuilt} team(s).`);
+      window.BBGM_STATE.set(state);
+    }
+
     // Migration (0.69.0): open the Scout's Book — every young org player
     // gets his first stamped read so the trajectory starts now. History
     // that was never recorded can't be reconstructed; the book fills in
