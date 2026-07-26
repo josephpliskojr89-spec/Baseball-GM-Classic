@@ -12,7 +12,7 @@ window.BBGM_UI_MENU = (function () {
     // Build constant is bumped with every release so the user can tell at a
     // glance which dashboard.js the browser actually loaded. Save version
     // is the save-schema version and changes only when the schema changes.
-    const BUILD = 'v0.72.0-vetconsent-1';
+    const BUILD = 'v0.73.0-ledger-1';
     card.appendChild(U.el('div', { class: 'inset-list', style: { 'border': 'none' } }, [
       insetRow('Team', userTeam.name),
       insetRow('Date', window.BBGM_DATES.format(state.meta.currentDate)),
@@ -76,6 +76,43 @@ window.BBGM_UI_MENU = (function () {
 
     container.appendChild(actions);
 
+    // The NABL Ledger (0.73.0): the newsstand — latest edition plus this
+    // season's specials, readable any time between Mondays.
+    {
+      const paperCard = U.el('div', { class: 'card', style: { 'margin-top': '20px' } });
+      paperCard.appendChild(U.el('div', { class: 'card-title' }, 'The NABL Ledger'));
+      const ps = state.paper || {};
+      if (ps.current) {
+        const PAPER = window.BBGM_PAPER;
+        const rows = [];
+        const seen = new Set();
+        const entries = [ps.current].concat((ps.specials || []).slice().reverse())
+          .filter((ed) => {
+            const key = `${ed.kind}:${ed.date.year}-${ed.date.month}-${ed.date.day}`;
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          }).slice(0, 5);
+        for (const ed of entries) {
+          rows.push(U.el('button', {
+            class: 'inset-row',
+            style: { width: '100%', 'text-align': 'left', background: 'none',
+              border: 'none', cursor: 'pointer' },
+            on: { click: () => PAPER.show(state, ed) },
+          }, [
+            U.el('span', { class: 'label' },
+              `${PAPER.KIND_LABEL[ed.kind] || 'Edition'} — ${window.BBGM_DATES.format(ed.date, 'date')}`),
+            U.el('span', { class: 'value' }, 'Read ›'),
+          ]));
+        }
+        paperCard.appendChild(U.el('div', { class: 'inset-list' }, rows));
+      } else {
+        paperCard.appendChild(U.el('p', { class: 'muted', style: { 'font-size': '12px' } },
+          'Nothing on the newsstand yet — the first edition prints Monday morning.'));
+      }
+      container.appendChild(paperCard);
+    }
+
     // Simulation Stops (0.21.0): which league events halt a sim run and
     // hand the decision to the user instead of the AI. The game is as
     // deep as the player wants — everything off reproduces the old
@@ -95,6 +132,7 @@ window.BBGM_UI_MENU = (function () {
       ['promotion', 'Promotion push', 'Stop when a farmhand outplays a big-league roster spot'],
       ['dayToDay', 'Day-to-day knocks', 'Stop for minor injuries with no roster move'],
       ['inboxMail', 'New mail', 'Stop a sim run when a letter lands in your inbox'],
+      ['weeklyPaper', 'Monday paper', 'Stop each Monday morning to read The NABL Ledger'],
     ];
     const toggles = U.el('div', { class: 'inset-list', style: { border: 'none' } });
     for (const [key, label, desc] of STOP_DEFS) {

@@ -280,6 +280,7 @@ window.BBGM_STATE = (function () {
     waiverWire: true,  // a claimable player (48+ OVR) hits the waiver wire
     promotion: true,   // a farmhand outplays a big-league roster spot (0.38.0)
     inboxMail: false,  // a letter lands in the inbox mid-run (0.63.0)
+    weeklyPaper: true, // Monday morning: stop to read The NABL Ledger (0.73.0)
   };
 
   function simStops(s) {

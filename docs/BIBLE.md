@@ -4730,6 +4730,46 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > 38-suite battery, 3-season harness (0 errors), and e2e
 > (141, exit 0).
 
+> **Status (0.73.0) — The NABL Ledger (user request: a weekly
+> newspaper).** New module BBGM_PAPER (js/ui/paper.js, the
+> 44th — script tag, boot guard, SW precache, module_load all
+> updated). Every MONDAY an edition composes from the last
+> seven days of REAL box scores (retained all season since
+> 0.19.1): Player of the Week and Arm of the Week with true
+> weekly lines (verified against independent re-aggregation:
+> "hit .435 over 6 games (10-for-23) with 4 HR"), Hot and
+> Cold from lastTen, Around the League (13+ inning marathons,
+> 10-run laughers, 12-K starts, 3-HR games), and The Races
+> (division leaders). FOUR SPECIALS: Preseason (strength-
+> ranked contenders, Pipeline names to learn, your club's
+> paper ranking), All-Star (break standings, first-half
+> leaders, the exhibition result — composed in the ASG
+> block), World Series (champion + season leaders — composed
+> the morning after the final out), and Hot Stove (hardware,
+> the FA class, the retirements — delivered as a Ledger
+> LETTER at the rollover with a readPaper tap-through).
+> Publishing runs through the dayTicks retry latch; a new
+> weeklyPaper SIM STOP (default ON, toggleable like the rest)
+> halts Monday mornings with "Read the Paper"; when it's off
+> the presses still run silently. The Menu gains a newsstand
+> card listing the current edition + this season's specials
+> (kept ≤5; storage a few KB, replaced weekly). The
+> broadsheet renders serif with a double-rule masthead ("The
+> NABL Ledger — Est. 1901"), column-rule sections, and a
+> tappable POTW line into the player card. Halt actions open
+> the sheet via deferred setTimeout (the modal-close race —
+> same pattern as the inbox flows). E2e turns the stop off in
+> its defaults-off block (the Monday halt intercepted the
+> draft-day modal scenario — the feature working). Verified
+> by a 12-check engine suite (composition from real simmed
+> boxes, independent POTW re-aggregation, Monday cadence +
+> once-per-week + preseason-once, big-game detection, all
+> four specials) + a 6-check Playwright suite (halt through
+> real advanced days, broadsheet render, Monday halt, the
+> newsstand, silent presses with the stop off) + the full
+> 39-suite battery, harness (0 errors), and e2e (141, exit
+> 0).
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):

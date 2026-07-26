@@ -1182,6 +1182,16 @@ window.BBGM_MAIN = (function () {
         U.showToast(`${p.name} is the project — extra work starts now.`, 'success');
         return true;
       }});
+    } else if (m.action && m.action.type === 'readPaper') {
+      // The Ledger's letters (0.73.0): open the newest special edition.
+      actions.push({ label: 'Read the Paper', kind: 'primary', onClick: () => {
+        setTimeout(() => {
+          const s = window.BBGM_STATE.get();
+          const specials = (s.paper && s.paper.specials) || [];
+          window.BBGM_PAPER.show(s, specials[specials.length - 1] || (s.paper && s.paper.current));
+        }, 50);
+        return true;
+      }});
     } else if (m.action && m.action.type === 'scoutHunch') {
       // Fund the scout's flyer (0.52.0): free trip if the allowance has
       // room, pool money past it — same machinery as the intl hub.
@@ -1962,6 +1972,31 @@ window.BBGM_MAIN = (function () {
           });
         }
       }
+      // The Ledger's Hot Stove Special (0.73.0): awards, the FA class,
+      // and the winter's goodbyes — delivered as a letter so it's
+      // waiting whenever the GM comes up for air from the market.
+      {
+        const awardItems = [];
+        for (const lg of ['east', 'west']) {
+          const a = summary.awards[lg];
+          if (!a) continue;
+          for (const [label, w] of [['MVP', a.mvp], ['Cy Young', a.cy], ['Rookie of the Year', a.roy]]) {
+            if (w) awardItems.push(`${U.leagueName(lg)} ${label}: ${w.winner.name}`);
+          }
+        }
+        const hsEd = window.BBGM_PAPER.composeSpecial(state, 'offseason', {
+          awards: awardItems, retired: (summary.retirements || []).length,
+        });
+        window.BBGM_PAPER.storeSpecial(state, hsEd);
+        window.BBGM_INBOX.push(state, {
+          from: 'The NABL Ledger',
+          subject: 'Hot Stove Special: the market opens',
+          body: `"${hsEd.headline}" — the winter edition is on the newsstand: the hardware, ` +
+                `the free-agent class, and the men who hung them up. Tap through to read it, ` +
+                `or find it any time in the Menu.`,
+          action: { type: 'readPaper' },
+        });
+      }
       // User-team winners get their own headline.
       for (const lg of ['east', 'west']) {
         const a = summary.awards[lg];
@@ -2586,6 +2621,25 @@ window.BBGM_MAIN = (function () {
             ? `<strong>${w.name}</strong> win ${label}, defeating the ${l.name} ${score}!`
             : `<strong>${w.abbr}</strong> take ${label} over ${l.abbr}, ${score}.`,
         });
+        // The Ledger's World Series Special (0.73.0): the wrap edition
+        // prints the morning after the final out.
+        if (s.tag === 'ws') {
+          const wsEd = window.BBGM_PAPER.composeSpecial(state, 'endseason', {
+            championId: s.winnerId,
+            seriesLine: `${score} over the ${l.name}.`,
+          });
+          window.BBGM_PAPER.storeSpecial(state, wsEd);
+          if (window.BBGM_STATE.simStops(state).weeklyPaper) {
+            queueHalt({
+              title: 'The World Series Special is out',
+              body: `"${wsEd.headline}" — The NABL Ledger.`,
+              actions: [{ label: 'Read the Paper', kind: 'primary', onClick: () => {
+                setTimeout(() => window.BBGM_PAPER.show(window.BBGM_STATE.get(), wsEd), 50);
+                return true;
+              }}],
+            });
+          }
+        }
       }
     }
 
@@ -2614,6 +2668,23 @@ window.BBGM_MAIN = (function () {
         state.news.push({
           date: { ...today },
           body: `<strong>${mine.length} of your players made the All-Star team:</strong> ${mine.join(', ')}.`,
+        });
+      }
+      // The Ledger's All-Star Special (0.73.0): the break-week edition
+      // prints the moment the exhibition ends.
+      const asEd = window.BBGM_PAPER.composeSpecial(state, 'midseason', {
+        asgLine: `${winName} League takes it ${score} over the ${loseName} League; ` +
+                 `${as.mvp.name} is your All-Star MVP.`,
+      });
+      window.BBGM_PAPER.storeSpecial(state, asEd);
+      if (window.BBGM_STATE.simStops(state).weeklyPaper) {
+        queueHalt({
+          title: 'The All-Star Special is out',
+          body: `"${asEd.headline}" — The NABL Ledger.`,
+          actions: [{ label: 'Read the Paper', kind: 'primary', onClick: () => {
+            setTimeout(() => window.BBGM_PAPER.show(window.BBGM_STATE.get(), asEd), 50);
+            return true;
+          }}],
         });
       }
     }
@@ -2967,6 +3038,25 @@ window.BBGM_MAIN = (function () {
     }
 
     maybeRivalPitch(state, today);
+
+    // The NABL Ledger (0.73.0): the Monday edition composes from the
+    // week's box scores; the preseason special prints with the first
+    // April sim day. Publishing is silent when the stop is off — the
+    // newsstand in the Menu always carries the latest edition.
+    if (!dayTicks.paper) {
+      dayTicks.paper = true;
+      const edition = window.BBGM_PAPER.dailyTick(state, today);
+      if (edition && stops.weeklyPaper) {
+        queueHalt({
+          title: edition.kind === 'preseason' ? 'The Preseason Special is out' : 'The Monday paper is out',
+          body: `"${edition.headline}" — The NABL Ledger.`,
+          actions: [{ label: 'Read the Paper', kind: 'primary', onClick: () => {
+            setTimeout(() => window.BBGM_PAPER.show(window.BBGM_STATE.get(), edition), 50);
+            return true;
+          }}],
+        });
+      }
+    }
 
     // Generate news for any noteworthy results. Latched (W3): the digest
     // pushes headlines, so a same-day retry would double every story.
