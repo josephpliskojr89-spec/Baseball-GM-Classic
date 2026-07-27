@@ -1570,6 +1570,16 @@ window.BBGM_SIM = (function () {
       // dealing, the manager goes to the pen — no more 270-IP seasons
       // built from routine 8th and 9th innings.
       if (!pull && ip >= 7 && !(runsAllowed <= 2 && traffic <= ip * 1.4)) pull = true;
+      // The 9th belongs ONLY to the earned complete game (release-gate
+      // iteration 3): without this, efficient dominant starters slid
+      // under their pitch limits into free CGs the merit gate never saw
+      // (~380/yr). Same profile as the chase: patient manager, horse,
+      // <=1 run, close, light traffic.
+      if (!pull && inning >= 9 &&
+          !(quickHook <= 4 && runsAllowed <= 1 && Math.abs(margin) <= 2 &&
+            stamina >= 66 && traffic <= ip * 1.2)) {
+        pull = true;
+      }
     } else {
       // Reliever limit from his tier base, with a short-leash trouble pull.
       // An arm that worked yesterday pitches on a much shorter leash.

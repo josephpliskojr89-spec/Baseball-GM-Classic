@@ -89,12 +89,16 @@ const DETECTORS = [
     test: (s, x) => s.pa >= 500 && (s.hr || 0) >= 20 && (s.hr || 0) <= 29 && x.avg >= 0.250 && x.avg <= 0.279 },
   { key: 'gloveFirst', label: 'glove-first regular (60+ glove, <=.660 OPS, 450+ PA)', expect: [2, 10], hitter: true,
     test: (s, x, p) => s.pa >= 450 && x.ops <= 0.660 && ((p.ratings.defense || 0) >= 60) },
-  { key: 'workhorseAce', label: 'workhorse ace (200+ IP, <=3.10)', expect: [1, 6], hitter: false,
-    test: (s, x) => s.ipOuts >= 600 && x.era <= 3.10 },
+  // Era-relative bars (release-gate iteration 3): a fixed 3.10 in a
+  // 3.85-ERA league is just a good season. The ace beats his era by
+  // 25%; the K monster beats the league whiff rate by 40%.
+  { key: 'workhorseAce', label: 'workhorse ace (200+ IP, era-relative dominant)', expect: [1, 8], hitter: false,
+    test: (s, x, p, era) => s.ipOuts >= 600 && x.era <= (era ? era.era * 0.75 : 3.10) },
   { key: 'cgArm', label: '3+ complete games', expect: [0, 4], hitter: false,
     test: (s) => (s.cg || 0) >= 3 },
-  { key: 'kMonster', label: 'strikeout monster (150+ IP, 10+ K/9)', expect: [0, 4], hitter: false,
-    test: (s, x) => s.ipOuts >= 450 && x.k9 >= 10 },
+  { key: 'kMonster', label: 'strikeout monster (150+ IP, era-relative whiffs)', expect: [0, 5], hitter: false,
+    test: (s, x, p, era) => s.ipOuts >= 450 &&
+      x.k9 >= (era ? Math.max(9.5, era.kPct * 38.3 * 1.40) : 10) },
   { key: 'wildThing', label: 'wild flamethrower (5+ BB/9, 8.5+ K/9, 50+ IP)', expect: [0, 4], hitter: false,
     test: (s, x) => s.ipOuts >= 150 && x.bb9 >= 5 && x.k9 >= 8.5 },
   { key: 'craftyVet', label: 'crafty vet (35+, 150+ IP, <=3.80, <=6 K/9)', expect: [0, 3], hitter: false,
@@ -106,7 +110,7 @@ const DETECTORS = [
       (1 - (s.irs || 0) / Math.max(1, s.ir || 0)) >= 0.80 },
 ];
 
-function census(W, state, year) {
+function census(W, state, year, era) {
   const S = W.BBGM_STATS;
   const out = {};
   for (const d of DETECTORS) out[d.key] = { label: d.label, expect: d.expect, count: 0, examples: [] };
@@ -126,7 +130,7 @@ function census(W, state, year) {
     };
     for (const d of DETECTORS) {
       if (d.hitter ? !isHitterLine : !isPitcherLine) continue;
-      if (!d.test(s, x, p)) continue;
+      if (!d.test(s, x, p, era)) continue;
       const c = out[d.key];
       c.count++;
       if (c.examples.length < 2) {
@@ -196,7 +200,7 @@ function warLite(W, state, year, era) {
 
 function observe(W, state, year) {
   const era = eraLine(W, state, year);
-  return { era, census: census(W, state, year), war: warLite(W, state, year, era) };
+  return { era, census: census(W, state, year, era), war: warLite(W, state, year, era) };
 }
 
 // ---- Report printers --------------------------------------------------------
