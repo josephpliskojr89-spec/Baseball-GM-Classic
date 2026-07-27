@@ -389,6 +389,10 @@ window.BBGM_SIM = (function () {
         const consecutive = p.lastPitchedDate && DATES.diffDays(p.lastPitchedDate, todayDate) === 1;
         p.consecPitchDays = consecutive ? (p.consecPitchDays || 1) + 1 : 1;
         p.lastPitchedDate = { ...todayDate };
+        // Outing size (1.1.1): heavy relief work earns real rest days —
+        // needsPenRest reads this to keep the fireman a weapon, not a
+        // 148-inning cheat code.
+        p.lastOutingOuts = (gameStats[pid] && gameStats[pid].ipOuts) || 0;
       }
     }
 
@@ -1435,7 +1439,18 @@ window.BBGM_SIM = (function () {
   }
 
   function needsPenRest(p, today) {
-    return pitchedYesterday(p, today) && (p.consecPitchDays || 0) >= 3;
+    if (!p || !p.lastPitchedDate) return false;
+    const gap = window.BBGM_DATES.diffDays(p.lastPitchedDate, today);
+    // Heavy work earns real rest (1.1.1, user report: an 87 G / 148 IP
+    // reliever): six-plus outs buys two days down, four-plus buys one.
+    // Three straight days of anything remains a mandated day off. Old
+    // saves without the outing stamp fall through to the consec rule.
+    const outs = p.lastOutingOuts || 0;
+    if (outs >= 4 && gap <= 2) return true;
+    // Two straight days is the modern limit — the third gets a seat
+    // (1.1.1: the old 3-day rule let arms cycle to 100-appearance
+    // seasons).
+    return gap === 1 && (p.consecPitchDays || 0) >= 2;
   }
 
   // Lazily backfill bullpen roles for saves created before the roles field
@@ -1506,16 +1521,28 @@ window.BBGM_SIM = (function () {
         return players[cands[0]];
       }
     }
-    // Whole pen rested/used — allow three-straight-day arms as a fallback
-    // before handing the ball to the closer in a non-save spot. Roster
-    // membership still required: bullpenRoles can carry a stale id for a
-    // traded/demoted arm, and the desperation path must not field him.
+    // Whole pen rested/used — desperation fallback before handing the
+    // ball to the closer in a non-save spot. Roster membership still
+    // required: bullpenRoles can carry a stale id for a traded/demoted
+    // arm, and the desperation path must not field him. 1.1.1: the
+    // fallback picks the FRESHEST tired arm (longest since last outing,
+    // fewest appearances) — it used to grab the front of the role list,
+    // which quietly funneled every depleted-pen inning to the same
+    // workhorses the rest rules had just benched.
+    const D = window.BBGM_DATES;
+    let tiredBest = null, tiredKey = null;
     for (const role of order) {
-      const cands = (roles[role] || []).filter((id) =>
-        !used.has(id) && players[id] && inj.isAvailable(players[id]) &&
-        team.roster.includes(id));
-      if (cands.length) return players[cands[0]];
+      for (const id of roles[role] || []) {
+        if (used.has(id) || !players[id] || !inj.isAvailable(players[id]) ||
+            !team.roster.includes(id)) continue;
+        const p = players[id];
+        const gap = p.lastPitchedDate ? D.diffDays(p.lastPitchedDate, today) : 99;
+        const g = (p.stats[year] && p.stats[year].g) || 0;
+        const key = gap * 1000 - g; // most-rested first, then least-used
+        if (tiredBest === null || key > tiredKey) { tiredBest = p; tiredKey = key; }
+      }
     }
+    if (tiredBest) return tiredBest;
     if (closerP && !used.has(team.closer) && inj.isAvailable(closerP) &&
         team.roster.includes(team.closer)) return closerP;
     return null;
@@ -1586,10 +1613,11 @@ window.BBGM_SIM = (function () {
       if (pitchedYesterday(pitcher, state.meta.currentDate)) limit *= 0.65;
       if (pitches >= limit) pull = true;
       if (runsAllowed >= 3) pull = true;
-      // Outing caps (phase 4): a fireman with a rubber arm gets eight
-      // outs, ordinary pen arms fewer — blowout long relief excepted.
-      // Kills the 120-IP setup man while leaving the 90-IP fireman.
-      const outCap = (stamina >= 48 ? 8 : stamina >= 40 ? 6 : 4) + (Math.abs(margin) >= 5 ? 4 : 0);
+      // Outing caps (phase 4, trimmed 1.1.1): a fireman with a rubber
+      // arm gets seven outs, ordinary pen arms fewer — blowout long
+      // relief excepted. With the heavy-outing rest ladder this holds
+      // the elite fireman near ~90-105 IP instead of 148.
+      const outCap = (stamina >= 48 ? 7 : stamina >= 40 ? 5 : 4) + (Math.abs(margin) >= 5 ? 3 : 0);
       if ((ps.ipOuts || 0) >= outCap && inning <= 9) pull = true;
 
       // Proactive closer call: protecting a 1-3 run lead in closer

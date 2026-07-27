@@ -725,7 +725,10 @@ window.BBGM_PLAYER_GEN = (function () {
       }
       if (role === 'RP') {
         c -= rnormal(rng, 8, 3);
-        c = Math.min(c, 55); // RPs cap below the "starter capable" threshold
+        // 1.1.1 (user report): 55 let too many pen arms qualify for
+        // rubber-armed workloads. 52 keeps the true fireman (48+) a
+        // scarce find while ordinary relievers stay one-inning men.
+        c = Math.min(c, 52);
       }
       if (role === 'CP') {
         c -= rnormal(rng, 12, 3);

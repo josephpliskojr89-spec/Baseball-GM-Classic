@@ -5086,6 +5086,20 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > 11 (shortlist distinctness, ledger sharing, re-center math, paid
 > second-look path); battery 42/42, e2e 141.
 
+> **Status note (v1.1.1):** Relief workloads reined in (user
+> report: an 87 G / 148 IP reliever). Four levers: RP stamina
+> generation caps 55 → 52 (the true 48+ fireman is a scarce find);
+> the rubber-arm outing cap trims to 7 outs (ordinary arms 5); a
+> heavy-outing rest ladder (4+ outs buys two days down, two straight
+> days of anything is the limit — the third gets a seat); and the
+> depleted-pen fallback now picks the freshest tired arm instead of
+> quietly funneling every desperation inning to the workhorses the
+> rest rules had just benched. Soak: top reliever 69 G / 117 IP
+> (one arm over 110 league-wide, was 148), 90+ IP relievers 44 →
+> 19, max appearances 102 → 90, closer saves healthy (avg 28).
+> Applies to live saves immediately — the record book keeps what
+> already happened. Battery 42/42, e2e 141.
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):
