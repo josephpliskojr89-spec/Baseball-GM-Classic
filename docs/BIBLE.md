@@ -5015,6 +5015,14 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > 27 (spent pitch refused even after rolling the tier back,
 > cuts exempt, fresh audience next winter).
 
+> **Status note (re-founding phase 1, no version bump):** The
+> simulation-first re-founding is approved and begun — see the new
+> §22 for the principle, the grade dictionary, and the release
+> policy. This phase ships only instruments: tools/observatory.js
+> (era line, archetype census, WAR-lite) wired into every harness
+> season, plus the 8-season baseline census recorded in §22.6.
+> Zero gameplay change; game files untouched.
+
 > **Status note (v0.79.0):** Velocity amplifies, movement earns
 > its grade (user-approved retune from the twin-league attribute
 > experiments). K model: velocity no longer adds K's on its own
@@ -6637,3 +6645,238 @@ After Phase 16's initial completion, the iteration loop is:
 6. Repeat
 
 The bible is a living document. As the game evolves, this document should evolve too — new sections added, old sections updated, deferred features documented when they're built.
+
+## 22. The Re-Founding: Simulation-First Physics
+
+### 22.1 The Principle
+
+Through v0.79.0 the engine was calibrated top-down: league-average
+event rates were pinned to 2001 targets and player ratings nudged
+them. The player was a deviation from an era; every clamp existed to
+protect the league line from the players. That design compresses the
+tails — the census that motivated this section found zero TTO
+monsters, zero wild flamethrowers, tools so correlated that the same
+player hits .333 with 42 HR and 104 BB, and top bats worth twice the
+best arm.
+
+The re-founding inverts it. **The 20-80 scale is the ground truth.
+The league line is an output.** This section defines, once, what each
+grade means in event-level terms — the grade dictionary. Simulation
+code implements the dictionary; generation decides who exists; the
+league hits whatever it hits. A pitching-rich draft decade produces a
+pitching era, and that is history, not drift. There are no league
+calibration targets anywhere downstream of this section; the
+observatory (§22.6) replaces them.
+
+Tuning discipline after the re-founding: if the league feels wrong,
+the legitimate knobs are (a) the dictionary itself — argued here, in
+writing, from baseball plausibility — and (b) generation (who gets
+minted). Sim coefficients are the dictionary's implementation detail
+and never get tuned independently of it.
+
+### 22.2 The Scale
+
+20-80, scouting semantics, defined against the majors:
+
+- **50** — average major-league regular at the tool.
+- **60** ("plus") — clearly above average; a carrying tool.
+- **70** ("plus-plus") — among the handful of best in the league.
+- **80** — an all-time-great tool; one or two per generation hold an
+  80 anywhere. Generation should mint 80s rarely enough that seeing
+  one on a card is an event.
+- **40** — fringe regular; survivable if other tools carry him.
+- **30** — organizational depth; exposed nightly in the majors.
+- **20** — the tool is simply absent at professional level.
+
+Grades describe TOOLS, never value. Value is observed (WAR-lite,
+§22.6.3). `overall()` survives only as scouting shorthand.
+
+### 22.3 The Hitter Dictionary
+
+Anchor rows state expected full-season outcomes for a hitter with the
+listed grade in ONE tool and 50s elsewhere, facing league-average
+(50-grade) pitching in a neutral park, ~600 PA. Between anchors,
+interpolate; beyond them, extrapolate honestly — no protective caps.
+
+**Contact** — bat-to-ball: whiff avoidance and batting average on
+contact quality (line-drive share).
+
+| grade | K% | BA (tools-neutral) |
+|---|---|---|
+| 20 | 33% | .195 |
+| 30 | 27% | .218 |
+| 40 | 22% | .240 |
+| 50 | 17.5% | .262 |
+| 60 | 13% | .285 |
+| 70 | 10% | .308 |
+| 80 | 7.5% | .330 |
+
+**Power** — game power: HR per fly ball, extra-base share, and a
+fly-ball tilt to the batted-ball mix.
+
+| grade | HR/600 PA | note |
+|---|---|---|
+| 20 | 2 | slap contact |
+| 30 | 6 | doubles power only |
+| 40 | 12 | |
+| 50 | 18 | |
+| 60 | 27 | All-Star pop |
+| 70 | 38 | MVP-chase pop |
+| 80 | 50+ | generational |
+
+**Discipline** — swing decisions: chase avoidance and the walk rate
+the hitter EARNS on his own. Fear walks (§22.5) stack on top.
+
+| grade | earned BB% |
+|---|---|
+| 20 | 3% |
+| 30 | 4.5% |
+| 40 | 6.5% |
+| 50 | 8.5% |
+| 60 | 11% |
+| 70 | 14% |
+| 80 | 17% |
+
+**Speed** — footspeed: steal attempts come from the green-light
+identity (aggression is minted at generation, not implied by the
+grade), success from the grade. Also: infield hits, extra bases
+taken, triples, and (with defense) range.
+
+| grade | SB success | attempts w/ green light | 3B/600 |
+|---|---|---|---|
+| 20 | 40% | never runs | 0 |
+| 50 | 70% | 12-18 | 3 |
+| 65 | 78% | 30-45 | 6 |
+| 80 | 86% | 55-75 | 11 |
+
+**Defense / Arm** — per-position out conversion on balls routed to
+the fielder (phase 4). An 80 glove at SS converts ~1 extra out per
+~2.5 games over a 50 — worth roughly ±12-15 runs a season at a
+premium position; ±7 in a corner. Arm: assists, runner holds, and (for
+catchers) the running game. The dictionary point that matters most: a
+20-glove is a NIGHTLY liability the sim must actually charge for.
+
+### 22.4 The Pitcher Dictionary
+
+Anchors: full season vs a league-average lineup, neutral park.
+
+**Stuff** — bat-missing quality of the arsenal. The K engine.
+
+| grade | K% (at 50 velocity) |
+|---|---|
+| 20 | 9% |
+| 30 | 11.5% |
+| 40 | 14% |
+| 50 | 17% |
+| 60 | 21% |
+| 70 | 25% |
+| 80 | 29% |
+
+**Velocity** — the force multiplier (shipped v0.79.0, kept as
+re-founding physics). Velocity scales stuff's effectiveness (~±14%
+per 10 grades) with only a token direct term. 80 velocity with 40
+stuff is a thrower; 60 velocity with 70 stuff is a monster. The
+dictionary accepts the corollary: velocity alone is nearly worthless,
+and that is intended.
+
+**Movement** — contact management: ground-ball tilt, weak contact,
+HR suppression, double-play conversion (v0.79.0 physics, kept).
+
+| grade | GB% of contact | HR/9 allowed mult |
+|---|---|---|
+| 20 | 36% | 1.25× |
+| 50 | 44% | 1.00× |
+| 65 | 49% | 0.85× |
+| 80 | 54% | 0.72× |
+
+**Control** — command: walks allowed vs a 50-discipline lineup, plus
+count leverage (behind-in-count contact quality, phase 3+).
+
+| grade | BB% allowed |
+|---|---|
+| 20 | 13% |
+| 30 | 11% |
+| 40 | 9.5% |
+| 50 | 8% |
+| 60 | 6.5% |
+| 70 | 5% |
+| 80 | 3.8% |
+
+**Stamina** — the pitch budget and the fatigue slope. 20 ≈ one-inning
+arm; 50 ≈ 95-pitch starter; 70 ≈ 110 pitches with a shallow slope;
+80 ≈ a 120-pitch horse who holds his stuff in the 8th. Complete games
+are EARNED at the intersection of 65+ stamina, a live arm that night,
+and a manager with no reason to move (§ phase 4) — the league should
+see dozens of CG, the leaders 3-6, and none of them from mop-up
+inertia.
+
+### 22.5 Interaction Laws
+
+The laws that make matchups more than coefficient sums:
+
+1. **Velocity amplifies** (v0.79.0): stuff term × (1 + g(velo)×0.35).
+2. **Fear walks**: pitchers avoid damage. Pitch-around pressure grows
+   with the batter's power and the situation (open base, late close
+   game); discipline converts pressure into walks, impatience
+   converts it into bad-ball contact. This is how a 70-power/70-disc
+   hitter reaches 100+ BB without 70 discipline alone having to carry
+   it — and how the 42-HR guy hits .240 with a .370 OBP.
+3. **Two-sided resolution**: every PA event rate resolves pitcher
+   grade against batter grade with equal leverage — an 80-stuff arm
+   vs an 80-contact bat is a coin-flip of titans, not a wash to
+   league average.
+4. **Defense is routed** (phase 4): batted balls go to positions;
+   the fielder standing there resolves them. Team defense is the sum
+   of nine gloves, not a soup.
+5. **Leverage exists** (phase 4): managers deploy the pen by threat,
+   not inning number. Firemen inherit runners; the stat sheet records
+   what they do with them.
+
+### 22.6 The Observatory (replaces calibration)
+
+`tools/observatory.js`, wired into every harness season. Three
+instruments, no targets:
+
+1. **Era line** — R/G, slash, K/BB/HR%, SB, ERA, CG/SHO per season.
+   Drift is legal. The alarm is pathology: a metric leaving all
+   historical human baseball (R/G under 3.2 or over 6.5, K% over 30,
+   BB% over 15) or moving monotonically for 10+ straight seasons
+   (feedback loop).
+2. **Archetype census** — existence detectors for the player shapes
+   the game is for (bands = alive-and-plausible, not targets):
+   TTO monster 0-3/yr · 40-HR 0-3 · 100-BB 0-4 · table setter 0-3 ·
+   45-SB 0-3 · .330 chase 0-3 · solid regular 6-30 · glove-first
+   regular 2-10 · workhorse ace 1-6 · 3+ CG arms 0-4 · K monster
+   0-4 · wild flamethrower 0-4 · crafty vet 0-3 · lights-out closer
+   1-4 · fireman 0-4. EXTINCT means the physics or generation can't
+   express the shape; FLOOD means it's not special anymore.
+3. **WAR-lite** — era-relative value: wOBA-based batting runs,
+   baserunning, positional adjustment, defense (ratings placeholder
+   until phase 4 observes it), replacement level; pitchers by runs
+   prevented vs replacement. This becomes the AI's value currency in
+   phase 5. Sanity band: ~40-70 players at 4+ WAR, top seasons 8-12,
+   and neither side of the ball structurally doubling the other.
+
+Baseline census (v0.79.0 engine, pre-re-founding, 8-season soak,
+seed 424242): the correlated-superstar signature is everywhere —
+every 40-HR bat also hits .330+ (the census's TTO monster and table
+setter both 0.0/yr across eight seasons), .330 seasons flood at
+~6/yr, glove-first regulars 0.3/yr. Pitching: workhorse "aces" exist
+but as 270-IP / 16-CG anachronisms (~50 arms/yr with 3+ CG — workload
+without merit gates), lights-out closers under-exist (0.6/yr), K
+monsters 0.0/yr. WAR-lite: top bat 9.6 vs top arm 6.3, 61 players at
+4+. That table is the before picture the re-founding is judged
+against.
+
+### 22.7 Re-Founding Release Policy
+
+Phases: (1) this dictionary + observatory · (2) generation shapes ·
+(3) sim physics from the dictionary · (4) routed defense + usage ·
+(5) valuation loop. Built dark behind the current game, judged by
+long observatory soaks (no pathology, every archetype alive, no
+degenerate equilibrium over 20+ seasons), then opened as THE game in
+one re-founding release. Ratings keep their faces but are re-priced
+by the new physics: the release is framed to the player as a fresh
+founding, with a new franchise the honest way in. The 2001 aesthetic
+survives as flavor — broadcast look, workloads, the absence of
+modern-era three-hour TTO slogs as the NORM — but no longer as law.

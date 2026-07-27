@@ -338,11 +338,18 @@ function simOneDay(state) {
 
 const seasonsArg = Math.max(1, parseInt(process.argv[3] || '1', 10));
 
+// Observatory (re-founding phase 1, bible §22.6): capture the era line,
+// archetype census, and WAR-lite at each season's end — BEFORE rollover
+// prunes retiree stats — and print the drift report at process end.
+const OBS = require('./observatory');
+const obsRows = [];
+
 function runSeason() {
   let guard = 0;
   while (D.compare(state.meta.currentDate, state.league.schedule.seasonEnd) <= 0 && guard++ < 250) {
     simOneDay(state);
   }
+  obsRows.push(OBS.observe(W, state, state.meta.currentDate.year));
 }
 runSeason();
 while (draftLines.length) console.log(draftLines.shift());
@@ -885,3 +892,5 @@ if (seasonsArg > 1) {
     console.log(`${b}: n=${buckets[b].length}, mean career injuries ${avg(buckets[b]).toFixed(2)}`);
   }
 }
+
+OBS.printReport(obsRows);
