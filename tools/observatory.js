@@ -101,8 +101,9 @@ const DETECTORS = [
     test: (s, x, p) => p.age >= 35 && s.ipOuts >= 450 && x.era <= 3.80 && x.k9 <= 6.0 },
   { key: 'lightsOut', label: 'lights-out closer (35+ SV, <=2.60)', expect: [1, 4], hitter: false,
     test: (s, x) => (s.sv || 0) >= 35 && x.era <= 2.60 },
-  { key: 'fireman', label: 'fireman (relief, 50+ G, 85+ IP, <=3.40)', expect: [0, 4], hitter: false,
-    test: (s, x) => !(s.gs > 0) && (s.g || 0) >= 50 && s.ipOuts >= 255 && x.era <= 3.40 },
+  { key: 'fireman', label: 'fireman (relief, 50+ G, 35+ IR, 80%+ stranded, <=3.10)', expect: [0, 4], hitter: false,
+    test: (s, x) => !(s.gs > 0) && (s.g || 0) >= 50 && (s.ir || 0) >= 35 && x.era <= 3.10 &&
+      (1 - (s.irs || 0) / Math.max(1, s.ir || 0)) >= 0.80 },
 ];
 
 function census(W, state, year) {
@@ -139,13 +140,23 @@ function census(W, state, year) {
 }
 
 // ---- 3. WAR-lite ------------------------------------------------------------
-// Era-relative value. The defensive component is a RATINGS placeholder
-// (±~6 runs/season) until phase 4 gives observed, position-routed
-// defense; it is marked as such in the report.
+// Era-relative value. The defensive component is OBSERVED (phase 4):
+// routed range chances (s.rc) and plays made (s.ro) against the league
+// rate at the player's position. Ratings fall back only when a player
+// has no observed chances.
 function warLite(W, state, year, era) {
   const R = W.BBGM_ROSTER;
   const lgWoba = era.lgWoba || 0.310;
   const lgRA9 = era.era * 1.08; // rough unearned lift over ERA
+  // League out-conversion rate per position, from routed chances.
+  const posTot = {};
+  for (const id in state.players) {
+    const p = state.players[id];
+    const s = p.stats && p.stats[year];
+    if (!s || !s.rc) continue;
+    const t = posTot[p.primaryPosition] = posTot[p.primaryPosition] || { rc: 0, ro: 0 };
+    t.rc += s.rc; t.ro += s.ro || 0;
+  }
   const hitters = [], pitchers = [];
   for (const id in state.players) {
     const p = state.players[id];
@@ -157,7 +168,10 @@ function warLite(W, state, year, era) {
       const batting = ((wobaOf(s) - lgWoba) / WOBA_SCALE) * pa;
       const running = 0.2 * (s.sb || 0) - 0.41 * (s.cs || 0);
       const posAdj = (POS_ADJ[p.primaryPosition] || 0) * (pa / 600);
-      const glove = ((((p.ratings.defense || 50) + (p.ratings.arm || 50)) / 2 - 50) / 25) * 6 * (pa / 600);
+      const pt = posTot[p.primaryPosition];
+      const glove = (s.rc && pt && pt.rc > 500)
+        ? ((s.ro || 0) - s.rc * (pt.ro / pt.rc)) * 0.8
+        : ((((p.ratings.defense || 50) + (p.ratings.arm || 50)) / 2 - 50) / 25) * 6 * (pa / 600);
       const repl = 20 * (pa / 600);
       const war = (batting + running + posAdj + glove + repl) / RUNS_PER_WIN;
       hitters.push({ id, name: p.name, pos: p.primaryPosition, war, pa });
@@ -213,7 +227,7 @@ function printCensus(rows) {
 
 function printWar(rows) {
   const last = rows[rows.length - 1];
-  console.log('\n--- Observatory: WAR-lite, final season (defense = ratings placeholder until phase 4) ---');
+  console.log('\n--- Observatory: WAR-lite, final season (defense observed via routed chances) ---');
   console.log('4+ WAR players:', last.war.stars4, '| 6+ WAR:', last.war.stars6);
   console.log('top bats:   ' + last.war.topHitters.map((h) => `${h.name} (${h.pos}) ${h.war.toFixed(1)}`).join(' | '));
   console.log('top arms:   ' + last.war.topPitchers.map((p) => `${p.name} (${p.pos}) ${p.war.toFixed(1)}`).join(' | '));

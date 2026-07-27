@@ -125,6 +125,7 @@ window.BBGM_SIM = (function () {
         parkFactors: home.ballpark.factors,
         catcher: findCatcher(home, players),
         defenseAvg: lineupDefenseAvg(homeLineup, homeWithPos.positions),
+        fielders: fielderMapOf(homeLineup, homeWithPos.positions),
         mgr: mgrFor(state, home),
         entryMargins: { [homeSP.id]: 0 }, exitMargins: {},
         recordPid: null, lossPid: null,
@@ -135,6 +136,7 @@ window.BBGM_SIM = (function () {
         parkFactors: home.ballpark.factors, // Park factors apply to both
         catcher: findCatcher(away, players),
         defenseAvg: lineupDefenseAvg(awayLineup, awayWithPos.positions),
+        fielders: fielderMapOf(awayLineup, awayWithPos.positions),
         mgr: mgrFor(state, away),
         entryMargins: { [awaySP.id]: 0 }, exitMargins: {},
         recordPid: null, lossPid: null,
@@ -569,6 +571,12 @@ window.BBGM_SIM = (function () {
         rs.r = (rs.r || 0) + 1;
         const unearned = scoredRunner.unearned || unearnedPlay || errorWithTwoOuts;
         if (!unearned) rs.er = (rs.er || 0) + 1;
+        // Inherited runner scored (phase 4): the run charges the man who
+        // put him on, but the reliever on the mound let him in.
+        if (def.currentP && scoredRunner.responsiblePitcherId !== def.currentP.id) {
+          const cs = gs(def.currentP);
+          cs.irs = (cs.irs || 0) + 1;
+        }
       }
       if (off.runs - def.runs === 1) {
         off.recordPid = off.currentP ? off.currentP.id : null;
@@ -586,7 +594,7 @@ window.BBGM_SIM = (function () {
       off.lineupIdx = (off.lineupIdx + 1) % off.lineup.length;
 
       // Check pitcher fatigue / change
-      maybeChangePitcher(off, def, gs, inning, state);
+      maybeChangePitcher(off, def, gs, inning, state, bases);
 
       const pitcher = def.currentP;
 
@@ -636,6 +644,15 @@ window.BBGM_SIM = (function () {
             lateClose: inning >= 7 && Math.abs(off.runs - def.runs) <= 2,
           });
       def.pitchCount += pitchesForPA(result.kind);
+      // Observed defense (phase 4): every routed ball is a range chance
+      // for the man it went to; outs are plays made. HRs clear the
+      // fence — nobody's chance. Feeds WAR-lite's defensive component.
+      if (result.fieldedBy && result.fieldedBy !== 'P' && result.kind !== 'HR' &&
+          def.fielders && def.fielders[result.fieldedBy]) {
+        const fs = gsBat(def.fielders[result.fieldedBy]);
+        fs.rc = (fs.rc || 0) + 1;
+        if (result.kind === 'OUT') fs.ro = (fs.ro || 0) + 1;
+      }
 
       const bs = gsBat(batter);
       const ps = gs(pitcher);
@@ -715,22 +732,32 @@ window.BBGM_SIM = (function () {
         //        → counts as AB and GIDP; turns into 2 outs total.
         //  - Otherwise: a regular out, counts as AB.
         const outsBefore = outs;
-        const defGrade = grade(def.defenseAvg);
+        // Routed defense (phase 4): the error and the double play belong
+        // to the individual glove(s), not the team average.
+        const fldOfRecord = result.fieldedBy && def.fielders && def.fielders[result.fieldedBy];
+        const fldGrade = fldOfRecord && result.fieldedBy !== 'P'
+          ? grade(fldOfRecord.ratings.defense || 50)
+          : grade(def.defenseAvg);
+        const mifGrade = def.fielders
+          ? (fielderGrade(def, '2B') + fielderGrade(def, 'SS')) / 2
+          : grade(def.defenseAvg);
         let isError = false;
         let isSF = false;
         let isGIDP = false;
         // Error rate ~3% of would-be outs (≈0.65 E/team/game), reduced by
-        // good team defense, raised by bad. Popups are near-automatic.
+        // the routed fielder's hands, raised by a butcher. Popups are
+        // near-automatic.
         const errProb = result.battedBall === 'pop'
           ? 0.004
-          : clamp(0.035 - defGrade * 0.012, 0.012, 0.060);
+          : clamp(0.035 - fldGrade * 0.012, 0.012, 0.060);
         if (Math.random() < errProb) {
           isError = true;
+          if (fldOfRecord) { const fs = gsBat(fldOfRecord); fs.fe = (fs.fe || 0) + 1; }
         } else if (result.battedBall === 'ground' && bases[0] && outsBefore < 2 &&
-                   Math.random() < clamp(0.50 + defGrade * 0.06 +
-                     grade(pitcher.ratings.movement) * 0.06, 0.30, 0.70)) {
-          // Grounder with a DP in order: strong middle-infield defense
-          // turns two more often, and heavy sink (movement) produces the
+                   Math.random() < clamp(0.50 + mifGrade * 0.09 +
+                     grade(pitcher.ratings.movement) * 0.06, 0.30, 0.72)) {
+          // Grounder with a DP in order: the ACTUAL middle-infield pair
+          // turns two, and heavy sink (movement) produces the
           // tailor-made two-hopper (0.79.0). (~0.75 GIDP/team/game.)
           isGIDP = true;
         } else if (bases[2] && outsBefore < 2 && result.battedBall === 'fly' && Math.random() < 0.82) {
@@ -962,6 +989,59 @@ window.BBGM_SIM = (function () {
   // pays. g in grade units; lo = slope below average, hi = above.
   function dslope(g, lo, hi) { return g * (g < 0 ? lo : hi); }
 
+  // ---- Routed defense (§22.5 law 4, re-founding phase 4) -------------------
+  // The ball goes to a POSITION; the man standing there resolves it.
+  // Team defense is the sum of nine gloves, not a soup.
+  function fielderMapOf(lineup, positions) {
+    const m = {};
+    for (let i = 0; i < lineup.length; i++) {
+      const p = lineup[i], pos = positions[i];
+      if (p && pos && pos !== 'DH' && pos !== 'P') m[pos] = p;
+    }
+    return m;
+  }
+
+  // Pull-weighted routing. batSide is the side the batter ACTUALLY hits
+  // from this PA. 'P'/'C' grounders resolve at neutral range (pitcher
+  // fielding isn't a rated tool).
+  function routeBattedBall(bbType, batSide) {
+    const r = Math.random();
+    const L = batSide === 'L';
+    if (bbType === 'ground') {
+      if (r < 0.30) return L ? '2B' : 'SS';
+      if (r < 0.54) return L ? '1B' : '3B';
+      if (r < 0.75) return L ? 'SS' : '2B';
+      if (r < 0.88) return L ? '3B' : '1B';
+      return r < 0.95 ? 'P' : 'C';
+    }
+    if (bbType === 'fly' || bbType === 'line') {
+      if (bbType === 'line' && r < 0.45) {
+        // Liners at the infield corners and up the middle.
+        const r2 = Math.random();
+        if (r2 < 0.30) return L ? '2B' : 'SS';
+        if (r2 < 0.58) return L ? '1B' : '3B';
+        if (r2 < 0.82) return L ? 'SS' : '2B';
+        return L ? '3B' : '1B';
+      }
+      const r3 = bbType === 'line' ? Math.random() : r;
+      if (r3 < 0.37) return L ? 'RF' : 'LF';
+      if (r3 < 0.78) return 'CF';
+      return L ? 'LF' : 'RF';
+    }
+    // pop
+    if (r < 0.30) return 'SS';
+    if (r < 0.55) return '2B';
+    if (r < 0.73) return '3B';
+    if (r < 0.88) return '1B';
+    return 'C';
+  }
+
+  function fielderGrade(def, pos) {
+    const f = def && def.fielders && def.fielders[pos];
+    if (!f || pos === 'P') return 0;
+    return grade(f.ratings.defense || 50);
+  }
+
   function resolveAtBat(batter, pitcher, parkFactors, def, situ) {
     const p = pitcher.ratings;
     const vsHand = pitcher.throws === 'L' ? 'L' : 'R';
@@ -1056,7 +1136,8 @@ window.BBGM_SIM = (function () {
     const bipHitMul = batter.isPitcher ? 0.82 : 1;
     // Defensive range (bible 7.6): better team defense converts more balls
     // in play into outs. ±2-3% relative BABIP swing across typical teams.
-    const defRangeMul = 1 - grade(def.defenseAvg) * 0.02;
+    // (0.79.0 team defRangeMul removed in phase 4 — range now belongs to
+    // the routed individual fielder below.)
     // Determine batted ball type.
     const battedBallRoll = Math.random();
     const flyRate = clamp(0.34 + grade(power) * 0.05 - grade(movement) * 0.03, 0.20, 0.52);
@@ -1076,9 +1157,18 @@ window.BBGM_SIM = (function () {
     const parkXBHFactor = (parkFactors.xbh || 100) / 100;
     const parkHitsFactor = (parkFactors.hits || 100) / 100;
 
+    // Routed defense (§22.5 law 4): pick the position now, resolve
+    // against the individual standing there. defRangeMul (the old team
+    // soup) is gone — the fielder's own grade carries the range value.
+    // No fielder map (probe seam, degenerate lineups) → neutral 50s.
+    const batSide = batter.bats === 'S' ? (vsHand === 'L' ? 'R' : 'L') : (batter.bats || 'R');
+    const fieldedBy = routeBattedBall(bbType, batSide);
+    const fldG = fielderGrade(def, fieldedBy);
+    const tag = { battedBall: bbType, fieldedBy };
+
     if (bbType === 'pop') {
-      if (Math.random() < 0.97) return { kind: 'OUT', battedBall: bbType };
-      return { kind: '1B', battedBall: bbType };
+      if (Math.random() < 0.97) return { kind: 'OUT', ...tag };
+      return { kind: '1B', ...tag };
     }
 
     if (bbType === 'ground') {
@@ -1088,28 +1178,33 @@ window.BBGM_SIM = (function () {
       // Swing trade (§22.3): plus power sells contact quality — the
       // all-or-nothing cut rolls over on grounders and gets under
       // flies. This is what puts the .240 in .240/.370/.520.
+      // The routed infielder's range: ±12-15 runs/season at a premium
+      // position across the glove scale (§22.3).
       let hitProb = 0.241 + grade(batterSpeed) * 0.04 + dslope(grade(contact), 0.012, 0.016)
         - grade(movement) * 0.018 - Math.max(0, grade(power)) * 0.020;
-      hitProb *= parkHitsFactor * bipHitMul * defRangeMul;
+      hitProb *= parkHitsFactor * bipHitMul;
+      hitProb -= fldG * 0.038;
       if (Math.random() < hitProb) {
-        if (Math.random() < 0.04 * parkXBHFactor) return { kind: '2B', battedBall: bbType };
-        return { kind: '1B', battedBall: bbType };
+        if (Math.random() < 0.04 * parkXBHFactor) return { kind: '2B', ...tag };
+        return { kind: '1B', ...tag };
       }
-      return { kind: 'OUT', battedBall: bbType };
+      return { kind: 'OUT', ...tag };
     }
 
     if (bbType === 'line') {
-      // Line drives: target ~ .65 hit rate
+      // Line drives: target ~ .65 hit rate. Range barely matters on a
+      // rope — reaction play.
       let hitProb = 0.664 + grade(contact) * 0.03;
-      hitProb *= parkHitsFactor * bipHitMul * defRangeMul;
+      hitProb *= parkHitsFactor * bipHitMul;
+      hitProb -= fldG * 0.018;
       if (Math.random() < hitProb) {
         const ext = Math.random();
-        if (ext < 0.22 * parkXBHFactor) return { kind: '2B', battedBall: bbType };
-        if (ext < 0.245 * parkXBHFactor) return { kind: '3B', battedBall: bbType };
-        if (ext < 0.27 * parkHRFactor) return { kind: 'HR', battedBall: bbType };
-        return { kind: '1B', battedBall: bbType };
+        if (ext < 0.22 * parkXBHFactor) return { kind: '2B', ...tag };
+        if (ext < 0.245 * parkXBHFactor) return { kind: '3B', ...tag };
+        if (ext < 0.27 * parkHRFactor) return { kind: 'HR', ...tag };
+        return { kind: '1B', ...tag };
       }
-      return { kind: 'OUT', battedBall: bbType };
+      return { kind: 'OUT', ...tag };
     }
 
     if (bbType === 'fly') {
@@ -1125,21 +1220,24 @@ window.BBGM_SIM = (function () {
       const hrFloor = batter.isPitcher ? 0.002 : 0.02;
       let hrProb = clamp((hrBase + hrAdj) * parkHRFactor, hrFloor, 0.50);
       if (batter.isPitcher) hrProb *= 0.5; // pitchers run into one rarely
-      if (Math.random() < hrProb) return { kind: 'HR', battedBall: bbType };
+      if (Math.random() < hrProb) return { kind: 'HR', ...tag };
 
       // Swing trade (§22.3): the non-HR flies of a big cut die weaker.
+      // The routed outfielder's range closes gaps (relative — an 80
+      // glove in CF takes away ~10% of would-be extra bases and bloops).
       const swingTax = 1 - Math.max(0, grade(power)) * 0.10;
-      const xbProb = 0.127 * swingTax * parkXBHFactor * bipHitMul * defRangeMul;
+      const ofRange = 1 - fldG * 0.10;
+      const xbProb = 0.127 * swingTax * parkXBHFactor * bipHitMul * ofRange;
       if (Math.random() < xbProb) {
-        if (Math.random() < 0.08) return { kind: '3B', battedBall: bbType };
-        return { kind: '2B', battedBall: bbType };
+        if (Math.random() < 0.08) return { kind: '3B', ...tag };
+        return { kind: '2B', ...tag };
       }
-      const singleProb = (0.073 + dslope(grade(contact), 0.014, 0.020)) * swingTax * bipHitMul * defRangeMul;
-      if (Math.random() < singleProb) return { kind: '1B', battedBall: bbType };
-      return { kind: 'OUT', battedBall: bbType };
+      const singleProb = (0.073 + dslope(grade(contact), 0.014, 0.020)) * swingTax * bipHitMul * ofRange;
+      if (Math.random() < singleProb) return { kind: '1B', ...tag };
+      return { kind: 'OUT', ...tag };
     }
 
-    return { kind: 'OUT', battedBall: bbType };
+    return { kind: 'OUT', ...tag };
   }
 
   // ---- Pitcher stamina tiers (bible 7.4) ----------------------------------
@@ -1424,7 +1522,7 @@ window.BBGM_SIM = (function () {
     return null;
   }
 
-  function maybeChangePitcher(off, def, gs, inning, state) {
+  function maybeChangePitcher(off, def, gs, inning, state, bases) {
     const pitcher = def.currentP;
     const pitches = def.pitchCount; // estimated pitches this outing
     const stamina = pitcher.ratings.stamina;
@@ -1458,13 +1556,20 @@ window.BBGM_SIM = (function () {
       if (runsAllowed >= 6) pull = true;
       else if (runsAllowed >= 4 && ip < 5 && inning >= 3) pull = true;
 
-      // Complete-game chase (7.4.5): a dominant starter late in a close,
-      // low-run game stays in as long as he's under his tier ceiling.
-      // Quick-hook managers don't chase complete games.
-      if (pull && quickHook <= 6 && inning >= 8 && runsAllowed <= 2 && Math.abs(margin) <= 4 &&
-          pitches < pitchCeiling(stamina) - 5 && stamina >= 60) {
+      // Complete-game chase (7.4.5, phase-4 merit gate): finishing what
+      // you started is EARNED — a real horse (64+ stamina), a dominant
+      // night (1 run or fewer, light traffic), gas left in the tank.
+      // Quick-hook managers don't chase complete games. This is what
+      // puts the CG leader at 3-6 instead of handing 4.30-ERA innings
+      // eaters eight of them.
+      if (pull && quickHook <= 4 && inning >= 8 && runsAllowed <= 1 && Math.abs(margin) <= 2 &&
+          pitches < pitchCeiling(stamina) - 12 && stamina >= 66 && traffic <= ip * 1.2) {
         pull = false;
       }
+      // The merely-good night ends after 7 (phase 4): unless he's truly
+      // dealing, the manager goes to the pen — no more 270-IP seasons
+      // built from routine 8th and 9th innings.
+      if (!pull && ip >= 7 && !(runsAllowed <= 2 && traffic <= ip * 1.4)) pull = true;
     } else {
       // Reliever limit from his tier base, with a short-leash trouble pull.
       // An arm that worked yesterday pitches on a much shorter leash.
@@ -1472,6 +1577,11 @@ window.BBGM_SIM = (function () {
       if (pitchedYesterday(pitcher, state.meta.currentDate)) limit *= 0.65;
       if (pitches >= limit) pull = true;
       if (runsAllowed >= 3) pull = true;
+      // Outing caps (phase 4): a fireman with a rubber arm gets eight
+      // outs, ordinary pen arms fewer — blowout long relief excepted.
+      // Kills the 120-IP setup man while leaving the 90-IP fireman.
+      const outCap = (stamina >= 48 ? 8 : stamina >= 40 ? 6 : 4) + (Math.abs(margin) >= 5 ? 4 : 0);
+      if ((ps.ipOuts || 0) >= outCap && inning <= 9) pull = true;
 
       // Proactive closer call: protecting a 1-3 run lead in closer
       // territory (9th, or 8th for high-leverage managers), hand the ball
@@ -1494,6 +1604,17 @@ window.BBGM_SIM = (function () {
     // Record margins for hold / blown-save accounting.
     def.exitMargins[pitcher.id] = margin;
     def.entryMargins[next.id] = margin;
+
+    // Inherited runners (phase 4): the men on base when he takes the
+    // ball. chargeRun credits an irs when one of them scores — the
+    // fireman's whole identity is the gap between ir and irs.
+    if (bases) {
+      const inherited = bases.filter(Boolean).length;
+      if (inherited) {
+        const ns = gs(next);
+        ns.ir = (ns.ir || 0) + inherited;
+      }
+    }
 
     def.currentP = next;
     def.pitchersUsed.push(next.id);

@@ -6945,7 +6945,34 @@ call, not a defect — bands marked provisional in the observatory,
 owner decides at release. League line emergent: R/G ~4.2-4.4, K%
 ~18.2, BB% ~9, ERA ~4.1.
 
-### 22.9 Re-Founding Release Policy
+### 22.9 Phase-4 Defense & Usage — BUILT (dark)
+
+**Routed defense** (§22.5 law 4): every ball in play now routes to a
+POSITION (pull-weighted by the batter's actual side) and resolves
+against the individual standing there — grounder range at the
+routed infielder (±12-15 runs/season across the glove scale at a
+premium spot), outfield range closing gaps on flies, errors charged
+to the fielder of record, double plays turned by the ACTUAL
+middle-infield pair. The team-soup defRangeMul is gone. Every
+routed ball records a range chance (s.rc) and every out a play made
+(s.ro) — observed defense, which WAR-lite now uses instead of the
+ratings placeholder. Census: the glove-first regular is ALIVE
+(~3.5/yr in-band; .219 hitters with 60+ gloves holding everyday
+jobs — and shortstops now crack the WAR-lite top five).
+
+**Usage**: the complete game is EARNED — patient manager (quickHook
+≤4), true horse (66+ stamina), dominant night (≤1 run, light
+traffic), close game (margin ≤2), gas in the tank; the merely-good
+night ends after 7. Reliever outing caps (8 outs for a rubber-armed
+fireman, fewer for ordinary arms, blowout long relief excepted)
+kill the 120-IP setup man. Inherited runners tracked (s.ir) with
+runs let in (s.irs) — the fireman's identity is the gap, and the
+census detector demands 35+ inherited with 80%+ stranded at ≤3.10
+(~3.5/yr, in-band). Open tuning: 3+ CG arms still run hot on some
+seeds; the workhorse-ace count sits just above band — both inside
+the rarity-budget conversation, not pathology.
+
+### 22.10 Re-Founding Release Policy
 
 Phases: (1) this dictionary + observatory · (2) generation shapes ·
 (3) sim physics from the dictionary · (4) routed defense + usage ·
