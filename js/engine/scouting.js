@@ -638,7 +638,10 @@ window.BBGM_SCOUT = (function () {
         widen: 1, tools: true, extraUsed: 0, extraRemaining: 0, nextExtraCost: null };
     }
     const cls = state.intl;
-    const used = (cls && cls.userLooks) ? cls.userLooks.length : 0;
+    // Second looks (1.1.0) draw from the SAME trip ledger — a return
+    // visit to a covered kid costs what a first visit to a ?? name does.
+    const used = ((cls && cls.userLooks) ? cls.userLooks.length : 0) +
+      ((cls && cls.userSecondLooks) ? cls.userSecondLooks.length : 0);
     const budget = [2, 4, 6, 9][ti];
     // Paid extras (0.47.0, intl only): past the free allowance, each trip
     // is bought with SIGNING POOL money at an escalating price — every
@@ -666,6 +669,28 @@ window.BBGM_SCOUT = (function () {
     }
     const cls = state.intl;
     return !!(cls && (cls.userLooks || []).includes(prospectId));
+  }
+
+  // ---- The second look (1.1.0) ---------------------------------------------
+  // A return trip on a kid the department already covers: tightening a
+  // real read before a big July 2 bid instead of buying a new one. The
+  // band narrows AND re-centers halfway toward the truth of his best
+  // tool — the same discovery physics as the draft board (0.78.0), paid
+  // for in one trip instead of weeks of attention. Once per kid per
+  // window; the deep-pool rank floor still holds (a second viewing of a
+  // #28 lottery ticket is a better guess, never a promise).
+  function hasSecondLook(state, prospectId) {
+    const cls = state.intl;
+    return !!(cls && (cls.userSecondLooks || []).includes(prospectId));
+  }
+
+  function secondLookShift(state, p) {
+    if (!p.hidden || !p.hidden.ceiling || !p.scout) return 0;
+    const keys = Object.keys(p.hidden.ceiling).filter((k) => k !== 'stamina' && k !== 'bunting');
+    if (!keys.length) return 0;
+    const best = Math.max(...keys.map((k) => p.hidden.ceiling[k]));
+    const mid = (p.scout.ceilLo + p.scout.ceilHi) / 2;
+    return (best - mid) * 0.5;
   }
 
   // AI draft discipline by tier (13.6): [board window, weight decay].
@@ -828,7 +853,7 @@ window.BBGM_SCOUT = (function () {
     defaultTierFor, ensureTiers, ensureOps,
     requestTier, runScoutingOffseason,
     modeFor, report, poolView, aiDraftDiscipline, potentialBand, prospectNotes,
-    targetedLooks, hasTargetedLook, medicalRead,
+    targetedLooks, hasTargetedLook, hasSecondLook, secondLookShift, medicalRead,
     draftBoardInfo, draftBoardAdd, draftBoardRemove, draftBoardWiden, draftBoardShift, draftConvictions, draftBoardSeed,
     prospectRankings, pipelineRank, intlScoutMods, pickRegrades,
     stampScoutBook, scoutBookFirstLooks,

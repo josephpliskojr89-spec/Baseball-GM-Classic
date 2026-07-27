@@ -365,8 +365,9 @@ window.BBGM_INTL = (function () {
 
   // Paid extra trip (0.47.0): past the free tier allowance, the user buys
   // additional looks with pool money at an escalating price. Returns
-  // {ok} or {ok:false, reason}.
-  function buyExtraLook(state, prospectId) {
+  // {ok} or {ok:false, reason}. `second` (1.1.0) routes the trip to the
+  // second-look ledger — a return visit to a covered kid.
+  function buyExtraLook(state, prospectId, second) {
     const intl = state.intl;
     if (!intl || intl.phase === 'complete') return { ok: false, reason: 'No open class.' };
     const SC = window.BBGM_SCOUT;
@@ -378,8 +379,9 @@ window.BBGM_INTL = (function () {
     if (!b || b.pool - b.spent < cost) return { ok: false, reason: 'Not enough pool money left.' };
     b.pool = Math.round((b.pool - cost) * 100) / 100;
     intl.tripSpend = Math.round(((intl.tripSpend || 0) + cost) * 100) / 100;
-    if (!intl.userLooks) intl.userLooks = [];
-    intl.userLooks.push(prospectId);
+    const ledger = second ? 'userSecondLooks' : 'userLooks';
+    if (!intl[ledger]) intl[ledger] = [];
+    intl[ledger].push(prospectId);
     return { ok: true, cost };
   }
 
@@ -872,11 +874,15 @@ window.BBGM_INTL = (function () {
     const intl = state.intl;
     if (!intl || intl.phase !== 'scouting' || !intl.board) return null;
     const SC = window.BBGM_SCOUT;
+    const flagged = new Set(intl.hunchIds || []);
     const cands = [];
     for (let i = 30; i < Math.min(intl.board.length, 80); i++) {
       const p = intl.prospects[intl.board[i]];
       if (!p || p.teamId) continue;
       if (SC.hasTargetedLook(state, 'intl', p.id)) continue;
+      // The shortlist (1.1.0): the scout writes about several kids a
+      // winter — never the same one twice.
+      if (flagged.has(p.id)) continue;
       cands.push({ p, rank: i + 1 });
     }
     if (!cands.length) return null;

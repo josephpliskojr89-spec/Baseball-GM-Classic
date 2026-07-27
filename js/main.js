@@ -3022,26 +3022,39 @@ window.BBGM_MAIN = (function () {
       });
     }
 
-    // The scout's hunch (0.52.0): once a class, mid-winter, he writes in
-    // about a deep-pool kid he wants another look at. Funding the trip is
-    // one tap on the letter (free allowance first, then pool money).
-    if (state.intl && state.intl.phase === 'scouting' && !state.intl.hunchSent &&
+    // The scout's hunches (0.52.0, shortlist 1.1.0): over the winter the
+    // head scout writes in about the deep-pool kids he likes — one kid
+    // per letter, a few letters a class, never the same name twice. A
+    // sharper scout carries more names in his notebook. Funding a trip
+    // is one tap on the letter (free allowance first, then pool money).
+    if (state.intl && state.intl.phase === 'scouting' &&
         (today.month === 12 || today.month <= 5) && Math.random() < 0.025) {
-      const hunch = window.BBGM_INTL.pickHunch(state);
-      if (hunch) {
-        state.intl.hunchSent = true;
-        const ut = state.league.teams.find((t) => t.id === state.meta.userTeamId);
-        const sc = window.BBGM_STAFF.scoutFor ? window.BBGM_STAFF.scoutFor(state, ut) : null;
-        const p = hunch.p;
-        const region = window.BBGM_INTL.regionLabel(window.BBGM_INTL.regionOf(p.origin));
-        window.BBGM_INBOX.push(state, {
-          from: sc ? `${sc.name} (Head Scout)` : 'International Scouting',
-          subject: `A flyer on ${p.name}`,
-          body: `Kid sitting at #${hunch.rank} on the board — ${p.name}, ${p.age}, out of ${region}. ` +
-                `Something about him I can't put on the card from one viewing, and nobody else is on him. ` +
-                `Give me the trip and I'll get you a real read. Might be something, might be nothing.`,
-          action: { type: 'scoutHunch', prospectId: p.id },
-        });
+      const ut = state.league.teams.find((t) => t.id === state.meta.userTeamId);
+      const sc = window.BBGM_STAFF.scoutFor ? window.BBGM_STAFF.scoutFor(state, ut) : null;
+      const hunchMax = sc && sc.reputation >= 7 ? 3 : 2;
+      // Old saves carried a boolean hunchSent — honor it as one letter.
+      const sent = state.intl.hunchCount != null ? state.intl.hunchCount
+        : (state.intl.hunchSent ? 1 : 0);
+      if (sent < hunchMax) {
+        const hunch = window.BBGM_INTL.pickHunch(state);
+        if (hunch) {
+          state.intl.hunchCount = sent + 1;
+          if (!state.intl.hunchIds) state.intl.hunchIds = [];
+          state.intl.hunchIds.push(hunch.p.id);
+          const p = hunch.p;
+          const region = window.BBGM_INTL.regionLabel(window.BBGM_INTL.regionOf(p.origin));
+          const opener = sent === 0
+            ? `Kid sitting at #${hunch.rank} on the board — ${p.name}, ${p.age}, out of ${region}. `
+            : `Another one from the notebook: #${hunch.rank}, ${p.name}, ${p.age}, out of ${region}. `;
+          window.BBGM_INBOX.push(state, {
+            from: sc ? `${sc.name} (Head Scout)` : 'International Scouting',
+            subject: `A flyer on ${p.name}`,
+            body: opener +
+                  `Something about him I can't put on the card from one viewing, and nobody else is on him. ` +
+                  `Give me the trip and I'll get you a real read. Might be something, might be nothing.`,
+            action: { type: 'scoutHunch', prospectId: p.id },
+          });
+        }
       }
     }
 

@@ -5072,6 +5072,20 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > re-rolled; paired dice isolate the makeup gap (+0.7, stable
 > across 8 seeds). Battery 42/42, e2e 141.
 
+> **Status note (v1.1.0):** The second look + the scout's
+> shortlist (user asks). International targeted trips can now be
+> spent on a COVERED prospect: "Send for a Second Look" (free
+> allowance first, then pool money, same escalating ledger) narrows
+> his band four points and re-centers it halfway toward the truth of
+> his best tool — the board-discovery physics (0.78.0) bought with
+> one trip. Once per kid per window; the deep-pool rank floor still
+> holds. And the winter hunch letter became a shortlist: the head
+> scout writes about 2-3 deep-pool kids a class (3 for a rep-7+
+> scout), one per letter, never the same name twice; old saves'
+> hunchSent boolean honors as one letter already sent. Hunch suite
+> 11 (shortlist distinctness, ledger sharing, re-center math, paid
+> second-look path); battery 42/42, e2e 141.
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):

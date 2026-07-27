@@ -57,6 +57,14 @@ window.BBGM_UI_DRAFT = (function () {
       const mods = SC.intlScoutMods(state, p, rank);
       widen = Math.max(widen + mods.widenDelta, mods.floor);
       shift = mods.shift;
+      // The second look (1.1.0): a return trip on a covered kid narrows
+      // the band four points and re-centers it halfway toward the truth
+      // of his best tool — the scout's bias washes out of a read he
+      // went back to confirm. The deep-pool rank floor still holds.
+      if (SC.hasSecondLook && SC.hasSecondLook(state, p.id)) {
+        widen = Math.max(widen - 4, mods.floor);
+        shift = SC.secondLookShift(state, p);
+      }
     }
     let lo = p.scout.ceilLo - widen + shift;
     let hi = p.scout.ceilHi + widen + shift;
@@ -1200,14 +1208,17 @@ window.BBGM_UI_DRAFT = (function () {
     const SC = window.BBGM_SCOUT;
     const looks = SC.targetedLooks(state, 'intl');
     const looked = SC.hasTargetedLook(state, 'intl', p.id);
+    const secondLooked = SC.hasSecondLook && SC.hasSecondLook(state, p.id);
     const ib = poolBand(state, p, rank, 'intl');
     body.appendChild(U.el('p', { style: { 'font-size': '13px' } }, ib ? [
       'Projected ceiling: ',
       U.el('span', { class: U.gradeClass((ib[0] + ib[1]) / 2), style: { 'font-weight': '700' } },
         `${ib[0]}–${ib[1]}`),
-      looked
-        ? ' on his best tool — from your scout\'s targeted trip, one look rather than full coverage.'
-        : ' on his best tool. Teenage international projection — the widest error bars in scouting.',
+      secondLooked
+        ? ' on his best tool — confirmed by a second look. This is as good as the read gets before he signs.'
+        : looked
+          ? ' on his best tool — from your scout\'s targeted trip, one look rather than full coverage.'
+          : ' on his best tool. Teenage international projection — the widest error bars in scouting.',
     ] : looks.remaining > 0
       ? 'Your scouts have nothing on him — but you could send one for a closer look.'
       : looks.extraRemaining > 0
@@ -1247,6 +1258,36 @@ window.BBGM_UI_DRAFT = (function () {
           }
           window.BBGM_STATE.set(state);
           U.showToast(`Scout dispatched ($${res.cost}M from the pool) — report on ${p.name} is in.`, 'success');
+          window.BBGM_MAIN.refresh();
+          setTimeout(() => showIntlProspect(state, p.id), 0);
+          return true;
+        },
+      });
+    } else if (ib && !secondLooked && intl.phase !== 'complete' &&
+               (looks.remaining > 0 || looks.extraRemaining > 0)) {
+      // The second look (1.1.0): tightening a read you already have can
+      // beat buying a new one — a return trip before a big bid. Same
+      // trip ledger: free allowance first, then pool money.
+      const free = looks.remaining > 0;
+      actions.push({
+        label: free
+          ? `Send for a Second Look (${looks.remaining} trip${looks.remaining !== 1 ? 's' : ''} left)`
+          : `Second Look — $${looks.nextExtraCost}M of pool`,
+        onClick: () => {
+          if (free) {
+            if (!intl.userSecondLooks) intl.userSecondLooks = [];
+            intl.userSecondLooks.push(p.id);
+            window.BBGM_STATE.set(state);
+            U.showToast(`Scout on his way back — the second read on ${p.name} is in.`, 'success');
+          } else {
+            const res = window.BBGM_INTL.buyExtraLook(state, p.id, true);
+            if (!res.ok) {
+              U.showToast(res.reason, 'warning', 4000);
+              return true;
+            }
+            window.BBGM_STATE.set(state);
+            U.showToast(`Scout on his way back ($${res.cost}M from the pool) — the second read on ${p.name} is in.`, 'success');
+          }
           window.BBGM_MAIN.refresh();
           setTimeout(() => showIntlProspect(state, p.id), 0);
           return true;
