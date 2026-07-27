@@ -631,7 +631,10 @@ window.BBGM_SIM = (function () {
       const onDeck = onDeckSlot === null ? off.currentP : onDeckSlot;
       const result = shouldIntentionalWalk(batter, onDeck, off, def, bases, outs, inning)
         ? { kind: 'IBB' }
-        : resolveAtBat(batter, pitcher, off.parkFactors, def);
+        : resolveAtBat(batter, pitcher, off.parkFactors, def, {
+            openBase: !bases[0] && !!(bases[1] || bases[2]),
+            lateClose: inning >= 7 && Math.abs(off.runs - def.runs) <= 2,
+          });
       def.pitchCount += pitchesForPA(result.kind);
 
       const bs = gsBat(batter);
@@ -954,7 +957,12 @@ window.BBGM_SIM = (function () {
     return { bases: bs, runs };
   }
 
-  function resolveAtBat(batter, pitcher, parkFactors, def) {
+  // Piecewise dictionary slope (§22.3-22.4): the anchor tables are not
+  // symmetric around 50 — absence of a tool costs more than plus-plus
+  // pays. g in grade units; lo = slope below average, hi = above.
+  function dslope(g, lo, hi) { return g * (g < 0 ? lo : hi); }
+
+  function resolveAtBat(batter, pitcher, parkFactors, def, situ) {
     const p = pitcher.ratings;
     const vsHand = pitcher.throws === 'L' ? 'L' : 'R';
 
@@ -1003,31 +1011,35 @@ window.BBGM_SIM = (function () {
     const movement = applyFatigue(p.movement, pitcher, def) + pMk;
     const velocity = applyFatigue(p.velocity, pitcher, def) + pMk;
 
-    // Base rates - calibrated to target league averages.
-    // K rate: 17%. Stuff is the K engine; velocity is a force multiplier
-    // (0.79.0) — nearly worthless by itself, but it scales how well the
-    // stuff plays: plus heat makes good secondaries devastating, and a
-    // soft-tosser needs elite stuff to miss the same bats.
+    // K (§22.3-22.4, re-founding physics): dictionary slopes, no league
+    // protection. Stuff is the K engine (9%→29% across the scale, at 50
+    // velocity); velocity multiplies its effectiveness (v0.79.0 law);
+    // contact is the batter's answer and spans harder (33%→7.5%) —
+    // bat-to-ball is the tool the scale punishes most for lacking.
     // Pitchers batting whiff far beyond what a 20 contact grade alone
     // produces — the extra bump lands their K% near the historical ~37%.
     const kBase = batter.isPitcher ? 0.335 : 0.176;
     const veloAmp = 1 + grade(velocity) * 0.35;
-    const kAdj = (grade(stuff) * 0.06 * veloAmp) + (grade(velocity) * 0.012)
-      - (grade(contact) * 0.05) - (grade(discipline) * 0.02);
-    const kProb = clamp(kBase + kAdj, 0.04, 0.45);
+    const kAdj = dslope(grade(stuff), 0.072, 0.095) * veloAmp + (grade(velocity) * 0.012)
+      - dslope(grade(contact), 0.128, 0.084) - (grade(discipline) * 0.02);
+    const kProb = clamp(kBase + kAdj, 0.02, 0.62);
 
-    // BB rate: ~8.5% TOTAL including intentional walks (0.26.0 — 2001
-    // calibration: league OBP .328, 38.3 PA/team-game; position players
-    // ran 9.3% BB / .344 OBP before the trim, which let leadoff iron men
-    // beat the real 778-PA record). This is the UNINTENTIONAL rate only —
-    // 0.27.0 added IBBs (~46/team-season ≈ +0.7pp of BB%) upstream of
-    // this roll and trimmed the hitter base 0.078 → 0.0725 to keep the
-    // total on target. Driven by control vs discipline. Pitchers batting
-    // walk less than their 20-grade discipline alone implies (~4-5% era
-    // rate) and are never walked intentionally.
+    // BB (§22.3-22.4): discipline EARNS 3%→17% across the scale vs 50
+    // control; control allows 13%→3.8% vs 50 discipline. On top of the
+    // earned rate sits FEAR (§22.5 law 2): pitchers avoid damage they
+    // can see coming, scaled up with an open base and late-close spots.
+    // Base is the unintentional rate; IBBs roll upstream of this.
+    // Pitchers batting walk at their era rate (~4-5%) and are never
+    // pitched around.
     const bbBase = batter.isPitcher ? 0.075 : 0.0725;
-    const bbAdj = -(grade(control) * 0.04) + (grade(discipline) * 0.03);
-    const bbProb = clamp(bbBase + bbAdj, 0.02, 0.20);
+    let fear = 0;
+    if (!batter.isPitcher) {
+      fear = Math.max(0, grade(power)) * 0.014;
+      if (situ && situ.openBase) fear *= 1.6;
+      if (situ && situ.lateClose) fear *= 1.3;
+    }
+    const bbAdj = -dslope(grade(control), 0.042, 0.035) + dslope(grade(discipline), 0.044, 0.060) + fear;
+    const bbProb = clamp(bbBase + bbAdj, 0.015, 0.30);
 
     // HBP: ~1%
     const hbpProb = 0.009;
@@ -1047,9 +1059,9 @@ window.BBGM_SIM = (function () {
     const defRangeMul = 1 - grade(def.defenseAvg) * 0.02;
     // Determine batted ball type.
     const battedBallRoll = Math.random();
-    const flyRate = clamp(0.34 + grade(power) * 0.04 - grade(movement) * 0.03, 0.22, 0.48);
-    const grounderRate = clamp(0.42 + grade(movement) * 0.04 - grade(power) * 0.03, 0.30, 0.55);
-    const lineRate = clamp(0.20 + grade(contact) * 0.03, 0.14, 0.28);
+    const flyRate = clamp(0.34 + grade(power) * 0.05 - grade(movement) * 0.03, 0.20, 0.52);
+    const grounderRate = clamp(0.42 + grade(movement) * 0.04 - grade(power) * 0.035, 0.28, 0.56);
+    const lineRate = clamp(0.20 + dslope(grade(contact), 0.022, 0.030), 0.10, 0.34);
     let bbType;
     if (battedBallRoll < flyRate) bbType = 'fly';
     else if (battedBallRoll < flyRate + grounderRate) bbType = 'ground';
@@ -1073,8 +1085,11 @@ window.BBGM_SIM = (function () {
       // Hit prob target ~ .240 on grounders, modified by speed. Sink
       // (movement) kills grounders twice (0.79.0): more of them AND
       // weaker contact — chopped/rolled-over balls find gloves.
-      let hitProb = 0.247 + grade(batterSpeed) * 0.04 + grade(contact) * 0.015
-        - grade(movement) * 0.018;
+      // Swing trade (§22.3): plus power sells contact quality — the
+      // all-or-nothing cut rolls over on grounders and gets under
+      // flies. This is what puts the .240 in .240/.370/.520.
+      let hitProb = 0.241 + grade(batterSpeed) * 0.04 + dslope(grade(contact), 0.012, 0.018)
+        - grade(movement) * 0.018 - Math.max(0, grade(power)) * 0.020;
       hitProb *= parkHitsFactor * bipHitMul * defRangeMul;
       if (Math.random() < hitProb) {
         if (Math.random() < 0.04 * parkXBHFactor) return { kind: '2B', battedBall: bbType };
@@ -1085,7 +1100,7 @@ window.BBGM_SIM = (function () {
 
     if (bbType === 'line') {
       // Line drives: target ~ .65 hit rate
-      let hitProb = 0.680 + grade(contact) * 0.03;
+      let hitProb = 0.664 + grade(contact) * 0.03;
       hitProb *= parkHitsFactor * bipHitMul * defRangeMul;
       if (Math.random() < hitProb) {
         const ext = Math.random();
@@ -1102,19 +1117,24 @@ window.BBGM_SIM = (function () {
       // The 2% floor keeps real hitters honest, but it inflates pitcher
       // batters (power 20 computes to ~0.4% — the floor quintupled it,
       // producing ~50 pitcher HR per season instead of a handful).
+      // Power (§22.3): 2 HR/600 at 20-grade, ~50 at 80 — the top of the
+      // scale is a genuine monster, not a protected league line. Slope
+      // is piecewise: absent power dies quicker than plus power grows.
       const hrBase = 0.108;
-      const hrAdj = grade(power) * 0.08;
+      const hrAdj = dslope(grade(power), 0.08, 0.12);
       const hrFloor = batter.isPitcher ? 0.002 : 0.02;
       let hrProb = clamp((hrBase + hrAdj) * parkHRFactor, hrFloor, 0.50);
       if (batter.isPitcher) hrProb *= 0.5; // pitchers run into one rarely
       if (Math.random() < hrProb) return { kind: 'HR', battedBall: bbType };
 
-      const xbProb = 0.127 * parkXBHFactor * bipHitMul * defRangeMul;
+      // Swing trade (§22.3): the non-HR flies of a big cut die weaker.
+      const swingTax = 1 - Math.max(0, grade(power)) * 0.10;
+      const xbProb = 0.127 * swingTax * parkXBHFactor * bipHitMul * defRangeMul;
       if (Math.random() < xbProb) {
         if (Math.random() < 0.08) return { kind: '3B', battedBall: bbType };
         return { kind: '2B', battedBall: bbType };
       }
-      const singleProb = (0.076 + grade(contact) * 0.02) * bipHitMul * defRangeMul;
+      const singleProb = (0.073 + dslope(grade(contact), 0.014, 0.022)) * swingTax * bipHitMul * defRangeMul;
       if (Math.random() < singleProb) return { kind: '1B', battedBall: bbType };
       return { kind: 'OUT', battedBall: bbType };
     }
@@ -1271,38 +1291,40 @@ window.BBGM_SIM = (function () {
     return Math.random() < clamp(prob, 0, 0.90);
   }
 
-  function shouldAttemptSB(runner, pitcher, off, def) {
-    // Faster runners attempt more; stronger-armed catchers deter attempts.
-    // The manager's small-ball tendency scales aggressiveness (7.5).
-    const speed = runner.ratings.speed || 50;
-    const arm = catcherArm(def);
-    const armDeter = (arm - 50) * 0.005;       // ~0.15 swing across the arm grade
-    const holdDeter = pitcherHoldMod(pitcher); // tiny extra for high-stamina pitcher
-    const mgrMul = 1 + (((off.mgr && off.mgr.smallBall) || 5) - 5) * 0.09; // 0.64x-1.45x
+  // Green light curve (§22.3, re-founding physics): steal ATTEMPTS come
+  // from identity, not the speed grade. The dial is minted at generation
+  // (hidden.greenLight 0-10); pre-shape players derive a pseudo-light
+  // from speed so old objects keep running sanely.
+  const GREEN_LIGHT_ATTEMPT = [0.004, 0.010, 0.018, 0.030, 0.050, 0.075, 0.105, 0.145, 0.19, 0.245, 0.30];
 
-    if (speed < 40) return Math.random() < clamp((0.01 - armDeter) * mgrMul, 0.001, 0.05);
-    if (speed < 50) return Math.random() < clamp((0.042 - armDeter - holdDeter) * mgrMul, 0.005, 0.15);
-    // Phase 16: convex green-light curve. Stolen bases are a specialist's
-    // game — an average-speed regular picks his spots (the flat 50-60
-    // leg), while the rare true burner runs constantly (the steep 60+
-    // leg). The old linear curve let 56-speed sluggers rack up 50-steal
-    // seasons; paired with the speed-tier decoupling in players.js this
-    // lands ~100-120 att/team with leaders in the 40-60 range.
-    const baseProb = ((speed < 60
-      ? 0.092 + (speed - 50) * 0.009
-      : 0.182 + (speed - 60) * 0.020) - armDeter - holdDeter) * mgrMul;
-    return Math.random() < clamp(baseProb, 0.02, 0.42);
+  function greenLightOf(runner) {
+    if (runner.hidden && runner.hidden.greenLight != null) return runner.hidden.greenLight;
+    return clamp(Math.round(((runner.ratings.speed || 50) - 48) / 4), 0, 10);
+  }
+
+  function shouldAttemptSB(runner, pitcher, off, def) {
+    // The light says whether he runs; the catcher's arm, the pitcher's
+    // hold, and the manager's philosophy (7.5) bend it at the margin.
+    const gl = greenLightOf(runner);
+    const arm = catcherArm(def);
+    const armDeter = (arm - 50) * 0.005;
+    const holdDeter = pitcherHoldMod(pitcher);
+    const mgrMul = 1 + (((off.mgr && off.mgr.smallBall) || 5) - 5) * 0.09; // 0.64x-1.45x
+    const prob = (GREEN_LIGHT_ATTEMPT[clamp(gl, 0, 10)] - armDeter - holdDeter) * mgrMul;
+    return Math.random() < clamp(prob, 0.001, 0.45);
   }
 
   function resolveSB(runner, pitcher, def) {
-    // Speed boosts success; catcher arm and pitcher hold reduce it.
+    // Success is the SPEED dictionary row (§22.3: 40% at 20-grade, 70%
+    // at 50, 86% at 80 — absence costs more than plus pays); catcher
+    // arm and pitcher hold work against it.
     const speed = runner.ratings.speed || 50;
     const arm = catcherArm(def);
-    const successProb = 0.66
-      + (speed - 50) * 0.010
+    const successProb = 0.70
+      + (speed >= 50 ? (speed - 50) * 0.0053 : (speed - 50) * 0.010)
       - (arm - 50) * 0.009
       - pitcherHoldMod(pitcher);
-    return Math.random() < clamp(successProb, 0.20, 0.92) ? 'safe' : 'caught';
+    return Math.random() < clamp(successProb, 0.15, 0.93) ? 'safe' : 'caught';
   }
 
   // ---- Reliever rest (bible 7.4.6 / 10.1) --------------------------------
@@ -1908,5 +1930,30 @@ window.BBGM_SIM = (function () {
   // the October/adjustment effects are deliberately subtle (±2-3
   // effective grades), too small to assert reliably through full-game
   // outcome noise — the mechanism is verified directly instead.
-  return { simulateGame, makeupMod, pickStarter };
+  // ---- Dictionary probe seam (§22.6, test harnesses only) ------------------
+  // The executable form of the grade dictionary: resolve n plate
+  // appearances at FIXED ratings — fresh arm, neutral park, average
+  // defense — and report the raw rates the anchor tables promise.
+  function probePA(batterRatings, pitcherRatings, n, opts) {
+    const o = opts || {};
+    const batter = { id: 'probe-b', isPitcher: false, bats: 'R', ratings: batterRatings, hidden: {} };
+    const pitcher = { id: 'probe-p', isPitcher: true, throws: 'R', ratings: pitcherRatings, hidden: {} };
+    const prevCtx = gameCtx;
+    gameCtx = { postseason: false, date: { year: 2026, month: 6, day: 15 } };
+    const def = { defenseAvg: o.defense != null ? o.defense : 50, pitchCount: 0 };
+    const park = { run: 100, hr: 100, xbh: 100, hits: 100 };
+    const counts = { K: 0, BB: 0, HBP: 0, OUT: 0, '1B': 0, '2B': 0, '3B': 0, HR: 0 };
+    for (let i = 0; i < n; i++) {
+      const r = resolveAtBat(batter, pitcher, park, def, o.situ || null);
+      counts[r.kind] = (counts[r.kind] || 0) + 1;
+    }
+    gameCtx = prevCtx;
+    const hits = counts['1B'] + counts['2B'] + counts['3B'] + counts.HR;
+    const ab = n - counts.BB - counts.HBP;
+    return { n, counts,
+      kPct: counts.K / n, bbPct: counts.BB / n, hrPct: counts.HR / n,
+      ba: hits / Math.max(1, ab), hrPer600: counts.HR / n * 600 };
+  }
+
+  return { simulateGame, makeupMod, pickStarter, probePA };
 })();

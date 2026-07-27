@@ -527,7 +527,12 @@ window.BBGM_PLAYER_GEN = (function () {
     const ceilingMean = ({
       star: 70, plus: 60, avg: 52, depth: 47, prospect: 55, fringe: 44,
     })[tier] || 50;
-    const ceilingStdev = 4;
+    // Re-founding phase 3: within-tier tool spread. sd 4 made every star
+    // 70-flat — the correlated-superstar machine. At 6.5 a star's tools
+    // scatter (76-contact/58-power cards), overall barely moves (mean of
+    // 9 draws), and the honest dictionary slopes stop minting .400
+    // hitters out of 70-everything bats.
+    const ceilingStdev = 6.5;
 
     // Build per-rating ceiling
     const ratingKeys = isPitcher
@@ -541,6 +546,11 @@ window.BBGM_PLAYER_GEN = (function () {
     const ceiling = {};
     for (const k of ratingKeys) {
       let c = clamp(rnormal(rng, ceilingMean, ceilingStdev), 30, 80);
+      // §22.2: 80-grade tools are generational, one or two per era. The
+      // tier draw's top tail squashes so raw draws rarely clear the
+      // mid-70s — plus-plus tools come from a shape's carrying-tool
+      // push (or the anointed/draft-lift paths), not tier luck.
+      if (c > 72) c = 72 + (c - 72) * 0.35;
       // Position-specific adjustments
       if (!isPitcher) {
         c = positionAdjust(rng, primaryPosition, k, c);
@@ -648,7 +658,7 @@ window.BBGM_PLAYER_GEN = (function () {
     if (!isPitcher) {
       const shapeKick = shape.key === 'table_setter' ? 3 : shape.key === 'toolshed' ? 1
         : (shape.key === 'slugger' || shape.key === 'tto_monster') ? -2 : 0;
-      greenLight = clamp(Math.round((ceiling.speed - 48) / 4 + shapeKick + rnormal(rng, 0, 1.5)), 0, 10);
+      greenLight = clamp(Math.round((ceiling.speed - 46) / 4 + shapeKick + rnormal(rng, 0, 1.5)), 0, 10);
     }
 
     return { ratings, ceiling, archetype, growth, shape: shape.key, greenLight };

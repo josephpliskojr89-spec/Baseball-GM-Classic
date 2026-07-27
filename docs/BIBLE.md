@@ -6721,11 +6721,17 @@ fly-ball tilt to the batted-ball mix.
 | 40 | 12 | |
 | 50 | 18 | |
 | 60 | 27 | All-Star pop |
-| 70 | 38 | MVP-chase pop |
-| 80 | 50+ | generational |
+| 70 | 36 | MVP-chase pop |
+| 80 | 45+ | generational |
+
+Plus power also SELLS contact quality (the swing trade, §22.5):
+rolled-over grounders and dying non-HR flies. That, not a protected
+league line, is what writes .240/.370/.520.
 
 **Discipline** — swing decisions: chase avoidance and the walk rate
-the hitter EARNS on his own. Fear walks (§22.5) stack on top.
+the hitter EARNS on his own. Fear walks (§22.5) stack on top — a
+generational power/eye combination reaches 17-20% total that way,
+not through the earned rate alone.
 
 | grade | earned BB% |
 |---|---|
@@ -6733,9 +6739,9 @@ the hitter EARNS on his own. Fear walks (§22.5) stack on top.
 | 30 | 4.5% |
 | 40 | 6.5% |
 | 50 | 8.5% |
-| 60 | 11% |
-| 70 | 14% |
-| 80 | 17% |
+| 60 | 10.5% |
+| 70 | 12.5% |
+| 80 | 15% |
 
 **Speed** — footspeed: steal attempts come from the green-light
 identity (aggression is minted at generation, not implied by the
@@ -6903,7 +6909,31 @@ setter EXISTS (.324/12 HR/45 SB season observed); TTO still 0.0/yr
 awaiting phase-3 physics — the layout is minted, the sim can't
 express it yet.
 
-### 22.8 Re-Founding Release Policy
+### 22.8 Phase-3 Physics — BUILT (dark), state of the census
+
+The dictionary is now executable: `BBGM_SIM.probePA` resolves plate
+appearances at fixed grades, and scratchpad/dictionary_test.js walks
+every anchor row (26 checks green). Implemented laws: piecewise
+dictionary slopes (`dslope` — absence costs more than plus pays),
+K/BB/BA/HR anchors, fear walks with situational scaling, the swing
+trade (plus power sells contact quality), the velocity amplifier,
+green-light steal attempts with dictionary speed success, clamps
+demoted to physical bounds (K 2-62%, BB 1.5-30%).
+
+Census after phase 3 (4-season soaks): TTO monster ALIVE
+(.248/44HR/97BB observed), wild flamethrower ~4/yr, K monster ~3/yr,
+lights-out closer ~2/yr, 45-SB seasons alive, workhorse aces 4-5/yr,
+league line emergent and sane (R/G ~4.4, K% ~18, BB% ~9.2). Open
+floods, diagnosed: 40-HR/.330/100-BB run 3-5× the bands because the
+TIER system still means "star = 70 at everything" and a third of
+stars roll the balanced shape — 70-flat bats under honest slopes are
+all the same MVP card. Fix belongs to generation (shape-first
+stardom: spikier deltas at high tiers, fewer balanced stars), not to
+the physics. CG (~40/yr with 3+) and 100-IP relief floods are usage
+problems owned by phase 4. Glove-first regulars stuck at ~1.5/yr
+until phase 4 defense gives the archetype its value.
+
+### 22.9 Re-Founding Release Policy
 
 Phases: (1) this dictionary + observatory · (2) generation shapes ·
 (3) sim physics from the dictionary · (4) routed defense + usage ·
