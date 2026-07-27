@@ -5015,6 +5015,23 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > 27 (spent pitch refused even after rolling the tier back,
 > cuts exempt, fresh audience next winter).
 
+> **Status note (v1.0.0 — THE RE-FOUNDING):** The simulation-first
+> re-founding (§22) is RELEASED. The 20-80 scale is ground truth,
+> the league line is an output, and every archetype lives: the TTO
+> monster, the table setter, the glove-first regular, the earned
+> complete game (Colby Walters, 2.89 ERA / 221 IP / 5 CG, appeared
+> unprompted in the release-gate soak), the fireman, the wild
+> flamethrower, the crafty vet. Release gate: 14-season soak with a
+> FLAT era line (~4.3-4.4 R/G, ERA ~4.1, K% ~18.2, CG 40-85/yr),
+> pyramid 89 at 55+, 11 of 15 census lines in-band (the rest are
+> band-edge rarity-taste, dial documented), zero sim errors, battery
+> 42/42, dictionary 26/26, e2e 141. Existing saves load and play
+> under the new physics — ratings keep their faces but the world
+> re-prices them — and a fresh franchise is the recommended way in.
+> Rarity dials for the owner: big-bat volume (BA-scale baselines,
+> ±.006 ≈ ±0.15 R/G) and CG volume (the 9th-inning earned-CG
+> profile).
+
 > **Status note (re-founding phase 1, no version bump):** The
 > simulation-first re-founding is approved and begun — see the new
 > §22 for the principle, the grade dictionary, and the release
