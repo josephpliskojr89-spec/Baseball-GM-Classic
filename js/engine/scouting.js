@@ -389,7 +389,12 @@ window.BBGM_SCOUT = (function () {
     const prog = Math.min(0.85, weeks * BOARD_CONVERGE[ti]);
     let best = -Infinity;
     for (const k in p.hidden.ceiling) {
-      if (k === 'bunting') continue;
+      // Stamina is a workload trait, not a talent — a workhorse arm's
+      // loudest ceiling is often his gas tank, and converging the band
+      // toward it sold 60-band "aces" who were really innings sponges
+      // (1.2.2, user report). Same exclusion the second look and the
+      // band minting itself already use.
+      if (k === 'bunting' || k === 'stamina') continue;
       const v = p.hidden.ceiling[k];
       if (typeof v === 'number' && v > best) best = v;
     }

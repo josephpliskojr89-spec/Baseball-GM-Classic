@@ -5135,6 +5135,22 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > shop; a 1,675-player full-league sweep on a real dynasty save
 > runs 18s with zero throws. Battery 43/43, e2e 141.
 
+> **Status note (v1.2.2):** Stamina is not a talent (user report:
+> stamina as a pitching prospect's best tool is "super misleading").
+> The scouting report's "best tool" chain was already stamina-free
+> almost everywhere — band minting, the second look, the carrying-
+> tool blurb, the hunch pick all use pitch tools only — but the
+> 0.78.0 board-read discovery shift (draftBoardShift) scanned the
+> full ceiling map, skipping only bunting. Measured: 67% of pitcher
+> prospects carry stamina as their loudest ceiling (avg +11 over
+> the best pitch tool, since slot lifts spread pitch tools down and
+> never touch the tank), so boarding nearly any arm inflated his
+> sharpening band by double digits toward his gas tank — a 60-band
+> "ace" who was really an innings sponge. One-line fix: the shift
+> now excludes stamina, same as everywhere else. New bigboard check
+> 14 locks it (rigged towering tank ceiling: 12-week shift 0.3, was
+> ~+17). Battery 43/43 (bigboard now 28), e2e 141.
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):
