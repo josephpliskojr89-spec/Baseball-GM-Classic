@@ -331,7 +331,11 @@ window.BBGM_FA = (function () {
   }
 
   function signPlayer(state, team, p, years, total, entry) {
-    const aav = Math.round(total / years * 10) / 10;
+    // League minimum floor (0.79.0): late-round accepts allow bids down
+    // to half the ask, which could ink a sub-$0.74M salary. No NABL
+    // contract pays below the minimum.
+    const aav = Math.max(0.74, Math.round(total / years * 10) / 10);
+    total = Math.round(aav * years * 10) / 10;
     p.contract = { years, annualSalary: aav, totalValue: total, signedAt: 'FA' };
     p.teamId = team.id;
     p.acquiredVia = { type: 'fa', year: state.meta.currentDate.year };

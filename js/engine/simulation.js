@@ -724,9 +724,11 @@ window.BBGM_SIM = (function () {
         if (Math.random() < errProb) {
           isError = true;
         } else if (result.battedBall === 'ground' && bases[0] && outsBefore < 2 &&
-                   Math.random() < clamp(0.50 + defGrade * 0.06, 0.30, 0.65)) {
+                   Math.random() < clamp(0.50 + defGrade * 0.06 +
+                     grade(pitcher.ratings.movement) * 0.06, 0.30, 0.70)) {
           // Grounder with a DP in order: strong middle-infield defense
-          // turns two more often. (~0.75 GIDP/team/game league-wide.)
+          // turns two more often, and heavy sink (movement) produces the
+          // tailor-made two-hopper (0.79.0). (~0.75 GIDP/team/game.)
           isGIDP = true;
         } else if (bases[2] && outsBefore < 2 && result.battedBall === 'fly' && Math.random() < 0.82) {
           // A catchable fly with a runner on 3rd scores him most of the
@@ -1002,11 +1004,16 @@ window.BBGM_SIM = (function () {
     const velocity = applyFatigue(p.velocity, pitcher, def) + pMk;
 
     // Base rates - calibrated to target league averages.
-    // K rate: 17%. Driven by stuff+velocity vs contact+discipline.
+    // K rate: 17%. Stuff is the K engine; velocity is a force multiplier
+    // (0.79.0) — nearly worthless by itself, but it scales how well the
+    // stuff plays: plus heat makes good secondaries devastating, and a
+    // soft-tosser needs elite stuff to miss the same bats.
     // Pitchers batting whiff far beyond what a 20 contact grade alone
     // produces — the extra bump lands their K% near the historical ~37%.
     const kBase = batter.isPitcher ? 0.335 : 0.176;
-    const kAdj = (grade(stuff) * 0.06) + (grade(velocity) * 0.03) - (grade(contact) * 0.05) - (grade(discipline) * 0.02);
+    const veloAmp = 1 + grade(velocity) * 0.35;
+    const kAdj = (grade(stuff) * 0.06 * veloAmp) + (grade(velocity) * 0.012)
+      - (grade(contact) * 0.05) - (grade(discipline) * 0.02);
     const kProb = clamp(kBase + kAdj, 0.04, 0.45);
 
     // BB rate: ~8.5% TOTAL including intentional walks (0.26.0 — 2001
@@ -1063,8 +1070,11 @@ window.BBGM_SIM = (function () {
     }
 
     if (bbType === 'ground') {
-      // Hit prob target ~ .240 on grounders, modified by speed.
-      let hitProb = 0.247 + grade(batterSpeed) * 0.04 + grade(contact) * 0.015;
+      // Hit prob target ~ .240 on grounders, modified by speed. Sink
+      // (movement) kills grounders twice (0.79.0): more of them AND
+      // weaker contact — chopped/rolled-over balls find gloves.
+      let hitProb = 0.247 + grade(batterSpeed) * 0.04 + grade(contact) * 0.015
+        - grade(movement) * 0.018;
       hitProb *= parkHitsFactor * bipHitMul * defRangeMul;
       if (Math.random() < hitProb) {
         if (Math.random() < 0.04 * parkXBHFactor) return { kind: '2B', battedBall: bbType };

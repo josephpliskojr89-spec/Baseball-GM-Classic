@@ -5015,6 +5015,29 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > 27 (spent pitch refused even after rolling the tier back,
 > cuts exempt, fresh audience next winter).
 
+> **Status note (v0.79.0):** Velocity amplifies, movement earns
+> its grade (user-approved retune from the twin-league attribute
+> experiments). K model: velocity no longer adds K's on its own
+> (direct term 0.03→0.012 per grade) — instead it scales stuff's
+> effectiveness (stuff term × (1 + grade(velocity)×0.35)), so
+> plus heat makes good secondaries devastating and a soft-tosser
+> needs elite stuff to miss bats. Measured: velocity solo ≈
+> −0.03 ERA (+0.16 K/9), velo+stuff pair carries a real +0.09
+> K/9 synergy beyond additive, stuff/control unchanged (−0.19 /
+> −0.16). Movement (was cosmetic −0.027 ERA, its HR savings
+> cancelled by a grounder-singles leak): sink now kills grounders
+> twice — grounder hit prob −0.018/grade AND GIDP conversion
+> +0.06/grade (cap 0.70) — pooled ≈ −0.08 ERA per +10, H/9 leak
+> flipped to −0.07. League calibration held (4-season harness: K%
+> 16.9, OBP .330, ERA 4.26, R/G 4.5-4.6). Rider: FA signPlayer
+> now floors salaries at the $0.74M league minimum (late-round
+> accepts take bids down to half the ask, which could ink a
+> sub-minimum deal). Makeup suite's October experiment rebuilt on
+> paired per-game seeds — the old shared-stream design carried a
+> ±1.3 runs/game bimodal regime artifact that any engine retune
+> re-rolled; paired dice isolate the makeup gap (+0.7, stable
+> across 8 seeds). Battery 42/42, e2e 141.
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):
