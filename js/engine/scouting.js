@@ -389,12 +389,12 @@ window.BBGM_SCOUT = (function () {
     const prog = Math.min(0.85, weeks * BOARD_CONVERGE[ti]);
     let best = -Infinity;
     for (const k in p.hidden.ceiling) {
-      // Stamina is a workload trait, not a talent — a workhorse arm's
-      // loudest ceiling is often his gas tank, and converging the band
-      // toward it sold 60-band "aces" who were really innings sponges
-      // (1.2.2, user report). Same exclusion the second look and the
-      // band minting itself already use.
-      if (k === 'bunting' || k === 'stamina') continue;
+      // Stamina is a workload trait and speed is a body trait — neither
+      // is a TALENT the read should converge toward. The gas tank sold
+      // 60-band "aces" who were innings sponges (1.2.2); the legs sold
+      // burner "bats" you could have timed with a stopwatch yourself
+      // (1.3.0). Same exclusions as the second look and band minting.
+      if (k === 'bunting' || k === 'stamina' || k === 'speed') continue;
       const v = p.hidden.ceiling[k];
       if (typeof v === 'number' && v > best) best = v;
     }
@@ -489,10 +489,12 @@ window.BBGM_SCOUT = (function () {
           ['the command', reads.control],
         ]
       : [
+          // No run tool here (1.3.0): the report projects what scouts
+          // must JUDGE — you can time the sixty yourself, and the SPD
+          // grade is right on the card.
           ['the hit tool', (reads.contactVsR + reads.contactVsL) / 2],
           ['the raw power', (reads.powerVsR + reads.powerVsL) / 2],
           ['the plate approach', reads.discipline],
-          ['the run tool', reads.speed],
           ['the glove', reads.defense],
           ['the arm', reads.arm],
         ];
@@ -691,7 +693,8 @@ window.BBGM_SCOUT = (function () {
 
   function secondLookShift(state, p) {
     if (!p.hidden || !p.hidden.ceiling || !p.scout) return 0;
-    const keys = Object.keys(p.hidden.ceiling).filter((k) => k !== 'stamina' && k !== 'bunting');
+    const keys = Object.keys(p.hidden.ceiling)
+      .filter((k) => k !== 'stamina' && k !== 'bunting' && k !== 'speed');
     if (!keys.length) return 0;
     const best = Math.max(...keys.map((k) => p.hidden.ceiling[k]));
     const mid = (p.scout.ceilLo + p.scout.ceilHi) / 2;

@@ -1024,6 +1024,34 @@ window.BBGM_MAIN = (function () {
       window.BBGM_STATE.set(state);
     }
 
+    // Migration (1.3.0): legs are born, not developed. Players now
+    // GENERATE roughly as fast as they'll ever be, so the save's young
+    // hitters — minted under the old skill-style speed gap and facing
+    // years of phantom "footspeed development" — get the gap closed
+    // once. Young only (≤23): older gaps are the legs already going,
+    // and aging must never be undone. Raise-only, never slows anyone.
+    if (versionLt(saveVersion, '1.3.0')) {
+      const gapFor = (age) => age <= 16 ? 5 : age <= 17 ? 4 : age <= 18 ? 3 : age <= 20 ? 1.5 : 1;
+      let sped = 0;
+      const heal = (p) => {
+        if (!p || p.retired || p.isPitcher || p.age == null || p.age > 23) return;
+        if (!p.hidden || !p.hidden.ceiling || p.hidden.ceiling.speed == null ||
+            !p.ratings || p.ratings.speed == null) return;
+        const target = Math.round((p.hidden.ceiling.speed - gapFor(p.age)) * 10) / 10;
+        if (p.ratings.speed < target) { p.ratings.speed = target; sped++; }
+      };
+      for (const id in state.players) heal(state.players[id]);
+      if (state.draft && state.draft.prospects) {
+        for (const id in state.draft.prospects) heal(state.draft.prospects[id]);
+      }
+      if (state.intl && state.intl.prospects) {
+        for (const id in state.intl.prospects) heal(state.intl.prospects[id]);
+      }
+      for (const e of state.draftReentry || []) heal(e.player);
+      if (sped) console.log(`1.3.0 migration: closed the speed gap on ${sped} young hitter(s) — legs are born, not developed.`);
+      window.BBGM_STATE.set(state);
+    }
+
     // Stamp the save forward now that every migration has run. This is
     // what makes the versionLt gates above one-shot, and it makes the
     // Menu's "Save version" reflect the code the save actually runs under
@@ -1891,7 +1919,8 @@ window.BBGM_MAIN = (function () {
         for (const pid of userTeam.minors || []) {
           const p = players[pid];
           if (!p || !p.hidden || !p.hidden.ceiling) continue;
-          const keys = Object.keys(p.hidden.ceiling).filter((k) => k !== 'stamina');
+          const keys = Object.keys(p.hidden.ceiling)
+            .filter((k) => k !== 'stamina' && k !== 'bunting' && k !== 'speed');
           const c = keys.length ? Math.max(...keys.map((k) => p.hidden.ceiling[k])) : 0;
           if (c > bestCeil) { bestCeil = c; prospect = p; }
         }

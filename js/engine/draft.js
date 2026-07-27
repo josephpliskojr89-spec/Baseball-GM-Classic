@@ -221,12 +221,22 @@ window.BBGM_DRAFT = (function () {
       // Stamina develops early — keep draft-day stamina near its ceiling so
       // SP prospects profile as starters from day one.
       p.ratings.stamina = clamp(Math.round((p.hidden.ceiling.stamina - rfloat(4, 10)) * 10) / 10, 30, 72);
+    } else {
+      // Speed is body-given and visible (1.3.0): a draftee runs on draft
+      // day roughly what he'll run in the show — the polish cap and the
+      // development gap are for skills, not legs. HS kids sit a shade
+      // under (the frame still filling out).
+      const sgap = bg.key === 'HS' ? rfloat(2, 5) : rfloat(0, 3);
+      p.ratings.speed = clamp(Math.round((p.hidden.ceiling.speed - sgap) * 10) / 10, 20, 80);
     }
 
     // Scouting view (pre-Phase-13 fog): a stable best-tool ceiling band,
-    // tighter for college players (6.5 uncertainty bands).
+    // tighter for college players (6.5 uncertainty bands). The band is a
+    // PROJECTION, and speed doesn't project — you can watch him run
+    // (1.3.0) — so a hitter's band anchors on his best baseball tool.
     const fuzz = bg.key === 'HS' ? 6 : 3;
-    const best = Math.max(...keys.map((k) => p.hidden.ceiling[k]));
+    const bandKeys = p.isPitcher ? keys : keys.filter((k) => k !== 'speed');
+    const best = Math.max(...bandKeys.map((k) => p.hidden.ceiling[k]));
     p.scout = {
       ceilLo: Math.round(best - fuzz - rand() * 2),
       ceilHi: Math.round(best + fuzz + rand() * 2),
@@ -273,8 +283,12 @@ window.BBGM_DRAFT = (function () {
       const gem = list[rint(150, CLASS_SIZE - 1)];
       const keys = talentKeys(gem);
       const target = rfloat(68, 76);
-      let bestKey = keys[0];
-      for (const k of keys) if (gem.hidden.ceiling[k] > gem.hidden.ceiling[bestKey]) bestKey = k;
+      // The gem is a hidden TALENT (1.3.0): anchor his lift on the best
+      // bat/glove/arm tool, never his legs — a speed-anchored gem would
+      // be a wasted roll now that bands and reads ignore footspeed.
+      const anchorKeys = gem.isPitcher ? keys : keys.filter((k) => k !== 'speed');
+      let bestKey = anchorKeys[0];
+      for (const k of anchorKeys) if (gem.hidden.ceiling[k] > gem.hidden.ceiling[bestKey]) bestKey = k;
       // Raise-only, clamp 82 (W3, 0.68.1): same guard as the anointment —
       // a gem whose best tool already clears the target keeps what he
       // has, and the lift ceiling matches the 82 used everywhere else.
@@ -290,6 +304,7 @@ window.BBGM_DRAFT = (function () {
         gem.hidden.ceiling[k] = Math.round(Math.max(gem.hidden.ceiling[k], lifted) * 10) / 10;
       }
       GEN().applyArchetypeCap(gem); // the gem lift honors the cap too (0.53.1)
+      GEN().syncBornSpeed(gem, rand); // a lifted speed ceiling shows up in his legs NOW (1.3.0)
       // The gem hides because scouts don't see it: his public band stays low.
     }
 
@@ -305,7 +320,9 @@ window.BBGM_DRAFT = (function () {
       if (star) {
         GEN().anointGenerational(star, rand);
         const fz = star.background === 'HS' ? 6 : 3;
-        const bk = Math.max(...talentKeys(star).map((k) => star.hidden.ceiling[k]));
+        const bandK = star.isPitcher ? talentKeys(star)
+          : talentKeys(star).filter((k) => k !== 'speed');
+        const bk = Math.max(...bandK.map((k) => star.hidden.ceiling[k]));
         star.scout = {
           ceilLo: Math.round(bk - fz - rand() * 2),
           ceilHi: Math.round(bk + fz + rand() * 2),

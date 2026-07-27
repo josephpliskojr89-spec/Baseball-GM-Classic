@@ -222,11 +222,20 @@ window.BBGM_INTL = (function () {
     if (p.isPitcher) {
       // A teenage arm hasn't built a starter's tank yet either.
       p.ratings.stamina = clamp(Math.round((p.hidden.ceiling.stamina - rfloat(12, 20)) * 10) / 10, 25, 50);
+    } else {
+      // Speed is body-given and visible (1.3.0): even a 16-year-old runs
+      // close to what he'll always run — a little below, the frame still
+      // filling out — so the raw-teen polish cap never applies to legs.
+      const sgap = age <= 16 ? rfloat(3, 7) : rfloat(2, 5);
+      p.ratings.speed = clamp(Math.round((p.hidden.ceiling.speed - sgap) * 10) / 10, 20, 80);
     }
 
     // Scouting view: wider bands than the draft (teenagers, thin data).
+    // The band projects TALENT; speed doesn't project — you can watch
+    // him run (1.3.0) — so a hitter's band anchors on his best bat tool.
     const fuzz = 8;
-    const best = Math.max(...keys.map((k) => p.hidden.ceiling[k]));
+    const bandKeys = p.isPitcher ? keys : keys.filter((k) => k !== 'speed');
+    const best = Math.max(...bandKeys.map((k) => p.hidden.ceiling[k]));
     p.scout = {
       ceilLo: Math.round(best - fuzz - rand() * 3),
       ceilHi: Math.round(best + fuzz + rand() * 3),
@@ -327,7 +336,9 @@ window.BBGM_INTL = (function () {
     if (rand() < 0.11) {
       const star = prospects[board[Math.floor(rand() * 8)]];
       window.BBGM_PLAYER_GEN.anointGenerational(star, rand);
-      const bk = Math.max(...talentKeys(star).map((k) => star.hidden.ceiling[k]));
+      const bandK = star.isPitcher ? talentKeys(star)
+        : talentKeys(star).filter((k) => k !== 'speed');
+      const bk = Math.max(...bandK.map((k) => star.hidden.ceiling[k]));
       star.scout = {
         ceilLo: Math.round(bk - 8 - rand() * 3),
         ceilHi: Math.round(bk + 8 + rand() * 3),
@@ -510,6 +521,7 @@ window.BBGM_INTL = (function () {
     // mirroring the draft (0.53.1) — a positive swing was breaking a
     // third of quad-A/overachiever signees out of their identity caps.
     GEN().applyArchetypeCap(p);
+    GEN().syncBornSpeed(p, rand); // the swing moves his legs with it (1.3.0)
 
     p.status = 'minors';
     p.teamId = teamId;
@@ -847,6 +859,7 @@ window.BBGM_INTL = (function () {
         p.ratings[k] = Math.min(p.ratings[k], Math.max(20, p.hidden.ceiling[k] - 2));
       }
       GEN().applyArchetypeCap(p); // the swing honors the cap (0.67.1)
+      GEN().syncBornSpeed(p, rand); // the swing moves his legs with it (1.3.0)
       events.push({ kind: 'defector', playerId: p.id, name: p.name, pos: p.primaryPosition, age: p.age });
     }
 

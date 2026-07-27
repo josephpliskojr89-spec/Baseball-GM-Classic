@@ -49,8 +49,13 @@ window.BBGM_PLAYER_GEN = (function () {
     const keys = p.isPitcher
       ? ['velocity', 'movement', 'control', 'stuff']
       : ['contactVsR', 'contactVsL', 'powerVsR', 'powerVsL', 'discipline', 'speed', 'defense', 'arm'];
-    let bestKey = keys[0];
-    for (const k of keys) if (h.ceiling[k] > h.ceiling[bestKey]) bestKey = k;
+    // The destiny anchors on TALENT (1.3.0): a generational hitter is
+    // never crowned for his footspeed — speed can ride along (the leak
+    // below) but the 76-80 anchor is a bat/glove/arm tool, so the loud
+    // card the industry sees is loud where it counts.
+    const anchorKeys = p.isPitcher ? keys : keys.filter((k) => k !== 'speed');
+    let bestKey = anchorKeys[0];
+    for (const k of anchorKeys) if (h.ceiling[k] > h.ceiling[bestKey]) bestKey = k;
     const target = 76 + rand() * 4;
     // Raise-only (W3, 0.68.1): a kid whose best tool already clears the
     // target must not be PULLED DOWN by his own anointment — delta went
@@ -69,7 +74,23 @@ window.BBGM_PLAYER_GEN = (function () {
     }
     h.workEthic = Math.max(h.workEthic || 5, 8 + Math.round(rand() * 2));
     h.makeupGrade = Math.max(h.makeupGrade || 5, 7 + Math.round(rand() * 3));
+    syncBornSpeed(p, rand);
     return p;
+  }
+
+  // Legs are born, not developed (1.3.0): whenever a post-mint ceiling
+  // pass touches a hitter's speed ceiling (the anointment, the hidden
+  // gem, the intl signing-day swing), his CURRENT follows immediately —
+  // nobody "develops into" footspeed, so a lifted speed ceiling with a
+  // pinned current would mint exactly the phantom runner the born-speed
+  // rule exists to kill. Raise-only; the aging decline owns the way down.
+  function syncBornSpeed(p, randFn) {
+    if (p.isPitcher || !p.ratings || !p.hidden || !p.hidden.ceiling) return;
+    const c = p.hidden.ceiling.speed;
+    if (c == null || p.ratings.speed == null) return;
+    const rand = randFn || Math.random;
+    const target = Math.round(clamp(c - (1 + rand() * 2), 20, 80) * 10) / 10;
+    if (p.ratings.speed < target) p.ratings.speed = target;
   }
 
   function applyArchetypeCap(p) {
@@ -652,10 +673,21 @@ window.BBGM_PLAYER_GEN = (function () {
       // tighter floor (ceiling - 10): endurance is built up early in a
       // career rather than talent-gated, so a rotation SP's current stamina
       // sits near his ceiling even when his stuff is still developing.
+      const noise = rnormal(rng, 0, 2);
+      // Speed is body-given and VISIBLE (1.3.0, user ask): a player is
+      // born roughly as fast as he'll ever be — a shade under for the
+      // youngest — so pre-peak hitters mint at their speed ceiling
+      // instead of "developing" footspeed like a skill. Post-peak keeps
+      // the generic decline path (the legs going IS aging).
+      if (!isPitcher && k === 'speed' && age < peakAge) {
+        const youthGap = age <= 16 ? 5 : age <= 17 ? 4 : age <= 18 ? 3 : age <= 20 ? 1.5 : 1;
+        ratings[k] = clamp(Math.round(Math.min(ceiling[k], ceiling[k] - youthGap + noise * 0.5) * 10) / 10, 20, 80);
+        continue;
+      }
       const floor = (isPitcher && k === 'stamina' && primaryPosition === 'SP')
         ? clamp(ceiling[k] - 8, 48, 72)
         : clamp(ceiling[k] - 25, 25, 60);
-      const cur = floor + (ceiling[k] - floor) * progressFraction + rnormal(rng, 0, 2);
+      const cur = floor + (ceiling[k] - floor) * progressFraction + noise;
       ratings[k] = clamp(Math.round(cur * 10) / 10, 20, 80);
     }
 
@@ -1152,7 +1184,7 @@ window.BBGM_PLAYER_GEN = (function () {
   }
 
   return {
-    generate, validateLeagueReadiness, assignBullpenRoles, anointGenerational,
+    generate, validateLeagueReadiness, assignBullpenRoles, anointGenerational, syncBornSpeed,
     // Exposed for the roster-management UI: position eligibility checks and
     // single-team readiness validation after user-driven roster moves.
     canPlay, aptitudeFor, syncPositions,

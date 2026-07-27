@@ -5151,6 +5151,33 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > 14 locks it (rigged towering tank ceiling: 12-week shift 0.3, was
 > ~+17). Battery 43/43 (bigboard now 28), e2e 141.
 
+> **Status note (v1.3.0):** Legs are born, not developed (user ask:
+> the run tool must never be a position player's carrying tool — "I
+> can determine if it's any good by looking, and it shouldn't be
+> moving much anyways"). Two halves. REPORTS: speed leaves the
+> best-tool machinery everywhere — band minting (draft + intl +
+> both anointed-star re-bands), the board-read discovery shift, the
+> second look, the owner-directive prospect pick, and the scout
+> blurb (the run-tool line is gone entirely; the SPD chip on the
+> card IS the read). A hitter's projected-ceiling band now anchors
+> on his best BAT tool. GENERATION: speed mints at its ceiling —
+> a shade under for the youngest (16yo ~5 under, 18yo ~3, 21+ ~1)
+> — in league gen, the draft (polish cap no longer applies to
+> legs), and July 2; post-mint ceiling lifts (gem, anointment, intl
+> signing-day/defector swings) drag current speed along via
+> syncBornSpeed, so no path re-mints the phantom runner. The
+> anointment and the hidden gem also ANCHOR on the best non-speed
+> tool now — a generational talent is never crowned for footspeed,
+> and a speed-anchored gem would be a wasted roll under speed-blind
+> bands. Aging decline still owns the way down. One-shot migration closes the
+> speed gap on non-retired hitters ≤23 (players + both prospect
+> pools + stashed re-entries; measured 318 healed on a live 2-season
+> save, worst case 30→68). Measured: draft-class worst gap 5.0/avg
+> 2.2; intl 16yo avg 4.8 under; 3-season harness line stable (4.67-
+> 4.71 R/G, SB/tm 38 flat — attempts are green-light identity, so
+> no running-game explosion). Bigboard checks 15 (now 31). Battery
+> 43/43, e2e 141.
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):
