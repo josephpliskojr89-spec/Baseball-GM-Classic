@@ -44,6 +44,12 @@ window.BBGM_UI_DRAFT = (function () {
     }
     if (widen == null) return null;
     let shift = 0;
+    // The board read discovers (0.78.0): a boarded kid's band CENTER
+    // migrates toward his true best-tool ceiling as the book thickens —
+    // the band can slide up or down while it tightens.
+    if (pool === 'draft' && SC.draftBoardShift) {
+      shift += SC.draftBoardShift(state, p);
+    }
     if (pool === 'intl' && SC.intlScoutMods) {
       // Head-scout lens (0.47.0): his reputation and region focus tighten
       // (or loosen) the band; his hidden bias SHIFTS it. The rank floor

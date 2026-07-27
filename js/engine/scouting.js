@@ -356,6 +356,39 @@ window.BBGM_SCOUT = (function () {
     return Math.max(BOARD_FLOOR[ti], BOARD_START[ti] - weeks * BOARD_SPEED[ti]);
   }
 
+  // The read RE-CENTERS as it sharpens (0.78.0, user report: boarding a
+  // kid moved his band the same way every time — a symmetric shrink
+  // around the public center, discovery-free). Weeks of committed
+  // attention pull the band's CENTER from the consensus toward the
+  // kid's true best-tool ceiling, so boarding somebody can slide his
+  // band up or down while it tightens — the movement IS the report.
+  // Deterministic per (club, kid): an early hash-seeded wobble (±3)
+  // fades as the book thickens, progress runs at tier speed and caps
+  // at 85% — nobody's book is gospel.
+  const BOARD_CONVERGE = [0.05, 0.07, 0.10, 0.14]; // truth-share per week
+  function draftBoardShift(state, p) {
+    const d = state.draft;
+    if (!d || !d.userBoard || !d.userBoard.includes(p.id)) return 0;
+    if (!p.hidden || !p.hidden.ceiling || !p.scout) return 0;
+    const team = state.league.teams.find((t) => t.id === state.meta.userTeamId);
+    const ti = tierIdx(team);
+    const added = d.boardAdded && d.boardAdded[p.id];
+    const D = window.BBGM_DATES;
+    const weeks = added ? Math.max(0, D.diffDays(added, state.meta.currentDate)) / 7 : 0;
+    const prog = Math.min(0.85, weeks * BOARD_CONVERGE[ti]);
+    let best = -Infinity;
+    for (const k in p.hidden.ceiling) {
+      if (k === 'bunting') continue;
+      const v = p.hidden.ceiling[k];
+      if (typeof v === 'number' && v > best) best = v;
+    }
+    if (!isFinite(best)) return 0;
+    const publicMid = (p.scout.ceilLo + p.scout.ceilHi) / 2;
+    const h = hashOf(team.id, p.id);
+    const wobble = (((h >>> 4) % 7) - 3) * (1 - prog);
+    return Math.round(((best - publicMid) * prog + wobble) * 10) / 10;
+  }
+
   // 0.65.0 migration helper (called from main.js): seed the board from
   // whatever the save already invested in — trip'd kids first, then
   // flagged targets, capped at 30, all stamped as boarded today. The
@@ -785,7 +818,7 @@ window.BBGM_SCOUT = (function () {
     requestTier, runScoutingOffseason,
     modeFor, report, poolView, aiDraftDiscipline, potentialBand, prospectNotes,
     targetedLooks, hasTargetedLook, medicalRead,
-    draftBoardInfo, draftBoardAdd, draftBoardRemove, draftBoardWiden, draftConvictions, draftBoardSeed,
+    draftBoardInfo, draftBoardAdd, draftBoardRemove, draftBoardWiden, draftBoardShift, draftConvictions, draftBoardSeed,
     prospectRankings, pipelineRank, intlScoutMods, pickRegrades,
     stampScoutBook, scoutBookFirstLooks,
   };

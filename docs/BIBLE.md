@@ -4985,6 +4985,25 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > phantom cover, one-move send-down, open-chair call-up,
 > cross-type picker rows).
 
+> **Status note (v0.78.0):** The board read DISCOVERS (user
+> report: boarding a prospect moved his band the same way every
+> time — a symmetric shrink around the fixed public center,
+> discovery-free and predictable). New SCOUT.draftBoardShift: a
+> boarded kid's band CENTER migrates from the public consensus
+> toward his TRUE best-tool ceiling as weeks accrue — progress
+> per week by tier ([0.05,0.07,0.10,0.14], capped at 85%:
+> nobody's book is gospel), plus a deterministic per-(club,kid)
+> hash-seeded wobble (±3) that fades as the book thickens. Bands
+> now slide up for the underrated and down for the overrated
+> WHILE tightening — the movement is the report, and My Board's
+> divergence-vs-consensus surface finally has real divergence to
+> show. Applied in poolBand for the draft pool only; intl
+> head-scout bias shifts unchanged; AI drafting (TRUTH_W blend)
+> untouched. Deterministic on re-render — no save-scum flutter.
+> Bigboard suite 27 (underrated slides +10 by week 12, overrated
+> −10, week-0 wobble bounded, deterministic, unboarded never
+> shifts).
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):
