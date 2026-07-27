@@ -6972,7 +6972,30 @@ census detector demands 35+ inherited with 80%+ stranded at ≤3.10
 seeds; the workhorse-ace count sits just above band — both inside
 the rarity-budget conversation, not pathology.
 
-### 22.10 Re-Founding Release Policy
+### 22.10 Phase-5 Valuation Loop — BUILT (dark)
+
+The AI's value currency migrates from the overall() scalar to
+OBSERVED production. trades.js now computes an in-engine WAR-lite
+(era-relative batting runs, baserunning, position, and the observed
+routed-defense chances from phase 4; pitchers by runs prevented vs
+replacement), paced to a full season over the last two years:
+- tradeValue: proven players price 55% on observed WAR, 45% on the
+  scout card; prospects stay 100% scouting shorthand (fog intact).
+- expectedAAV: proven players price half on ~$4M/win observed, half
+  on the card — flows into FA asks, AI offers, extension math, and
+  the arbitration/market machinery built on it.
+The point: the .219 glove wizard, the 96-steal table setter, and
+the 80%-strand fireman now carry their REAL value through every AI
+roster, trade, and market decision — the economy can no longer
+quietly delete an archetype it can't read. Unproven players are
+priced on scouting (fog preserved). Verified: battery 42/42,
+4-season harness with live economy (payrolls sane, trades flowing,
+a 4-WAR reliever cracking the arms leaderboard), e2e 141.
+
+Remaining for the release (§22.11): the rarity-budget decision
+(owner's taste), a 20-season observatory soak, and the flip.
+
+### 22.11 Re-Founding Release Policy
 
 Phases: (1) this dictionary + observatory · (2) generation shapes ·
 (3) sim physics from the dictionary · (4) routed defense + usage ·

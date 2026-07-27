@@ -60,7 +60,7 @@ window.BBGM_FA = (function () {
     if (p.status === 'FA' && neverPlayed) {
       return { years: 1, aav: 0.74, total: 0.74 };
     }
-    let aav = TRADES().expectedAAV(ovr, p.age);
+    let aav = TRADES().expectedAAV(ovr, p.age, p);
     // Premium positions command premiums; cautious pricing for volatile
     // archetypes (16.4).
     if (!p.isPitcher && ['SS', 'CF', 'C'].includes(p.primaryPosition)) aav *= 1.1;

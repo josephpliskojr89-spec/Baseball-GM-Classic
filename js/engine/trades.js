@@ -12,8 +12,107 @@ window.BBGM_TRADES = (function () {
 
   // Expected market AAV ($M) for a player of a given overall — used for
   // contract-burden math and FA asking prices.
-  function expectedAAV(overall, age) {
+  // ---- Observed value (re-founding phase 5, bible §22.10) ------------------
+  // The valuation currency migrates from the overall() scalar to observed
+  // production: WAR-lite from what actually happened on the field —
+  // era-relative batting runs, baserunning, position, and the routed-
+  // defense chances phase 4 records. OVR stays as scouting shorthand and
+  // carries the whole price only for the unproven.
+  const W_BB = 0.69, W_HBP = 0.72, W_1B = 0.888, W_2B = 1.271, W_3B = 1.616, W_HR = 2.101;
+  const WOBA_SCALE = 1.15;
+  const POS_ADJ = { C: 12.5, SS: 7.5, '2B': 2.5, '3B': 2.5, CF: 2.5, LF: -7.5, RF: -7.5, '1B': -12.5, DH: -17.5 };
+  let _warCtx = null;
+  let _warCalls = 0;
+
+  function wobaOf(s) {
+    const pa = s.pa || 0;
+    if (!pa) return 0;
+    const b1 = (s.h || 0) - (s.b2 || 0) - (s.b3 || 0) - (s.hr || 0);
+    const ubb = (s.bb || 0) - (s.ibb || 0);
+    return (W_BB * ubb + W_HBP * (s.hbp || 0) + W_1B * b1 + W_2B * (s.b2 || 0) +
+      W_3B * (s.b3 || 0) + W_HR * (s.hr || 0)) / pa;
+  }
+
+  function buildWarYear(players, year) {
+    const bat = { pa: 0, ab: 0, h: 0, b2: 0, b3: 0, hr: 0, bb: 0, ibb: 0, hbp: 0 };
+    const pit = { ipOuts: 0, er: 0 };
+    const posTot = {};
+    for (const id in players) {
+      const s = players[id].stats && players[id].stats[year];
+      if (!s) continue;
+      if (s.pa) for (const k in bat) bat[k] += s[k] || 0;
+      if (s.ipOuts) { pit.ipOuts += s.ipOuts; pit.er += s.er || 0; }
+      if (s.rc) {
+        const t = posTot[players[id].primaryPosition] = posTot[players[id].primaryPosition] || { rc: 0, ro: 0 };
+        t.rc += s.rc; t.ro += s.ro || 0;
+      }
+    }
+    if (bat.pa < 5000) return null; // season too young to price on
+    return { lgWoba: wobaOf(bat), lgRA9: pit.ipOuts ? (pit.er * 27 / pit.ipOuts) * 1.08 : 5.0, posTot };
+  }
+
+  function warContext() {
+    if (!_playersRef) return null;
+    let year = 0;
+    for (const id in _playersRef) {
+      const st = _playersRef[id].stats;
+      if (st) for (const y in st) { const n = +y; if (n > year) year = n; }
+    }
+    if (!year) return null;
+    if (!_warCtx || _warCtx.year !== year || (++_warCalls % 400 === 0)) {
+      _warCtx = { year, cur: buildWarYear(_playersRef, year), prev: buildWarYear(_playersRef, year - 1) };
+    }
+    return _warCtx;
+  }
+
+  function seasonWarLite(p, year, ctx) {
+    if (!ctx) return null;
+    const s = p.stats && p.stats[year];
+    if (!s) return null;
+    if (!p.isPitcher && (s.pa || 0) >= 150) {
+      const pa = s.pa;
+      const batting = ((wobaOf(s) - ctx.lgWoba) / WOBA_SCALE) * pa;
+      const running = 0.2 * (s.sb || 0) - 0.41 * (s.cs || 0);
+      const posAdj = (POS_ADJ[p.primaryPosition] || 0) * (pa / 600);
+      const pt = ctx.posTot[p.primaryPosition];
+      const glove = (s.rc && pt && pt.rc > 500)
+        ? ((s.ro || 0) - s.rc * (pt.ro / pt.rc)) * 0.8
+        : ((((p.ratings.defense || 50) + (p.ratings.arm || 50)) / 2 - 50) / 25) * 6 * (pa / 600);
+      const war = (batting + running + posAdj + glove + 20 * (pa / 600)) / 10;
+      return { war, load: pa / 600 };
+    }
+    if (p.isPitcher && (s.ipOuts || 0) >= 90) {
+      const ip = s.ipOuts / 3;
+      const ra9 = ((s.r != null ? s.r : (s.er || 0) * 1.08) * 27) / s.ipOuts;
+      const isSP = (s.gs || 0) >= Math.max(1, (s.g || 1) / 2);
+      const repRA9 = ctx.lgRA9 * (isSP ? 1.15 : 1.08);
+      return { war: ((repRA9 - ra9) * ip / 9) / 10, load: s.ipOuts / 560 };
+    }
+    return null;
+  }
+
+  // Full-season-pace observed WAR over the last two seasons, or null for
+  // the unproven (prospects, rookies, returners price on the scout card).
+  function observedWar(p) {
+    const ctx = warContext();
+    if (!ctx) return null;
+    const cur = ctx.cur && seasonWarLite(p, ctx.year, ctx.cur);
+    const prev = ctx.prev && seasonWarLite(p, ctx.year - 1, ctx.prev);
+    const pace = (r) => r.war * Math.min(2.2, 1 / Math.max(0.45, r.load));
+    if (cur && prev) return 0.55 * pace(cur) + 0.45 * pace(prev);
+    if (cur) return pace(cur);
+    if (prev) return pace(prev);
+    return null;
+  }
+
+  function expectedAAV(overall, age, p) {
     let aav = Math.max(0.74, (overall - 44) * 1.55);
+    // Phase 5: proven players price on what they DID (~$4M/win), half
+    // and half with the scout card.
+    if (p) {
+      const war = observedWar(p);
+      if (war != null) aav = aav * 0.5 + Math.max(0.74, 1.0 + war * 4.0) * 0.5;
+    }
     if (age >= 35) aav *= 0.65;
     else if (age >= 33) aav *= 0.85;
     return Math.round(aav * 10) / 10;
@@ -30,7 +129,12 @@ window.BBGM_TRADES = (function () {
     const ovr = ROSTER().overall(p);
     // Production: 45 overall ≈ fringe (TV ~10), 60 ≈ All-Star (~48),
     // 75+ ≈ superstar (75+ before youth/contract bonuses).
+    // Phase 5 (§22.10): the proven price on observed WAR-lite first,
+    // scout card second — the glove wizard and the table setter carry
+    // their real value into every AI decision built on tradeValue.
     let tv = clamp((ovr - 40) * 2.4, 0, 88);
+    const war = observedWar(p);
+    if (war != null) tv = tv * 0.45 + clamp(12 + war * 9, 0, 92) * 0.55;
 
     // Age and upside (15.3): the young get a premium, the old a discount.
     if (p.age <= 26) tv *= 1 + (27 - p.age) * 0.05;
@@ -41,7 +145,7 @@ window.BBGM_TRADES = (function () {
     tv *= 0.85 + years * 0.06;
 
     // Contract burden: cheap production is worth extra, albatrosses less.
-    const surplus = expectedAAV(ROSTER().overall(p), p.age) - ((p.contract && p.contract.annualSalary) || 0.74);
+    const surplus = expectedAAV(ROSTER().overall(p), p.age, p) - ((p.contract && p.contract.annualSalary) || 0.74);
     tv += clamp(surplus * 0.7, -18, 12);
 
     // Role and position scarcity.
@@ -731,7 +835,7 @@ window.BBGM_TRADES = (function () {
 
   return {
     tradeValue, teamValueOf, sellValueOf, keepMul, teamNeeds, needsReport, findAvailable, poolTradeBlocker,
-    expectedAAV, setPlayersRef,
+    expectedAAV, setPlayersRef, observedWar,
     evaluateProposal, suggestAddition, executeTrade, tradeNews,
     validateTradeShape, tradesAllowed, aiTradeTick,
   };
