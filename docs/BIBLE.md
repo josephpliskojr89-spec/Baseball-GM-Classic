@@ -5100,6 +5100,22 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > Applies to live saves immediately — the record book keeps what
 > already happened. Battery 42/42, e2e 141.
 
+> **Status note (v1.2.0):** Shop Him — the sell side of the Trade
+> Finder (user ask: "I don't have a way to shop my own players").
+> Any player in the user's org (26-man or farm) carries a "Shop
+> Him…" action on his card: the front office calls all 29 clubs,
+> interest gates by competitive window (contenders chase big-league
+> help, rebuilders chase youth), and interested clubs answer with
+> the same honestly-priced packages the unsolicited phone produces
+> (sellValueOf pieces, no cornerstones, 95-115% of his value). The
+> best three land as pending offers (tagged shopped, 7-day expiry,
+> exempt from the unsolicited 3-offer cap) with a market-summary
+> modal and a Review Offers jump to GM → Trades. Once per player
+> per two weeks — the league just heard the price. Closed after the
+> deadline like all trading. New shop suite 9 (honest pricing,
+> cooldown, deadline/ownership guards, farmhands shoppable);
+> battery 43/43, e2e 141.
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):

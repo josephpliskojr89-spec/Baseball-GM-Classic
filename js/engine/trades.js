@@ -775,6 +775,86 @@ window.BBGM_TRADES = (function () {
     tradeNews(state, entry);
   }
 
+  // Shop a player (1.2.0, user ask): the deliberate sell side of the
+  // Trade Finder. The front office calls every club about ONE player;
+  // interested teams answer with the same honestly-priced offers the
+  // unsolicited phone produces (sellValueOf pieces, no cornerstones,
+  // 95-115% of his value). Best three land in pendingTradeOffers.
+  // Shopping the same man again inside two weeks gets you nothing —
+  // the league just heard the price.
+  function shopPlayer(state, playerId) {
+    if (!tradesAllowed(state)) {
+      return { ok: false, reason: 'The trade market is closed until the offseason.' };
+    }
+    setPlayersRef(state.players);
+    const players = state.players;
+    const user = state.league.teams.find((t) => t.id === state.meta.userTeamId);
+    const p = players[playerId];
+    if (!p || !user || p.teamId !== user.id) {
+      return { ok: false, reason: 'He\'s not in your organization.' };
+    }
+    const today = state.meta.currentDate;
+    if (p.shoppedAt && D().diffDays(p.shoppedAt, today) < 14) {
+      return { ok: false, reason: 'The league just heard your price on him — give it two weeks.' };
+    }
+    p.shoppedAt = { ...today };
+    const targetTV = tradeValue(p);
+    const isYouth = p.status === 'minors' || p.age <= 25;
+    const bids = [];
+    for (const aiTeam of state.league.teams) {
+      if (aiTeam.id === user.id) continue;
+      // Interest gate: contenders chase big-league help, rebuilders
+      // chase youth; the wrong-profile club rarely picks up the phone.
+      const win = aiTeam.competitiveWindow;
+      const buyerFit = (win === 'contending' || win === 'win-now') && !isYouth;
+      const sellerFit = (win === 'rebuilding' || win === 'retooling') && isYouth;
+      const interest = buyerFit || sellerFit ? 0.65 : 0.20;
+      if (rand() >= interest) continue;
+      const priceOf = (q) => sellValueOf(aiTeam, q);
+      const pool = aiTeam.roster.concat(aiTeam.minors || []).map((id) => players[id])
+        .filter((q) => q && window.BBGM_INJURIES.isAvailable(q) && keepMul(aiTeam, q) < 1.35)
+        .sort((a, b) => priceOf(b) - priceOf(a));
+      let offer = null, total = 0;
+      for (let i = 0; i < pool.length; i++) {
+        const one = priceOf(pool[i]);
+        if (one >= targetTV * 0.95 && one <= targetTV * 1.15) { offer = [pool[i]]; total = one; break; }
+        for (let j = i + 1; j < pool.length; j++) {
+          const two = one + priceOf(pool[j]);
+          if (two >= targetTV * 0.98 && two <= targetTV * 1.15) { offer = [pool[i], pool[j]]; total = two; break; }
+        }
+        if (offer) break;
+      }
+      if (!offer) continue;
+      if (validateTradeShape(state, aiTeam, offer, user, [p])) continue;
+      bids.push({ team: aiTeam, pieces: offer, total });
+    }
+    bids.sort((a, b) => b.total - a.total);
+    const best = bids.slice(0, 3);
+    if (!state.pendingTradeOffers) state.pendingTradeOffers = [];
+    for (const bid of best) {
+      state.pendingTradeOffers.push({
+        id: `offer_${Date.now()}_${Math.floor(rand() * 1e6)}`,
+        date: { ...today },
+        fromTeamId: bid.team.id,
+        give: bid.pieces.map((q) => q.id),
+        get: [p.id],
+        shopped: true,
+      });
+    }
+    if (best.length) {
+      if (!state.news) state.news = [];
+      state.news.push({
+        date: { ...today },
+        body: `The front office shopped <strong>${p.name}</strong> — ` +
+              `${best.length} club${best.length !== 1 ? 's' : ''} called back. (GM → Trades)`,
+      });
+    }
+    return {
+      ok: true,
+      offers: best.map((b) => ({ abbr: b.team.abbr, names: b.pieces.map((q) => q.name) })),
+    };
+  }
+
   function tryAiOfferToUser(state) {
     const players = state.players;
     const user = state.league.teams.find((t) => t.id === state.meta.userTeamId);
@@ -834,7 +914,7 @@ window.BBGM_TRADES = (function () {
   }
 
   return {
-    tradeValue, teamValueOf, sellValueOf, keepMul, teamNeeds, needsReport, findAvailable, poolTradeBlocker,
+    tradeValue, teamValueOf, sellValueOf, keepMul, teamNeeds, needsReport, findAvailable, poolTradeBlocker, shopPlayer,
     expectedAAV, setPlayersRef, observedWar,
     evaluateProposal, suggestAddition, executeTrade, tradeNews,
     validateTradeShape, tradesAllowed, aiTradeTick,

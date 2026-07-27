@@ -193,7 +193,45 @@ window.BBGM_UI_PLAYER = (function () {
         }, 0);
         return true;
       }});
-    } else if (opts.discussTrade && !p.retired && p.teamId && userTeam &&
+    }
+    // Shop Him (1.2.0): the sell side of the Trade Finder, card-first
+    // like everything else — any player in YOUR org can be dangled, and
+    // interested clubs call back with real offers.
+    if (userTeam && !p.retired && p.teamId === userTeam.id &&
+        (userTeam.roster.includes(p.id) || (userTeam.minors || []).includes(p.id)) &&
+        window.BBGM_TRADES && window.BBGM_TRADES.shopPlayer) {
+      actions.push({ label: 'Shop Him…', kind: 'secondary', onClick: () => {
+        setTimeout(() => {
+          const s = window.BBGM_STATE.get();
+          const res = window.BBGM_TRADES.shopPlayer(s, p.id);
+          if (!res.ok) {
+            U.showToast(res.reason, 'warning', 4000);
+            return;
+          }
+          window.BBGM_STATE.set(s);
+          window.BBGM_MAIN.refresh();
+          if (!res.offers.length) {
+            U.showToast(`You shopped ${p.name} around the league — nobody bit at the price.`, 'info', 4500);
+            return;
+          }
+          U.showModal({
+            title: `The market on ${p.name}`,
+            body: U.el('div', {}, res.offers.map((o) =>
+              U.el('p', { style: { 'font-size': '13px', margin: '6px 0' } },
+                `${o.abbr} would send ${o.names.join(' and ')}.`))),
+            actions: [
+              { label: 'Later', kind: 'secondary', onClick: () => true },
+              { label: 'Review Offers', kind: 'primary', onClick: () => {
+                setTimeout(() => window.BBGM_MAIN.navigate('gm', { tab: 'trades' }), 0);
+                return true;
+              }},
+            ],
+          });
+        }, 0);
+        return true;
+      }});
+    }
+    if (opts.discussTrade && !p.retired && p.teamId && userTeam &&
         p.teamId !== userTeam.id && window.BBGM_UI_FRONTOFFICE &&
         window.BBGM_UI_FRONTOFFICE.startTradeFor) {
       // Trade Finder flow (0.35.0): review the profile first, then jump
