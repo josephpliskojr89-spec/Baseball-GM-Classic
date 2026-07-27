@@ -1180,7 +1180,7 @@ window.BBGM_SIM = (function () {
       // flies. This is what puts the .240 in .240/.370/.520.
       // The routed infielder's range: ±12-15 runs/season at a premium
       // position across the glove scale (§22.3).
-      let hitProb = 0.241 + grade(batterSpeed) * 0.04 + dslope(grade(contact), 0.012, 0.016)
+      let hitProb = 0.247 + grade(batterSpeed) * 0.04 + dslope(grade(contact), 0.012, 0.016)
         - grade(movement) * 0.018 - Math.max(0, grade(power)) * 0.020;
       hitProb *= parkHitsFactor * bipHitMul;
       hitProb -= fldG * 0.038;
@@ -1194,7 +1194,7 @@ window.BBGM_SIM = (function () {
     if (bbType === 'line') {
       // Line drives: target ~ .65 hit rate. Range barely matters on a
       // rope — reaction play.
-      let hitProb = 0.664 + grade(contact) * 0.03;
+      let hitProb = 0.678 + grade(contact) * 0.03;
       hitProb *= parkHitsFactor * bipHitMul;
       hitProb -= fldG * 0.018;
       if (Math.random() < hitProb) {
@@ -1232,7 +1232,7 @@ window.BBGM_SIM = (function () {
         if (Math.random() < 0.08) return { kind: '3B', ...tag };
         return { kind: '2B', ...tag };
       }
-      const singleProb = (0.073 + dslope(grade(contact), 0.014, 0.020)) * swingTax * bipHitMul * ofRange;
+      const singleProb = (0.076 + dslope(grade(contact), 0.014, 0.020)) * swingTax * bipHitMul * ofRange;
       if (Math.random() < singleProb) return { kind: '1B', ...tag };
       return { kind: 'OUT', ...tag };
     }
@@ -1562,7 +1562,7 @@ window.BBGM_SIM = (function () {
       // Quick-hook managers don't chase complete games. This is what
       // puts the CG leader at 3-6 instead of handing 4.30-ERA innings
       // eaters eight of them.
-      if (pull && quickHook <= 4 && inning >= 8 && runsAllowed <= 1 && Math.abs(margin) <= 2 &&
+      if (pull && quickHook <= 4 && inning >= 9 && runsAllowed <= 1 && Math.abs(margin) <= 2 &&
           pitches < pitchCeiling(stamina) - 12 && stamina >= 66 && traffic <= ip * 1.2) {
         pull = false;
       }

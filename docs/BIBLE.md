@@ -6703,13 +6703,17 @@ contact quality (line-drive share).
 
 | grade | K% | BA (tools-neutral) |
 |---|---|---|
-| 20 | 33% | .195 |
-| 30 | 27% | .218 |
-| 40 | 22% | .240 |
-| 50 | 17.5% | .262 |
-| 60 | 13% | .285 |
-| 70 | 10% | .308 |
-| 80 | 7.5% | .330 |
+| 20 | 33% | .201 |
+| 30 | 27% | .224 |
+| 40 | 22% | .246 |
+| 50 | 17.5% | .268 |
+| 60 | 13% | .291 |
+| 70 | 10% | .314 |
+| 80 | 7.5% | .341 |
+
+(BA scale re-centered +.006 at release-gate iteration 2: the mature
+re-founded population's matchup mean sat below the old anchors and
+the league drifted toward 1968 — see §22.11.)
 
 **Power** — game power: HR per fly ball, extra-base share, and a
 fly-ball tilt to the batted-ball mix.
