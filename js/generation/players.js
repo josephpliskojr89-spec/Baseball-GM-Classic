@@ -304,7 +304,7 @@ window.BBGM_PLAYER_GEN = (function () {
     const { primaryPosition, secondaryPositions, isPitcher } = resolvePositions(rng, slotPos);
 
     // Ratings
-    const { ratings, ceiling, archetype, growth } = generateRatings(rng, { primaryPosition, isPitcher, age, tier, isProspect });
+    const { ratings, ceiling, archetype, growth, shape, greenLight } = generateRatings(rng, { primaryPosition, isPitcher, age, tier, isProspect });
 
     // Bats / throws
     const throws = isPitcher ? (rng() < 0.28 ? 'L' : 'R') : (rng() < 0.18 ? 'L' : 'R');
@@ -338,6 +338,8 @@ window.BBGM_PLAYER_GEN = (function () {
     const hidden = {
       ceiling,
       archetype,
+      shape,
+      ...(greenLight != null ? { greenLight } : {}),
       injuryProneness: rint(rng, 1, 10),
       // Overachievers grind by definition — the climb IS a makeup story,
       // so their hidden work ethic never rolls the bottom of the scale.
@@ -456,6 +458,68 @@ window.BBGM_PLAYER_GEN = (function () {
     return { primaryPosition, secondaryPositions, isPitcher };
   }
 
+  // ---- Shapes (re-founding phase 2, bible §22) -----------------------------
+  // A shape redistributes a player's tier-given talent across his tools —
+  // zero-sum-ish, so star scarcity holds while the correlated-superstar
+  // signature dies. Shape is identity, minted once, hidden; it stacks
+  // with the development archetype (which is a career PATH, not a tool
+  // layout). Deltas apply to CEILINGS; 'contact'/'power' expand to the
+  // VsR/VsL pair.
+  const HITTER_SHAPES = [
+    { key: 'balanced', weight: 30, d: {} },
+    { key: 'slugger', weight: 13, d: { power: 8, discipline: 2, contact: -6 },
+      corner: 1.8, middle: 0.5 },
+    { key: 'tto_monster', weight: 4, d: { power: 11, discipline: 7, contact: -11, bunting: -6 },
+      corner: 1.8, middle: 0.5 },
+    { key: 'contact_artist', weight: 12, d: { contact: 8, power: -7, discipline: 1, bunting: 5 } },
+    { key: 'table_setter', weight: 9, d: { contact: 5, power: -9, discipline: 2, speed: 9, bunting: 6 },
+      corner: 0.4, middle: 1.8 },
+    { key: 'glove_wizard', weight: 10, d: { defense: 9, arm: 5, contact: -4, power: -5 },
+      corner: 0.4, middle: 2.0, catcher: 2.2 },
+    { key: 'professional', weight: 9, d: { discipline: 6, contact: 2, power: -3 } },
+    { key: 'toolshed', weight: 5, d: { power: 5, arm: 4, speed: 5, discipline: -8, contact: -2 } },
+  ];
+  const PITCHER_SHAPES = [
+    { key: 'balanced', weight: 26, d: {} },
+    { key: 'power_arm', weight: 13, d: { velocity: 8, stuff: 5, control: -6, movement: -3 },
+      pen: 1.4 },
+    { key: 'wild_flamethrower', weight: 5, d: { velocity: 11, stuff: 6, control: -12, movement: -2 },
+      pen: 1.7 },
+    { key: 'command_artist', weight: 12, d: { control: 9, movement: 4, velocity: -8, stuff: -2 } },
+    { key: 'sinkerballer', weight: 12, d: { movement: 9, control: 3, stuff: -6, velocity: -4 } },
+    { key: 'strikeout_artist', weight: 8, d: { stuff: 9, movement: 2, velocity: 2, control: -6 } },
+    { key: 'workhorse', weight: 8, d: { stamina: 8, control: 3, stuff: -4, velocity: -3 },
+      pen: 0.25 },
+  ];
+
+  function pickShape(rng, isPitcher, pos) {
+    const defs = isPitcher ? PITCHER_SHAPES : HITTER_SHAPES;
+    const isCorner = pos === '1B' || pos === 'LF' || pos === 'RF' || pos === 'DH';
+    const isMiddle = pos === '2B' || pos === 'SS' || pos === 'CF';
+    const isPen = pos === 'RP' || pos === 'CP';
+    const wOf = (s) => {
+      let w = s.weight;
+      if (!isPitcher) {
+        if (isCorner && s.corner != null) w *= s.corner;
+        if (isMiddle && s.middle != null) w *= s.middle;
+        if (pos === 'C' && s.catcher != null) w *= s.catcher;
+      } else if (isPen && s.pen != null) w *= s.pen;
+      return w;
+    };
+    let total = 0;
+    for (const s of defs) total += wOf(s);
+    let r = rng() * total;
+    for (const s of defs) { r -= wOf(s); if (r <= 0) return s; }
+    return defs[0];
+  }
+
+  function shapeDelta(shape, key) {
+    const d = shape.d || {};
+    if (key === 'contactVsR' || key === 'contactVsL') return d.contact || 0;
+    if (key === 'powerVsR' || key === 'powerVsL') return d.power || 0;
+    return d[key] || 0;
+  }
+
   function generateRatings(rng, opts) {
     const { primaryPosition, isPitcher, age, tier, isProspect } = opts;
 
@@ -470,6 +534,10 @@ window.BBGM_PLAYER_GEN = (function () {
       ? ['stamina', 'velocity', 'movement', 'control', 'stuff']
       : ['contactVsR', 'contactVsL', 'powerVsR', 'powerVsL', 'discipline', 'speed', 'bunting', 'defense', 'arm'];
 
+    // Shape first (re-founding phase 2): the tool layout is identity,
+    // decided before any dice so the tier draw distributes THROUGH it.
+    const shape = pickShape(rng, isPitcher, primaryPosition);
+
     const ceiling = {};
     for (const k of ratingKeys) {
       let c = clamp(rnormal(rng, ceilingMean, ceilingStdev), 30, 80);
@@ -479,6 +547,8 @@ window.BBGM_PLAYER_GEN = (function () {
       } else {
         c = pitcherRoleAdjust(rng, primaryPosition, k, c);
       }
+      // Shape deltas (speed's applies after its independent redraw below).
+      if (k !== 'speed') c = clamp(c + shapeDelta(shape, k), 25, 80);
       ceiling[k] = Math.round(c * 10) / 10;
     }
 
@@ -492,6 +562,7 @@ window.BBGM_PLAYER_GEN = (function () {
         clamp(rnormal(rng, 51, 9), 28, 80));
       const powC = (ceiling.powerVsR + ceiling.powerVsL) / 2;
       if (rng() > 0.06) spd -= Math.max(0, (powC - 52) * 0.35);
+      spd += shapeDelta(shape, 'speed');
       ceiling.speed = Math.round(clamp(spd, 25, 80) * 10) / 10;
     }
 
@@ -569,7 +640,18 @@ window.BBGM_PLAYER_GEN = (function () {
       ratings[k] = clamp(Math.round(cur * 10) / 10, 20, 80);
     }
 
-    return { ratings, ceiling, archetype, growth };
+    // Green light (§22.3 speed): steal AGGRESSION is identity, not implied
+    // by the grade. A burner without the light jogs; a 55-speed pest with
+    // a 9 runs 40 times. Sim consumes it in phase 3; minted now so every
+    // player born under the re-founding carries it.
+    let greenLight = null;
+    if (!isPitcher) {
+      const shapeKick = shape.key === 'table_setter' ? 3 : shape.key === 'toolshed' ? 1
+        : (shape.key === 'slugger' || shape.key === 'tto_monster') ? -2 : 0;
+      greenLight = clamp(Math.round((ceiling.speed - 48) / 4 + shapeKick + rnormal(rng, 0, 1.5)), 0, 10);
+    }
+
+    return { ratings, ceiling, archetype, growth, shape: shape.key, greenLight };
   }
 
   function positionAdjust(rng, pos, ratingKey, c) {

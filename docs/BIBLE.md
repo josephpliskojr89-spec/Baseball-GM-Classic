@@ -6868,7 +6868,42 @@ monsters 0.0/yr. WAR-lite: top bat 9.6 vs top arm 6.3, 61 players at
 4+. That table is the before picture the re-founding is judged
 against.
 
-### 22.7 Re-Founding Release Policy
+### 22.7 Generation Shapes (phase 2 — BUILT, dark)
+
+A shape is a hidden tool LAYOUT minted once at creation, orthogonal
+to the development archetype (which is a career path). Shape deltas
+redistribute the tier-given ceiling draw zero-sum-ish, so star
+scarcity holds while the correlated-superstar signature dies (hitter
+ceiling corr(contact, power) measured 0.10 post-shapes, from ~0.5).
+Weights are position-aware (glove wizards cluster up the middle,
+sluggers in the corners, wild flamethrowers in the pen).
+
+Hitters: balanced 30 · slugger 13 (+8 pow/−6 con) · tto_monster 4
+(+11 pow/+7 disc/−11 con) · contact_artist 12 (+8 con/−7 pow) ·
+table_setter 9 (+9 spd/+5 con/−9 pow) · glove_wizard 10 (+9 def/+5
+arm/−4 con/−5 pow) · professional 9 (+6 disc) · toolshed 5 (loud
+tools, −8 disc). Pitchers: balanced 26 · power_arm 13 (+8 velo/−6
+ctl) · wild_flamethrower 5 (+11 velo/−12 ctl) · command_artist 12
+(+9 ctl/−8 velo) · sinkerballer 12 (+9 mvt/−6 stf) ·
+strikeout_artist 8 (+9 stf/−6 ctl) · workhorse 8 (+8 sta).
+
+**Green light** (`hidden.greenLight`, 0-10, hitters): steal
+aggression as identity per §22.3 — derived from speed ceiling plus
+shape kick (table setters run, sluggers don't), with real spread so
+70-speed station-to-station guys exist. Consumed by the sim in
+phase 3.
+
+Shapes apply everywhere players are born (league gen, draft, intl —
+the draft slot lift is a uniform shift and preserves layouts).
+Verified by scratchpad/shapes_probe.js: shape census, decorrelation,
+extreme-layout existence (~9 TTO / ~6 wild-velo / ~14 glove-no-bat
+layouts per league), star pyramid 94/33/11 day-one, green-light
+spread. First census under shapes (3-season harness): the table
+setter EXISTS (.324/12 HR/45 SB season observed); TTO still 0.0/yr
+awaiting phase-3 physics — the layout is minted, the sim can't
+express it yet.
+
+### 22.8 Re-Founding Release Policy
 
 Phases: (1) this dictionary + observatory · (2) generation shapes ·
 (3) sim physics from the dictionary · (4) routed defense + usage ·
