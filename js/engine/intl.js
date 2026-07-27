@@ -133,10 +133,12 @@ window.BBGM_INTL = (function () {
   // vs a realistic ~15-20. The top-5 legends stay nearly untouched;
   // ranks 6-15 drop out of the star band into high-regular territory.
   function ceilingTargetFor(rank) {
-    if (rank <= 5) return rfloat(71, 79);
-    if (rank <= 15) return rfloat(55, 65);
-    if (rank <= 30) return rfloat(48, 58);
-    return rfloat(40, 52);
+    // Re-founding pipeline re-center (§22.11) — same +3/+2 as the draft
+    // bands: the best-tool anchor lifts less under phase-2 tool spread.
+    if (rank <= 5) return rfloat(74, 82);
+    if (rank <= 15) return rfloat(58, 68);
+    if (rank <= 30) return rfloat(50, 60);
+    return rfloat(42, 54);
   }
 
   // Expected signing bonus by rank ($M) — the "preferred range" AI bids

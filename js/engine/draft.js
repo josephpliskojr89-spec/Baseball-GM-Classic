@@ -85,13 +85,20 @@ window.BBGM_DRAFT = (function () {
   // that fed the surplus. Soak-tuned: 14-year plateau lands 60-90 at
   // 55+ OVR.
   function ceilingTargetFor(slot, strength) {
+    // Re-founding pipeline re-center (§22.11): the slot lift anchors on
+    // the BEST tool, and phase-2's wider within-player spread pushes the
+    // best tool further above the rest — so the same targets lifted the
+    // other tools ~3-4 points less and the 26-man pyramid deflated into
+    // a 1968 pitching era over two decades (20-season soak: 46 at 55+
+    // vs ~87 founding, R/G 4.28→3.95 monotone). Bands +3 up top, +2/+1
+    // deep, restore the founding pyramid THROUGH the spread.
     let lo, hi, w;
-    if (slot <= 5)        { lo = 68; hi = 79; w = 2.5; }
-    else if (slot <= 30)  { lo = 56; hi = 68; w = 2.0; }
-    else if (slot <= 60)  { lo = 51; hi = 61; w = 1.25; }
-    else if (slot <= 150) { lo = 48; hi = 58; w = 0.6; }
-    else                  { lo = 45; hi = 55; w = 0.3; }
-    return clamp(rfloat(lo, hi) + strength * w, 42, 82);
+    if (slot <= 5)        { lo = 71; hi = 82; w = 2.5; }
+    else if (slot <= 30)  { lo = 59; hi = 71; w = 2.0; }
+    else if (slot <= 60)  { lo = 54; hi = 64; w = 1.25; }
+    else if (slot <= 150) { lo = 50; hi = 60; w = 0.6; }
+    else                  { lo = 46; hi = 56; w = 0.3; }
+    return clamp(rfloat(lo, hi) + strength * w, 42, 84);
   }
 
   function rollSlotPos() {
