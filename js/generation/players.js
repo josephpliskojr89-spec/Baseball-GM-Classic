@@ -483,8 +483,8 @@ window.BBGM_PLAYER_GEN = (function () {
     { key: 'balanced', weight: 26, d: {} },
     { key: 'power_arm', weight: 13, d: { velocity: 8, stuff: 5, control: -6, movement: -3 },
       pen: 1.4 },
-    { key: 'wild_flamethrower', weight: 5, d: { velocity: 11, stuff: 6, control: -12, movement: -2 },
-      pen: 1.7 },
+    { key: 'wild_flamethrower', weight: 4, d: { velocity: 11, stuff: 6, control: -12, movement: -2 },
+      pen: 1.5 },
     { key: 'command_artist', weight: 12, d: { control: 9, movement: 4, velocity: -8, stuff: -2 } },
     { key: 'sinkerballer', weight: 12, d: { movement: 9, control: 3, stuff: -6, velocity: -4 } },
     { key: 'strikeout_artist', weight: 8, d: { stuff: 9, movement: 2, velocity: 2, control: -6 } },
@@ -492,13 +492,19 @@ window.BBGM_PLAYER_GEN = (function () {
       pen: 0.25 },
   ];
 
-  function pickShape(rng, isPitcher, pos) {
+  function pickShape(rng, isPitcher, pos, tier) {
     const defs = isPitcher ? PITCHER_SHAPES : HITTER_SHAPES;
     const isCorner = pos === '1B' || pos === 'LF' || pos === 'RF' || pos === 'DH';
     const isMiddle = pos === '2B' || pos === 'SS' || pos === 'CF';
     const isPen = pos === 'RP' || pos === 'CP';
+    const highTier = tier === 'star' || tier === 'plus';
     const wOf = (s) => {
       let w = s.weight;
+      // Shape-first stardom (§22.8): a 70-flat "balanced star" under
+      // honest slopes is the same MVP card thirty times over. Stars are
+      // defined by carrying tools; the true five-tool inner-circle guy
+      // stays possible but rare.
+      if (highTier && s.key === 'balanced') w *= 0.4;
       if (!isPitcher) {
         if (isCorner && s.corner != null) w *= s.corner;
         if (isMiddle && s.middle != null) w *= s.middle;
@@ -541,7 +547,10 @@ window.BBGM_PLAYER_GEN = (function () {
 
     // Shape first (re-founding phase 2): the tool layout is identity,
     // decided before any dice so the tier draw distributes THROUGH it.
-    const shape = pickShape(rng, isPitcher, primaryPosition);
+    // High tiers push their shape harder — stardom IS the carrying
+    // tools (§22.8), so a star slugger is Sosa, not a flat 70.
+    const shape = pickShape(rng, isPitcher, primaryPosition, tier);
+    const shapeMul = tier === 'star' ? 1.5 : tier === 'plus' ? 1.25 : 1;
 
     const ceiling = {};
     for (const k of ratingKeys) {
@@ -558,7 +567,7 @@ window.BBGM_PLAYER_GEN = (function () {
         c = pitcherRoleAdjust(rng, primaryPosition, k, c);
       }
       // Shape deltas (speed's applies after its independent redraw below).
-      if (k !== 'speed') c = clamp(c + shapeDelta(shape, k), 25, 80);
+      if (k !== 'speed') c = clamp(c + shapeDelta(shape, k) * shapeMul, 25, 80);
       ceiling[k] = Math.round(c * 10) / 10;
     }
 
@@ -572,7 +581,7 @@ window.BBGM_PLAYER_GEN = (function () {
         clamp(rnormal(rng, 51, 9), 28, 80));
       const powC = (ceiling.powerVsR + ceiling.powerVsL) / 2;
       if (rng() > 0.06) spd -= Math.max(0, (powC - 52) * 0.35);
-      spd += shapeDelta(shape, 'speed');
+      spd += shapeDelta(shape, 'speed') * shapeMul;
       ceiling.speed = Math.round(clamp(spd, 25, 80) * 10) / 10;
     }
 

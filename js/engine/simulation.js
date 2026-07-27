@@ -1034,11 +1034,11 @@ window.BBGM_SIM = (function () {
     const bbBase = batter.isPitcher ? 0.075 : 0.0725;
     let fear = 0;
     if (!batter.isPitcher) {
-      fear = Math.max(0, grade(power)) * 0.014;
+      fear = Math.max(0, grade(power)) * 0.013;
       if (situ && situ.openBase) fear *= 1.6;
       if (situ && situ.lateClose) fear *= 1.3;
     }
-    const bbAdj = -dslope(grade(control), 0.042, 0.035) + dslope(grade(discipline), 0.044, 0.060) + fear;
+    const bbAdj = -dslope(grade(control), 0.042, 0.035) + dslope(grade(discipline), 0.044, 0.056) + fear;
     const bbProb = clamp(bbBase + bbAdj, 0.015, 0.30);
 
     // HBP: ~1%
@@ -1061,7 +1061,7 @@ window.BBGM_SIM = (function () {
     const battedBallRoll = Math.random();
     const flyRate = clamp(0.34 + grade(power) * 0.05 - grade(movement) * 0.03, 0.20, 0.52);
     const grounderRate = clamp(0.42 + grade(movement) * 0.04 - grade(power) * 0.035, 0.28, 0.56);
-    const lineRate = clamp(0.20 + dslope(grade(contact), 0.022, 0.030), 0.10, 0.34);
+    const lineRate = clamp(0.20 + dslope(grade(contact), 0.022, 0.027), 0.10, 0.34);
     let bbType;
     if (battedBallRoll < flyRate) bbType = 'fly';
     else if (battedBallRoll < flyRate + grounderRate) bbType = 'ground';
@@ -1088,7 +1088,7 @@ window.BBGM_SIM = (function () {
       // Swing trade (§22.3): plus power sells contact quality — the
       // all-or-nothing cut rolls over on grounders and gets under
       // flies. This is what puts the .240 in .240/.370/.520.
-      let hitProb = 0.241 + grade(batterSpeed) * 0.04 + dslope(grade(contact), 0.012, 0.018)
+      let hitProb = 0.241 + grade(batterSpeed) * 0.04 + dslope(grade(contact), 0.012, 0.016)
         - grade(movement) * 0.018 - Math.max(0, grade(power)) * 0.020;
       hitProb *= parkHitsFactor * bipHitMul * defRangeMul;
       if (Math.random() < hitProb) {
@@ -1121,7 +1121,7 @@ window.BBGM_SIM = (function () {
       // scale is a genuine monster, not a protected league line. Slope
       // is piecewise: absent power dies quicker than plus power grows.
       const hrBase = 0.108;
-      const hrAdj = dslope(grade(power), 0.08, 0.12);
+      const hrAdj = dslope(grade(power), 0.08, 0.105);
       const hrFloor = batter.isPitcher ? 0.002 : 0.02;
       let hrProb = clamp((hrBase + hrAdj) * parkHRFactor, hrFloor, 0.50);
       if (batter.isPitcher) hrProb *= 0.5; // pitchers run into one rarely
@@ -1134,7 +1134,7 @@ window.BBGM_SIM = (function () {
         if (Math.random() < 0.08) return { kind: '3B', battedBall: bbType };
         return { kind: '2B', battedBall: bbType };
       }
-      const singleProb = (0.073 + dslope(grade(contact), 0.014, 0.022)) * swingTax * bipHitMul * defRangeMul;
+      const singleProb = (0.073 + dslope(grade(contact), 0.014, 0.020)) * swingTax * bipHitMul * defRangeMul;
       if (Math.random() < singleProb) return { kind: '1B', battedBall: bbType };
       return { kind: 'OUT', battedBall: bbType };
     }

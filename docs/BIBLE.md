@@ -6933,6 +6933,18 @@ the physics. CG (~40/yr with 3+) and 100-IP relief floods are usage
 problems owned by phase 4. Glove-first regulars stuck at ~1.5/yr
 until phase 4 defense gives the archetype its value.
 
+Convergence round (same phase): shape-first stardom landed (balanced
+weight ×0.4 at star/plus tiers, shape deltas ×1.5/×1.25) plus a
+final trim of the top slopes. Post-convergence census: correlated
+sameness is dead — 40-HR seasons ~11/yr as DIVERSE cards
+(.253/40/85 TTO, .310/43 slugger, one .348/61 transcendent season),
+100-BB ~13, .330 ~7, all pitcher talent lines in-band (wild
+flamethrower ~2, K monster ~3.5, lights-out ~2.8, crafty vet
+alive). The remaining big-bat overage is a RARITY-BUDGET taste
+call, not a defect — bands marked provisional in the observatory,
+owner decides at release. League line emergent: R/G ~4.2-4.4, K%
+~18.2, BB% ~9, ERA ~4.1.
+
 ### 22.9 Re-Founding Release Policy
 
 Phases: (1) this dictionary + observatory · (2) generation shapes ·

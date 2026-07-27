@@ -72,15 +72,18 @@ function eraLine(W, state, year) {
 const DETECTORS = [
   { key: 'ttoMonster', label: 'TTO monster (35+ HR, 85+ BB, <=.255)', expect: [0, 3], hitter: true,
     test: (s, x) => s.pa >= 500 && (s.hr || 0) >= 35 && (s.bb || 0) >= 85 && x.avg <= 0.255 },
-  { key: 'slugger40', label: '40-homer season', expect: [0, 3], hitter: true,
+  // Bands for the big-bat lines are PROVISIONAL (§22.8): the physics
+  // produces ~7-13/yr with healthy shape diversity; the final rarity
+  // budget is the owner's taste call at the re-founding release.
+  { key: 'slugger40', label: '40-homer season', expect: [2, 10], hitter: true,
     test: (s) => s.pa >= 500 && (s.hr || 0) >= 40 },
-  { key: 'walkMachine', label: '100-walk season', expect: [0, 4], hitter: true,
+  { key: 'walkMachine', label: '100-walk season', expect: [2, 10], hitter: true,
     test: (s) => s.pa >= 500 && (s.bb || 0) >= 100 },
   { key: 'tableSetter', label: 'table setter (.300+, 35+ SB, <=12 HR)', expect: [0, 3], hitter: true,
     test: (s, x) => s.pa >= 500 && x.avg >= 0.300 && (s.sb || 0) >= 35 && (s.hr || 0) <= 12 },
   { key: 'burner', label: '45-steal season', expect: [0, 3], hitter: true,
     test: (s) => s.pa >= 500 && (s.sb || 0) >= 45 },
-  { key: 'avgKing', label: '.330 batting title chase', expect: [0, 3], hitter: true,
+  { key: 'avgKing', label: '.330 batting title chase', expect: [1, 6], hitter: true,
     test: (s, x) => s.pa >= 500 && x.avg >= 0.330 },
   { key: 'solidRegular', label: 'solid regular (20-29 HR, .250-.279)', expect: [6, 30], hitter: true,
     test: (s, x) => s.pa >= 500 && (s.hr || 0) >= 20 && (s.hr || 0) <= 29 && x.avg >= 0.250 && x.avg <= 0.279 },
