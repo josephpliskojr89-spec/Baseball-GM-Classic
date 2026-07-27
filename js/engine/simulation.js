@@ -114,8 +114,9 @@ window.BBGM_SIM = (function () {
     // (per-PA estimates — see pitchesForPA). entryMargins / exitMargins
     // record the score margin when each pitcher entered / left, used for
     // hold and blown-save accounting in assignPitcherDecisions.
-    // defenseAvg is the lineup's average defense rating (bible 7.6): it
-    // scales BIP hit rates, error rates, and double-play conversion.
+    // defenseAvg is the lineup's average defense rating — since phase 4
+    // routed defense, only a FALLBACK grade for balls without a routed
+    // fielder (pitcher-fielded grounders, probe seams, degenerate maps).
     // recordPid / lossPid track the pitcher of record: set in chargeRun
     // whenever a side takes the lead (see assignPitcherDecisions).
     const teamState = {
@@ -1134,10 +1135,8 @@ window.BBGM_SIM = (function () {
     // Pitchers batting make weak contact beyond what the rating grades
     // capture — scale their BIP hit chances down to land near .130 BA.
     const bipHitMul = batter.isPitcher ? 0.82 : 1;
-    // Defensive range (bible 7.6): better team defense converts more balls
-    // in play into outs. ±2-3% relative BABIP swing across typical teams.
-    // (0.79.0 team defRangeMul removed in phase 4 — range now belongs to
-    // the routed individual fielder below.)
+    // Range belongs to the routed individual fielder below (§22.5 law 4);
+    // the old team-average BABIP multiplier is gone.
     // Determine batted ball type.
     const battedBallRoll = Math.random();
     const flyRate = clamp(0.34 + grade(power) * 0.05 - grade(movement) * 0.03, 0.20, 0.52);
@@ -1355,7 +1354,7 @@ window.BBGM_SIM = (function () {
   // first base open, a runner in scoring position, the game close enough
   // that the run at the plate matters, and a clear step down to the man
   // on deck (the pitcher due up next is the era's automatic green light).
-  // Calibrated to 2001: ~46 IBB/team-season (~0.28 per team-game). The
+  // Classic-flavor rate: ~46 IBB/team-season (~0.28 per team-game). The
   // probability scales steeply with both the batter-vs-on-deck gap AND
   // the batter's absolute menace, so a generational monster draws
   // Bonds-type totals while an ordinary cleanup man only gets the free

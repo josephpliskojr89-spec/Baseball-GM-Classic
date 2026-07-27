@@ -15,7 +15,6 @@ window.BBGM_AWARDS = (function () {
     while (v === 0) v = rand();
     return mean + sd * Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
   }
-  function rint(a, b) { return a + Math.floor(rand() * (b - a + 1)); }
   function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, v)); }
 
   function ensureAch(p) {

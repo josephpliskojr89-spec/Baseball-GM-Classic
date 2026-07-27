@@ -1164,6 +1164,15 @@ Pools are recalculated and assigned each year on November 1 based on the just-co
 
 ## 7. Simulation Engine
 
+> **SUPERSEDED at v1.0.0 (the re-founding):** this section describes
+> the original calibrated engine — league-average rates as targets
+> with player nudges. The engine now implements the grade dictionary
+> (§22): the 20-80 scale is ground truth, the league line is an
+> output, batted balls route to individual fielders, and the
+> observatory replaces calibration. §7 remains as design history and
+> for structures §22 doesn't restate (inning flow, box scoring,
+> stamina tiers, park factors). Where the two disagree, §22 wins.
+
 ### 7.1 Engine Philosophy
 
 The simulation engine is the heart of the project. Its job: take two teams with rated players and produce game outcomes that aggregate to realistic season-long stats, while making different player archetypes meaningfully valuable.

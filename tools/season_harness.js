@@ -405,15 +405,15 @@ console.log('games:', totalGames, '| sim errors:', simErrors, simErrorMessages.l
 console.log('home win pct:', pct(homeWins / totalGames));
 console.log('R/G per team: EAST', (runsByLeague.east / gamesByLeague.east).toFixed(2),
   'WEST', (runsByLeague.west / gamesByLeague.west).toFixed(2),
-  'ALL', ((runsByLeague.east + runsByLeague.west) / (gamesByLeague.east + gamesByLeague.west)).toFixed(2), '(target 4.7)');
+  'ALL', ((runsByLeague.east + runsByLeague.west) / (gamesByLeague.east + gamesByLeague.west)).toFixed(2), '(emergent — see observatory)');
 console.log('--- League batting (position players | incl. pitcher hitting) ---');
-console.log('BA', S.avg(hitTot).toFixed(3), '|', S.avg(leagueBatTot).toFixed(3), '(t .265)',
-  '| OBP', S.obp(hitTot).toFixed(3), '|', S.obp(leagueBatTot).toFixed(3), '(t .328)',
-  '| SLG', S.slg(hitTot).toFixed(3), '|', S.slg(leagueBatTot).toFixed(3), '(t .425)');
-console.log('K%', pct(hitTot.k / hitTot.pa), '(t 17%) | BB%', pct(hitTot.bb / hitTot.pa), '(t 8.5%) | HR%', pct(hitTot.hr / hitTot.pa), '(t 2.8%)');
-// PA volume (0.26.0 — 2001 calibration): league PA per team-game, ALL
-// batters including pitchers hitting. 2001 MLB: 38.3. This is what caps
-// season AB/PA extremes at real-record levels (716 AB / 778 PA).
+console.log('BA', S.avg(hitTot).toFixed(3), '|', S.avg(leagueBatTot).toFixed(3),
+  '| OBP', S.obp(hitTot).toFixed(3), '|', S.obp(leagueBatTot).toFixed(3),
+  '| SLG', S.slg(hitTot).toFixed(3), '|', S.slg(leagueBatTot).toFixed(3),);
+console.log('K%', pct(hitTot.k / hitTot.pa), '| BB%', pct(hitTot.bb / hitTot.pa), '| HR%', pct(hitTot.hr / hitTot.pa));
+// PA volume: league PA per team-game, ALL batters including pitchers
+// hitting. ~38 keeps season AB/PA extremes near real-record levels
+// (716 AB / 778 PA) — a record-book guard, not a league target.
 console.log('PA/team-game:', (leagueBatTot.pa / (30 * 162)).toFixed(1), '(t 38.3)');
 // Season-volume extremes: the real record book is 778 PA / 716 AB
 // (Rollins 2007). The occasional record-flirting iron-man leadoff year
@@ -439,7 +439,7 @@ for (const t of league.teams) {
     shByLeague[t.league] += (s.sh || 0) + ((s.batting && s.batting.sh) || 0);
   }
 }
-console.log('SB att/team:', (sbAtt / 30).toFixed(0), '(t ~140) | SB%', pct(hitTot.sb / sbAtt), '(t 72%)',
+console.log('SB att/team:', (sbAtt / 30).toFixed(0), '| SB%', pct(hitTot.sb / sbAtt), '(green-light era: emergent)',
   '| SF/team', (hitTot.sf / 30).toFixed(0), '(t ~40) | GIDP/team', (hitTot.gidp / 30).toFixed(0));
 // Intentional walks (0.27.0): 2001 MLB averaged ~46 IBB/team (~0.28 per
 // team-game). Leaders: a generational monster should be able to pile up
@@ -461,8 +461,8 @@ console.log('PA', pitcherBatTot.pa, '| BA', S.avg(pitcherBatTot).toFixed(3), '(t
   '| BB%', pct(pitcherBatTot.bb / (pitcherBatTot.pa || 1)), '(t ~4-5%)',
   '| HR', pitcherBatTot.hr);
 console.log('--- League pitching / defense ---');
-console.log('ERA', S.era(pitTot).toFixed(2), '(t 4.20) | WHIP', S.whip(pitTot).toFixed(2), '(t 1.32)',
-  '| K/9', S.k9(pitTot).toFixed(1), '(t 7.0) | BB/9', S.bb9(pitTot).toFixed(1), '(t 3.3) | HR/9', S.hr9(pitTot).toFixed(2), '(t 0.95)');
+console.log('ERA', S.era(pitTot).toFixed(2), '| WHIP', S.whip(pitTot).toFixed(2),
+  '| K/9', S.k9(pitTot).toFixed(1), '| BB/9', S.bb9(pitTot).toFixed(1), '| HR/9', S.hr9(pitTot).toFixed(2));
 const totalRuns = runsByLeague.east + runsByLeague.west;
 console.log('errors/team:', (fieldingErrors / 30).toFixed(0), '(t ~100-120) | unearned run share:',
   pct((pitTot.r - pitTot.er) / (pitTot.r || 1)), '(MLB ~7-8%)');
@@ -710,7 +710,7 @@ if (seasonsArg > 1) {
       ibbTot += s.ibb || 0;
       if ((s.ibb || 0) > ibbTop.ibb) ibbTop = { ibb: s.ibb, name: state.players[id].name };
     }
-    console.log(`  running game: SB att/team ${(sbAtt / 30).toFixed(0)} (t ~85-125)` +
+    console.log(`  running game: SB att/team ${(sbAtt / 30).toFixed(0)} (emergent)` +
       ` | 30/30 seasons ${sb3030} (t 0-3) | SB leader ${sbTop.name} ${sbTop.sb}`);
     console.log(`  IBB/team ${(ibbTot / 30).toFixed(0)} (t ~46) | IBB leader ${ibbTop.name} ${ibbTop.ibb}`);
 
