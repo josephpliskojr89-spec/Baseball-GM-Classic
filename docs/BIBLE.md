@@ -5116,6 +5116,25 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > cooldown, deadline/ownership guards, farmhands shoppable);
 > battery 43/43, e2e 141.
 
+> **Status note (v1.2.1):** Shop Him crash fix (user report: "tried
+> it in the offseason and the game crashed. twice"). Root cause was
+> a main-thread freeze, not a throw: on a stats-rich save, one
+> shopPlayer call measured 26-43 SECONDS in Node (minutes on a
+> phone — the tab gets killed, which reads as a crash). warContext
+> rescanned every player's stat years on EVERY tradeValue call and
+> fully rebuilt league context every 400 calls, multiplied by
+> shopPlayer's uncached sort comparator and O(n²) package loop
+> recomputing sellValueOf per comparison (~200k+ valuation calls
+> per tap). Fixes: warContext now caches on a 3-second wall-clock
+> TTL (league totals move slowly; seconds-stale prices identically)
+> and invalidates when the players map changes; shopPlayer,
+> tryAiOfferToUser, and tryAiAiTrade price each candidate once per
+> call through a Map cache; the card's Shop Him tap is wrapped so
+> any engine throw degrades to a toast and rolls back the cooldown
+> stamp instead of taking the app down. Measured: 42.5s → 38ms per
+> shop; a 1,675-player full-league sweep on a real dynasty save
+> runs 18s with zero throws. Battery 43/43, e2e 141.
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):

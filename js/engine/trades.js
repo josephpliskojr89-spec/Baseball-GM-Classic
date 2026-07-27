@@ -22,7 +22,7 @@ window.BBGM_TRADES = (function () {
   const WOBA_SCALE = 1.15;
   const POS_ADJ = { C: 12.5, SS: 7.5, '2B': 2.5, '3B': 2.5, CF: 2.5, LF: -7.5, RF: -7.5, '1B': -12.5, DH: -17.5 };
   let _warCtx = null;
-  let _warCalls = 0;
+  let _warCtxAt = 0;
 
   function wobaOf(s) {
     const pa = s.pa || 0;
@@ -53,15 +53,22 @@ window.BBGM_TRADES = (function () {
 
   function warContext() {
     if (!_playersRef) return null;
+    // Rebuilt at most once per few seconds of wall time (1.2.1): this
+    // sits under EVERY tradeValue call, and the old per-call year scan
+    // plus an every-400-calls league rebuild multiplied into 30-second
+    // main-thread freezes when shopPlayer priced whole rosters on a
+    // stats-rich save — a frozen tab the phone kills. League totals
+    // move slowly; a seconds-stale context prices identically.
+    const now = Date.now();
+    if (_warCtx && now - _warCtxAt < 3000) return _warCtx.year ? _warCtx : null;
+    _warCtxAt = now;
     let year = 0;
     for (const id in _playersRef) {
       const st = _playersRef[id].stats;
       if (st) for (const y in st) { const n = +y; if (n > year) year = n; }
     }
-    if (!year) return null;
-    if (!_warCtx || _warCtx.year !== year || (++_warCalls % 400 === 0)) {
-      _warCtx = { year, cur: buildWarYear(_playersRef, year), prev: buildWarYear(_playersRef, year - 1) };
-    }
+    if (!year) { _warCtx = { year: 0 }; return null; }
+    _warCtx = { year, cur: buildWarYear(_playersRef, year), prev: buildWarYear(_playersRef, year - 1) };
     return _warCtx;
   }
 
@@ -279,7 +286,9 @@ window.BBGM_TRADES = (function () {
   }
 
   let _playersRef = null;
-  function setPlayersRef(players) { _playersRef = players; }
+  function setPlayersRef(players) {
+    if (players !== _playersRef) { _playersRef = players; _warCtx = null; _warCtxAt = 0; }
+  }
   function windowPlayers() { return _playersRef; }
 
   // Weakest starting positions (public "team interest" panel, 15.5).
@@ -750,14 +759,20 @@ window.BBGM_TRADES = (function () {
     const vetTV = teamValueOf(buyer, vet);
 
     // Package 1-2 buyer prospects within ~±12% of the vet's value.
+    const tvCache = new Map();
+    const tvOf = (q) => {
+      let v = tvCache.get(q.id);
+      if (v === undefined) { v = tradeValue(q); tvCache.set(q.id, v); }
+      return v;
+    };
     const prospects = (buyer.minors || []).map((id) => players[id]).filter(Boolean)
-      .sort((a, b) => tradeValue(b) - tradeValue(a));
+      .sort((a, b) => tvOf(b) - tvOf(a));
     let pkg = null;
     for (let i = 0; i < prospects.length; i++) {
-      const one = tradeValue(prospects[i]);
+      const one = tvOf(prospects[i]);
       if (one >= vetTV * 0.82 && one <= vetTV * 1.25) { pkg = [prospects[i]]; break; }
       for (let j = i + 1; j < prospects.length; j++) {
-        const two = one + tradeValue(prospects[j]);
+        const two = one + tvOf(prospects[j]);
         if (two >= vetTV * 0.85 && two <= vetTV * 1.25) { pkg = [prospects[i], prospects[j]]; break; }
       }
       if (pkg) break;
@@ -810,7 +825,15 @@ window.BBGM_TRADES = (function () {
       const sellerFit = (win === 'rebuilding' || win === 'retooling') && isYouth;
       const interest = buyerFit || sellerFit ? 0.65 : 0.20;
       if (rand() >= interest) continue;
-      const priceOf = (q) => sellValueOf(aiTeam, q);
+      // Price each candidate ONCE (1.2.1): sellValueOf runs the whole
+      // observed-WAR valuation chain, and the old uncached comparator +
+      // pair loop recomputed it thousands of times per club.
+      const priceCache = new Map();
+      const priceOf = (q) => {
+        let v = priceCache.get(q.id);
+        if (v === undefined) { v = sellValueOf(aiTeam, q); priceCache.set(q.id, v); }
+        return v;
+      };
       const pool = aiTeam.roster.concat(aiTeam.minors || []).map((id) => players[id])
         .filter((q) => q && window.BBGM_INJURIES.isAvailable(q) && keepMul(aiTeam, q) < 1.35)
         .sort((a, b) => priceOf(b) - priceOf(a));
@@ -879,7 +902,12 @@ window.BBGM_TRADES = (function () {
     // profile for fair value" invariant held on every path except the
     // one where the AI dialed. Now their eagerness to buy never
     // discounts their own kids.
-    const priceOf = (p) => sellValueOf(aiTeam, p);
+    const priceCache = new Map();
+    const priceOf = (p) => {
+      let v = priceCache.get(p.id);
+      if (v === undefined) { v = sellValueOf(aiTeam, p); priceCache.set(p.id, v); }
+      return v;
+    };
     const pool = aiTeam.roster.concat(aiTeam.minors || []).map((id) => players[id])
       .filter((p) => p && window.BBGM_INJURIES.isAvailable(p) && keepMul(aiTeam, p) < 1.35)
       .sort((a, b) => priceOf(b) - priceOf(a));

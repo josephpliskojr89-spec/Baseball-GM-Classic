@@ -203,7 +203,17 @@ window.BBGM_UI_PLAYER = (function () {
       actions.push({ label: 'Shop Him…', kind: 'secondary', onClick: () => {
         setTimeout(() => {
           const s = window.BBGM_STATE.get();
-          const res = window.BBGM_TRADES.shopPlayer(s, p.id);
+          let res;
+          try {
+            res = window.BBGM_TRADES.shopPlayer(s, p.id);
+          } catch (err) {
+            // Never let a valuation hiccup take the app down (1.2.1) —
+            // the tap degrades to a toast, nothing is persisted, and
+            // the cooldown stamp is rolled back so "again" means now.
+            if (s.players[p.id]) delete s.players[p.id].shoppedAt;
+            U.showToast('The phones went dead mid-call — try shopping him again.', 'warning', 4000);
+            return;
+          }
           if (!res.ok) {
             U.showToast(res.reason, 'warning', 4000);
             return;
