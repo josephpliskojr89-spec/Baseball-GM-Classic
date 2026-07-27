@@ -5004,6 +5004,17 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > −10, week-0 wobble bounded, deterministic, unboarded never
 > shifts).
 
+> **Status note (v0.78.1):** One scouting-budget pitch per
+> winter (user bug: the offseason tier-upgrade request could be
+> spammed until the approval dice landed). requestTier now
+> latches team.tierAskDone the moment ownership HEARS the ask —
+> approve or decline — and runScoutingOffseason clears the latch
+> at each rollover. The deterministic operating-budget decline
+> doesn't consume the pitch (no dice rolled — fix the books and
+> come back), and downgrades never need a hearing. Scout suite
+> 27 (spent pitch refused even after rolling the tier back,
+> cuts exempt, fresh audience next winter).
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):

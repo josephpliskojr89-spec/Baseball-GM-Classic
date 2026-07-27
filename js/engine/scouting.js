@@ -119,6 +119,16 @@ window.BBGM_SCOUT = (function () {
         };
       }
     }
+    // One pitch per winter (0.78.1, user report: the approval dice could
+    // be re-rolled until they landed). The latch sets the moment
+    // ownership actually HEARS the ask — approve or decline — and
+    // clears at the next rollover. The budget decline above is
+    // deterministic bookkeeping, not an audience: fix the books and
+    // come back. Cuts never need a hearing.
+    if (team.tierAskDone) {
+      return { ok: false, message: 'You made your pitch this winter — ownership\'s answer stands until next offseason.' };
+    }
+    team.tierAskDone = true;
     let odds = UPGRADE_APPROVAL[team.owner] != null ? UPGRADE_APPROVAL[team.owner] : 0.7;
     if (step === 'elite' && team.owner === 'old_school') odds *= 0.4;
     if (step === 'elite' && team.owner === 'cheap') odds *= 0.5;
@@ -140,6 +150,7 @@ window.BBGM_SCOUT = (function () {
   function runScoutingOffseason(state, records) {
     const events = [];
     for (const t of state.league.teams) {
+      delete t.tierAskDone; // a new winter, a new audience (0.78.1)
       const rec = records[t.id] || { w: 81, l: 81 };
       if (t.owner === 'cheap' && rec.w < 78 && tierIdx(t) > 0 && rand() < 0.25) {
         const to = TIERS[tierIdx(t) - 1].key;
