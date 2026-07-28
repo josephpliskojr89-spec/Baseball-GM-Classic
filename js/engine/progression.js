@@ -204,8 +204,9 @@ window.BBGM_PROGRESSION = (function () {
           let bestK = null;
           for (const k in cone.hi) if (bestK == null || h.ceiling[k] > h.ceiling[bestK]) bestK = k;
           const big = CO.SURGE.BOOST[0] + rand() * (CO.SURGE.BOOST[1] - CO.SURGE.BOOST[0]);
+          const lid = arch.ceilingCap ? arch.ceilingCap + 2 : 84; // capped identities stay capped
           for (const k in cone.hi) {
-            cone.hi[k] = Math.round(Math.min(84, cone.hi[k] + (k === bestK ? big : big * 0.55)) * 10) / 10;
+            cone.hi[k] = Math.round(Math.min(lid, cone.hi[k] + (k === bestK ? big : big * 0.55)) * 10) / 10;
           }
           h.surge = { key: bestK, until: year + CO.SURGE.HOT_YEARS };
           h.surgeDone = true;
@@ -225,7 +226,11 @@ window.BBGM_PROGRESSION = (function () {
           sharedDie + coneGauss() * vol * 0.55;
         // The overflow (23.4): pressed against the top with the head to
         // earn it — the top of the scale is a promise, not a wall.
-        if (c >= cone.hi[k] - 1 && (pack.overflow || (h.workEthic || 5) >= 8) &&
+        // EXCEPT for capped identities (0.53.1 law, relearned by the
+        // flip battery: overflow was busting quad-A kids past their
+        // sacred cap): the identity IS the window.
+        if (!arch.ceilingCap && c >= cone.hi[k] - 1 &&
+            (pack.overflow || (h.workEthic || 5) >= 8) &&
             rand() < CO.OVERFLOW.PROB) {
           cone.hi[k] = Math.round(Math.min(84,
             cone.hi[k] + CO.OVERFLOW.AMOUNT[0] + rand() * (CO.OVERFLOW.AMOUNT[1] - CO.OVERFLOW.AMOUNT[0])) * 10) / 10;

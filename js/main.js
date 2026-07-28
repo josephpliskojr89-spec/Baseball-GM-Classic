@@ -1064,6 +1064,48 @@ window.BBGM_MAIN = (function () {
       window.BBGM_STATE.set(state);
     }
 
+    // Migration (2.0.0, §23.10): the cone flip. Every live player's
+    // fixed ceiling becomes the CENTER of a window minted at his age's
+    // width — the save's teenagers get their mystery back, its
+    // veterans are nearly what they are. Pool prospects mint cones too,
+    // and their stored bands re-shape to true cone width around the
+    // perceived center they already had (no new consensus error is
+    // invented retroactively). Old bust/overachiever development state
+    // simply stops being read — the §23.5 packs take over at the next
+    // checkpoint.
+    if (versionLt(saveVersion, '2.0.0') && C.CONE && C.CONE.ENABLED &&
+        window.BBGM_PLAYER_GEN.mintCone) {
+      const GENM = window.BBGM_PLAYER_GEN;
+      const hw = (age) => {
+        const T = C.CONE.HALF_WIDTH;
+        return T[age] != null ? T[age] : (age < 16 ? T[16] : T.DEFAULT);
+      };
+      let minted = 0, rebanded = 0;
+      const mint = (p) => {
+        if (!p || p.retired || !p.hidden || !p.hidden.ceiling || p.hidden.cone) return;
+        GENM.mintCone(p);
+        if (p.hidden.cone) minted++;
+      };
+      for (const id in state.players) mint(state.players[id]);
+      const reband = (p) => {
+        if (!p || p.teamId || !p.scout || !p.hidden || !p.hidden.cone) return;
+        const mid = (p.scout.ceilLo + p.scout.ceilHi) / 2;
+        const w = hw(p.age);
+        p.scout.ceilLo = Math.round(mid - w);
+        p.scout.ceilHi = Math.round(mid + w);
+        rebanded++;
+      };
+      if (state.draft && state.draft.prospects) {
+        for (const id in state.draft.prospects) { mint(state.draft.prospects[id]); reband(state.draft.prospects[id]); }
+      }
+      if (state.intl && state.intl.prospects) {
+        for (const id in state.intl.prospects) { mint(state.intl.prospects[id]); reband(state.intl.prospects[id]); }
+      }
+      for (const e of state.draftReentry || []) mint(e.player);
+      if (minted) console.log(`2.0.0 migration: the cone opens — ${minted} window(s) minted, ${rebanded} pool band(s) re-shaped.`);
+      window.BBGM_STATE.set(state);
+    }
+
     // Stamp the save forward now that every migration has run. This is
     // what makes the versionLt gates above one-shot, and it makes the
     // Menu's "Save version" reflect the code the save actually runs under

@@ -1865,6 +1865,32 @@ window.BBGM_SIM = (function () {
         resultPos.push('DH');
       }
     }
+    // Emergency backfill (§23.14 flip blocker, cone-gate soak: one
+    // VAN@DAL "away lineup hitters 7 < 8" in 48,600 games): when the
+    // slot's regular is gone and no POSITION-ELIGIBLE bench bat exists,
+    // the lineup used to run a man short and the game threw. A real
+    // club never forfeits over it — somebody plays out of position,
+    // and on the truly cursed day the best healthy farmhand takes a
+    // courtesy start. Applies to any cause (injury pileup, thin bench
+    // after mound conversions), flag-on or off.
+    const needHitters = (useDH ? 9 : 8);
+    if (resultP.filter(Boolean).length < needHitters) {
+      const fillPos = lineupSpec.map((s) => s.position)
+        .filter((pos) => !resultPos.includes(pos));
+      const anyRoster = () => team.roster.map((id) => players[id])
+        .find((q) => q && !q.isPitcher && !used.has(q.id) && INJ().isAvailable(q));
+      const bestFarm = () => (team.minors || []).map((id) => players[id])
+        .filter((q) => q && !q.isPitcher && !used.has(q.id) && INJ().isAvailable(q))
+        .sort((a, b) => window.BBGM_ROSTER.overall(b) - window.BBGM_ROSTER.overall(a))[0];
+      while (resultP.filter(Boolean).length < needHitters) {
+        const cand = anyRoster() || bestFarm();
+        if (!cand) break; // the org is truly out of hitters — let the guard speak
+        used.add(cand.id);
+        resultP.push(cand);
+        resultPos.push(fillPos.shift() || 'DH');
+      }
+    }
+
     if (!useDH) {
       // Pitcher bats 9th.
       resultP.push(null);

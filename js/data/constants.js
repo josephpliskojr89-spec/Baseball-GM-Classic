@@ -3,7 +3,7 @@ window.BBGM_CONSTANTS = {
   // Single source of truth for the app/save version. main.js stamps this
   // into new saves; index.html's ?v= cache-busters and the service-worker
   // cache name must be bumped in lockstep (they can't read JS constants).
-  VERSION: '1.7.0',
+  VERSION: '2.0.0',
   START_YEAR: 2026,
   TEAMS_PER_LEAGUE: 15,
   // Two leagues, three divisions each. Internal values are lowercase for
@@ -29,13 +29,13 @@ window.BBGM_CONSTANTS = {
   // re-founding — the league line is an OUTPUT of the grade dictionary
   // now, watched by the observatory, never targeted. See bible §22.)
 
-  // ---- The Cone (bible §23) — DARK until the v2.0.0 flip -------------------
+  // ---- The Cone (bible §23) — LIVE since v2.0.0 ----------------------------
   // Potential as a per-tool window that development itself resolves.
-  // ENABLED false = the live game runs the old fixed-destiny model
-  // untouched; the harness flips it for soaks. This block is the §23
-  // tuning surface, exactly as the §22 dictionary is for the sim.
+  // This block is the §23 tuning surface, exactly as the §22 dictionary
+  // is for the sim. (ENABLED false would resurrect the fixed-destiny
+  // model — a debugging lever, never a setting.)
   CONE: {
-    ENABLED: false,
+    ENABLED: true,
     // Half-width of a tool's window by age (23.2). Never welds shut.
     HALF_WIDTH: { 16: 11, 17: 10, 18: 9, 19: 8, 20: 6.5, 21: 5, 22: 4, 23: 3, 24: 2, DEFAULT: 1.5 },
     // Yearly dice sigma on the center, by age band (younger = wilder).

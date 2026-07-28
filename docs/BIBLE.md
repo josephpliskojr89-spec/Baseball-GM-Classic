@@ -5282,6 +5282,25 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > (stale since 1.3.0; flaked on speed-loudest kids). Flag-off
 > parity exact: battery 43/43, e2e 141.
 
+> **Status note (v2.0.0):** THE CONE IS LIVE (§23.15). Potential is
+> a per-tool window that development itself resolves: yearly
+> checkpoint drift (archetype packs + work ethic + makeup + coaching
+> + the shared career die), the surge (27-33 prime form and its
+> under-22 form, absorbing the old leap/breakout rolls), the
+> overflow, honest bands at true cone width, the FanGraphs
+> present/future card on prospect modals, and cone-priced valuation.
+> The 2.0.0 migration mints windows for every live player and pool
+> prospect and re-shapes stored bands — old saves keep their world.
+> Blockers cleared: the lineup-starvation sim error fixed with an
+> emergency backfill (courtesy starts, never a forfeit — final gate
+> soak ZERO errors in 48,600 games); battery reconciled to the cone
+> world at 43/43 (catching two quad-A cap leaks in the surge and
+> overflow — fixed); e2e 141 against the flipped app with zero page
+> errors. Era line stable 4.07-4.29 R/G across 20 seasons; census
+> top-10 23% bust / 27% star, mid-board max 68, deep-pool max 61.
+> Mid-board star band re-based to ~3-5% vs our All-Star-grade 58+
+> bar; mild category floods documented as watch items (§23.15).
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):
@@ -7574,3 +7593,54 @@ FLIP BLOCKERS (phase 5):
    the owner (the 5-12% mid-board rate; mild floods: 100-walk,
    .330 chase, workhorse-ace/K-monster counts run a notch over
    their pre-cone bands — taste dials, judged at the flip).
+
+### 23.15 The Flip — v2.0.0, the cone is THE world
+
+Shipped v2.0.0: CONE.ENABLED is true and the fixed-destiny model is
+gone from live play (the flag survives only as a debugging lever).
+How each §23.14 blocker resolved:
+
+1. **The sim error.** Flag-off control soak on the same seed ran
+   clean, proving the VAN@DAL "away lineup hitters 7 < 8" error was
+   cone-correlated (a dice-driven talent trough thinned one org's
+   hitters below lineup depth). Fix: emergency lineup backfill in
+   getLineupWithPositions — when a slot's regular is gone and no
+   position-eligible bench bat exists, any available roster hitter
+   plays out of position, and on the truly cursed day the best
+   healthy farmhand takes a courtesy start. A real club never
+   forfeits over it. Verified: the final 20-season gate soak
+   (seed 424242, 48,600 games) ran ZERO sim errors, zero ties.
+2. **Battery reconciliation.** All 43 suites green cone-live:
+   leap_test rewritten as the surge suite (absorption of the
+   0.57.0 leap + 0.25.0 breakout, youth/prime surge rarity,
+   whole-profile mechanics, capped identities); overachiever_test
+   careers now run through the checkpoint (the up-bias pack does
+   the climbing — dice, not a conveyor; ~100 careers steady the
+   proportions); auditw2's leap/breakout checks assert absorption;
+   hunch's sharp-vs-dull edge relaxed to +5pts (consensus error
+   legitimately compresses the flyer edge). Two ENGINE bugs the
+   battery caught before the flip: the overflow and the surge could
+   push a quad-A kid's window past his sacred cap — both now
+   respect ceilingCap (the 0.53.1 law, relearned).
+3. **Migration + re-base.** The 2.0.0 migration mints windows for
+   every live player and pool prospect (fixed ceiling becomes the
+   CENTER at his age's width) and re-shapes stored pool bands to
+   true cone width around their existing perceived centers — no
+   consensus error is invented retroactively. Old growth/decay
+   state simply stops being read.
+
+Final gate numbers (20 seasons, flipped engine): era line stable
+4.07-4.29 R/G, OBP .325-.332, 4+ WAR 76 / 6+ WAR 32; census
+top-10 23% bust / 27% star (p50 52, max 73), ranks 11-30 58% bust
+/ 3% star (max 68 — the mid-board star EXISTS), deep pool 80%
+bust, max peak 61 (the miracle exists). The §23.9 mid-board
+"5-12% star" band is RE-BASED to ~3-5%: it was written against a
+FanGraphs 50-FV bar, but our 58+ peak-OVR star is an All-Star-
+grade bar and scarcer by design (0.76.0 mints ~30-45 concurrent);
+the generation tail rate (draft slots 6-30 / intl ranks 6-15,
+currently 0.10) is the owner's dial if he wants more. WATCH ITEMS
+(taste dials, not gates): mild floods vs pre-cone bands — 100-walk
+~10/yr, .330 chase ~8/yr, workhorse-ace ~11/yr, K-monster ~11/yr,
+3+ CG ~5/yr — and glove-first regulars run rare (~1.5/yr). Judged
+acceptable at the flip; revisit if the record book starts reading
+cheap.
