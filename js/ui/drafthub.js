@@ -88,23 +88,31 @@ window.BBGM_UI_DRAFT = (function () {
     const card = SC.coneCard && SC.coneCard(state, p);
     if (!card) return false;
     const wrap = U.el('div', { style: { margin: '4px 0 14px' } });
-    wrap.appendChild(U.el('div', { style: { 'font-weight': '700', 'font-size': '17px', 'margin-bottom': '8px' } },
-      [U.el('span', { class: U.gradeClass(card.fv) }, `FV ${card.fv}`),
-       U.el('span', { class: 'muted', style: { 'font-size': '12px', 'font-weight': '400' } }, '  present / future')]));
-    const grid = U.el('div', { style: { display: 'flex', gap: '8px', 'flex-wrap': 'wrap' } });
+    // FV rides the top-right corner, over the row's last panel — the
+    // owner found it confusing sitting flush against the
+    // present/future legend, so the two split the line.
+    wrap.appendChild(U.el('div', { style: {
+      display: 'flex', 'justify-content': 'space-between', 'align-items': 'baseline', 'margin-bottom': '8px',
+    } }, [
+      U.el('span', { class: 'muted', style: { 'font-size': '12px' } }, 'present / future'),
+      U.el('span', { class: U.gradeClass(card.fv), style: { 'font-weight': '700', 'font-size': '17px' } }, `FV ${card.fv}`),
+    ]));
+    // One row, always: cells sized so even the hitter's six tools
+    // (Spd included) share a line on a phone.
+    const grid = U.el('div', { style: { display: 'flex', gap: '6px' } });
     for (const r of card.rows) {
       const cell = U.el('div', { style: {
-        'text-align': 'center', flex: '1 1 0', 'min-width': '64px', 'max-width': '110px',
-        padding: '10px 6px 8px', background: 'rgba(255,255,255,0.05)',
+        'text-align': 'center', flex: '1 1 0', 'min-width': '0', 'max-width': '96px',
+        padding: '8px 3px 7px', background: 'rgba(255,255,255,0.05)',
         'border-radius': '10px',
       } });
-      cell.appendChild(U.el('div', { style: { 'font-weight': '700', 'font-size': '19px', 'line-height': '1.2' } },
+      cell.appendChild(U.el('div', { style: { 'font-weight': '700', 'font-size': '16px', 'line-height': '1.2', 'white-space': 'nowrap' } },
         r.fut == null
           ? [U.el('span', { class: U.gradeClass(r.cur) }, String(r.cur))]
           : [U.el('span', { class: U.gradeClass(r.cur) }, String(r.cur)),
-             U.el('span', { class: 'muted', style: { 'font-weight': '400', 'font-size': '14px' } }, ' / '),
+             U.el('span', { class: 'muted', style: { 'font-weight': '400', 'font-size': '11px', margin: '0 1px' } }, '/'),
              U.el('span', { class: U.gradeClass(r.fut) }, String(r.fut))]));
-      cell.appendChild(U.el('div', { class: 'muted', style: { 'font-size': '11px', 'margin-top': '3px' } }, r.label));
+      cell.appendChild(U.el('div', { class: 'muted', style: { 'font-size': '10px', 'margin-top': '3px' } }, r.label));
       grid.appendChild(cell);
     }
     wrap.appendChild(grid);

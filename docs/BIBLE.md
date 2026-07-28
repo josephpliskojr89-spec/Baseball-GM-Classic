@@ -5460,6 +5460,16 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > modals' boxed grid wears it, only the org card dropped it. Battery
 > 44/44, e2e 142 clean.
 
+> **Status note (v2.8.3):** FV to the corner (owner: "slide it to the
+> right side above the arm... having it right next to present/future
+> is a little confusing"). On the prospect modals' cone grid the
+> title line splits: the muted present/future legend keeps the left,
+> FV moves flush right — landing over the row's last panel (Arm/Spd
+> end for hitters, Cmd for pitchers). Cells slimmed (16px grades,
+> tighter padding, no wrap) so the hitter's six tools — Spd included
+> — share one line on a phone. Chromium screenshot-verified on an
+> intl hitter and pitcher; battery 44/44, e2e 142 clean.
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):
