@@ -383,11 +383,33 @@ window.BBGM_UI_PLAYER = (function () {
       body.appendChild(U.el('div', { class: 'empty-state' },
         'Your scouts have no book on him. A higher scouting tier (GM → Staff) opens up reports at this level.'));
     } else {
+      // One card language (v2.7.0, owner UX): the org card leads with
+      // the same FanGraphs present/future grid and 20-80 band bar the
+      // prospect modals wear — a farmhand's page finally reads like
+      // the report that signed him, and the veteran's reads like his
+      // FanGraphs page. The detailed per-attribute rows follow for the
+      // full picture.
+      // (Both gate at 27-and-under: past the peak the cone's center
+      // froze where his talent topped out, and a "future" grade on a
+      // fading veteran would read as a projection nobody is making.)
+      const HUB = window.BBGM_UI_DRAFT;
+      if (p.age <= 27 && HUB && HUB.renderConeGrid) HUB.renderConeGrid(body, state, p);
       const pot = window.BBGM_SCOUT.potentialBand(state, p);
+      if (pot && p.age <= 27 && HUB && HUB.renderBandBar) {
+        HUB.renderBandBar(body, pot, rep.mode === 'exact' ? null
+          : 'Your department\'s overall projection — the truth may sit outside a band.',
+          { label: 'Projected ceiling — overall' });
+      }
       body.appendChild(p.isPitcher ? pitcherRatings(state, p, rep, pot) : hitterRatings(state, p, rep, pot));
       if (rep.mode !== 'exact') {
         body.appendChild(U.el('p', { class: 'muted', style: { 'font-size': '11px', 'margin-top': '6px' } },
           'Projected ranges from your scouting department — the truth may sit outside a band.'));
+      }
+      // Young farmhands keep the scouts' voice from their amateur days —
+      // the observed-fact lines (the burner, the radar gun, the frame)
+      // stay true on the farm.
+      if (p.status === 'minors' && p.age <= 26 && HUB && HUB.appendScoutNotes) {
+        HUB.appendScoutNotes(body, state, p, 'draft');
       }
     }
 

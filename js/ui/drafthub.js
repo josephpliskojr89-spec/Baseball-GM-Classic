@@ -94,7 +94,7 @@ window.BBGM_UI_DRAFT = (function () {
     const grid = U.el('div', { style: { display: 'flex', gap: '8px', 'flex-wrap': 'wrap' } });
     for (const r of card.rows) {
       const cell = U.el('div', { style: {
-        'text-align': 'center', flex: '1 1 0', 'min-width': '64px',
+        'text-align': 'center', flex: '1 1 0', 'min-width': '64px', 'max-width': '110px',
         padding: '10px 6px 8px', background: 'rgba(255,255,255,0.05)',
         'border-radius': '10px',
       } });
@@ -116,13 +116,13 @@ window.BBGM_UI_DRAFT = (function () {
   // window filled. The most important number on the card stops being a
   // sentence you parse and becomes a shape you read at a glance — a
   // wide smear says lottery ticket, a tight block says known quantity.
-  function renderBandBar(body, band, captionNodes) {
+  function renderBandBar(body, band, captionNodes, barOpts) {
     const lo = band[0], hi = band[1];
     const mid = (lo + hi) / 2;
     const wrap = U.el('div', { style: { margin: '14px 0 12px' } });
     const head = U.el('div', { style: { display: 'flex', 'justify-content': 'space-between', 'align-items': 'baseline', 'margin-bottom': '6px' } });
     head.appendChild(U.el('div', { class: 'muted', style: { 'font-size': '11px', 'letter-spacing': '0.06em', 'text-transform': 'uppercase' } },
-      'Projected ceiling — best tool'));
+      (barOpts && barOpts.label) || 'Projected ceiling — best tool'));
     head.appendChild(U.el('div', { class: U.gradeClass(mid), style: { 'font-weight': '800', 'font-size': '19px' } }, `${lo}–${hi}`));
     wrap.appendChild(head);
     const track = U.el('div', { style: { position: 'relative', height: '16px', 'border-radius': '8px', background: 'rgba(255,255,255,0.07)' } });
@@ -1691,6 +1691,8 @@ window.BBGM_UI_DRAFT = (function () {
     });
   }
 
-  return { render };
+  // renderConeGrid / renderBandBar / appendScoutNotes are shared with
+  // the org player card (v2.7.0) — one card language everywhere.
+  return { render, renderConeGrid, renderBandBar, appendScoutNotes };
 })();
 

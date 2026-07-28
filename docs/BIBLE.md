@@ -5401,6 +5401,23 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > text preserved. Chromium screenshot-verified; battery 44/44, e2e
 > clean.
 
+> **Status note (v2.7.0):** One card language (owner UX: "match up
+> the player overview tab to the prospect cards"). The org player
+> card's scouting section now leads with the same FanGraphs
+> present/future grid and 20-80 band bar the prospect modals wear
+> (shared helpers exported from the draft hub — one implementation,
+> not copies). The band bar reads "Projected ceiling — overall" on
+> org cards (potentialBand is OVR-based, unlike the pool's best-tool
+> bands). Both gate at 27-and-under: past the peak the cone's center
+> froze where his talent topped out, and a "future" grade on a fading
+> veteran would read as a projection nobody is making. Young
+> farmhands (minors, ≤26) also keep the scouts' voice — the From Our
+> Scouts card renders on their profile. The detailed per-attribute
+> rows follow for the full picture; cone-grid cells gained a
+> max-width so a wrapped cell can't stretch the row. Chromium
+> screenshot-verified on a teenage farmhand; battery 44/44, e2e 142
+> clean.
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):
