@@ -5452,6 +5452,14 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > is the department's uncertainty around that same future overall.
 > Battery 44/44, e2e 142 clean.
 
+> **Status note (v2.8.2):** No FV chip (owner call: "I don't think
+> it's adding much with potential already showing"). The RATINGS
+> title line keeps only the muted "present / future" legend that
+> decodes the inline pairs; the Potential band remains the card's one
+> summary projection. coneCard still computes fv — the prospect
+> modals' boxed grid wears it, only the org card dropped it. Battery
+> 44/44, e2e 142 clean.
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):

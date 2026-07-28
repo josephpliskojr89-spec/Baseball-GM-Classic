@@ -388,11 +388,14 @@ window.BBGM_UI_PLAYER = (function () {
     const futs = futuresFor(state, p, rep);
     const ratingsTitle = U.el('div', { class: 'flat-title' },
       rep.mode === 'exact' ? 'Ratings' : 'Scouting report');
+    // No FV chip (owner call: with the Potential band on the card, a
+    // second summary number wasn't adding much) — just the legend that
+    // decodes the "35 / 55" pairs below.
     if (futs) {
-      ratingsTitle.appendChild(U.el('span', { style: { 'text-transform': 'none', 'letter-spacing': '0' } }, [
-        U.el('span', { class: U.gradeClass(futs.fv), style: { 'font-size': '14px', 'font-weight': '700' } }, `FV ${futs.fv}`),
-        U.el('span', { class: 'muted', style: { 'font-size': '10px', 'font-weight': '400' } }, '  present / future'),
-      ]));
+      ratingsTitle.appendChild(U.el('span', {
+        class: 'muted',
+        style: { 'text-transform': 'none', 'letter-spacing': '0', 'font-size': '10px', 'font-weight': '400' },
+      }, 'present / future'));
     }
     body.appendChild(ratingsTitle);
     if (rep.mode === 'min') {
