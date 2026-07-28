@@ -401,8 +401,14 @@ window.BBGM_UI_PLAYER = (function () {
     } else {
       const HUB = window.BBGM_UI_DRAFT;
       const pot = window.BBGM_SCOUT.potentialBand(state, p);
-      body.appendChild(p.isPitcher ? pitcherRatings(state, p, rep, pot, futs) : hitterRatings(state, p, rep, pot, futs));
+      // Potential prints once (owner report: "we have potential on here
+      // twice"): when the band bar renders below, it owns the numeral
+      // and the table skips its Potential row; past the bar's age gate
+      // the row is the only home and stays.
       const barShown = pot && p.age <= 27 && HUB && HUB.renderBandBar;
+      body.appendChild(p.isPitcher
+        ? pitcherRatings(state, p, rep, pot, futs, !barShown)
+        : hitterRatings(state, p, rep, pot, futs, !barShown));
       if (barShown) {
         HUB.renderBandBar(body, pot, rep.mode === 'exact' ? null
           : 'Your department\'s overall projection — the truth may sit outside a band.',
@@ -849,7 +855,7 @@ window.BBGM_UI_PLAYER = (function () {
     return { futs, fv: card.fv };
   }
 
-  function hitterRatings(state, p, rep, pot, futs) {
+  function hitterRatings(state, p, rep, pot, futs, withPot) {
     const r = p.ratings;
     const items = [
       ['Contact (R)', r.contactVsR, 'contactVsR'],
@@ -864,11 +870,11 @@ window.BBGM_UI_PLAYER = (function () {
     ];
     const grid = U.el('div', { class: 'flat-cols' });
     for (const [label, v, key] of items) grid.appendChild(ratingCell(state, p, label, v, key, rep, futs));
-    grid.appendChild(potentialCell(pot));
+    if (withPot) grid.appendChild(potentialCell(pot));
     return grid;
   }
 
-  function pitcherRatings(state, p, rep, pot, futs) {
+  function pitcherRatings(state, p, rep, pot, futs, withPot) {
     const r = p.ratings;
     const items = [
       ['Stuff', r.stuff, 'stuff'],
@@ -879,7 +885,7 @@ window.BBGM_UI_PLAYER = (function () {
     ];
     const grid = U.el('div', { class: 'flat-cols' });
     for (const [label, v, key] of items) grid.appendChild(ratingCell(state, p, label, v, key, rep, futs));
-    grid.appendChild(potentialCell(pot));
+    if (withPot) grid.appendChild(potentialCell(pot));
     return grid;
   }
 

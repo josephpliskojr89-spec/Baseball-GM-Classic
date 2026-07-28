@@ -5439,6 +5439,19 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > File tab, unscouted rival, banded rival under elite scouting, young
 > pitcher); battery 44/44, e2e 142 clean.
 
+> **Status note (v2.8.1):** Potential prints once (owner report: "we
+> have potential on here twice"). On the flat card, when the 20-80
+> band bar renders (≤27), it owns the numeral and the ratings table
+> skips its Potential row; past the bar's age gate the table row is
+> the only home and stays. The Scout's Book keeps its stamped reads —
+> that's history, not a duplicate. For the record, FV on the title
+> line is Future Value in the FanGraphs sense: the overall() formula
+> run over the scouts' future per-tool grades (the cone-center read
+> through tier fog), snapped to the nearest 5 — the single-number
+> "what he becomes if the projection hits," where the Potential band
+> is the department's uncertainty around that same future overall.
+> Battery 44/44, e2e 142 clean.
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):
