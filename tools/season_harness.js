@@ -902,3 +902,33 @@ if (seasonsArg > 1) {
 
 OBS.printReport(obsRows);
 OBS.printOutcomes(OBS.outcomeCensus(state, outcomeStore, harnessStartYear, state.meta.currentDate.year));
+
+// §23.18 (the 80 wall): a true 80-grade tool is a two-hands count
+// league-wide — watch the scarcity forever.
+{
+  const TOOLS_OF = (p) => p.isPitcher
+    ? ['velocity', 'stuff', 'movement', 'control']
+    : ['contactVsR', 'contactVsL', 'powerVsR', 'powerVsL', 'discipline', 'defense', 'arm', 'speed'];
+  // "80-grade" is what the CARD says: grades snap to 5s, so a current
+  // of 77.5+ displays as 80 — that's the two-hands count the owner
+  // sees. The literal ≥79.5 count runs lower because developed tools
+  // asymptote toward their ceiling; only born tools sit exactly on it.
+  let card80 = 0, lit80 = 0, ceil80 = 0, over80 = 0;
+  const names80 = [];
+  for (const id in state.players) {
+    const p = state.players[id];
+    if (!p || p.retired) continue;
+    for (const k of TOOLS_OF(p)) {
+      const r = p.ratings[k];
+      const c = p.hidden && p.hidden.ceiling ? p.hidden.ceiling[k] : null;
+      if (r != null && r > 80.01) over80++;
+      if (c != null && c > 80.01) over80++;
+      if (r != null && r >= 77.5) { card80++; if (names80.length < 10) names80.push(`${p.name} ${k} ${Math.round(r)}`); }
+      if (r != null && r >= 79.5) lit80++;
+      if (c != null && c >= 79.5) ceil80++;
+    }
+  }
+  console.log(`\n--- Observatory: the 80 wall (§23.18) ---`);
+  console.log(`80-GRADE tools on the card (cur >= 77.5): ${card80} (band ~4-18) | literal >=79.5: ${lit80} | 80-ceiling promises: ${ceil80} | ABOVE the wall (>80, must be 0): ${over80}`);
+  if (names80.length) console.log(`the two hands: ${names80.join(' | ')}`);
+}

@@ -69,7 +69,7 @@ window.BBGM_PLAYER_GEN = (function () {
         continue;
       }
       const spread = k === bestKey ? 0 : rand() * 6;
-      const lifted = clamp(h.ceiling[k] + delta - spread, 25, 82);
+      const lifted = clamp(h.ceiling[k] + delta - spread, 25, 80);
       h.ceiling[k] = Math.round(Math.max(h.ceiling[k], lifted) * 10) / 10;
     }
     h.workEthic = Math.max(h.workEthic || 5, 8 + Math.round(rand() * 2));
@@ -135,11 +135,12 @@ window.BBGM_PLAYER_GEN = (function () {
     for (const k of coneKeysOf(p)) {
       const c = p.hidden.ceiling[k];
       if (c == null) continue;
-      // Lid 84, matching the surge and the overflow (§23.4) — the old
-      // 82 wall crushed a top-rank teenager's upper window into a
-      // sliver (center 81, hw 12 → a 1-point promise), which is how
-      // the comically tight 80-82 elite bands happened (§23.17).
-      let hi = Math.min(84, c + hw);
+      // 80 is the wall (§23.18, owner's law): the scale ends at 80 and
+      // an 80-grade tool is a two-hands-count rarity league-wide.
+      // Generation targets stay under 79 so the wall isn't a magnet;
+      // the sliver problem (§23.17) can't return because band centers
+      // sit well below the lid with full width beneath them.
+      let hi = Math.min(80, c + hw);
       // The identity IS the window (23.5): a quad-A profile's top is
       // the quad-A cap, at any age.
       if (arch && arch.ceilingCap) hi = Math.min(hi, arch.ceilingCap + 2);

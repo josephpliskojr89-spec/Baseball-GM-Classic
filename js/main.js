@@ -1172,6 +1172,42 @@ window.BBGM_MAIN = (function () {
       window.BBGM_STATE.set(state);
     }
 
+    // Migration (2.3.0, §23.18): the 80 wall. Owner's law — the scale
+    // ends at 80 and a true 80-grade tool is a two-hands count. Old
+    // saves carry 81-84 ceilings (the 0.66.0 anoint, pre-wall targets)
+    // and cone tops minted under the brief 84 lid; everything above the
+    // wall clamps down to it, currents beneath their ceilings.
+    if (versionLt(saveVersion, '2.3.0')) {
+      let clamped = 0;
+      const wall = (p) => {
+        if (!p || p.retired) return;
+        const cap = (obj) => {
+          if (!obj) return;
+          for (const k in obj) {
+            if (typeof obj[k] === 'number' && obj[k] > 80) { obj[k] = 80; clamped++; }
+          }
+        };
+        cap(p.ratings);
+        if (p.hidden) {
+          cap(p.hidden.ceiling);
+          if (p.hidden.cone) {
+            cap(p.hidden.cone.hi);
+            cap(p.hidden.cone.lo);
+          }
+        }
+      };
+      for (const id in state.players) wall(state.players[id]);
+      if (state.draft && state.draft.prospects) {
+        for (const id in state.draft.prospects) wall(state.draft.prospects[id]);
+      }
+      if (state.intl && state.intl.prospects) {
+        for (const id in state.intl.prospects) wall(state.intl.prospects[id]);
+      }
+      for (const e of state.draftReentry || []) wall(e.player);
+      if (clamped) console.log(`2.3.0 migration: the 80 wall — ${clamped} value(s) above the scale clamped to it.`);
+      window.BBGM_STATE.set(state);
+    }
+
     // Stamp the save forward now that every migration has run. This is
     // what makes the versionLt gates above one-shot, and it makes the
     // Menu's "Save version" reflect the code the save actually runs under

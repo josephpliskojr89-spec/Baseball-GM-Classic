@@ -5332,6 +5332,20 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > 4.21-4.49, census on gates (top-10 20%/23% max 78). Battery 44/44,
 > e2e 141.
 
+> **Status note (v2.3.0):** The 80 wall (§23.18). Owner's law: the
+> scale ends at 80, and a true 80-grade tool is a two-hands count
+> league-wide. Every lid and lift clamp stops at 80 (mint, surge,
+> overflow, display, all pipeline lifts); top-slot mint targets stop
+> at 79 so the wall is never a magnet; the only mint-time paths to
+> the top are the generational unicorn and a thin ~1.5-kids-a-year
+> 80 tail across both pipelines — soak-proven necessary (without it,
+> equilibrium true 80s collapsed to ONE as the founding ten aged
+> out). "80-grade" is what the card says (77.5+ snaps to 80); gate
+> equilibrium landed 13 card-grade 80 tools on ~9 players at year
+> 20, with the harness printing the 80-wall census every run.
+> Migration clamps everything above the wall in existing saves.
+> Battery 44/44, e2e clean, zero sim errors, census on gates.
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):
@@ -7782,3 +7796,46 @@ Gate (20 seasons, seed 424242): zero sim errors, zero ties, R/G
 2% star (max 71), deep max 57. Battery 44/44 (proj suite grew four
 §23.17 checks: 75/20/5 ages, zero pre-window birthdays, no sliver
 top bands, lid 84); e2e 141 clean.
+
+### 23.18 The 80 Wall — v2.3.0, the scale ends at 80
+
+The owner's law: "the lid needs to be 80. and there should be so few
+80 grade anything. in MLB I can count on two hands the number of
+guys with a true 80 grade skill."
+
+**The wall.** 80 is the top of the scale, everywhere, with nothing
+above it: the cone mint lid (briefly 84 in v2.2.0), the surge lid,
+the overflow, the display clamp, and every pipeline lift clamp
+(draft slot lifts, gem pass, re-entry, intl signing-day and
+defector swings, the anointment) all stop at 80. §23.4's old "the
+top of the scale is a promise, not a wall" is amended: 80 IS the
+wall — the promise language now means only that a window can open
+UP TO it.
+
+**The scarcity.** Top-slot mint targets stop at 79 (draft 71-79,
+intl 72-79 — were 71-82 / 74-82) so the wall is never a magnet. The
+only mint-time paths to the top of the scale: the generational
+unicorn (anchor 76-80, a few per decade) and the THIN 80 TAIL —
+~15% of top-5 slots in each pipeline (≈1.5 kids/year league-wide)
+whose best tool truly projects 78.5-80. Everything else earns its
+way there through development walking a window to the lid.
+
+**The count.** "80-grade" is what the CARD says: grades snap to 5s,
+so a current of 77.5+ displays as 80. Developed tools asymptote
+toward their ceiling and only born tools (speed, velocity) sit
+exactly on it — the literal ≥79.5 count runs ~4 while the
+card-grade count is the owner's number. Gate soak equilibrium
+(year 20): 13 card-grade 80 tools across ~9 players — one
+four-pitch generational ace, two 78-79 command/movement artists,
+an elite bat, 80 wheels — a two-hands count with names that read
+like a real list. First soak without the tail proved its
+necessity: the founding ten aged out and equilibrium collapsed to
+ONE. The harness prints the 80-wall census every run (band ~4-18,
+above-the-wall must be 0).
+
+**Migration (2.3.0):** every value above 80 in an existing save —
+ratings, ceilings, cone edges — clamps to the wall.
+
+Gate (20 seasons, seed 424242): zero sim errors, era stable, census
+top-10 21% bust / 29% star (max 73), mid-board 3% (max 67), deep
+max 59; battery 44/44, e2e clean.

@@ -168,7 +168,11 @@ window.BBGM_INTL = (function () {
   function ceilingTargetFor(rank) {
     // Re-founding pipeline re-center (§22.11) — same +3/+2 as the draft
     // bands: the best-tool anchor lifts less under phase-2 tool spread.
-    if (rank <= 5) return rfloat(74, 82);
+    // §23.18 (owner's law): 80 is the wall — see draft.js. Top targets
+    // stop at 79; the thin 80 tail (below) and the unicorn are the only
+    // mint-time paths to the top of the scale.
+    if (rank <= 5 && rand() < 0.15) return rfloat(78.5, 80);
+    if (rank <= 5) return rfloat(72, 79);
     // §23 (cone only): the mid-class star-capable tail (see draft.js).
     if (window.BBGM_CONSTANTS.CONE && window.BBGM_CONSTANTS.CONE.ENABLED &&
         rank > 5 && rank <= 15 && rand() < 0.10) {
@@ -242,7 +246,7 @@ window.BBGM_INTL = (function () {
         continue;
       }
       const spread = k === bestKey ? 0 : rfloat(0, 8);
-      p.hidden.ceiling[k] = Math.round(clamp(p.hidden.ceiling[k] + delta - spread, 25, 82) * 10) / 10;
+      p.hidden.ceiling[k] = Math.round(clamp(p.hidden.ceiling[k] + delta - spread, 25, 80) * 10) / 10;
     }
     // The rank lift never overrides the archetype cap (0.53.1): a
     // quad-A profile stays quad-A at any board slot.
@@ -594,7 +598,7 @@ window.BBGM_INTL = (function () {
     const keys = talentKeys(p);
     const swing = rnorm(-3.5, 7);
     for (const k of keys) {
-      p.hidden.ceiling[k] = Math.round(clamp(p.hidden.ceiling[k] + swing, 25, 82) * 10) / 10;
+      p.hidden.ceiling[k] = Math.round(clamp(p.hidden.ceiling[k] + swing, 25, 80) * 10) / 10;
       p.ratings[k] = Math.min(p.ratings[k], Math.max(20, p.hidden.ceiling[k] - 4));
     }
     // Audit W1 (0.67.1): the signing-day swing honors the archetype cap,
@@ -935,7 +939,7 @@ window.BBGM_INTL = (function () {
       const keys = talentKeys(p);
       const swing = rnorm(0, 6);
       for (const k of keys) {
-        p.hidden.ceiling[k] = Math.round(clamp(p.hidden.ceiling[k] + swing, 25, 82) * 10) / 10;
+        p.hidden.ceiling[k] = Math.round(clamp(p.hidden.ceiling[k] + swing, 25, 80) * 10) / 10;
         p.ratings[k] = Math.min(p.ratings[k], Math.max(20, p.hidden.ceiling[k] - 2));
       }
       GEN().applyArchetypeCap(p); // the swing honors the cap (0.67.1)

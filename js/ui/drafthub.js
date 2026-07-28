@@ -60,7 +60,7 @@ window.BBGM_UI_DRAFT = (function () {
     }
     const lo = p.scout.ceilLo + shift;
     const hi = p.scout.ceilHi + shift;
-    return [Math.max(20, Math.round(lo)), Math.min(84, Math.round(hi))];
+    return [Math.max(20, Math.round(lo)), Math.min(80, Math.round(hi))];
   }
 
   // Tool grades are a privilege of good scouting: above-average+ tiers see

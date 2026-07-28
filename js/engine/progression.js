@@ -212,7 +212,7 @@ window.BBGM_PROGRESSION = (function () {
           let bestK = null;
           for (const k in cone.hi) if (bestK == null || h.ceiling[k] > h.ceiling[bestK]) bestK = k;
           const big = CO.SURGE.BOOST[0] + rand() * (CO.SURGE.BOOST[1] - CO.SURGE.BOOST[0]);
-          const lid = arch.ceilingCap ? arch.ceilingCap + 2 : 84; // capped identities stay capped
+          const lid = arch.ceilingCap ? arch.ceilingCap + 2 : 80; // capped identities stay capped; 80 is the wall (§23.18)
           for (const k in cone.hi) {
             cone.hi[k] = Math.round(Math.min(lid, cone.hi[k] + (k === bestK ? big : big * 0.55)) * 10) / 10;
           }
@@ -240,7 +240,7 @@ window.BBGM_PROGRESSION = (function () {
         if (!arch.ceilingCap && c >= cone.hi[k] - 1 &&
             (pack.overflow || (h.workEthic || 5) >= 8) &&
             rand() < CO.OVERFLOW.PROB) {
-          cone.hi[k] = Math.round(Math.min(84,
+          cone.hi[k] = Math.round(Math.min(80,
             cone.hi[k] + CO.OVERFLOW.AMOUNT[0] + rand() * (CO.OVERFLOW.AMOUNT[1] - CO.OVERFLOW.AMOUNT[0])) * 10) / 10;
         }
         c = clamp(c, cone.lo[k], cone.hi[k]);
@@ -476,7 +476,7 @@ window.BBGM_PROGRESSION = (function () {
     if (!keys.length) return null;
     const key = keys[Math.floor(rand() * keys.length)];
     const arch = archetypeDef(p);
-    const lid = Math.min(82, arch && arch.ceilingCap ? arch.ceilingCap : 82);
+    const lid = Math.min(80, arch && arch.ceilingCap ? arch.ceilingCap : 80);
     const before = h.ceiling[key];
     const after = Math.round(clamp(before + 3 + rand() * 5, HARD_MIN, lid) * 10) / 10;
     if (after <= before) return null; // already at the lid — nothing happened
@@ -530,7 +530,7 @@ window.BBGM_PROGRESSION = (function () {
     if (!keys.length) return null;
     const before = Math.max(...keys.map((k) => h.ceiling[k]));
     for (const k of keys) {
-      h.ceiling[k] = Math.round(clamp(h.ceiling[k] + 6 + rand() * 6, HARD_MIN, 82) * 10) / 10;
+      h.ceiling[k] = Math.round(clamp(h.ceiling[k] + 6 + rand() * 6, HARD_MIN, 80) * 10) / 10;
       if (p.ratings[k] != null) {
         const gap = Math.max(0, h.ceiling[k] - p.ratings[k]);
         p.ratings[k] = Math.round(clamp(p.ratings[k] + gap * (0.4 + rand() * 0.2),

@@ -92,8 +92,20 @@ window.BBGM_DRAFT = (function () {
     // a 1968 pitching era over two decades (20-season soak: 46 at 55+
     // vs ~87 founding, R/G 4.28→3.95 monotone). Bands +3 up top, +2/+1
     // deep, restore the founding pyramid THROUGH the spread.
+    // §23.18 (owner's law): 80 is the wall and nearly nobody touches
+    // it. Top-slot targets stop at 79 — the true 80-grade tool comes
+    // from development walking a window all the way to the lid, the
+    // surge, or the generational unicorn, never from the mint piling
+    // kids against the top of the scale.
+    // The thin 80 tail: ~one kid a year across both pipelines whose
+    // best tool truly projects at the top of the scale — the two-hands
+    // count replenishes as the founding 80s age out (soak-measured:
+    // without this, equilibrium TRUE 80s collapsed to 1 by year 20).
+    if (slot <= 5 && rand() < 0.15) {
+      return clamp(rfloat(78.5, 80) + strength * 0.5, 42, 80);
+    }
     let lo, hi, w;
-    if (slot <= 5)        { lo = 71; hi = 82; w = 2.5; }
+    if (slot <= 5)        { lo = 71; hi = 79; w = 2.5; }
     else if (slot <= 30)  { lo = 59; hi = 71; w = 2.0; }
     else if (slot <= 60)  { lo = 54; hi = 64; w = 1.25; }
     else if (slot <= 150) { lo = 50; hi = 60; w = 0.6; }
@@ -104,9 +116,9 @@ window.BBGM_DRAFT = (function () {
     // proved consensus error alone just shuffles modest destinies.
     if (window.BBGM_CONSTANTS.CONE && window.BBGM_CONSTANTS.CONE.ENABLED &&
         slot > 5 && slot <= 30 && rand() < 0.10) {
-      return clamp(rfloat(71, 77) + strength * w, 42, 84);
+      return clamp(rfloat(71, 77) + strength * w, 42, 79);
     }
-    return clamp(rfloat(lo, hi) + strength * w, 42, 84);
+    return clamp(rfloat(lo, hi) + strength * w, 42, 79);
   }
 
   function rollSlotPos() {
@@ -190,7 +202,7 @@ window.BBGM_DRAFT = (function () {
         continue;
       }
       const spread = k === bestKey ? 0 : rfloat(0, 7);
-      p.hidden.ceiling[k] = Math.round(clamp(p.hidden.ceiling[k] + delta - spread, 25, 82) * 10) / 10;
+      p.hidden.ceiling[k] = Math.round(clamp(p.hidden.ceiling[k] + delta - spread, 25, 80) * 10) / 10;
     }
 
     // HS bats skew toward the high-variance development archetypes (6.5),
@@ -329,7 +341,7 @@ window.BBGM_DRAFT = (function () {
           continue;
         }
         const spread = k === bestKey ? 0 : rfloat(0, 7);
-        const lifted = clamp(gem.hidden.ceiling[k] + delta - spread, 25, 82);
+        const lifted = clamp(gem.hidden.ceiling[k] + delta - spread, 25, 80);
         gem.hidden.ceiling[k] = Math.round(Math.max(gem.hidden.ceiling[k], lifted) * 10) / 10;
       }
       GEN().applyArchetypeCap(gem); // the gem lift honors the cap too (0.53.1)
@@ -825,7 +837,7 @@ window.BBGM_DRAFT = (function () {
       // naturally on the profile.
       const bust = p.background === 'HS' ? rnorm(-2.5, 5.5) : rnorm(-1.5, 4);
       for (const k of talentKeys(p)) {
-        p.hidden.ceiling[k] = Math.round(clamp(p.hidden.ceiling[k] + bust, 25, 82) * 10) / 10;
+        p.hidden.ceiling[k] = Math.round(clamp(p.hidden.ceiling[k] + bust, 25, 80) * 10) / 10;
         p.ratings[k] = Math.min(p.ratings[k], Math.max(20, p.hidden.ceiling[k] - 2));
       }
       GEN().applyArchetypeCap(p); // the signing-day shift honors the cap (0.53.1)
