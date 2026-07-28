@@ -83,6 +83,34 @@ window.BBGM_UI_DRAFT = (function () {
       SC.targetedLooks(state, pool).tools;
   }
 
+  // The FanGraphs grid (§23.7, cone only): present/future per tool +
+  // the FV badge. Returns true if it rendered (callers skip the old
+  // raw-chip grid); false while the cone is dark.
+  function renderConeGrid(body, state, p) {
+    const SC = window.BBGM_SCOUT;
+    const card = SC.coneCard && SC.coneCard(state, p);
+    if (!card) return false;
+    const wrap = U.el('div', { style: { 'margin-bottom': '10px' } });
+    wrap.appendChild(U.el('div', { style: { 'font-weight': '700', 'font-size': '14px', 'margin-bottom': '6px' } },
+      [U.el('span', { class: U.gradeClass(card.fv) }, `FV ${card.fv}`),
+       U.el('span', { class: 'muted', style: { 'font-size': '11px', 'font-weight': '400' } }, '  present / future')]));
+    const grid = U.el('div', { style: { display: 'flex', gap: '12px', 'flex-wrap': 'wrap' } });
+    for (const r of card.rows) {
+      const cell = U.el('div', { style: { 'text-align': 'center' } });
+      cell.appendChild(U.el('div', { style: { 'font-weight': '700', 'font-size': '15px' } },
+        r.fut == null
+          ? [U.el('span', { class: U.gradeClass(r.cur) }, String(r.cur))]
+          : [U.el('span', { class: U.gradeClass(r.cur) }, String(r.cur)),
+             U.el('span', { class: 'muted', style: { 'font-weight': '400' } }, ' / '),
+             U.el('span', { class: U.gradeClass(r.fut) }, String(r.fut))]));
+      cell.appendChild(U.el('div', { class: 'muted', style: { 'font-size': '10px' } }, r.label));
+      grid.appendChild(cell);
+    }
+    wrap.appendChild(grid);
+    body.appendChild(wrap);
+    return true;
+  }
+
   function strengthLabel(s) {
     if (s >= 1.2) return 'a generational class';
     if (s >= 0.5) return 'a deep class';
@@ -591,8 +619,9 @@ window.BBGM_UI_DRAFT = (function () {
       cell.appendChild(U.el('div', { class: 'muted', style: { 'font-size': '10px' } }, label));
       grid.appendChild(cell);
     }
-    if (toolsVisible(state, rank, 'draft', p.id)) body.appendChild(grid);
-    else body.appendChild(U.el('p', { class: 'muted', style: { 'font-size': '12px', 'margin-bottom': '10px' } },
+    if (toolsVisible(state, rank, 'draft', p.id)) {
+      if (!renderConeGrid(body, state, p)) body.appendChild(grid);
+    } else body.appendChild(U.el('p', { class: 'muted', style: { 'font-size': '12px', 'margin-bottom': '10px' } },
       'Tool grades are thin at your scouting tier — upgrade the department (GM → Staff) for full reports this deep in the class.'));
     const SC = window.BBGM_SCOUT;
     const db = poolBand(state, p, rank, 'draft');
@@ -1202,7 +1231,9 @@ window.BBGM_UI_DRAFT = (function () {
       cell.appendChild(U.el('div', { class: 'muted', style: { 'font-size': '10px' } }, label));
       grid.appendChild(cell);
     }
-    if (toolsVisible(state, rank, 'intl', p.id)) body.appendChild(grid);
+    if (toolsVisible(state, rank, 'intl', p.id)) {
+      if (!renderConeGrid(body, state, p)) body.appendChild(grid);
+    }
     else body.appendChild(U.el('p', { class: 'muted', style: { 'font-size': '12px', 'margin-bottom': '10px' } },
       'Tool grades are thin at your scouting tier — this is where elite international scouting earns its keep.'));
     const SC = window.BBGM_SCOUT;

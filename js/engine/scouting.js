@@ -765,6 +765,54 @@ window.BBGM_SCOUT = (function () {
     return (best - mid) * 0.5;
   }
 
+  // ---- The FanGraphs card (§23.7) — DARK until the v2.0.0 flip -------------
+  // Per-tool PRESENT / FUTURE on 20/80 snapped to scouting 5s, plus FV
+  // (the future OVERALL grade — owner's call). PRESENT is the current
+  // rating; FUTURE is the scouts' read of the cone CENTER through
+  // tier-scaled deterministic fog (never re-rolls between opens).
+  // Speed prints one number — you timed him yourself (1.3.0 law).
+  // Returns { fv, rows: [{label, cur, fut}] }, or null while dark.
+  function coneCard(state, p) {
+    const C = window.BBGM_CONSTANTS;
+    if (!C.CONE || !C.CONE.ENABLED) return null;
+    if (!p.hidden || !p.hidden.ceiling || !p.ratings) return null;
+    const team = state.league.teams.find((t) => t.id === state.meta.userTeamId);
+    const ti = tierIdx(team);
+    const h = hashOf(state.meta.userTeamId, p.id);
+    const amp = [7, 5, 3, 2][ti];
+    const g5 = (v) => Math.max(20, Math.min(80, Math.round(v / 5) * 5));
+    const fog = (k) => {
+      let salt = 0;
+      for (let i = 0; i < k.length; i++) salt += k.charCodeAt(i);
+      return ((h >>> (salt % 13)) % (2 * amp + 1)) - amp;
+    };
+    const cen = (k) => (p.hidden.ceiling[k] != null ? p.hidden.ceiling[k] : p.ratings[k] || 45);
+    const cur = (k) => (p.ratings[k] != null ? p.ratings[k] : 45);
+    const futRatings = { ...p.ratings };
+    const rows = [];
+    if (p.isPitcher) {
+      for (const [label, k] of [['Velo', 'velocity'], ['Stuff', 'stuff'], ['Move', 'movement'], ['Cmd', 'control']]) {
+        const f = cen(k) + fog(k);
+        futRatings[k] = Math.max(cur(k), f);
+        rows.push({ label, cur: g5(cur(k)), fut: g5(Math.max(cur(k), f)) });
+      }
+    } else {
+      const pairs = [
+        ['Hit', ['contactVsR', 'contactVsL']], ['Pow', ['powerVsR', 'powerVsL']],
+        ['App', ['discipline']], ['Glove', ['defense']], ['Arm', ['arm']],
+      ];
+      for (const [label, ks] of pairs) {
+        const c = ks.reduce((s, k) => s + cur(k), 0) / ks.length;
+        const f = ks.reduce((s, k) => s + cen(k), 0) / ks.length + fog(ks[0]);
+        for (const k of ks) futRatings[k] = Math.max(cur(k), cen(k) + fog(ks[0]));
+        rows.push({ label, cur: g5(c), fut: g5(Math.max(c, f)) });
+      }
+      rows.push({ label: 'Spd', cur: g5(cur('speed')), fut: null }); // one number
+    }
+    const fv = g5(window.BBGM_ROSTER.overall({ ...p, ratings: futRatings }));
+    return { fv, rows };
+  }
+
   // Re-anchor stored pool bands off the legs (1.3.1, user report: "it's
   // still showing speed as the carrying tool in the current
   // international class"). Bands are MINTED into the save at class
@@ -957,7 +1005,7 @@ window.BBGM_SCOUT = (function () {
     defaultTierFor, ensureTiers, ensureOps,
     requestTier, runScoutingOffseason,
     modeFor, report, poolView, aiDraftDiscipline, potentialBand, prospectNotes,
-    targetedLooks, hasTargetedLook, hasSecondLook, secondLookShift, reanchorPoolBands, medicalRead,
+    targetedLooks, hasTargetedLook, hasSecondLook, secondLookShift, reanchorPoolBands, coneCard, medicalRead,
     draftBoardInfo, draftBoardAdd, draftBoardRemove, draftBoardWiden, draftBoardShift, draftConvictions, draftBoardSeed,
     prospectRankings, pipelineRank, intlScoutMods, pickRegrades,
     stampScoutBook, scoutBookFirstLooks,

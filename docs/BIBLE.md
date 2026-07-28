@@ -5248,6 +5248,25 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > exact: battery 43/43, e2e 141 — the live game cannot tell the
 > cone exists.
 
+> **Status note (v1.6.0):** Cone phase 3, DARK (§23.13 in full).
+> The board can be WRONG now: consensus bands mint with per-kid
+> error + a 3% whole-industry whiff, and cone-on ranking drops the
+> true-ceiling leak — measured ~40% of true top-8 talents rank
+> past board #10, deep sleepers exist. The star-capable mid-tail
+> (10% of slots 6-30 mint 71-77 destinies) supplies the kid the
+> industry correctly ranked #15 who really was THE guy — soaks
+> proved consensus error alone just shuffles modest destinies.
+> Bands are perceived-center ± TRUE cone width (real edges). The
+> FanGraphs card lives: SC.coneCard present/future per tool
+> snapped to 5s, Spd one number, FV = future overall, rendered in
+> both prospect modals when the cone is live — verified in-browser
+> with zero page errors. Census: top-10 32% bust / 24% star (both
+> gates dead-on); mid-board stars EXIST (max peak 66); the
+> deep-pool miracle EXISTS (max peak 60); the 5-12% mid-board band
+> reads over-indexed vs our 58+ star bar — re-base with the owner
+> at the release gate. Flag-off parity exact: battery 43/43, e2e
+> 141.
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):
@@ -7477,3 +7496,35 @@ Iteration findings (four 14-season soaks, seed 31337):
   make the industry's #20 a star. The fix is consensus/mint
   variance (the board must be WRONG about somebody), which is
   phase 3's scouting/consensus work, not a bigger die.
+
+### 23.13 Phase-3 Consensus + The Card — BUILT (dark)
+
+Shipped dark (v1.6.0):
+- CONSENSUS VARIANCE: the industry's band mints with per-kid error
+  (HS σ6, college σ4, intl teens σ7) plus a 3% whole-industry
+  whiff (-8 to -18); cone-on scoreOf/consensusScore rank on the
+  erred band + observable current tools, never true ceilings (the
+  old avgCeil term was a truth leak that re-sorted every mis-read
+  kid back to his honest slot). Measured: ~40% of true top-8
+  talents rank past board #10; deep sleepers exist.
+- THE STAR-CAPABLE MID-TAIL: consensus error alone just shuffled
+  modest destinies (soaked at 2% mid-board stars at every σ) — the
+  6-30 band now carries a 10% cone-only tail minting 71-77
+  best-tool destinies (intl 6-15: 70-78): the kid correctly ranked
+  mid-first-round who really was a top-5 talent.
+- HONEST BANDS: the stored band is perceived-center ± his TRUE
+  cone half-width — the edges are real places.
+- THE CARD (§23.7): SC.coneCard — per-tool present/future snapped
+  to 5s, Spd one number, FV = future overall — rendered by
+  drafthub in both prospect modals when the cone is live
+  (renderConeGrid; raw chips while dark). Verified in-browser.
+- Census at ship (14-season): top-10 32% bust / 24% star — BOTH
+  gates hit dead-on. Mid-board stars now EXIST (2-3%, max peak
+  66); the deep-pool miracle EXISTS (max peak 60, past pick 30).
+  The 5-12% mid-board band from §23.9 looks over-indexed: our
+  58+ peak-OVR star bar is scarcer than a real-life All-Star
+  (0.76.0 mints ~30-45 concurrent stars league-wide), so p90=52
+  for pick ~20 is arguably right. RE-BASE the band with the owner
+  at the release gate; the tail rate (0.10) is the dial.
+- Era line 4.3-4.5 R/G, CG back in range (52-66), 4+ WAR 86.
+  Flag-off parity: battery 43/43, e2e 141.

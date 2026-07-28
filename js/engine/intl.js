@@ -136,6 +136,11 @@ window.BBGM_INTL = (function () {
     // Re-founding pipeline re-center (§22.11) — same +3/+2 as the draft
     // bands: the best-tool anchor lifts less under phase-2 tool spread.
     if (rank <= 5) return rfloat(74, 82);
+    // §23 (cone only): the mid-class star-capable tail (see draft.js).
+    if (window.BBGM_CONSTANTS.CONE && window.BBGM_CONSTANTS.CONE.ENABLED &&
+        rank > 5 && rank <= 15 && rand() < 0.10) {
+      return rfloat(70, 78);
+    }
     if (rank <= 15) return rfloat(58, 68);
     if (rank <= 30) return rfloat(50, 60);
     return rfloat(42, 54);
@@ -233,14 +238,30 @@ window.BBGM_INTL = (function () {
     // Scouting view: wider bands than the draft (teenagers, thin data).
     // The band projects TALENT; speed doesn't project — you can watch
     // him run (1.3.0) — so a hitter's band anchors on his best bat tool.
-    const fuzz = 8;
     const bandKeys = p.isPitcher ? keys : keys.filter((k) => k !== 'speed');
-    const best = Math.max(...bandKeys.map((k) => p.hidden.ceiling[k]));
-    p.scout = {
-      ceilLo: Math.round(best - fuzz - rand() * 3),
-      ceilHi: Math.round(best + fuzz + rand() * 3),
-    };
+    let bestK = bandKeys[0];
+    for (const k of bandKeys) if (p.hidden.ceiling[k] > p.hidden.ceiling[bestK]) bestK = k;
+    const best = p.hidden.ceiling[bestK];
     GEN().mintCone(p); // §23, minted AFTER the rank lift (no-op while dark)
+    if (window.BBGM_CONSTANTS.CONE && window.BBGM_CONSTANTS.CONE.ENABLED) {
+      // §23.6 (phase 3): teenage international consensus errs widest of
+      // all — and the whole industry can whiff outright. Band width is
+      // his TRUE cone width; the edges are real (see draft.js).
+      let err = rnorm(0, 7);
+      if (rand() < 0.03) err -= rfloat(8, 18);
+      const cone = p.hidden.cone;
+      const hw = (cone && cone.hi[bestK] != null) ? (cone.hi[bestK] - cone.lo[bestK]) / 2 : 10;
+      p.scout = {
+        ceilLo: Math.round(best + err - hw),
+        ceilHi: Math.round(best + err + hw),
+      };
+    } else {
+      const fuzz = 8;
+      p.scout = {
+        ceilLo: Math.round(best - fuzz - rand() * 3),
+        ceilHi: Math.round(best + fuzz + rand() * 3),
+      };
+    }
     p.ask = askFor(rank);
     return p;
   }
@@ -307,8 +328,12 @@ window.BBGM_INTL = (function () {
   function consensusScore(p) {
     const keys = talentKeys(p);
     const seen = (p.scout.ceilLo + p.scout.ceilHi) / 2;
-    const avgCeil = keys.reduce((s, k) => s + p.hidden.ceiling[k], 0) / keys.length;
     const avgCur = keys.reduce((s, k) => s + p.ratings[k], 0) / keys.length;
+    if (window.BBGM_CONSTANTS.CONE && window.BBGM_CONSTANTS.CONE.ENABLED) {
+      // §23.6: rank on belief + the observable, never true ceilings.
+      return seen * 0.55 + avgCur * 0.25 + rnorm(0, 4);
+    }
+    const avgCeil = keys.reduce((s, k) => s + p.hidden.ceiling[k], 0) / keys.length;
     return seen * 0.5 + avgCeil * 0.2 + avgCur * 0.1 + rnorm(0, 4);
   }
   function rankBoard(intl) {

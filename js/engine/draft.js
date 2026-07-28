@@ -98,6 +98,14 @@ window.BBGM_DRAFT = (function () {
     else if (slot <= 60)  { lo = 54; hi = 64; w = 1.25; }
     else if (slot <= 150) { lo = 50; hi = 60; w = 0.6; }
     else                  { lo = 46; hi = 56; w = 0.3; }
+    // §23 (cone only): a thin star-capable tail in the 6-30 band — the
+    // kid the industry correctly ranks mid-first-round who really was a
+    // top-5 talent. Without him the mid-board star cannot exist: soaks
+    // proved consensus error alone just shuffles modest destinies.
+    if (window.BBGM_CONSTANTS.CONE && window.BBGM_CONSTANTS.CONE.ENABLED &&
+        slot > 5 && slot <= 30 && rand() < 0.10) {
+      return clamp(rfloat(71, 77) + strength * w, 42, 84);
+    }
     return clamp(rfloat(lo, hi) + strength * w, 42, 84);
   }
 
@@ -234,14 +242,34 @@ window.BBGM_DRAFT = (function () {
     // tighter for college players (6.5 uncertainty bands). The band is a
     // PROJECTION, and speed doesn't project — you can watch him run
     // (1.3.0) — so a hitter's band anchors on his best baseball tool.
-    const fuzz = bg.key === 'HS' ? 6 : 3;
     const bandKeys = p.isPitcher ? keys : keys.filter((k) => k !== 'speed');
-    const best = Math.max(...bandKeys.map((k) => p.hidden.ceiling[k]));
-    p.scout = {
-      ceilLo: Math.round(best - fuzz - rand() * 2),
-      ceilHi: Math.round(best + fuzz + rand() * 2),
-    };
+    let bestK = bandKeys[0];
+    for (const k of bandKeys) if (p.hidden.ceiling[k] > p.hidden.ceiling[bestK]) bestK = k;
+    const best = p.hidden.ceiling[bestK];
     GEN().mintCone(p); // §23, minted AFTER the slot lift (no-op while dark)
+    if (window.BBGM_CONSTANTS.CONE && window.BBGM_CONSTANTS.CONE.ENABLED) {
+      // §23.6 (phase 3): the CONSENSUS can be wrong about a kid — the
+      // industry's read carries per-kid error (wider on HS projection),
+      // and once in a while the whole industry flat-out whiffs. The
+      // band's width is the kid's TRUE cone width, so the edges are
+      // real places. This is what mints the mid-board star and the
+      // deep-pool miracle: talent generation is untouched; who the
+      // board THINKS is good is not.
+      let err = rnorm(0, bg.key === 'HS' ? 6 : 4);
+      if (rand() < 0.03) err -= rfloat(8, 18); // the industry whiff
+      const cone = p.hidden.cone;
+      const hw = (cone && cone.hi[bestK] != null) ? (cone.hi[bestK] - cone.lo[bestK]) / 2 : 9;
+      p.scout = {
+        ceilLo: Math.round(best + err - hw),
+        ceilHi: Math.round(best + err + hw),
+      };
+    } else {
+      const fuzz = bg.key === 'HS' ? 6 : 3;
+      p.scout = {
+        ceilLo: Math.round(best - fuzz - rand() * 2),
+        ceilHi: Math.round(best + fuzz + rand() * 2),
+      };
+    }
     return p;
   }
 
@@ -376,11 +404,18 @@ window.BBGM_DRAFT = (function () {
     // order with local reshuffling — reaches and steals both exist.
     const scoreOf = (p) => {
       const keys = talentKeys(p);
+      const seen = (p.scout.ceilLo + p.scout.ceilHi) / 2;
+      const avgCur = keys.reduce((s, k) => s + p.ratings[k], 0) / keys.length;
+      if (window.BBGM_CONSTANTS.CONE && window.BBGM_CONSTANTS.CONE.ENABLED) {
+        // §23.6: the industry ranks on what it BELIEVES (the erred
+        // band) plus what it can watch (current tools) — the old
+        // true-avgCeil term was a truth leak that re-sorted every
+        // mis-read kid right back to his honest slot.
+        return seen * 0.55 + avgCur * 0.3 + rnorm(0, 3);
+      }
       const best = Math.max(...keys.map((k) => p.hidden.ceiling[k]));
       const avgCeil = keys.reduce((s, k) => s + p.hidden.ceiling[k], 0) / keys.length;
-      const avgCur = keys.reduce((s, k) => s + p.ratings[k], 0) / keys.length;
       // The public board sees the scouted band, not true ceiling.
-      const seen = (p.scout.ceilLo + p.scout.ceilHi) / 2;
       return seen * 0.5 + avgCeil * 0.25 + avgCur * 0.25 + rnorm(0, 2);
     };
     const board = list
