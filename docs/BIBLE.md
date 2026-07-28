@@ -5229,6 +5229,25 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > with it). Phases 2-5 await the green light. Battery 43/43, e2e
 > 141.
 
+> **Status note (v1.5.0):** Cone phase 2 — the engine core, DARK
+> behind CONE.ENABLED (§23.12 has the full state of the census).
+> mintCone + the driftCones checkpoint + whole-profile surges +
+> the overflow; old growth-creep/bust-decay/breakout/leap gated
+> off under the cone. Four soak iterations found and fixed the
+> career-die problem (independent per-tool dice average out of the
+> overall — 0.53.1's lesson relearned; most noise is now one
+> shared draw) and the lid-lag problem (a fast-closing top
+> strangled up-walks). At ship: probe 10/10 (landings fill the
+> window, WE gap ~11 with overlap, busts land 40 / overachievers
+> 61 with ~20% overflow, prime surges ~6% of high-WE careers);
+> top-10 census 24% bust / 20% star (star gate hit); era line
+> stable. Open and root-caused to phase 3: mid-board/deep-pool
+> stars still missing because the rank lifts anchor minted centers
+> to board rank — the board must be able to be WRONG about
+> somebody, which is consensus/mint variance work. Flag-off parity
+> exact: battery 43/43, e2e 141 — the live game cannot tell the
+> cone exists.
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):
@@ -7422,3 +7441,39 @@ pyramid and era line hold · (3) scouting + the FanGraphs card ·
 absorption + migration + 20-season release-gate soak with the
 §23.9 census in-band. Ships as v2.0.0. Same discipline as §22:
 built dark, judged by the observatory, opened as THE game.
+
+### 23.12 Phase-2 Engine Core — BUILT (dark), state of the census
+
+Shipped dark behind CONE.ENABLED (v1.5.0): mintCone (generation +
+draft/intl post-lift + the anointment), the driftCones checkpoint
+(window-follow healing of externally-moved centers, weighted
+drift, narrowing with a ×1.3 lid lag, whole-profile surge in both
+age forms, the overflow), old growth-creep/bust-decay/ceiling-
+breakout/generational-leap gated off under the cone, the bust's
+zero rise-rate replaced by the down-bias pack. Flag-off parity:
+battery 43/43, e2e 141 — the live game cannot tell the cone
+exists.
+
+Iteration findings (four 14-season soaks, seed 31337):
+- The career die: independent per-tool dice average out of the
+  overall (0.53.1's lesson relearned) — most checkpoint noise is
+  now ONE shared draw (0.85/0.55 split) so whole profiles rise
+  and collapse together.
+- The lid lag: a fast-closing top strangled sustained up-walks;
+  narrowing now trails the walk ×1.3.
+- Probe (600 rigged 16yos): landings fill the window (p05-p95
+  ~18.6 pts on a ±11 mint), WE gap ~11 pts with real overlap,
+  busts land 40, overachievers 61 with ~20% punching past,
+  high-WE prime surges ~6% of careers.
+- Census at ship: top-10 24% bust / 20% star (star gate HIT;
+  bust sits gentle-of-gate, acceptable per the owner's gentler
+  call) · era line stable 4.1-4.3 R/G · CG mildly elevated
+  (70-99), watch at the release gate.
+- OPEN, root-caused, assigned to phase 3: mid-board stars 1% (gate
+  5-12) and deep-pool stars 0 (max peak 57.0 — one point short).
+  NOT a drift problem: the p90 mid-board peak is 52 because the
+  draft/intl RANK LIFTS anchor minted centers to board rank by
+  construction — rank IS destiny at mint, so no honest dice can
+  make the industry's #20 a star. The fix is consensus/mint
+  variance (the board must be WRONG about somebody), which is
+  phase 3's scouting/consensus work, not a bigger die.

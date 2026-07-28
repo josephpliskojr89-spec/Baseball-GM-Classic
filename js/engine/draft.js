@@ -241,6 +241,7 @@ window.BBGM_DRAFT = (function () {
       ceilLo: Math.round(best - fuzz - rand() * 2),
       ceilHi: Math.round(best + fuzz + rand() * 2),
     };
+    GEN().mintCone(p); // §23, minted AFTER the slot lift (no-op while dark)
     return p;
   }
 

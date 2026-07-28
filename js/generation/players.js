@@ -75,7 +75,45 @@ window.BBGM_PLAYER_GEN = (function () {
     h.workEthic = Math.max(h.workEthic || 5, 8 + Math.round(rand() * 2));
     h.makeupGrade = Math.max(h.makeupGrade || 5, 7 + Math.round(rand() * 3));
     syncBornSpeed(p, rand);
+    mintCone(p); // §23.5: the unicorn's window minted HIGH (no-op while dark)
     return p;
+  }
+
+  // ---- The Cone (bible §23) — DARK until the v2.0.0 flip -------------------
+  // Mint a player's per-tool windows around his current centers
+  // (hidden.ceiling), width by age. No-ops while CONE.ENABLED is false,
+  // so the live game is untouched; the drift checkpoint (progression)
+  // lazily mints for anyone who slipped through, which is also the
+  // whole migration story at flip time.
+  function coneKeysOf(p) {
+    return p.isPitcher
+      ? ['velocity', 'stuff', 'movement', 'control']
+      : ['contactVsR', 'contactVsL', 'powerVsR', 'powerVsL', 'discipline', 'defense', 'arm'];
+  }
+  function coneHalfWidth(age) {
+    const T = C.CONE && C.CONE.HALF_WIDTH;
+    if (!T) return 0;
+    if (T[age] != null) return T[age];
+    return age < 16 ? T[16] : T.DEFAULT;
+  }
+  function mintCone(p) {
+    if (!C.CONE || !C.CONE.ENABLED) return;
+    if (!p.hidden || !p.hidden.ceiling) return;
+    const arch = (p.isPitcher ? C.PITCHER_ARCHETYPES : C.HITTER_ARCHETYPES)
+      .find((a) => a.key === p.hidden.archetype);
+    const hw = coneHalfWidth(p.age);
+    const cone = { lo: {}, hi: {} };
+    for (const k of coneKeysOf(p)) {
+      const c = p.hidden.ceiling[k];
+      if (c == null) continue;
+      let hi = Math.min(82, c + hw);
+      // The identity IS the window (23.5): a quad-A profile's top is
+      // the quad-A cap, at any age.
+      if (arch && arch.ceilingCap) hi = Math.min(hi, arch.ceilingCap + 2);
+      cone.lo[k] = Math.round(Math.max(20, c - hw) * 10) / 10;
+      cone.hi[k] = Math.round(Math.max(hi, c) * 10) / 10;
+    }
+    p.hidden.cone = cone;
   }
 
   // Legs are born, not developed (1.3.0): whenever a post-mint ceiling
@@ -384,7 +422,7 @@ window.BBGM_PLAYER_GEN = (function () {
     const frameLb = frameFor(heightIn, posFrameAdj(primaryPosition, isPitcher) + rnormal(rng, 0, 12));
     const weightLb = Math.max(148, frameLb - youthDeficit(age));
 
-    return {
+    const p = {
       id,
       firstName,
       lastName,
@@ -414,6 +452,8 @@ window.BBGM_PLAYER_GEN = (function () {
       achievements: { awards: [], allStarSelections: [], championships: [], milestones: [] },
       injuryHistory: [],
     };
+    mintCone(p); // §23 (no-op while dark)
+    return p;
   }
 
   function resolvePositions(rng, slotPos) {
@@ -1184,7 +1224,7 @@ window.BBGM_PLAYER_GEN = (function () {
   }
 
   return {
-    generate, validateLeagueReadiness, assignBullpenRoles, anointGenerational, syncBornSpeed,
+    generate, validateLeagueReadiness, assignBullpenRoles, anointGenerational, syncBornSpeed, mintCone,
     // Exposed for the roster-management UI: position eligibility checks and
     // single-team readiness validation after user-driven roster moves.
     canPlay, aptitudeFor, syncPositions,

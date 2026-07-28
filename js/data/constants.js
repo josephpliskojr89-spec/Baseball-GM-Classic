@@ -3,7 +3,7 @@ window.BBGM_CONSTANTS = {
   // Single source of truth for the app/save version. main.js stamps this
   // into new saves; index.html's ?v= cache-busters and the service-worker
   // cache name must be bumped in lockstep (they can't read JS constants).
-  VERSION: '1.4.1',
+  VERSION: '1.5.0',
   START_YEAR: 2026,
   TEAMS_PER_LEAGUE: 15,
   // Two leagues, three divisions each. Internal values are lowercase for
@@ -28,6 +28,43 @@ window.BBGM_CONSTANTS = {
   // (The old TARGET_* league-calibration constants died with the
   // re-founding — the league line is an OUTPUT of the grade dictionary
   // now, watched by the observatory, never targeted. See bible §22.)
+
+  // ---- The Cone (bible §23) — DARK until the v2.0.0 flip -------------------
+  // Potential as a per-tool window that development itself resolves.
+  // ENABLED false = the live game runs the old fixed-destiny model
+  // untouched; the harness flips it for soaks. This block is the §23
+  // tuning surface, exactly as the §22 dictionary is for the sim.
+  CONE: {
+    ENABLED: false,
+    // Half-width of a tool's window by age (23.2). Never welds shut.
+    HALF_WIDTH: { 16: 11, 17: 10, 18: 9, 19: 8, 20: 6.5, 21: 5, 22: 4, 23: 3, 24: 2, DEFAULT: 1.5 },
+    // Yearly dice sigma on the center, by age band (younger = wilder).
+    VOL: { teen: 2.6, young: 1.8, adult: 1.0 },
+    // Scoutable drift weights, per point above/below 5.5, per year —
+    // the 40/60 split lives here (23.3).
+    W_WE: 0.14, W_MAKEUP: 0.07, W_COACH: 0.55,
+    // Archetype weight packs (23.5): bias pts/yr, vol multiplier,
+    // late = drift back-loaded, early = cone closes ~2 years sooner,
+    // overflow = the overachiever's punch-past-the-top roll.
+    PACKS: {
+      bust: { bias: -1.6 },
+      overachiever: { bias: 1.6, overflow: true },
+      volatile: { vol: 2.0 },
+      one_year_wonder: { vol: 1.5 },
+      late_bloomer: { bias: 0.25, late: true },
+      slow_burn: { bias: 0.25, late: true },
+      late_reinvent: { bias: 0.25, late: true },
+      crafty_vet: { late: true },
+      early_peak: { early: true },
+      flameout: { early: true },
+      steady_decliner: { early: true },
+    },
+    // The late surge (23.4, the Judge clause) — and its under-22 form,
+    // which absorbs the 0.57.0 generational leap.
+    SURGE: { PROB: 0.004, YOUTH_PROB: 0.009, BOOST: [4, 10], HOT_BIAS: 2.5, HOT_YEARS: 2 },
+    // The overflow: pressed against the top with the head to earn it.
+    OVERFLOW: { PROB: 0.05, AMOUNT: [2, 5] },
+  },
 
   // Owner archetypes (per 4.3)
   OWNER_ARCHETYPES: [

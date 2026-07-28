@@ -240,6 +240,7 @@ window.BBGM_INTL = (function () {
       ceilLo: Math.round(best - fuzz - rand() * 3),
       ceilHi: Math.round(best + fuzz + rand() * 3),
     };
+    GEN().mintCone(p); // §23, minted AFTER the rank lift (no-op while dark)
     p.ask = askFor(rank);
     return p;
   }

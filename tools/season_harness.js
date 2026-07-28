@@ -55,6 +55,8 @@ for (const f of files) {
 }
 const W = sandbox.window;
 const D = W.BBGM_DATES, C = W.BBGM_CONSTANTS, S = W.BBGM_STATS, INJ = W.BBGM_INJURIES, FAT = W.BBGM_FATIGUE;
+// The cone (§23) soaks dark: BBGM_CONE=1 flips the flag for this run only.
+if (process.env.BBGM_CONE) { C.CONE.ENABLED = true; console.log('[cone] §23 development ENABLED for this soak'); }
 
 const seed = parseInt(process.argv[2] || '12345', 10);
 const rng = W.BBGM_RNG.makeRng(seed);

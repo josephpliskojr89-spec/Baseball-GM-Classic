@@ -255,6 +255,8 @@ function outcomeCensus(state, store, startYear, endYear) {
     if (!bucket) continue;
     const r = rows[bucket.key];
     r.n++;
+    r.peaks = r.peaks || [];
+    r.peaks.push(peak);
     if (peak < 42) r.bust++;
     else if (peak < 48) r.fringe++;
     else if (peak < 58) r.regular++;
@@ -270,7 +272,10 @@ function printOutcomes(rows) {
     const r = rows[key];
     if (!r.n) { console.log(`${r.label.padEnd(16)} —  (no matured entrants)`); continue; }
     const pc = (x) => (100 * x / r.n).toFixed(0).padStart(4) + '%';
-    console.log(`${r.label.padEnd(16)}${String(r.n).padStart(4)}  ${pc(r.bust)}  ${pc(r.fringe)}   ${pc(r.regular)}  ${pc(r.star)}`);
+    const ps = (r.peaks || []).slice().sort((a, b) => a - b);
+    const q = (f) => ps.length ? ps[Math.min(ps.length - 1, Math.floor(f * ps.length))].toFixed(0) : '-';
+    console.log(`${r.label.padEnd(16)}${String(r.n).padStart(4)}  ${pc(r.bust)}  ${pc(r.fringe)}   ${pc(r.regular)}  ${pc(r.star)}` +
+      `   peaks p50 ${q(0.5)} p90 ${q(0.9)} max ${q(0.999)}`);
   }
 }
 

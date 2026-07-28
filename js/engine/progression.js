@@ -150,19 +150,116 @@ window.BBGM_PROGRESSION = (function () {
     return m != null ? m : 1;
   }
 
+  // ---- The Cone checkpoint (§23.3-23.4) — DARK until the v2.0.0 flip -------
+  // Development IS the dice: once a year the center of every talent
+  // window drifts (archetype bias + work ethic + makeup + coaching +
+  // noise), the window follows externally-moved centers (role shifts,
+  // signing swings, injuries — no site-by-site bookkeeping), and then
+  // narrows to the age schedule. The late surge (27-33, the Judge
+  // clause) and its under-22 form re-open a window upward; the
+  // overflow lets the kid pressed against his top punch past it.
+  function coneGauss() { return (rand() + rand() + rand() + rand() - 2) / 0.577; }
+  function driftCones(p, year, coachMod) {
+    const CO = C.CONE;
+    const h = p.hidden;
+    if (!h || !h.ceiling) return;
+    if (!h.cone) window.BBGM_PLAYER_GEN.mintCone(p); // lazy — also the flip-day migration
+    const cone = h.cone;
+    if (!cone) return;
+    const arch = archetypeDef(p);
+    const pack = CO.PACKS[arch.key] || {};
+    const age = p.age;
+    const T = CO.HALF_WIDTH;
+    const hwAge = pack.early ? age + 2 : age;
+    const hw = T[hwAge] != null ? T[hwAge] : (hwAge < 16 ? T[16] : T.DEFAULT);
+    const vol = (age <= 19 ? CO.VOL.teen : age <= 22 ? CO.VOL.young : CO.VOL.adult) * (pack.vol || 1);
+    const lateGate = pack.late ? (age >= 22 ? 1.15 : 0.35) : 1;
+    // The career die (0.53.1's lesson, relearned for §23): independent
+    // per-tool dice average out of the OVERALL — a mid-board kid could
+    // never dice his way to stardom nor a top-10 kid to a bust, and the
+    // first soak proved it (1% mid-board stars, same as fixed destiny).
+    // Most of the checkpoint's noise is ONE shared draw so the whole
+    // profile rises or collapses together; the per-tool remainder keeps
+    // individual tools diverging.
+    const sharedDie = coneGauss() * vol * 0.85;
+    const bias = ((pack.bias || 0) * lateGate) +
+      ((h.workEthic || 5) - 5.5) * CO.W_WE +
+      ((h.makeupGrade || 5) - 5.5) * CO.W_MAKEUP +
+      (coachMod || 0) * CO.W_COACH;
+    const growing = age < (h.peakAge || 28) + (arch.plateauWidth || 2);
+
+    // The surge roll (23.4): once per career. Prime form 27-33; the
+    // under-22 form absorbs the 0.57.0 generational leap's rarity.
+    if (!h.surgeDone) {
+      const prime = age >= 27 && age <= 33;
+      const youth = age >= 18 && age <= 21;
+      if (prime || youth) {
+        const base = prime ? CO.SURGE.PROB : CO.SURGE.YOUTH_PROB;
+        const odds = base * (1 + ((h.workEthic || 5) - 5) * 0.15 + ((h.makeupGrade || 5) - 5) * 0.10) *
+          (prime && pack.late ? 3 : 1);
+        if (rand() < Math.max(0, odds)) {
+          // The surge is WHOLE-PROFILE (Judge didn't just add power —
+          // the entire game jumped): every window re-opens upward, the
+          // carrying tool most, and the drift runs hot across the board.
+          let bestK = null;
+          for (const k in cone.hi) if (bestK == null || h.ceiling[k] > h.ceiling[bestK]) bestK = k;
+          const big = CO.SURGE.BOOST[0] + rand() * (CO.SURGE.BOOST[1] - CO.SURGE.BOOST[0]);
+          for (const k in cone.hi) {
+            cone.hi[k] = Math.round(Math.min(84, cone.hi[k] + (k === bestK ? big : big * 0.55)) * 10) / 10;
+          }
+          h.surge = { key: bestK, until: year + CO.SURGE.HOT_YEARS };
+          h.surgeDone = true;
+        }
+      }
+    }
+
+    for (const k in cone.lo) {
+      if (h.ceiling[k] == null) continue;
+      let c = h.ceiling[k];
+      // The window follows an externally-moved center, width preserved.
+      if (c < cone.lo[k]) { const w = cone.hi[k] - cone.lo[k]; cone.lo[k] = c; cone.hi[k] = c + w; }
+      else if (c > cone.hi[k]) { const w = cone.hi[k] - cone.lo[k]; cone.hi[k] = c; cone.lo[k] = c - w; }
+      const surging = h.surge && h.surge.until >= year;
+      if (growing || surging) {
+        c += (surging ? CO.SURGE.HOT_BIAS * (h.surge.key === k ? 1 : 0.55) : bias) +
+          sharedDie + coneGauss() * vol * 0.55;
+        // The overflow (23.4): pressed against the top with the head to
+        // earn it — the top of the scale is a promise, not a wall.
+        if (c >= cone.hi[k] - 1 && (pack.overflow || (h.workEthic || 5) >= 8) &&
+            rand() < CO.OVERFLOW.PROB) {
+          cone.hi[k] = Math.round(Math.min(84,
+            cone.hi[k] + CO.OVERFLOW.AMOUNT[0] + rand() * (CO.OVERFLOW.AMOUNT[1] - CO.OVERFLOW.AMOUNT[0])) * 10) / 10;
+        }
+        c = clamp(c, cone.lo[k], cone.hi[k]);
+        // Pre-peak the projection never reads below what he already is.
+        if (p.ratings[k] != null && growing) c = Math.max(c, Math.min(p.ratings[k], cone.hi[k]));
+        h.ceiling[k] = Math.round(c * 10) / 10;
+      }
+      // Narrow toward the (possibly moved) center. The lid LAGS the walk
+      // (×1.3): a fast-closing top was strangling sustained up-walks
+      // mid-climb — the mid-board star died at the lid, not the dice.
+      const lag = hw * 1.3;
+      cone.lo[k] = Math.round(Math.min(Math.max(cone.lo[k], c - lag), c) * 10) / 10;
+      cone.hi[k] = Math.round(Math.max(c, Math.min(cone.hi[k], c + lag)) * 10) / 10;
+    }
+  }
+
   function progressPlayer(p, year, coachMod) {
     const arch = archetypeDef(p);
     ensureCurveState(p, arch);
     const h = p.hidden;
     const keys = p.isPitcher ? PITCHER_KEYS : HITTER_KEYS;
     const age = p.age;
+    const coneOn = !!(C.CONE && C.CONE.ENABLED);
+    if (coneOn) driftCones(p, year, coachMod);
 
     // Overachiever creep (0.58.0): the ceiling itself climbs toward the
     // hidden destiny, finishing around growth.doneAge — a linear share
     // of the remaining gap each winter, jittered so no two climbs read
     // identical. Climb only (Math.max guard): a breakout or leap that
     // already lifted a ceiling past destiny is never pulled back down.
-    if (h.growth && h.growth.dest && h.ceiling) {
+    // (§23 absorbs this: under the cone the up-bias does the climbing.)
+    if (!coneOn && h.growth && h.growth.dest && h.ceiling) {
       const yearsLeft = Math.max(1, (h.growth.doneAge || 26) - age);
       for (const k of keys) {
         const dest = h.growth.dest[k];
@@ -179,7 +276,10 @@ window.BBGM_PROGRESSION = (function () {
     // projection dies with it — each year past the peak's front edge the
     // ceiling sinks toward what he actually is. Re-scouts watch the
     // dream fade; the card stops lying about what he'll never become.
-    if (arch.key === 'bust' && age >= arch.peakAge[0] && h.ceiling) {
+    // (§23 absorbs this too: under the cone the bust's heavy down-bias
+    // sinks the center to the window's floor — same fading dream, no
+    // script.)
+    if (!coneOn && arch.key === 'bust' && age >= arch.peakAge[0] && h.ceiling) {
       for (const k of keys) {
         const cur = p.ratings[k];
         if (cur == null || h.ceiling[k] == null) continue;
@@ -240,8 +340,16 @@ window.BBGM_PROGRESSION = (function () {
       // couple years older than the birth certificate, the eye and the
       // command a couple younger. Frailty accel stays on real age.
       const ageK = agedAge(age, k);
-      if (ageK < h.peakAge) {
-        change = arch.riseRate * ANNUAL_SHARE * Math.max(0, devCeil - cur) * posMod * youthMul(p);
+      // §23.5: the bust's zero rise-rate was the old script — under the
+      // cone he climbs like anyone toward a center his loaded dice keep
+      // sinking, and LANDS at the bottom of an honest window.
+      const rise = (coneOn && arch.key === 'bust') ? 0.22 : arch.riseRate;
+      // §23.4: a surging player climbs toward his re-opened centers even
+      // past the peak — the Judge winter shows up in the RATINGS.
+      const surgingK = coneOn && h.surge && h.surge.until >= year;
+      if (ageK < h.peakAge || surgingK) {
+        change = rise * ANNUAL_SHARE * Math.max(0, devCeil - cur) * posMod * youthMul(p) *
+          (surgingK && ageK >= h.peakAge ? 1.4 : 1);
         // Coach project (0.48.0): the year a coach makes this player his
         // personal project, HIS specialty attributes develop 60% faster.
         // Rise only — a project never softens decline or beats the ceiling.
@@ -337,6 +445,7 @@ window.BBGM_PROGRESSION = (function () {
   // decoupling) unless it already IS the carrying tool — the same rule
   // the draft/intl slot lifts follow. Returns {key, amount} or null.
   function rollCeilingBreakout(p) {
+    if (C.CONE && C.CONE.ENABLED) return null; // §23 absorbs this: drift + the overflow
     const h = p.hidden;
     if (!h || !h.ceiling) return null;
     if (h.generational) return null; // his gift is the ramp exemption (0.68.0)
@@ -378,6 +487,7 @@ window.BBGM_PROGRESSION = (function () {
   const LEAP_BLOCKED = { bust: true, quad_a: true, one_year_wonder: true };
 
   function rollGenerationalLeap(p, year) {
+    if (C.CONE && C.CONE.ENABLED) return null; // §23.4 absorbs this: the under-22 surge
     const h = p.hidden;
     if (!h || !h.ceiling || h.leap) return null;          // once per career
     // Audit W2 (0.68.0): the anointed generational talent is EXCLUDED.
@@ -602,6 +712,6 @@ window.BBGM_PROGRESSION = (function () {
   }
 
   return { progressPlayer, inSeasonTick, rollRetirement, retirementProb, levelPenalty,
-    rollCeilingBreakout, rollGenerationalLeap, rampRewind,
+    rollCeilingBreakout, rollGenerationalLeap, rampRewind, driftCones,
     alignBirthdate, birthdayTick, birthdayTickAll, calendarAge };
 })();
