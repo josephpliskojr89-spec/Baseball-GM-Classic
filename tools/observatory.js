@@ -221,7 +221,8 @@ function trackPeaks(W, state, store) {
     if (!p || p.retired) continue;
     if (!store.entry[id]) {
       if (p.draft && p.draft.year != null) {
-        store.entry[id] = { kind: 'draft', year: p.draft.year, rank: p.draft.overall };
+        store.entry[id] = { kind: 'draft', year: p.draft.year, rank: p.draft.overall,
+          path: p.background === 'HS' ? 'hs' : 'college' };
       } else if (p.intl && p.intl.year != null) {
         store.entry[id] = { kind: 'intl', year: p.intl.year, rank: p.intl.rank };
       } else continue;
@@ -239,9 +240,25 @@ const OUTCOME_BUCKETS = [
   { key: 'deep', label: 'deep pool (31+)', of: (e) => e.rank > 30 },
 ];
 
+// The volatility-vs-certainty split (owner's question): does the market
+// you built make BOTH the upside pick and the safe pick defensible? HS
+// first-rounders vs college first-rounders is the cleanest read — same
+// draft real estate, opposite risk purchases. July 2 rides along as the
+// extreme-upside pole.
+const PATH_BUCKETS = [
+  { key: 'hs_r1', label: 'rd-1 HS', of: (e) => e.kind === 'draft' && e.path === 'hs' && e.rank <= 30 },
+  { key: 'col_r1', label: 'rd-1 college', of: (e) => e.kind === 'draft' && e.path === 'college' && e.rank <= 30 },
+  { key: 'hs_late', label: 'rd-2+ HS', of: (e) => e.kind === 'draft' && e.path === 'hs' && e.rank > 30 },
+  { key: 'col_late', label: 'rd-2+ college', of: (e) => e.kind === 'draft' && e.path === 'college' && e.rank > 30 },
+  { key: 'j2_top', label: 'July 2 top-30', of: (e) => e.kind === 'intl' && e.rank <= 30 },
+  { key: 'j2_deep', label: 'July 2 deep', of: (e) => e.kind === 'intl' && e.rank > 30 },
+];
+
 function outcomeCensus(state, store, startYear, endYear) {
   const rows = {};
-  for (const b of OUTCOME_BUCKETS) rows[b.key] = { label: b.label, n: 0, bust: 0, fringe: 0, regular: 0, star: 0 };
+  for (const b of OUTCOME_BUCKETS.concat(PATH_BUCKETS)) {
+    rows[b.key] = { label: b.label, n: 0, bust: 0, fringe: 0, regular: 0, star: 0 };
+  }
   for (const id in store.entry || {}) {
     const e = store.entry[id];
     if (e.year <= startYear) continue; // founding-adjacent classes only partially observed
@@ -251,16 +268,18 @@ function outcomeCensus(state, store, startYear, endYear) {
     if (!done) continue; // right-censored — his story isn't over
     const peak = store.peak[id];
     if (peak == null) continue;
-    const bucket = OUTCOME_BUCKETS.find((b) => b.of(e));
-    if (!bucket) continue;
-    const r = rows[bucket.key];
-    r.n++;
-    r.peaks = r.peaks || [];
-    r.peaks.push(peak);
-    if (peak < 42) r.bust++;
-    else if (peak < 48) r.fringe++;
-    else if (peak < 58) r.regular++;
-    else r.star++;
+    const hits = [OUTCOME_BUCKETS.find((b) => b.of(e)), PATH_BUCKETS.find((b) => b.of(e))];
+    for (const bucket of hits) {
+      if (!bucket) continue;
+      const r = rows[bucket.key];
+      r.n++;
+      r.peaks = r.peaks || [];
+      r.peaks.push(peak);
+      if (peak < 42) r.bust++;
+      else if (peak < 48) r.fringe++;
+      else if (peak < 58) r.regular++;
+      else r.star++;
+    }
   }
   return rows;
 }
