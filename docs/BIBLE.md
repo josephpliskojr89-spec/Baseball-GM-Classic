@@ -5301,6 +5301,21 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > Mid-board star band re-based to ~3-5% vs our All-Star-grade 58+
 > bar; mild category floods documented as watch items (§23.15).
 
+> **Status note (v2.1.0):** Projectability (§23.16). Cone width is
+> per-player now: observable athleticism (legs/arm or velocity, plus
+> frame room from the body model) scales a teenager's window ~0.85-1.6x,
+> fading to the plain age schedule by 20. The 16yo freak's band runs
+> from out-of-baseball to All-Star; the polished filled-out kid is
+> mostly who he is. And the boards agree with their own grades: the
+> Guillen fix replaces the pre-cone rank dice (σ3/σ4) with grade-driven
+> ordering (band mid + upside tilt at 0.65, current tools 0.15, σ1) —
+> no more kids ranked above others their own published bands call far
+> better. Steals and reaches live in seen-vs-truth, where they belong.
+> Migration re-mints ≤19 windows at earned width around preserved
+> centers and re-shapes pool bands. Gate soak clean: zero sim errors,
+> era 4.15-4.55 R/G, census gates hit (top-10 24%/23%, mid-board max
+> 72, deep 58). Battery 44/44 (new proj suite), e2e 141.
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):
@@ -7644,3 +7659,54 @@ currently 0.10) is the owner's dial if he wants more. WATCH ITEMS
 3+ CG ~5/yr — and glove-first regulars run rare (~1.5/yr). Judged
 acceptable at the flip; revisit if the record book starts reading
 cheap.
+
+### 23.16 Projectability — v2.1.0, the freak's window is massive
+
+The owner's law: "there are absolutely 16 year olds where the floor
+is out of baseball by 19 and the ceiling is All-Star." Width is no
+longer one-size-per-age. At mint, every cone gets a per-player
+multiplier (CONE.PROJ, ~0.85-1.6x) built ONLY from what a scout can
+observe: born speed and arm strength for a bat, radar-gun velocity
+for an arm, and frame room (pounds still coming vs the adult frame
+his height predicts — the 0.49.0 body model). The 75-speed, wiry
+6'3" 16yo with a 44-center bat mints ~27-61: floor out of baseball,
+ceiling All-Star, honestly. The filled-out 42-speed kid at the same
+center mints ~34-54: mostly who he is already. The multiplier is
+stored on the cone (cone.wm) so the yearly narrowing keeps honoring
+the build, and it FADES to 1.0 by age 20 (full at 16-17, 0.66 at
+18, 0.33 at 19) while the base age schedule narrows underneath —
+by 20, everyone's window is about who they've become. Because
+scouted bands show TRUE cone width (23.6), the freak's massive
+window is visible on the board, and because valuation prices width
+(23.8), AI clubs pay up for exactly these kids with no extra code.
+Capped identities stay capped: mintCone's ceilingCap+2 lid applies
+before any multiplier can matter.
+
+THE BOARD AGREES WITH ITS OWN GRADES (the Guillen fix). The old
+cone-on rank dice (σ3 draft / σ4 intl) were a pre-cone holdover:
+when bands hugged truth, rank noise WAS the consensus error. Post-
+flip the error already lives in the band center (σ4-7 + whiffs), so
+big rank dice made the list contradict its own published grades —
+a 25-47 kid ranked over a 42-64 kid, which reads as the consensus
+not knowing what it's talking about rather than being wrong in an
+honest direction. Now both boards sort by their own bands: an
+upside-tilted read of the band (mid + 0.2/0.3 of the distance to
+the top edge — July 2 chases ceilings hardest) at 0.65 weight,
+current tools at 0.15 (any heavier and a finished college kid
+outranks a raw teen whose published FLOOR sits at his ceiling),
+dice at σ1. Steals and reaches survive fully — they live in
+seen-vs-truth, where they belong. Verified: worst both-edges
+inversion across six generated boards < 10 pts (was 17+).
+
+Migration (2.1.0): players and pool prospects ≤19 re-mint their
+windows at the width their build earns (centers preserved); pool
+bands re-shape around their existing perceived centers, same
+contract as the 2.0.0 reband.
+
+Gate soak (20 seasons, seed 424242, flipped + projectability): zero
+sim errors, zero ties, era 4.15-4.55 R/G, 4+ WAR 75 / 6+ 25;
+census top-10 24% bust / 23% star (max peak 76), ranks 11-30 57% /
+3% (max 72 — the widened mid-board freak exists), deep pool 81% /
+max 58. Battery 44/44 (new proj suite: width spread, fade, radar-
+gun projection, quad-A cap, narrowing honors the build, board
+coherence); e2e 141 clean.

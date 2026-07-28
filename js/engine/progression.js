@@ -171,7 +171,15 @@ window.BBGM_PROGRESSION = (function () {
     const age = p.age;
     const T = CO.HALF_WIDTH;
     const hwAge = pack.early ? age + 2 : age;
-    const hw = T[hwAge] != null ? T[hwAge] : (hwAge < 16 ? T[16] : T.DEFAULT);
+    let hw = T[hwAge] != null ? T[hwAge] : (hwAge < 16 ? T[16] : T.DEFAULT);
+    // §23.16 projectability: the freak's minted width multiplier keeps
+    // stretching the narrowing schedule while he's a teenager, fading
+    // to nothing by 20 (the FADE table) — by then he is who he is.
+    if (cone.wm && CO.PROJ) {
+      const F = CO.PROJ.FADE;
+      const fade = F[hwAge] != null ? F[hwAge] : (hwAge < 16 ? 1 : F.DEFAULT);
+      hw *= 1 + (cone.wm - 1) * fade;
+    }
     const vol = (age <= 19 ? CO.VOL.teen : age <= 22 ? CO.VOL.young : CO.VOL.adult) * (pack.vol || 1);
     const lateGate = pack.late ? (age >= 22 ? 1.15 : 0.35) : 1;
     // The career die (0.53.1's lesson, relearned for §23): independent

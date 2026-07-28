@@ -411,7 +411,19 @@ window.BBGM_DRAFT = (function () {
         // band) plus what it can watch (current tools) — the old
         // true-avgCeil term was a truth leak that re-sorted every
         // mis-read kid right back to his honest slot.
-        return seen * 0.55 + avgCur * 0.3 + rnorm(0, 3);
+        // §23.16: the list agrees with its own grades. The old σ3 rank
+        // dice were a pre-cone holdover (bands used to hug truth, so
+        // rank noise WAS the consensus error) — post-flip the error
+        // already lives in seen, and big dice made the board rank kids
+        // above others its own published bands called far better. The
+        // upside tilt chases the top edge: a wide window outranks a
+        // same-center narrow one, which is why the freak goes early.
+        // Polish stays a light thumb on the scale (0.15): any heavier
+        // and a finished college kid outranks a raw teen whose
+        // published FLOOR sits at the college kid's ceiling — the
+        // exact self-contradiction this rewrite kills.
+        const seenUp = seen + (p.scout.ceilHi - seen) * 0.2;
+        return seenUp * 0.65 + avgCur * 0.15 + rnorm(0, 1);
       }
       const best = Math.max(...keys.map((k) => p.hidden.ceiling[k]));
       const avgCeil = keys.reduce((s, k) => s + p.hidden.ceiling[k], 0) / keys.length;

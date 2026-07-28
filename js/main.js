@@ -1106,6 +1106,51 @@ window.BBGM_MAIN = (function () {
       window.BBGM_STATE.set(state);
     }
 
+    // Migration (2.1.0, §23.16): projectability. Teenage windows
+    // re-mint at the width the kid's build earns — the athletic freak
+    // with frame room gets the massive window (floor out of baseball,
+    // ceiling All-Star), the polished filled-out kid narrows. Only
+    // ages the FADE still touches (≤19) re-mint; everyone 20+ already
+    // is who he is. Pool bands re-shape around their existing perceived
+    // centers, same contract as the 2.0.0 reband.
+    if (versionLt(saveVersion, '2.1.0') && C.CONE && C.CONE.ENABLED &&
+        window.BBGM_PLAYER_GEN.mintCone) {
+      const GENM = window.BBGM_PLAYER_GEN;
+      let rewidened = 0, rebanded = 0;
+      const remint = (p) => {
+        if (!p || p.retired || !p.hidden || !p.hidden.ceiling || p.age > 19) return;
+        GENM.mintCone(p);
+        rewidened++;
+      };
+      const reband = (p) => {
+        if (!p || p.teamId || !p.scout || !p.hidden || !p.hidden.cone || p.age > 19) return;
+        const keys = p.isPitcher
+          ? ['velocity', 'stuff', 'movement', 'control']
+          : ['contactVsR', 'contactVsL', 'powerVsR', 'powerVsL', 'discipline', 'defense', 'arm'];
+        let bestK = keys[0];
+        for (const k of keys) {
+          if ((p.hidden.ceiling[k] || 0) > (p.hidden.ceiling[bestK] || 0)) bestK = k;
+        }
+        const cone = p.hidden.cone;
+        if (cone.hi[bestK] == null) return;
+        const hw = (cone.hi[bestK] - cone.lo[bestK]) / 2;
+        const mid = (p.scout.ceilLo + p.scout.ceilHi) / 2;
+        p.scout.ceilLo = Math.round(mid - hw);
+        p.scout.ceilHi = Math.round(mid + hw);
+        rebanded++;
+      };
+      for (const id in state.players) remint(state.players[id]);
+      if (state.draft && state.draft.prospects) {
+        for (const id in state.draft.prospects) { remint(state.draft.prospects[id]); reband(state.draft.prospects[id]); }
+      }
+      if (state.intl && state.intl.prospects) {
+        for (const id in state.intl.prospects) { remint(state.intl.prospects[id]); reband(state.intl.prospects[id]); }
+      }
+      for (const e of state.draftReentry || []) remint(e.player);
+      if (rewidened) console.log(`2.1.0 migration: projectability — ${rewidened} teenage window(s) re-minted, ${rebanded} pool band(s) re-shaped.`);
+      window.BBGM_STATE.set(state);
+    }
+
     // Stamp the save forward now that every migration has run. This is
     // what makes the versionLt gates above one-shot, and it makes the
     // Menu's "Save version" reflect the code the save actually runs under

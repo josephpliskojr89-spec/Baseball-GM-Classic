@@ -331,7 +331,12 @@ window.BBGM_INTL = (function () {
     const avgCur = keys.reduce((s, k) => s + p.ratings[k], 0) / keys.length;
     if (window.BBGM_CONSTANTS.CONE && window.BBGM_CONSTANTS.CONE.ENABLED) {
       // §23.6: rank on belief + the observable, never true ceilings.
-      return seen * 0.55 + avgCur * 0.25 + rnorm(0, 4);
+      // §23.16: the list agrees with its own grades (the σ4 dice were
+      // a pre-cone holdover — see draft.js scoreOf). July 2 chases the
+      // top edge hardest of anybody: the 16yo freak whose band runs
+      // from out-of-baseball to All-Star goes early and costs money.
+      const seenUp = seen + (p.scout.ceilHi - seen) * 0.3;
+      return seenUp * 0.65 + avgCur * 0.15 + rnorm(0, 1);
     }
     const avgCeil = keys.reduce((s, k) => s + p.hidden.ceiling[k], 0) / keys.length;
     return seen * 0.5 + avgCeil * 0.2 + avgCur * 0.1 + rnorm(0, 4);

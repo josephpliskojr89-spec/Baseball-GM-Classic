@@ -3,7 +3,7 @@ window.BBGM_CONSTANTS = {
   // Single source of truth for the app/save version. main.js stamps this
   // into new saves; index.html's ?v= cache-busters and the service-worker
   // cache name must be bumped in lockstep (they can't read JS constants).
-  VERSION: '2.0.0',
+  VERSION: '2.1.0',
   START_YEAR: 2026,
   TEAMS_PER_LEAGUE: 15,
   // Two leagues, three divisions each. Internal values are lowercase for
@@ -64,6 +64,15 @@ window.BBGM_CONSTANTS = {
     SURGE: { PROB: 0.004, YOUTH_PROB: 0.009, BOOST: [4, 10], HOT_BIAS: 2.5, HOT_YEARS: 2 },
     // The overflow: pressed against the top with the head to earn it.
     OVERFLOW: { PROB: 0.05, AMOUNT: [2, 5] },
+    // §23.16 projectability (v2.1.0): width isn't one-size-per-age.
+    // OBSERVABLE athleticism — the legs and arm a scout can see today,
+    // the velocity, the frame with thirty pounds still coming — widens
+    // a teenager's whole window (mult MIN..MIN+W_ATH+W_FRAME, ~0.85 to
+    // 1.6). The freak 16yo's floor is out of baseball and his ceiling
+    // is an All-Star; the polished, filled-out kid minted narrow is
+    // mostly who he is already. FADE dials the multiplier back to 1.0
+    // by 20 while the base schedule narrows underneath it.
+    PROJ: { MIN: 0.85, W_ATH: 0.5, W_FRAME: 0.25, FADE: { 16: 1, 17: 1, 18: 0.66, 19: 0.33, DEFAULT: 0 } },
   },
 
   // Owner archetypes (per 4.3)

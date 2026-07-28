@@ -96,12 +96,41 @@ window.BBGM_PLAYER_GEN = (function () {
     if (T[age] != null) return T[age];
     return age < 16 ? T[16] : T.DEFAULT;
   }
+  // §23.16 projectability: the freak's window is massive. Everything
+  // feeding the multiplier is OBSERVABLE — born speed and arm strength
+  // for a bat, radar-gun velocity for an arm, and the frame room the
+  // body model already tracks (pounds still coming vs the adult frame
+  // his height predicts). That's why it's fair for the honest band to
+  // show it: the scout isn't guessing, he's pointing at ingredients.
+  function projectabilityOf(p) {
+    const PR = C.CONE && C.CONE.PROJ;
+    if (!PR) return 1;
+    let ath;
+    if (p.isPitcher) {
+      const v = p.hidden.ceiling.velocity != null ? p.hidden.ceiling.velocity : 50;
+      ath = clamp((v - 45) / 30, 0, 1);
+    } else {
+      const spd = p.ratings && p.ratings.speed != null ? p.ratings.speed : 45;
+      const arm = p.hidden.ceiling.arm != null ? p.hidden.ceiling.arm : 45;
+      ath = clamp(((spd - 40) / 35) * 0.7 + ((arm - 40) / 35) * 0.3, 0, 1);
+    }
+    const room = p.heightIn && p.weightLb
+      ? clamp((frameFor(p.heightIn) - p.weightLb) / 32, 0, 1)
+      : 0.5;
+    return PR.MIN + PR.W_ATH * ath + PR.W_FRAME * room;
+  }
+  function projFade(age) {
+    const F = C.CONE && C.CONE.PROJ && C.CONE.PROJ.FADE;
+    if (!F) return 0;
+    return F[age] != null ? F[age] : (age < 16 ? 1 : F.DEFAULT);
+  }
   function mintCone(p) {
     if (!C.CONE || !C.CONE.ENABLED) return;
     if (!p.hidden || !p.hidden.ceiling) return;
     const arch = (p.isPitcher ? C.PITCHER_ARCHETYPES : C.HITTER_ARCHETYPES)
       .find((a) => a.key === p.hidden.archetype);
-    const hw = coneHalfWidth(p.age);
+    const wm = Math.round(projectabilityOf(p) * 100) / 100;
+    const hw = coneHalfWidth(p.age) * (1 + (wm - 1) * projFade(p.age));
     const cone = { lo: {}, hi: {} };
     for (const k of coneKeysOf(p)) {
       const c = p.hidden.ceiling[k];
@@ -113,6 +142,10 @@ window.BBGM_PLAYER_GEN = (function () {
       cone.lo[k] = Math.round(Math.max(20, c - hw) * 10) / 10;
       cone.hi[k] = Math.round(Math.max(hi, c) * 10) / 10;
     }
+    // Stored so the yearly narrowing keeps honoring his build (fading
+    // with age) — a sibling of lo/hi, never inside them (loops iterate
+    // cone.hi's keys).
+    cone.wm = wm;
     p.hidden.cone = cone;
   }
 
