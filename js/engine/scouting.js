@@ -779,9 +779,22 @@ window.BBGM_SCOUT = (function () {
     const team = state.league.teams.find((t) => t.id === state.meta.userTeamId);
     const ti = tierIdx(team);
     const h = hashOf(state.meta.userTeamId, p.id);
-    const amp = [7, 5, 3, 2][ti];
+    const tierAmp = [7, 5, 3, 2][ti];
+    // §23.20 (owner law, v2.9.0): the width is truth for GRADES too.
+    // Tier fog alone let elite departments read a 16-year-old's future
+    // to ±2 — the Yankees never read Roderick Arias that well. The fog
+    // on each tool can never fall below a tier-scaled share of that
+    // tool's cone half-width, so teenage futures stay guesses for
+    // everyone and sharpen naturally as the cone narrows with age.
+    // Better tiers keep an edge (a smaller share), and past the cone
+    // years the old tier fog is all that's left.
+    const cone = p.hidden.cone;
+    const hwOf = (k) => (cone && cone.hi && cone.hi[k] != null && cone.lo[k] != null)
+      ? (cone.hi[k] - cone.lo[k]) / 2 : 0;
+    const widthShare = [0.95, 0.85, 0.75, 0.65][ti];
     const g5 = (v) => Math.max(20, Math.min(80, Math.round(v / 5) * 5));
     const fog = (k) => {
+      const amp = Math.max(tierAmp, Math.round(hwOf(k) * widthShare));
       let salt = 0;
       for (let i = 0; i < k.length; i++) salt += k.charCodeAt(i);
       return ((h >>> (salt % 13)) % (2 * amp + 1)) - amp;

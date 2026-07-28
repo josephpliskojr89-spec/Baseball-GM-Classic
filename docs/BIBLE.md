@@ -5470,6 +5470,22 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > — share one line on a phone. Chromium screenshot-verified on an
 > intl hitter and pitcher; battery 44/44, e2e 142 clean.
 
+> **Status note (v2.9.0):** The width is truth for grades too
+> (§23.20; owner: "that's too much certainty even at elite scouting —
+> the Yankees missed on Arias, Mayea, Vilorio, and they were all
+> consensus high-ranked too"). The FanGraphs card's per-tool FUTURE
+> fog now floors at a tier-scaled share of each tool's cone
+> half-width (shares .95/.85/.75/.65 bare→elite, tier amps 7/5/3/2
+> unchanged as the floor's other arm) — a 16-year-old reads ±8 even
+> at Elite, and FV inherits the humility. The fog sharpens naturally
+> as the cone narrows with age; by the mid-20s tier fog is all that
+> remains. Deterministic per (team, player) as before. Side effect
+> the design wants: grid-scanning the pool no longer leaks hidden
+> gems or truth-detects consensus darlings. New permanent suite:
+> gridfog (6 checks — teen miss rates, whiff amplitude, vet
+> sharpness, determinism, tier ordering). Battery 45/45, e2e 142
+> clean.
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):
@@ -8005,3 +8021,39 @@ gates hold; rd-2+ HS max peak 67 and July 2 deep max 61 (both over
 the star bar, vs 61/59 pre-gem with a single such career in 4,000).
 The path census tracks all six pipelines every soak — late-star
 supply is a watched number now, not an assumption.
+
+### 23.20 The Width Is Truth for Grades Too — v2.9.0
+
+Owner law, closing the loophole §23.17 left open. The BANDS obeyed
+width-is-truth from v2.2.0 — but the FanGraphs card's per-tool
+FUTURE grades ran on tier fog alone (±7/5/3/2 by tier), so an elite
+department read a 16-year-old's future to ±2 and FV became a truth
+detector. The owner's real-world anchor: the Yankees are the elite
+scouting spend, and they still missed on Roderick Arias, Brando
+Mayea, Francisco Vilorio — every one a consensus top international
+name. Nobody reads kids that young sharply, at any budget.
+
+The law: a tool's future-grade fog can never fall below a
+tier-scaled share of that tool's cone half-width —
+
+    amp(tool) = max(tierAmp, round(halfWidth(tool) × share))
+    tierAmp   = [7, 5, 3, 2]           (bare → elite, unchanged)
+    share     = [0.95, 0.85, 0.75, 0.65] (bare → elite)
+
+A 16-year-old with a ~13-point half-width reads ±8 even at Elite
+(±12 at Bare Bones) — his printed "50" future is honestly a
+40s-to-high-50s guess, and FV inherits the same humility. Tiers
+keep an edge (a smaller share of the same irreducible width), and
+the fog sharpens naturally as the cone narrows with age: by the
+early 20s the half-width undercuts the tier amp and the old
+tier-only fog is all that's left. Deterministic as ever per
+(team, player) — no re-roll shopping; the read shifts only as the
+cone itself tightens year over year.
+
+Consequences the design WANTS: an elite grid can now be wrong about
+a teenager in both directions — the consensus darling your card
+calls FV 40 might actually hit, and grid-scanning the pool no
+longer leaks hidden gems (their lifted centers hide inside teen fog
+like everything else). Conviction about the young comes from
+watching development unfold — the Scout's Book trend, second looks,
+level-ups — not from one number on a card.
