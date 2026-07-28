@@ -22,54 +22,45 @@ window.BBGM_UI_DRAFT = (function () {
 
   function teamOf(state, id) { return state.league.teams.find((t) => t.id === id); }
 
-  // Pool fog (5.7 / Phase 13): the displayed ceiling band widens or
-  // tightens with the user's scouting tier, and deep cuts drop off the
-  // report entirely. Returns [lo, hi] or null (no report).
+  // §23.17 (v2.2.0): the band's WIDTH is the kid's true development
+  // window — no tier, scout reputation, focus trip, or return visit
+  // can shrink it below truth, and nobody's thin coverage pads it.
+  // Huge variance is the NORM, not a scouting artifact. What scouting
+  // quality buys instead: visibility (who has a report at all), tool
+  // grades, sharper cone-card fog, hunch letters, and re-CENTERING —
+  // the shifts below move the band toward the kid's truth, never
+  // squeeze it. Returns [lo, hi] or null (no report).
   function poolBand(state, p, rank, pool) {
     const SC = window.BBGM_SCOUT;
     const pv = SC.poolView(state, rank, pool);
-    // A targeted look (0.23.0 intl, 0.24.0 draft) opens a report on an
-    // otherwise-unscouted prospect; if the tier already covers him, the
-    // better read wins.
-    let widen = pv.visible ? pv.widen : null;
-    if (pool === 'draft' && SC.draftBoardWiden) {
-      // The big board (0.65.0): a boarded kid's read sharpens with every
-      // week of attention — the best read always wins, and board
-      // membership opens a report on an otherwise-unscouted name.
-      const bw = SC.draftBoardWiden(state, p);
-      if (bw != null) widen = widen == null ? bw : Math.min(widen, bw);
-    } else if (SC.hasTargetedLook(state, pool, p.id)) {
-      const lk = SC.targetedLooks(state, pool);
-      widen = widen == null ? lk.widen : Math.min(widen, lk.widen);
+    // A targeted look (0.23.0 intl, 0.24.0 draft) or big-board
+    // membership (0.65.0) opens a report on an otherwise-unscouted kid.
+    let visible = pv.visible;
+    if (!visible && pool === 'draft' && SC.draftBoardWiden) {
+      visible = SC.draftBoardWiden(state, p) != null;
     }
-    if (widen == null) return null;
+    if (!visible) visible = SC.hasTargetedLook(state, pool, p.id);
+    if (!visible) return null;
     let shift = 0;
     // The board read discovers (0.78.0): a boarded kid's band CENTER
-    // migrates toward his true best-tool ceiling as the book thickens —
-    // the band can slide up or down while it tightens.
+    // migrates toward his true best-tool ceiling as the book thickens.
     if (pool === 'draft' && SC.draftBoardShift) {
       shift += SC.draftBoardShift(state, p);
     }
     if (pool === 'intl' && SC.intlScoutMods) {
-      // Head-scout lens (0.47.0): his reputation and region focus tighten
-      // (or loosen) the band; his hidden bias SHIFTS it. The rank floor
-      // keeps the deep pool wide no matter what.
+      // Head-scout lens (0.47.0): his hidden bias SHIFTS the band. The
+      // second look (1.1.0) re-centers halfway toward the truth of his
+      // best tool — the bias washes out of a read he went back to
+      // confirm. Neither touches the width anymore.
       const mods = SC.intlScoutMods(state, p, rank);
-      widen = Math.max(widen + mods.widenDelta, mods.floor);
       shift = mods.shift;
-      // The second look (1.1.0): a return trip on a covered kid narrows
-      // the band four points and re-centers it halfway toward the truth
-      // of his best tool — the scout's bias washes out of a read he
-      // went back to confirm. The deep-pool rank floor still holds.
       if (SC.hasSecondLook && SC.hasSecondLook(state, p.id)) {
-        widen = Math.max(widen - 4, mods.floor);
         shift = SC.secondLookShift(state, p);
       }
     }
-    let lo = p.scout.ceilLo - widen + shift;
-    let hi = p.scout.ceilHi + widen + shift;
-    if (hi - lo < 4) { const mid = (lo + hi) / 2; lo = mid - 2; hi = mid + 2; }
-    return [Math.max(20, Math.round(lo)), Math.min(82, Math.round(hi))];
+    const lo = p.scout.ceilLo + shift;
+    const hi = p.scout.ceilHi + shift;
+    return [Math.max(20, Math.round(lo)), Math.min(84, Math.round(hi))];
   }
 
   // Tool grades are a privilege of good scouting: above-average+ tiers see

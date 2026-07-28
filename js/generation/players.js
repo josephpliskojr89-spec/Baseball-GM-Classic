@@ -135,7 +135,11 @@ window.BBGM_PLAYER_GEN = (function () {
     for (const k of coneKeysOf(p)) {
       const c = p.hidden.ceiling[k];
       if (c == null) continue;
-      let hi = Math.min(82, c + hw);
+      // Lid 84, matching the surge and the overflow (§23.4) — the old
+      // 82 wall crushed a top-rank teenager's upper window into a
+      // sliver (center 81, hw 12 → a 1-point promise), which is how
+      // the comically tight 80-82 elite bands happened (§23.17).
+      let hi = Math.min(84, c + hw);
       // The identity IS the window (23.5): a quad-A profile's top is
       // the quad-A cap, at any age.
       if (arch && arch.ceilingCap) hi = Math.min(hi, arch.ceilingCap + 2);

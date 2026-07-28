@@ -119,10 +119,43 @@ window.BBGM_INTL = (function () {
   // road to the majors — NPB postings, KBO free agency, defections —
   // which is exactly what rollOffseasonEvents models.
   function rollAge() {
+    // §23.17 (v2.2.0, owner report: "entirely too many 18 year olds"):
+    // the real July 2 market is overwhelmingly sixteen — the 17s are
+    // late bloomers the market re-found, the 18s are rare (defector
+    // arcs, visa messes), and both are priced as what they are.
     const r = rand();
-    if (r < 0.50) return 16;
-    if (r < 0.92) return 17;
+    if (r < 0.75) return 16;
+    if (r < 0.95) return 17;
     return 18;
+  }
+
+  // §23.17: the age on the board is the age at the signing table. A
+  // birthday landing between class generation and July 2 silently
+  // bumped kids +1 before the window — the board's "16" signed at 17,
+  // and a rolled 18 could sign at NINETEEN. Pin the birthday into the
+  // window's shadow (after July 2, on or before "today" when today is
+  // already past it) so the next birthday always falls AFTER signing.
+  function pinBirthdatePostWindow(p, today, windowYear) {
+    const bumpsPre = (() => {
+      const notYet = p.birthMonth > today.month ||
+        (p.birthMonth === today.month && p.birthDay > today.day);
+      const nextY = notYet ? today.year : today.year + 1;
+      if (nextY < windowYear) return true;
+      if (nextY > windowYear) return false;
+      return p.birthMonth < 7 || (p.birthMonth === 7 && p.birthDay <= 2);
+    })();
+    if (!bumpsPre) return;
+    const pastWindow = today.month > 7 || (today.month === 7 && today.day > 2);
+    const lastMonth = pastWindow ? today.month : 12;
+    const m = 7 + Math.floor(rand() * (lastMonth - 7 + 1));
+    let dMax = 28;
+    if (pastWindow && m === today.month) dMax = Math.max(3, today.day);
+    const dMin = m === 7 ? 3 : 1;
+    const d = dMin + Math.floor(rand() * (Math.max(1, dMax - dMin) + 1));
+    p.birthMonth = m;
+    p.birthDay = Math.min(d, dMax);
+    const passed = today.month > m || (today.month === m && today.day >= p.birthDay);
+    p.birthYear = today.year - p.age - (passed ? 0 : 1);
   }
 
   // Best-tool ceiling band by class rank (6.7). Top of the class matches
@@ -184,6 +217,8 @@ window.BBGM_INTL = (function () {
     p.age = age;
     // Birthday-consistent (0.66.2): pinned to his class-day age.
     window.BBGM_PROGRESSION.alignBirthdate(p, state.meta.currentDate);
+    // §23.17: and pinned past July 2 — board age IS signing age.
+    pinBirthdatePostWindow(p, state.meta.currentDate, year);
     p.teamId = null;
     p.contract = null;
     p.serviceTime = { years: 0, days: 0 };
@@ -370,10 +405,24 @@ window.BBGM_INTL = (function () {
       const bandK = star.isPitcher ? talentKeys(star)
         : talentKeys(star).filter((k) => k !== 'speed');
       const bk = Math.max(...bandK.map((k) => star.hidden.ceiling[k]));
-      star.scout = {
-        ceilLo: Math.round(bk - 8 - rand() * 3),
-        ceilHi: Math.round(bk + 8 + rand() * 3),
-      };
+      const CO = window.BBGM_CONSTANTS.CONE;
+      if (CO && CO.ENABLED && star.hidden.cone) {
+        // §23.6/23.17: even the kid everyone knows about wears his TRUE
+        // window — the consensus just barely misses his center.
+        let bestK = bandK[0];
+        for (const k of bandK) if (star.hidden.ceiling[k] > star.hidden.ceiling[bestK]) bestK = k;
+        const chw = (star.hidden.cone.hi[bestK] - star.hidden.cone.lo[bestK]) / 2;
+        const err = rnorm(0, 2.5);
+        star.scout = {
+          ceilLo: Math.round(bk + err - chw),
+          ceilHi: Math.round(bk + err + chw),
+        };
+      } else {
+        star.scout = {
+          ceilLo: Math.round(bk - 8 - rand() * 3),
+          ceilHi: Math.round(bk + 8 + rand() * 3),
+        };
+      }
     }
     state.intl = {
       year,

@@ -1224,7 +1224,9 @@ window.BBGM_OFFSEASON = (function () {
   // Rebuild lineups/rotation/bullpen via the shared guaranteed-convergent
   // repair loop (roster.js safeRebuild).
   function rebuildTeamConfig(state, team, summary) {
-    ROSTER().safeRebuild(state, team);
+    // enforcePitchingFloor (2.2.0): opening day demands the full 12-arm
+    // staff the validator checks — promote/sign until it holds.
+    ROSTER().safeRebuild(state, team, { enforcePitchingFloor: true });
   }
 
   // 18.7: the user backs out of a tendered arbitration contract during

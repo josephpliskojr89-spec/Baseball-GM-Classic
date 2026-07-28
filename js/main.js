@@ -1151,6 +1151,27 @@ window.BBGM_MAIN = (function () {
       window.BBGM_STATE.set(state);
     }
 
+    // Migration (2.2.0, §23.17): regenerate the international pool
+    // outright (owner's call). The migrated class carried three
+    // pre-cone artifacts no reband could heal: stale band centers from
+    // the fuzz era, top windows crushed by the old 82 mint wall, and an
+    // age roll heavy on 17-18. A fresh class under current rules gets
+    // honest ages (75/20/5, birthday pinned past July 2), honest wide
+    // windows, and a coherent board. Winter focus survives; looks and
+    // trip money reset with the new names (the old reads pointed at
+    // kids who no longer exist). Only an untouched scouting-phase class
+    // regenerates — mid-window or completed classes keep their history.
+    if (versionLt(saveVersion, '2.2.0') && C.CONE && C.CONE.ENABLED &&
+        state.intl && state.intl.phase === 'scouting' && state.intl.prospects &&
+        !(state.intl.signings || []).length && window.BBGM_INTL.generateClass) {
+      const keepYear = state.intl.year;
+      const keepFocus = state.intl.userFocus;
+      window.BBGM_INTL.generateClass(state, keepYear);
+      state.intl.userFocus = keepFocus;
+      console.log('2.2.0 migration: the international pool regenerates — honest ages, honest windows.');
+      window.BBGM_STATE.set(state);
+    }
+
     // Stamp the save forward now that every migration has run. This is
     // what makes the versionLt gates above one-shot, and it makes the
     // Menu's "Save version" reflect the code the save actually runs under

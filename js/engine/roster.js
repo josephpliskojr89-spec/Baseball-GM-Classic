@@ -372,7 +372,7 @@ window.BBGM_ROSTER = (function () {
   // position is the missing one, so every attempt strictly reduces the
   // failure space. Throws (fail loud) only if ten repairs somehow don't
   // converge — which would indicate a real bug, not an unlucky roster.
-  function safeRebuild(state, team) {
+  function safeRebuild(state, team, rebuildOpts) {
     const GEN = window.BBGM_PLAYER_GEN;
     const players = state.players;
     // The team's manager shapes the batting order (17.7). League-average
@@ -388,7 +388,55 @@ window.BBGM_ROSTER = (function () {
     for (let attempt = 0; attempt < 10; attempt++) {
       try {
         GEN.assignLineupsAndPitching(Math.random, team, players, opts);
-        return;
+        // 0.75.2's mirror for the mound (2.2.0, STL soak crash): assign
+        // "succeeds" with an 11-arm org — 5 SP + closer + 5 pen — and
+        // the readiness validator rightly refuses it at rollover. A real
+        // club promotes its best farm arm, or signs a depth journeyman
+        // when the org is truly dry. Patch and re-run. OPT-IN (the
+        // rollover site): mid-season and offseason legitimately play
+        // short, and the daily flows expect no silent promotions.
+        if (!rebuildOpts || !rebuildOpts.enforcePitchingFloor) return;
+        const rotShort = !Array.isArray(team.rotation) || team.rotation.length < 5;
+        const penShort = !Array.isArray(team.bullpen) || team.bullpen.length < 6;
+        if (!rotShort && !penShort) return;
+        // Grown arms only — a thin org signs a journeyman before it
+        // rushes its teenage prospects into mop-up work.
+        let arm = (team.minors || []).map((id) => players[id])
+          .filter((p) => p && p.isPitcher && p.age >= 22 && !protectedIds.has(p.id))
+          .sort((a, b) => overall(b) - overall(a))[0];
+        if (arm) {
+          team.minors.splice(team.minors.indexOf(arm.id), 1);
+        } else {
+          arm = GEN.generateNewPlayer(Math.random, team, {
+            slotPos: rotShort ? 'SP' : 'RP', tier: 'depth', isProspect: false,
+            ageRange: { mean: 27, stdev: 2, min: 23, max: 32 },
+            status: 'active', rosterStatus: '26-man',
+            id: newPlayerId(state),
+          });
+          window.BBGM_PROGRESSION.alignBirthdate(arm, state.meta.currentDate);
+          players[arm.id] = arm;
+        }
+        team.roster.push(arm.id);
+        arm.status = 'active';
+        arm.rosterStatus = '26-man';
+        protectedIds.add(arm.id);
+        if (team.roster.length > 26) {
+          const roster = team.roster.map((id) => players[id]).filter(Boolean);
+          const cCount = roster.filter((q) => !q.isPitcher && q.primaryPosition === 'C').length;
+          const down = roster
+            .filter((q) => !q.isPitcher && !protectedIds.has(q.id) &&
+              !(q.primaryPosition === 'C' && cCount <= 2))
+            .sort((a, b) => overall(a) - overall(b))[0];
+          if (down) {
+            team.roster.splice(team.roster.indexOf(down.id), 1);
+            team.minors.push(down.id);
+            down.status = 'minors';
+            down.rosterStatus = demotionLevel(down);
+            replaceRefs(team, players, down.id, null);
+          }
+        }
+        lastErr = lastErr || new Error(`${team.abbr || team.id}: pitching floor repair did not converge`);
+        continue;
       } catch (e) {
         lastErr = e;
         const m = /position (\w+)/.exec(e.message || '');

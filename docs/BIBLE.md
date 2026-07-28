@@ -5316,6 +5316,22 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > era 4.15-4.55 R/G, census gates hit (top-10 24%/23%, mid-board max
 > 72, deep 58). Battery 44/44 (new proj suite), e2e 141.
 
+> **Status note (v2.2.0):** Honest July 2 (§23.17). Width is truth at
+> every tier: the display pipeline's stacked band-tighteners (tier,
+> scout rep, region focus, second look) are dead — no scout can shrink
+> a window development hasn't resolved. Scouting buys visibility, tool
+> grades, cone-card sharpness, and re-centering. The mint lid rises
+> 82 → 84 (the 82 wall was crushing top-rank teens into 80-82 sliver
+> bands), the unicorn's band renders at true width, intl ages re-roll
+> 75/20/5 with birthdays pinned past the window (board age IS signing
+> age), and the migration regenerates an untouched scouting-phase intl
+> class outright — owner's call. Also fixed, found by the gate soak: a
+> rare rollover crash on an 11-arm org; safeRebuild now enforces the
+> 12-arm pitching floor (grown farm arms first, journeyman depth
+> signing when the org is dry). Gate clean: zero sim errors, R/G
+> 4.21-4.49, census on gates (top-10 20%/23% max 78). Battery 44/44,
+> e2e 141.
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):
@@ -7710,3 +7726,59 @@ census top-10 24% bust / 23% star (max peak 76), ranks 11-30 57% /
 max 58. Battery 44/44 (new proj suite: width spread, fade, radar-
 gun projection, quad-A cap, narrowing honors the build, board
 coherence); e2e 141 clean.
+
+### 23.17 Honest July 2 — v2.2.0, width is truth at every tier
+
+The owner's screenshot: an intl board where scouted kids showed
+80-82 and 76-82 "windows" while unscouted ones showed 48-68 — and
+18-year-olds at ranks 1 and 3. Three pre-cone artifacts compounding:
+
+1. **Width is truth, at every tier.** The display pipeline (pool
+   fog, 5.7/13.x) still treated the band as UNCERTAINTY: elite
+   tier −3, a rep-8 scout −1.8, region focus −3, the second look
+   −4 — stacked tighteners squeezing the shown band far below the
+   kid's true development window. Under §23 the band IS the window;
+   no scout on earth can shrink what development hasn't resolved.
+   poolBand now renders the stored band at full width for everyone,
+   every tier, both pools. What scouting quality buys instead:
+   visibility (who has a report), tool grades, sharper cone-card
+   fog, hunch letters, and re-CENTERING (the 0.78.0 discovery
+   shift, the head-scout bias, the second look's
+   halfway-to-truth re-center all survive — they move the band,
+   never squeeze it). Huge variance is the norm, not a scouting
+   artifact.
+2. **The 82 wall.** mintCone's lid was 82 while the surge and
+   overflow run to 84 — a top-rank teenager with a center near 81
+   minted a crushed upper window (a 1-point promise above, full
+   width below), the raw material of the 80-82 sliver. Lid is 84
+   now, everywhere; the generational unicorn's loud band also
+   renders at true cone width.
+3. **Honest ages.** rollAge 50/42/8 → 75/20/5 (July 2 is a
+   sixteen-year-old's market), and birthdays now pin into the
+   window's shadow (after July 2, on or before generation day) so
+   the NEXT birthday always lands after signing — the age on the
+   board is the age at the signing table. Before this, a kid could
+   silently turn 17-19 between generation and the window.
+
+Migration (2.2.0): an untouched scouting-phase intl class
+regenerates outright (owner's call) — stale fuzz-era band centers,
+crushed windows, and old ages can't be rebanded away. Winter focus
+survives; looks and trip money reset with the new names.
+
+Found by the gate soak, fixed in the same release: a year-6
+rollover crash ("Team STL not ready: bullpen size 5") — safeRebuild
+could "succeed" with an 11-arm org (5 SP + closer + 5 pen) and the
+readiness validator rightly refused it. safeRebuild now takes an
+enforcePitchingFloor option, passed ONLY by the rollover rebuild —
+opening day demands the full 12-arm staff, while mid-season and the
+offseason legitimately play short (the e2e's deliberate 22-man
+scenario proved an unconditional floor wrong): promote the best
+GROWN farm arm (age 22+ — a thin org signs a journeyman before it
+rushes its teenage prospects into mop-up work), else generate the
+depth journeyman, demote the weakest unprotected hitter, re-run.
+
+Gate (20 seasons, seed 424242): zero sim errors, zero ties, R/G
+4.21-4.49, census top-10 20% bust / 23% star (max 78), mid-board
+2% star (max 71), deep max 57. Battery 44/44 (proj suite grew four
+§23.17 checks: 75/20/5 ages, zero pre-window birthdays, no sliver
+top bands, lid 84); e2e 141 clean.
