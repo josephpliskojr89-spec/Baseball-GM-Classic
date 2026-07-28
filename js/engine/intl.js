@@ -902,7 +902,12 @@ window.BBGM_INTL = (function () {
     const ut = state.league.teams.find((t) => t.id === state.meta.userTeamId);
     const sc = window.BBGM_STAFF.scoutFor ? window.BBGM_STAFF.scoutFor(state, ut) : null;
     const rep = sc ? sc.reputation : 5;
-    const best = (p) => Math.max(...talentKeys(p).map((k) => p.hidden.ceiling[k]));
+    // The notebook is about TALENT (1.3.1): the scout never falls in
+    // love with a runner — anyone can time the sixty.
+    const best = (p) => {
+      const keys = p.isPitcher ? talentKeys(p) : talentKeys(p).filter((k) => k !== 'speed');
+      return Math.max(...keys.map((k) => p.hidden.ceiling[k]));
+    };
     const hitOdds = 0.30 + rep * 0.04; // rep 3 ≈ 42%, rep 8 ≈ 62%
     if (rand() < hitOdds) {
       cands.sort((a, b) =>

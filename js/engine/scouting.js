@@ -701,6 +701,38 @@ window.BBGM_SCOUT = (function () {
     return (best - mid) * 0.5;
   }
 
+  // Re-anchor stored pool bands off the legs (1.3.1, user report: "it's
+  // still showing speed as the carrying tool in the current
+  // international class"). Bands are MINTED into the save at class
+  // generation, so the 1.3.0 speed-blind minting only reached future
+  // classes — the class already being scouted kept its speed-anchored
+  // numbers. This shifts each unsigned hitter's stored band so its
+  // center sits on his best BAT/glove/arm ceiling, width untouched.
+  // Board order and asks stay — the industry ranked the runner high;
+  // your book now says what the bat really is. Returns bands moved.
+  function reanchorPoolBands(state) {
+    const HIT_TALENT = ['contactVsR', 'contactVsL', 'powerVsR', 'powerVsL', 'discipline', 'defense', 'arm'];
+    let moved = 0;
+    const fix = (p) => {
+      if (!p || p.isPitcher || p.teamId || !p.scout || !p.hidden || !p.hidden.ceiling) return;
+      const vals = HIT_TALENT.map((k) => p.hidden.ceiling[k]).filter((v) => typeof v === 'number');
+      if (!vals.length) return;
+      const best = Math.max(...vals);
+      const shift = Math.round(best - (p.scout.ceilLo + p.scout.ceilHi) / 2);
+      if (!shift) return;
+      p.scout.ceilLo += shift;
+      p.scout.ceilHi += shift;
+      moved++;
+    };
+    if (state.draft && state.draft.prospects) {
+      for (const id in state.draft.prospects) fix(state.draft.prospects[id]);
+    }
+    if (state.intl && state.intl.prospects) {
+      for (const id in state.intl.prospects) fix(state.intl.prospects[id]);
+    }
+    return moved;
+  }
+
   // AI draft discipline by tier (13.6): [board window, weight decay].
   function aiDraftDiscipline(team) {
     return [
@@ -861,7 +893,7 @@ window.BBGM_SCOUT = (function () {
     defaultTierFor, ensureTiers, ensureOps,
     requestTier, runScoutingOffseason,
     modeFor, report, poolView, aiDraftDiscipline, potentialBand, prospectNotes,
-    targetedLooks, hasTargetedLook, hasSecondLook, secondLookShift, medicalRead,
+    targetedLooks, hasTargetedLook, hasSecondLook, secondLookShift, reanchorPoolBands, medicalRead,
     draftBoardInfo, draftBoardAdd, draftBoardRemove, draftBoardWiden, draftBoardShift, draftConvictions, draftBoardSeed,
     prospectRankings, pipelineRank, intlScoutMods, pickRegrades,
     stampScoutBook, scoutBookFirstLooks,

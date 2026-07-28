@@ -1052,6 +1052,18 @@ window.BBGM_MAIN = (function () {
       window.BBGM_STATE.set(state);
     }
 
+    // Migration (1.3.1): re-anchor the stored pool bands. Scout bands
+    // are minted into the save at class generation, so 1.3.0's
+    // speed-blind minting only reached FUTURE classes — the draft and
+    // int'l classes already being scouted kept speed-anchored bands
+    // (user report: "still showing speed as the carrying tool in the
+    // current international class").
+    if (versionLt(saveVersion, '1.3.1') && window.BBGM_SCOUT.reanchorPoolBands) {
+      const moved = window.BBGM_SCOUT.reanchorPoolBands(state);
+      if (moved) console.log(`1.3.1 migration: re-anchored ${moved} pool band(s) off the legs.`);
+      window.BBGM_STATE.set(state);
+    }
+
     // Stamp the save forward now that every migration has run. This is
     // what makes the versionLt gates above one-shot, and it makes the
     // Menu's "Save version" reflect the code the save actually runs under

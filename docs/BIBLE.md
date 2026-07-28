@@ -5178,6 +5178,22 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > no running-game explosion). Bigboard checks 15 (now 31). Battery
 > 43/43, e2e 141.
 
+> **Status note (v1.3.1):** The class already on the board (user
+> report: "still showing speed as the carrying tool in the current
+> international class"). Scout bands are MINTED into the save at
+> class generation, so 1.3.0's speed-blind minting only reached
+> future classes — the draft and int'l classes being scouted right
+> now kept their speed-anchored numbers. New
+> SCOUT.reanchorPoolBands(state): shifts every unsigned hitter's
+> stored band so its center sits on his best bat/glove/arm ceiling,
+> width untouched, signed kids and pitchers left alone; board order
+> and asks deliberately stay (the industry ranked the runner high —
+> your book now says what the bat really is). Run once by a 1.3.1
+> migration. Also caught in the sweep: the scout's hunch letter
+> still scored deep-pool kids on best ceiling INCLUDING speed — the
+> notebook never flags a runner now. Bigboard checks 16 (now 33).
+> Battery 43/43, e2e 141.
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):
