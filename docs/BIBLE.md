@@ -5527,6 +5527,19 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > pen without crossing 80). Battery 45/45, e2e 142, seed-4242 soak
 > ABOVE-the-wall 0.
 
+> **Status note (v2.10.3):** Fresh class for the owner's save
+> (request: "generate a new draft class in my save so I have the new
+> balance"). One-shot migration regenerates the current draft class
+> under the 2.10.1 twin-peak ages — ONLY while the class is
+> untouched (phase preview, zero picks); a live or completed draft
+> keeps its history and next June rolls the balance naturally.
+> Re-entry players (aged and polished when the old class minted)
+> carry across into the new class at their consensus slot; the big
+> board resets with the class. Verified live in Chromium: staged
+> old-stamped save → reload → class regenerated, re-entry carried
+> onto the board, version stamped forward, zero page errors. Battery
+> 45/45, e2e 142 clean.
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):

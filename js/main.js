@@ -1266,6 +1266,38 @@ window.BBGM_MAIN = (function () {
       window.BBGM_STATE.set(state);
     }
 
+    // Migration (2.10.3, owner request): regenerate the current draft
+    // class under the 2.10.1 age balance (twin peaks at 18 and 21 —
+    // the old class was 38% 22-23-year-olds). Runs ONLY while the
+    // class is untouched (preview, no picks); a live or completed
+    // draft keeps its history and next June rolls the new balance
+    // naturally. Re-entry players (already aged and polished when the
+    // old class minted) carry across into the new class at their
+    // consensus slot; the user's big board resets with the class —
+    // its members no longer exist to follow.
+    if (versionLt(saveVersion, '2.10.3') &&
+        state.draft && state.draft.phase === 'preview' &&
+        (!state.draft.picks || !state.draft.picks.length)) {
+      const oldDraft = state.draft;
+      const reentries = Object.values(oldDraft.prospects || {}).filter((p) => p && p.reentry);
+      state.draft = null;
+      window.BBGM_DRAFT.generateClass(state, oldDraft.year);
+      const d = state.draft;
+      const mid = (q) => q && q.scout
+        ? (q.scout.seen != null ? q.scout.seen : (q.scout.ceilLo + q.scout.ceilHi) / 2)
+        : 40;
+      for (const p of reentries) {
+        if (d.prospects[p.id]) continue;
+        d.prospects[p.id] = p;
+        const m = mid(p);
+        const idx = d.board.findIndex((id) => mid(d.prospects[id]) < m);
+        if (idx === -1) d.board.push(p.id); else d.board.splice(idx, 0, p.id);
+      }
+      console.log(`2.10.3 migration: ${oldDraft.year} draft class regenerated under the new age balance` +
+        (reentries.length ? ` (${reentries.length} re-entry player(s) carried over).` : '.'));
+      window.BBGM_STATE.set(state);
+    }
+
     // Stamp the save forward now that every migration has run. This is
     // what makes the versionLt gates above one-shot, and it makes the
     // Menu's "Save version" reflect the code the save actually runs under
