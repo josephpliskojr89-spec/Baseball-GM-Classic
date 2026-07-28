@@ -5365,6 +5365,21 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > (proj suite: no band over the wall, no width amputated), e2e 141,
 > soak clean with census on gates.
 
+> **Status note (v2.4.0):** The hidden-gem economy (§23.19, owner
+> report: 0% star rate outside round 1 — structural, since talent
+> minted by slot made a late-round star impossible by construction).
+> Post-board gem lifts now run decaying tails through draft rounds
+> 2-5 (~2.4/yr at 66-74), day three (~1.2/yr at 62-72), and the deep
+> July 2 pool (~0.4/yr at 60-70) — bands and board rank stay where
+> the consensus put them, because the deGrom story is the industry
+> missing a kid entirely. Roughly one late-round star every second
+> draft; the hunch letters finally have real prey. The draft
+> unicorn's band also joins §23.18.1 (true cone width, wall-slide,
+> seen — the intl one converted in 2.2.0). Path census now watches
+> six pipelines every soak. Gate clean: zero sim errors, 4+ WAR 87,
+> census gates hold, rd-2+ max peaks up (67 HS / 61 deep July 2).
+> Battery 44/44, e2e 141.
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):
@@ -7858,3 +7873,45 @@ ratings, ceilings, cone edges — clamps to the wall.
 Gate (20 seasons, seed 424242): zero sim errors, era stable, census
 top-10 21% bust / 29% star (max 73), mid-board 3% (max 67), deep
 max 59; battery 44/44, e2e clean.
+
+### 23.19 The Hidden-Gem Economy — v2.4.0, stars come from anywhere
+
+The owner's read of the path census: "one thing I am concerned
+about is the 0% star rate outside of the first round." Correct, and
+structural: generation minted talent BY SLOT, so a late-round kid
+with star talent was impossible by construction — the consensus
+could whiff on a band, but nobody great was ever actually hiding in
+the deep class. Piazza (62nd round), deGrom (9th), Betts (5th)
+could not exist. The old hidden gem was homeopathic: 5% of classes
+(one gem per ~20 drafts), slots 150+ only.
+
+The mechanism matters: the lift lands AFTER bands mint and boards
+rank, because the deGrom story is the industry MISSING a kid
+entirely — wrong league, bad body, grew at 19. Mint the talent
+before ranking and the board simply ranks him correctly; he stops
+being a steal. Post-board, his sheet still says late-rounder, his
+band stays low, he goes in round 6, and the truth comes out in
+A-ball.
+
+The tails (§23.19 dials):
+- Draft rounds 2-5 (slots 31-149): 2%/kid → best-tool target
+  66-74 (~2.4 gems/yr)
+- Draft day three (slots 150+): 0.6%/kid → 62-72 (~1.2/yr)
+- July 2 deep pool (rank 31+): 0.6%/kid → 60-70 (~0.4/yr)
+Most gems still bust — the cone gives and takes — netting roughly
+one late-round star every second draft and a true deep-pool July 2
+miracle about once a decade. The gem's cone self-heals at the next
+checkpoint via the window-follow machinery. The hunch letters
+(0.52.0) now have real prey.
+
+Also in 2.4.0: the DRAFT unicorn's band joins §23.18.1 (the intl
+unicorn converted in 2.2.0; the draft one still wore pre-cone fuzz)
+— true cone width, wall-slide, scout.seen for ranking. The
+maturation suite's "loud band" property moved with it: loudness
+lives in seen, and the band top may not undersell the best tool.
+
+Gate soak (20 seasons): zero sim errors, 4+ WAR 87 / 6+ 31, census
+gates hold; rd-2+ HS max peak 67 and July 2 deep max 61 (both over
+the star bar, vs 61/59 pre-gem with a single such career in 4,000).
+The path census tracks all six pipelines every soak — late-star
+supply is a watched number now, not an assumption.

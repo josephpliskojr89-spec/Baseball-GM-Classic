@@ -324,21 +324,41 @@ window.BBGM_DRAFT = (function () {
       prospects[p.id] = p;
       list.push(p);
     }
-    // Hidden gem (6.5): ~5% of classes carry a late-round talent with a
-    // ceiling far above his slot.
-    if (rand() < 0.05) {
-      const gem = list[rint(150, CLASS_SIZE - 1)];
+    // The hidden-gem economy (§23.19, v2.4.0, owner report: 0% star
+    // rate outside round 1 — 1 star in ~4,000 matured rd-2+ picks).
+    // Stars come from everywhere in real baseball: Piazza in the 62nd,
+    // deGrom in the 9th, Betts in the 5th. The mechanism is the
+    // industry MISSING a kid entirely — wrong league, bad body, grew
+    // at 19 — so the lift lands AFTER his band minted: the talent is
+    // real, the sheet still says late-rounder, and the board leaves
+    // him there. Old form: one gem per ~20 drafts, slots 150+ only
+    // (homeopathic). Now a decaying per-kid tail through the whole
+    // class: rounds 2-5 (~2.4 gems/yr at 66-74), day three (~1.2/yr
+    // at 62-72). Most still bust — the cone gives, the cone takes —
+    // netting roughly one late-round star every second draft.
+    const gemTails = [
+      { from: 30, to: 149, prob: 0.02, lo: 66, hi: 74 },
+      { from: 150, to: CLASS_SIZE - 1, prob: 0.006, lo: 62, hi: 72 },
+    ];
+    for (const tail of gemTails) {
+      for (let gi = tail.from; gi <= tail.to; gi++) {
+        if (rand() >= tail.prob) continue;
+        liftHiddenGem(list[gi], rfloat(tail.lo, tail.hi));
+      }
+    }
+    function liftHiddenGem(gem, target) {
       const keys = talentKeys(gem);
-      const target = rfloat(68, 76);
       // The gem is a hidden TALENT (1.3.0): anchor his lift on the best
       // bat/glove/arm tool, never his legs — a speed-anchored gem would
       // be a wasted roll now that bands and reads ignore footspeed.
       const anchorKeys = gem.isPitcher ? keys : keys.filter((k) => k !== 'speed');
       let bestKey = anchorKeys[0];
       for (const k of anchorKeys) if (gem.hidden.ceiling[k] > gem.hidden.ceiling[bestKey]) bestKey = k;
-      // Raise-only, clamp 82 (W3, 0.68.1): same guard as the anointment —
-      // a gem whose best tool already clears the target keeps what he
-      // has, and the lift ceiling matches the 82 used everywhere else.
+      // Raise-only (W3, 0.68.1): a gem whose best tool already clears
+      // the target keeps what he has. Lift clamp 80 — the wall
+      // (§23.18). His cone heals at the next checkpoint: the window-
+      // follow machinery slides the minted window up to the moved
+      // centers, width preserved.
       const delta = Math.max(0, target - gem.hidden.ceiling[bestKey]);
       for (const k of keys) {
         if (!gem.isPitcher && k === 'speed' && bestKey !== 'speed') {
@@ -366,14 +386,32 @@ window.BBGM_DRAFT = (function () {
       const star = list.slice(0, 8).find((q) => q.age <= 19);
       if (star) {
         GEN().anointGenerational(star, rand);
-        const fz = star.background === 'HS' ? 6 : 3;
         const bandK = star.isPitcher ? talentKeys(star)
           : talentKeys(star).filter((k) => k !== 'speed');
-        const bk = Math.max(...bandK.map((k) => star.hidden.ceiling[k]));
-        star.scout = {
-          ceilLo: Math.round(bk - fz - rand() * 2),
-          ceilHi: Math.round(bk + fz + rand() * 2),
-        };
+        const CO = C().CONE;
+        if (CO && CO.ENABLED && star.hidden.cone) {
+          // §23.6/23.18.1 (2.4.0 — the intl unicorn got this in 2.2.0,
+          // the draft one kept the pre-cone fuzz): true cone width,
+          // small err, band slid under the wall, seen kept for rank.
+          let bkK = bandK[0];
+          for (const k of bandK) if (star.hidden.ceiling[k] > star.hidden.ceiling[bkK]) bkK = k;
+          const bkv = star.hidden.ceiling[bkK];
+          const chw = (star.hidden.cone.hi[bkK] - star.hidden.cone.lo[bkK]) / 2;
+          const umid = bkv + rnorm(0, 2.5);
+          const uhi = Math.min(80, Math.round(umid + chw));
+          star.scout = {
+            seen: Math.round(umid * 10) / 10,
+            ceilLo: Math.max(20, uhi - Math.round(2 * chw)),
+            ceilHi: uhi,
+          };
+        } else {
+          const fz = star.background === 'HS' ? 6 : 3;
+          const bk = Math.max(...bandK.map((k) => star.hidden.ceiling[k]));
+          star.scout = {
+            ceilLo: Math.round(bk - fz - rand() * 2),
+            ceilHi: Math.round(bk + fz + rand() * 2),
+          };
+        }
       }
     }
 

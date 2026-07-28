@@ -459,6 +459,36 @@ window.BBGM_INTL = (function () {
       tripSpend: 0,             // pool $ the user burned on extra trips
     };
     rankBoard(state.intl);
+    // The deep-pool miracle gets a body (§23.19, mirrors the draft's
+    // hidden-gem economy): AFTER the board is ranked, a thin tail of
+    // deep-pool kids (31+) carries real talent the whole industry
+    // missed — the $300K flyer who becomes a franchise player. Bands
+    // and rank stay where the consensus put them; the talent is what
+    // it is. ~0.4 minted/yr, most bust — a true deep miracle roughly
+    // once a decade, which is what makes the story legendary when it
+    // lands (and what the hunch letters exist to sniff out).
+    for (let ri = 30; ri < state.intl.board.length; ri++) {
+      if (rand() >= 0.006) continue;
+      const gem = state.intl.prospects[state.intl.board[ri]];
+      if (!gem) continue;
+      const gkeys = talentKeys(gem);
+      const anchorKeys = gem.isPitcher ? gkeys : gkeys.filter((k) => k !== 'speed');
+      let bk = anchorKeys[0];
+      for (const k of anchorKeys) if (gem.hidden.ceiling[k] > gem.hidden.ceiling[bk]) bk = k;
+      const target = rfloat(60, 70);
+      const delta = Math.max(0, target - gem.hidden.ceiling[bk]);
+      for (const k of gkeys) {
+        if (!gem.isPitcher && k === 'speed' && bk !== 'speed') {
+          gem.hidden.ceiling.speed = Math.round(clamp(gem.hidden.ceiling.speed + delta * 0.15, 25, 80) * 10) / 10;
+          continue;
+        }
+        const spread = k === bk ? 0 : rfloat(0, 7);
+        const lifted = clamp(gem.hidden.ceiling[k] + delta - spread, 25, 80);
+        gem.hidden.ceiling[k] = Math.round(Math.max(gem.hidden.ceiling[k], lifted) * 10) / 10;
+      }
+      GEN().applyArchetypeCap(gem);
+      GEN().syncBornSpeed(gem, rand);
+    }
     // AI scouting economics (0.47.0): information is bought with signing
     // money. Each AI club diverts an archetype-driven slice of its pool to
     // trips up front — analytics clubs buy sharp reads and bid with thin
