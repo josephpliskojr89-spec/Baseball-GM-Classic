@@ -81,29 +81,71 @@ window.BBGM_UI_DRAFT = (function () {
   // The FanGraphs grid (§23.7, cone only): present/future per tool +
   // the FV badge. Returns true if it rendered (callers skip the old
   // raw-chip grid); false while the cone is dark.
+  // v2.6.0 (owner UX): boxed cells, bigger numerals, room to breathe —
+  // the report reads like a card, not a line of type.
   function renderConeGrid(body, state, p) {
     const SC = window.BBGM_SCOUT;
     const card = SC.coneCard && SC.coneCard(state, p);
     if (!card) return false;
-    const wrap = U.el('div', { style: { 'margin-bottom': '10px' } });
-    wrap.appendChild(U.el('div', { style: { 'font-weight': '700', 'font-size': '14px', 'margin-bottom': '6px' } },
+    const wrap = U.el('div', { style: { margin: '4px 0 14px' } });
+    wrap.appendChild(U.el('div', { style: { 'font-weight': '700', 'font-size': '17px', 'margin-bottom': '8px' } },
       [U.el('span', { class: U.gradeClass(card.fv) }, `FV ${card.fv}`),
-       U.el('span', { class: 'muted', style: { 'font-size': '11px', 'font-weight': '400' } }, '  present / future')]));
-    const grid = U.el('div', { style: { display: 'flex', gap: '12px', 'flex-wrap': 'wrap' } });
+       U.el('span', { class: 'muted', style: { 'font-size': '12px', 'font-weight': '400' } }, '  present / future')]));
+    const grid = U.el('div', { style: { display: 'flex', gap: '8px', 'flex-wrap': 'wrap' } });
     for (const r of card.rows) {
-      const cell = U.el('div', { style: { 'text-align': 'center' } });
-      cell.appendChild(U.el('div', { style: { 'font-weight': '700', 'font-size': '15px' } },
+      const cell = U.el('div', { style: {
+        'text-align': 'center', flex: '1 1 0', 'min-width': '64px',
+        padding: '10px 6px 8px', background: 'rgba(255,255,255,0.05)',
+        'border-radius': '10px',
+      } });
+      cell.appendChild(U.el('div', { style: { 'font-weight': '700', 'font-size': '19px', 'line-height': '1.2' } },
         r.fut == null
           ? [U.el('span', { class: U.gradeClass(r.cur) }, String(r.cur))]
           : [U.el('span', { class: U.gradeClass(r.cur) }, String(r.cur)),
-             U.el('span', { class: 'muted', style: { 'font-weight': '400' } }, ' / '),
+             U.el('span', { class: 'muted', style: { 'font-weight': '400', 'font-size': '14px' } }, ' / '),
              U.el('span', { class: U.gradeClass(r.fut) }, String(r.fut))]));
-      cell.appendChild(U.el('div', { class: 'muted', style: { 'font-size': '10px' } }, r.label));
+      cell.appendChild(U.el('div', { class: 'muted', style: { 'font-size': '11px', 'margin-top': '3px' } }, r.label));
       grid.appendChild(cell);
     }
     wrap.appendChild(grid);
     body.appendChild(wrap);
     return true;
+  }
+
+  // The band as a PICTURE (v2.6.0, owner UX): a 20-80 axis with the
+  // window filled. The most important number on the card stops being a
+  // sentence you parse and becomes a shape you read at a glance — a
+  // wide smear says lottery ticket, a tight block says known quantity.
+  function renderBandBar(body, band, captionNodes) {
+    const lo = band[0], hi = band[1];
+    const mid = (lo + hi) / 2;
+    const wrap = U.el('div', { style: { margin: '14px 0 12px' } });
+    const head = U.el('div', { style: { display: 'flex', 'justify-content': 'space-between', 'align-items': 'baseline', 'margin-bottom': '6px' } });
+    head.appendChild(U.el('div', { class: 'muted', style: { 'font-size': '11px', 'letter-spacing': '0.06em', 'text-transform': 'uppercase' } },
+      'Projected ceiling — best tool'));
+    head.appendChild(U.el('div', { class: U.gradeClass(mid), style: { 'font-weight': '800', 'font-size': '19px' } }, `${lo}–${hi}`));
+    wrap.appendChild(head);
+    const track = U.el('div', { style: { position: 'relative', height: '16px', 'border-radius': '8px', background: 'rgba(255,255,255,0.07)' } });
+    const leftPct = Math.max(0, Math.min(100, ((lo - 20) / 60) * 100));
+    const widthPct = Math.max(2, Math.min(100 - leftPct, ((hi - lo) / 60) * 100));
+    track.appendChild(U.el('div', { class: U.gradeClass(mid), style: {
+      position: 'absolute', left: leftPct + '%', width: widthPct + '%', top: '0', bottom: '0',
+      'border-radius': '8px', background: 'currentColor', opacity: '0.8',
+    } }));
+    for (const g of [35, 50, 65]) {
+      track.appendChild(U.el('div', { style: {
+        position: 'absolute', left: (((g - 20) / 60) * 100) + '%', top: '3px', bottom: '3px',
+        width: '1px', background: 'rgba(255,255,255,0.22)',
+      } }));
+    }
+    wrap.appendChild(track);
+    const axis = U.el('div', { class: 'muted', style: { display: 'flex', 'justify-content': 'space-between', 'font-size': '10px', 'margin-top': '3px' } });
+    for (const g of ['20', '35', '50', '65', '80']) axis.appendChild(U.el('span', {}, g));
+    wrap.appendChild(axis);
+    if (captionNodes) {
+      wrap.appendChild(U.el('p', { class: 'muted', style: { 'font-size': '13px', 'line-height': '1.5', margin: '8px 0 0' } }, captionNodes));
+    }
+    body.appendChild(wrap);
   }
 
   function strengthLabel(s) {
@@ -567,14 +609,14 @@ window.BBGM_UI_DRAFT = (function () {
     const notes = window.BBGM_SCOUT.prospectNotes(state, p, { pool });
     if (!notes.length) return;
     const card = U.el('div', {
-      style: { 'margin-top': '10px', padding: '8px 10px', 'border-left': '3px solid var(--accent)',
-        background: 'rgba(255,255,255,0.03)', 'border-radius': '6px' },
+      style: { 'margin-top': '12px', padding: '12px 14px', 'border-left': '3px solid var(--accent)',
+        background: 'rgba(255,255,255,0.03)', 'border-radius': '8px' },
     });
     card.appendChild(U.el('div', { class: 'muted',
-      style: { 'font-size': '10px', 'letter-spacing': '0.6px', 'text-transform': 'uppercase', 'margin-bottom': '4px' } },
+      style: { 'font-size': '10px', 'letter-spacing': '0.6px', 'text-transform': 'uppercase', 'margin-bottom': '6px' } },
       'From our scouts'));
     for (const n of notes) {
-      card.appendChild(U.el('p', { style: { 'font-size': '13px', margin: '3px 0' } }, n));
+      card.appendChild(U.el('p', { style: { 'font-size': '14px', 'line-height': '1.5', margin: '6px 0' } }, n));
     }
     body.appendChild(card);
   }
@@ -624,17 +666,17 @@ window.BBGM_UI_DRAFT = (function () {
     const addedOn = isTarget && draft.boardAdded && draft.boardAdded[p.id];
     const weeksOn = addedOn
       ? Math.floor(window.BBGM_DATES.diffDays(addedOn, state.meta.currentDate) / 7) : 0;
-    body.appendChild(U.el('p', { style: { 'font-size': '13px' } }, db ? [
-      'Projected ceiling: ',
-      U.el('span', { class: U.gradeClass((db[0] + db[1]) / 2), style: { 'font-weight': '700' } },
-        `${db[0]}–${db[1]}`),
-      isTarget
-        ? ` on his best tool — your scouts have followed him ${weeksOn < 1 ? 'less than a week'
-            : weeksOn === 1 ? 'for a week' : `for ${weeksOn} weeks`}; the read sharpens the longer he's on the board.`
-        : ` on his best tool. ${p.background === 'HS'
+    if (db) {
+      renderBandBar(body, db, isTarget
+        ? `Your scouts have followed him ${weeksOn < 1 ? 'less than a week'
+            : weeksOn === 1 ? 'for a week' : `for ${weeksOn} weeks`} — the read sharpens the longer he's on the board.`
+        : (p.background === 'HS'
           ? 'High schooler — wide error bars, long development runway.'
-          : 'College product — tighter projection, closer to ready.'}`,
-    ] : 'Your scouts have no real book on him — put him on the board and they\'ll build one.'));
+          : 'College product — tighter projection, closer to ready.'));
+    } else {
+      body.appendChild(U.el('p', { style: { 'font-size': '13px' } },
+        'Your scouts have no real book on him — put him on the board and they\'ll build one.'));
+    }
     if (db) appendScoutNotes(body, state, p, 'draft');
 
     const actions = [];
@@ -1236,20 +1278,19 @@ window.BBGM_UI_DRAFT = (function () {
     const looked = SC.hasTargetedLook(state, 'intl', p.id);
     const secondLooked = SC.hasSecondLook && SC.hasSecondLook(state, p.id);
     const ib = poolBand(state, p, rank, 'intl');
-    body.appendChild(U.el('p', { style: { 'font-size': '13px' } }, ib ? [
-      'Projected ceiling: ',
-      U.el('span', { class: U.gradeClass((ib[0] + ib[1]) / 2), style: { 'font-weight': '700' } },
-        `${ib[0]}–${ib[1]}`),
-      secondLooked
-        ? ' on his best tool — confirmed by a second look. This is as good as the read gets before he signs.'
+    if (ib) {
+      renderBandBar(body, ib, secondLooked
+        ? 'Confirmed by a second look. This is as good as the read gets before he signs.'
         : looked
-          ? ' on his best tool — from your scout\'s targeted trip, one look rather than full coverage.'
-          : ' on his best tool. Teenage international projection — the widest error bars in scouting.',
-    ] : looks.remaining > 0
-      ? 'Your scouts have nothing on him — but you could send one for a closer look.'
-      : looks.extraRemaining > 0
-        ? 'Your scouts have nothing on him. The free travel budget is spent — but pool money buys another trip.'
-        : 'Sign him and hope — your scouts have nothing on him, and the travel budget for this class is spent.'));
+          ? 'From your scout\'s targeted trip — one look rather than full coverage.'
+          : 'Teenage international projection — the widest error bars in scouting.');
+    } else {
+      body.appendChild(U.el('p', { style: { 'font-size': '13px' } }, looks.remaining > 0
+        ? 'Your scouts have nothing on him — but you could send one for a closer look.'
+        : looks.extraRemaining > 0
+          ? 'Your scouts have nothing on him. The free travel budget is spent — but pool money buys another trip.'
+          : 'Sign him and hope — your scouts have nothing on him, and the travel budget for this class is spent.'));
+    }
     if (ib) appendScoutNotes(body, state, p, 'intl');
 
     const actions = [];

@@ -5390,6 +5390,17 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > check: click clears every arrow, 26-man byte-identical, button
 > gone. Battery 44/44, e2e 142.
 
+> **Status note (v2.6.0):** Prospect card redesign (owner UX: "we
+> could utilize more of the space"). The projected ceiling becomes a
+> PICTURE — a 20-80 axis bar with the window filled (pips at 35/50/65,
+> the range numeral big and right-aligned): a wide smear reads lottery
+> ticket, a tight block reads known quantity, at a glance. The
+> FanGraphs grid gets boxed cells (bigger numerals, flexed to fill the
+> row), the FV badge grows, and the scout notes get real padding and
+> line-height. Both prospect modals (draft + intl), band-less fallback
+> text preserved. Chromium screenshot-verified; battery 44/44, e2e
+> clean.
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):
