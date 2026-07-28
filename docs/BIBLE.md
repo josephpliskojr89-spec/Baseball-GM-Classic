@@ -5498,6 +5498,20 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > miss rates, whiff amplitude 14+, own-org tightening + bounded
 > whiffs). Battery 45/45, e2e 142 clean.
 
+> **Status note (v2.10.1):** Draft classes twin-peak at 18 and 21
+> (owner: "a few too many 22 and 23 year old draft prospects" —
+> census confirmed age 22 was the MODAL age at 28.7% of the class,
+> with 22-23 at 38%). Each background's age was a 50/50 coin between
+> two years; now youngShare weights it (HS .30 toward 17, Fr/So .70
+> young, Jr .80 at 21, Sr .80 at 22) and Sr weight thins 20→15 in
+> favor of Jr 35→40. Five-class census after: 17: 8.9 / 18: 22.5 /
+> 21: 35.1 / 22: 20.7 / 23: 2.1 — juniors are the draft's spine,
+> real 23-year-olds are a redshirt trace, and the class carries more
+> cone (a 22-23yo has almost none left, so the old bulge quietly
+> suppressed volatility). Battery 45/45, e2e 142, 5-season soak
+> clean (soak also grew a WALL BREACH detail line in the harness's
+> 80-wall census — a rare >80 sighting under investigation).
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):

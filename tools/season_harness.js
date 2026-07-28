@@ -922,15 +922,23 @@ OBS.printOutcomes(OBS.outcomeCensus(state, outcomeStore, harnessStartYear, state
   // sees. The literal ≥79.5 count runs lower because developed tools
   // asymptote toward their ceiling; only born tools sit exactly on it.
   let card80 = 0, lit80 = 0, ceil80 = 0, over80 = 0;
-  const names80 = [];
+  const names80 = [], overNames = [];
   for (const id in state.players) {
     const p = state.players[id];
     if (!p || p.retired) continue;
     for (const k of TOOLS_OF(p)) {
       const r = p.ratings[k];
       const c = p.hidden && p.hidden.ceiling ? p.hidden.ceiling[k] : null;
-      if (r != null && r > 80.01) over80++;
-      if (c != null && c > 80.01) over80++;
+      // Name the offender: a wall breach is useless anonymous — dump
+      // who/what/how-high plus the flags that hint at the guilty path.
+      if (r != null && r > 80.01) {
+        over80++;
+        overNames.push(`${p.name} RATING ${k}=${r} age ${p.age} arch ${p.hidden && p.hidden.archetype} surge ${!!(p.hidden && p.hidden.surgeDone)} leap ${!!(p.hidden && p.hidden.leap)} conv ${!!p.conversion}`);
+      }
+      if (c != null && c > 80.01) {
+        over80++;
+        overNames.push(`${p.name} CEILING ${k}=${c} (cone ${p.hidden.cone && p.hidden.cone.hi ? p.hidden.cone.hi[k] : '—'}) age ${p.age} arch ${p.hidden && p.hidden.archetype} surge ${!!(p.hidden && p.hidden.surgeDone)} leap ${!!(p.hidden && p.hidden.leap)}`);
+      }
       if (r != null && r >= 77.5) { card80++; if (names80.length < 10) names80.push(`${p.name} ${k} ${Math.round(r)}`); }
       if (r != null && r >= 79.5) lit80++;
       if (c != null && c >= 79.5) ceil80++;
@@ -939,4 +947,5 @@ OBS.printOutcomes(OBS.outcomeCensus(state, outcomeStore, harnessStartYear, state
   console.log(`\n--- Observatory: the 80 wall (§23.18) ---`);
   console.log(`80-GRADE tools on the card (cur >= 77.5): ${card80} (band ~4-18) | literal >=79.5: ${lit80} | 80-ceiling promises: ${ceil80} | ABOVE the wall (>80, must be 0): ${over80}`);
   if (names80.length) console.log(`the two hands: ${names80.join(' | ')}`);
+  if (overNames.length) console.log(`WALL BREACH: ${overNames.join(' | ')}`);
 }

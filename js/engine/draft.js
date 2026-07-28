@@ -46,13 +46,19 @@ window.BBGM_DRAFT = (function () {
 
   // ---- Class generation (6.5 / 13.3) ------------------------------------
 
-  // Player backgrounds (6.5 age distribution).
+  // Player backgrounds (6.5 age distribution). youngShare is the odds of
+  // the bucket's YOUNGER age (v2.10.1, owner: "a few too many 22 and 23
+  // year old draft prospects") — the old 50/50 coin made 22 the modal
+  // age of the whole class. Real boards twin-peak at 18 (preps, mostly
+  // seniors by June) and 21 (college juniors); true 23-year-olds are a
+  // trace of redshirts. Seniors also thin slightly toward juniors —
+  // cone-dead 22-23s were crowding out the volatility the cone buys.
   const BACKGROUNDS = [
-    { key: 'HS', label: 'High School', weight: 0.30, ages: [17, 18] },
-    { key: 'Fr', label: 'College (Fr)', weight: 0.05, ages: [19, 20] },
-    { key: 'So', label: 'College (So)', weight: 0.10, ages: [20, 21] },
-    { key: 'Jr', label: 'College (Jr)', weight: 0.35, ages: [21, 22] },
-    { key: 'Sr', label: 'College (Sr)', weight: 0.20, ages: [22, 23] },
+    { key: 'HS', label: 'High School', weight: 0.30, ages: [17, 18], youngShare: 0.30 },
+    { key: 'Fr', label: 'College (Fr)', weight: 0.05, ages: [19, 20], youngShare: 0.70 },
+    { key: 'So', label: 'College (So)', weight: 0.10, ages: [20, 21], youngShare: 0.70 },
+    { key: 'Jr', label: 'College (Jr)', weight: 0.40, ages: [21, 22], youngShare: 0.80 },
+    { key: 'Sr', label: 'College (Sr)', weight: 0.15, ages: [22, 23], youngShare: 0.80 },
   ];
 
   function rollBackground() {
@@ -144,7 +150,7 @@ window.BBGM_DRAFT = (function () {
 
   function makeProspect(state, year, slot, strength, idx) {
     const bg = rollBackground();
-    const age = bg.ages[rint(0, 1)];
+    const age = bg.ages[rand() < bg.youngShare ? 0 : 1];
     const slotPos = rollSlotPos();
     const p = GEN().generateNewPlayer(rand, { id: null }, {
       slotPos, tier: 'prospect', isProspect: true,
