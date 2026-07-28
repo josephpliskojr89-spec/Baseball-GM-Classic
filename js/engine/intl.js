@@ -290,9 +290,19 @@ window.BBGM_INTL = (function () {
       if (rand() < 0.03) err -= rfloat(8, 18);
       const cone = p.hidden.cone;
       const hw = (cone && cone.hi[bestK] != null) ? (cone.hi[bestK] - cone.lo[bestK]) / 2 : 10;
+      // §23.18.1: the wall never eats the width. When center + hw runs
+      // past 80, the band doesn't amputate its upside — the uncertainty
+      // spills DOWNWARD (a 26-point window pinned at 80 reads 54-80:
+      // could be fringe, could be the best tool in the sport). The
+      // unclipped center survives as scout.seen — the consensus's
+      // internal number, allowed to run "off our charts" — so ranking
+      // still separates kids whose published bands look identical.
+      const mid = best + err;
+      const bandHi = Math.min(80, Math.round(mid + hw));
       p.scout = {
-        ceilLo: Math.round(best + err - hw),
-        ceilHi: Math.round(best + err + hw),
+        seen: Math.round(mid * 10) / 10,
+        ceilLo: Math.max(20, bandHi - Math.round(2 * hw)),
+        ceilHi: bandHi,
       };
     } else {
       const fuzz = 8;
@@ -366,7 +376,11 @@ window.BBGM_INTL = (function () {
   // the whole point of him.
   function consensusScore(p) {
     const keys = talentKeys(p);
-    const seen = (p.scout.ceilLo + p.scout.ceilHi) / 2;
+    // §23.18.1: rank on the internal center when it exists — wall-slid
+    // bands read alike at the top, but the consensus still knows which
+    // kid it believes in more.
+    const seen = p.scout.seen != null ? p.scout.seen
+      : (p.scout.ceilLo + p.scout.ceilHi) / 2;
     const avgCur = keys.reduce((s, k) => s + p.ratings[k], 0) / keys.length;
     if (window.BBGM_CONSTANTS.CONE && window.BBGM_CONSTANTS.CONE.ENABLED) {
       // §23.6: rank on belief + the observable, never true ceilings.
@@ -374,7 +388,7 @@ window.BBGM_INTL = (function () {
       // a pre-cone holdover — see draft.js scoreOf). July 2 chases the
       // top edge hardest of anybody: the 16yo freak whose band runs
       // from out-of-baseball to All-Star goes early and costs money.
-      const seenUp = seen + (p.scout.ceilHi - seen) * 0.3;
+      const seenUp = seen + Math.max(0, p.scout.ceilHi - seen) * 0.3;
       return seenUp * 0.65 + avgCur * 0.15 + rnorm(0, 1);
     }
     const avgCeil = keys.reduce((s, k) => s + p.hidden.ceiling[k], 0) / keys.length;
@@ -417,9 +431,12 @@ window.BBGM_INTL = (function () {
         for (const k of bandK) if (star.hidden.ceiling[k] > star.hidden.ceiling[bestK]) bestK = k;
         const chw = (star.hidden.cone.hi[bestK] - star.hidden.cone.lo[bestK]) / 2;
         const err = rnorm(0, 2.5);
+        const umid = bk + err;
+        const uhi = Math.min(80, Math.round(umid + chw));
         star.scout = {
-          ceilLo: Math.round(bk + err - chw),
-          ceilHi: Math.round(bk + err + chw),
+          seen: Math.round(umid * 10) / 10,
+          ceilLo: Math.max(20, uhi - Math.round(2 * chw)),
+          ceilHi: uhi,
         };
       } else {
         star.scout = {

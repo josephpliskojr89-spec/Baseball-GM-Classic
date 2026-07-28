@@ -58,9 +58,13 @@ window.BBGM_UI_DRAFT = (function () {
         shift = SC.secondLookShift(state, p);
       }
     }
-    const lo = p.scout.ceilLo + shift;
-    const hi = p.scout.ceilHi + shift;
-    return [Math.max(20, Math.round(lo)), Math.min(80, Math.round(hi))];
+    // §23.18.1: the wall never eats the width — a re-centering shift
+    // that pushes the band past 80 slides the whole window down under
+    // it instead of amputating the upside.
+    const w = p.scout.ceilHi - p.scout.ceilLo;
+    const hi = Math.min(80, Math.round(p.scout.ceilHi + shift));
+    const lo = Math.max(20, Math.min(Math.round(p.scout.ceilLo + shift), hi - w));
+    return [lo, hi];
   }
 
   // Tool grades are a privilege of good scouting: above-average+ tiers see

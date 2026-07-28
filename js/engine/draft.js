@@ -271,9 +271,15 @@ window.BBGM_DRAFT = (function () {
       if (rand() < 0.03) err -= rfloat(8, 18); // the industry whiff
       const cone = p.hidden.cone;
       const hw = (cone && cone.hi[bestK] != null) ? (cone.hi[bestK] - cone.lo[bestK]) / 2 : 9;
+      // §23.18.1: the wall never eats the width — clipped upside spills
+      // downward, and the unclipped center survives as scout.seen for
+      // ranking (see intl.js).
+      const mid = best + err;
+      const bandHi = Math.min(80, Math.round(mid + hw));
       p.scout = {
-        ceilLo: Math.round(best + err - hw),
-        ceilHi: Math.round(best + err + hw),
+        seen: Math.round(mid * 10) / 10,
+        ceilLo: Math.max(20, bandHi - Math.round(2 * hw)),
+        ceilHi: bandHi,
       };
     } else {
       const fuzz = bg.key === 'HS' ? 6 : 3;
@@ -416,7 +422,10 @@ window.BBGM_DRAFT = (function () {
     // order with local reshuffling — reaches and steals both exist.
     const scoreOf = (p) => {
       const keys = talentKeys(p);
-      const seen = (p.scout.ceilLo + p.scout.ceilHi) / 2;
+      // §23.18.1: rank on the internal center when it exists (see
+      // intl.js consensusScore).
+      const seen = p.scout.seen != null ? p.scout.seen
+        : (p.scout.ceilLo + p.scout.ceilHi) / 2;
       const avgCur = keys.reduce((s, k) => s + p.ratings[k], 0) / keys.length;
       if (window.BBGM_CONSTANTS.CONE && window.BBGM_CONSTANTS.CONE.ENABLED) {
         // §23.6: the industry ranks on what it BELIEVES (the erred
@@ -434,7 +443,7 @@ window.BBGM_DRAFT = (function () {
         // and a finished college kid outranks a raw teen whose
         // published FLOOR sits at the college kid's ceiling — the
         // exact self-contradiction this rewrite kills.
-        const seenUp = seen + (p.scout.ceilHi - seen) * 0.2;
+        const seenUp = seen + Math.max(0, p.scout.ceilHi - seen) * 0.2;
         return seenUp * 0.65 + avgCur * 0.15 + rnorm(0, 1);
       }
       const best = Math.max(...keys.map((k) => p.hidden.ceiling[k]));

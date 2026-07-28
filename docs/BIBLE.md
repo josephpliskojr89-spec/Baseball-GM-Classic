@@ -5346,6 +5346,25 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > Migration clamps everything above the wall in existing saves.
 > Battery 44/44, e2e clean, zero sim errors, census on gates.
 
+> **Status note (v2.3.1):** The wall never eats the width (§23.18.1,
+> owner report: elite-scouting intl board showing 71-80 slivers on
+> 16-year-olds). The 80 display clamp was amputating the upside of
+> wide bands — a kid whose perceived center + half-width ran past 80
+> showed a tight band that read as absurd certainty about his floor.
+> Now clipped uncertainty spills DOWNWARD: a 26-point window pinned
+> at 80 renders 54-80 (could be fringe, could be the best tool in
+> the sport). Band mints in both pipelines slide the published band
+> under the wall at full width and keep the unclipped consensus
+> center as scout.seen — ranking uses it, so the board still knows
+> which kid it believes in when the published bands read alike.
+> poolBand preserves stored width under re-centering shifts; the
+> migration re-shapes every stored pool band and backfills seen.
+> Also: the harness starter-overwork gate moved 36 → 38 (a
+> once-in-thirty-decades 37-start workhorse year is real baseball,
+> not the 0.15.3 bug class; 36+ now logs a warning). Battery 44/44
+> (proj suite: no band over the wall, no width amputated), e2e 141,
+> soak clean with census on gates.
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):

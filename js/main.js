@@ -1208,6 +1208,34 @@ window.BBGM_MAIN = (function () {
       window.BBGM_STATE.set(state);
     }
 
+    // Migration (2.3.1, §23.18.1): the wall never eats the width. Pool
+    // bands stored with tops past 80 were being displayed amputated
+    // (71-80 slivers on 16-year-olds with 26-point windows) — re-shape
+    // each band to keep its full width UNDER the wall, and keep the
+    // old unclipped midpoint as scout.seen so the board's order and
+    // the consensus's conviction survive.
+    if (versionLt(saveVersion, '2.3.1')) {
+      let reshaped = 0;
+      const reshape = (p) => {
+        if (!p || !p.scout || p.scout.ceilLo == null || p.scout.ceilHi == null) return;
+        if (p.scout.seen == null) p.scout.seen = Math.round((p.scout.ceilLo + p.scout.ceilHi) / 2 * 10) / 10;
+        if (p.scout.ceilHi <= 80) return;
+        const w = p.scout.ceilHi - p.scout.ceilLo;
+        p.scout.ceilHi = 80;
+        p.scout.ceilLo = Math.max(20, 80 - w);
+        reshaped++;
+      };
+      if (state.draft && state.draft.prospects) {
+        for (const id in state.draft.prospects) reshape(state.draft.prospects[id]);
+      }
+      if (state.intl && state.intl.prospects) {
+        for (const id in state.intl.prospects) reshape(state.intl.prospects[id]);
+      }
+      for (const e of state.draftReentry || []) reshape(e.player);
+      if (reshaped) console.log(`2.3.1 migration: ${reshaped} pool band(s) slid under the wall at full width.`);
+      window.BBGM_STATE.set(state);
+    }
+
     // Stamp the save forward now that every migration has run. This is
     // what makes the versionLt gates above one-shot, and it makes the
     // Menu's "Save version" reflect the code the save actually runs under
