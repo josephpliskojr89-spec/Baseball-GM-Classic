@@ -343,6 +343,10 @@ const seasonsArg = Math.max(1, parseInt(process.argv[3] || '1', 10));
 // prunes retiree stats — and print the drift report at process end.
 const OBS = require('./observatory');
 const obsRows = [];
+// Prospect-outcome tracking (§23.9, cone phase 1): peak-OVR ledger for
+// every drafted/signed entrant, classified at maturity by entry rank.
+const outcomeStore = {};
+const harnessStartYear = state.meta.currentDate.year;
 
 function runSeason() {
   let guard = 0;
@@ -350,6 +354,7 @@ function runSeason() {
     simOneDay(state);
   }
   obsRows.push(OBS.observe(W, state, state.meta.currentDate.year));
+  OBS.trackPeaks(W, state, outcomeStore);
 }
 runSeason();
 while (draftLines.length) console.log(draftLines.shift());
@@ -894,3 +899,4 @@ if (seasonsArg > 1) {
 }
 
 OBS.printReport(obsRows);
+OBS.printOutcomes(OBS.outcomeCensus(state, outcomeStore, harnessStartYear, state.meta.currentDate.year));

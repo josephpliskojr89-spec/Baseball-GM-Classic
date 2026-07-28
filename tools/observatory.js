@@ -203,6 +203,77 @@ function observe(W, state, year) {
   return { era, census: census(W, state, year, era), war: warLite(W, state, year, era) };
 }
 
+// ---- Prospect-outcome census (§23.9, cone phase 1) --------------------------
+// Watches what actually becomes of drafted/signed kids, by entry rank —
+// the before-picture the cone's release gate will be judged against.
+// trackPeaks() runs once per completed season and records each tagged
+// player's best overall ever seen; outcomeCensus() classifies everyone
+// whose development story is OVER (age 26+, or retired) and who ENTERED
+// during the run (the founding population has no entry cohort).
+//   BUST < 42 (never a big-league regular) · FRINGE 42-47.9 ·
+//   REGULAR 48-57.9 · STAR 58+  — peak overall, 20/80 scale.
+function trackPeaks(W, state, store) {
+  const R = W.BBGM_ROSTER;
+  store.peak = store.peak || {};
+  store.entry = store.entry || {};
+  for (const id in state.players) {
+    const p = state.players[id];
+    if (!p || p.retired) continue;
+    if (!store.entry[id]) {
+      if (p.draft && p.draft.year != null) {
+        store.entry[id] = { kind: 'draft', year: p.draft.year, rank: p.draft.overall };
+      } else if (p.intl && p.intl.year != null) {
+        store.entry[id] = { kind: 'intl', year: p.intl.year, rank: p.intl.rank };
+      } else continue;
+    }
+    const ovr = R.overall(p);
+    if (store.peak[id] == null || ovr > store.peak[id]) store.peak[id] = ovr;
+    store.lastAge = store.lastAge || {};
+    store.lastAge[id] = p.age;
+  }
+}
+
+const OUTCOME_BUCKETS = [
+  { key: 'top10', label: 'top-10 board', of: (e) => e.rank <= 10 },
+  { key: 'r11_30', label: 'ranks 11-30', of: (e) => e.rank > 10 && e.rank <= 30 },
+  { key: 'deep', label: 'deep pool (31+)', of: (e) => e.rank > 30 },
+];
+
+function outcomeCensus(state, store, startYear, endYear) {
+  const rows = {};
+  for (const b of OUTCOME_BUCKETS) rows[b.key] = { label: b.label, n: 0, bust: 0, fringe: 0, regular: 0, star: 0 };
+  for (const id in store.entry || {}) {
+    const e = store.entry[id];
+    if (e.year <= startYear) continue; // founding-adjacent classes only partially observed
+    const p = state.players[id];
+    const age = p ? p.age : (store.lastAge && store.lastAge[id]);
+    const done = (p && p.retired) || (age != null && age >= 26) || !p; // deleted retirees count
+    if (!done) continue; // right-censored — his story isn't over
+    const peak = store.peak[id];
+    if (peak == null) continue;
+    const bucket = OUTCOME_BUCKETS.find((b) => b.of(e));
+    if (!bucket) continue;
+    const r = rows[bucket.key];
+    r.n++;
+    if (peak < 42) r.bust++;
+    else if (peak < 48) r.fringe++;
+    else if (peak < 58) r.regular++;
+    else r.star++;
+  }
+  return rows;
+}
+
+function printOutcomes(rows) {
+  console.log('\n--- Observatory: prospect-outcome census (§23.9 — matured entrants only, peak OVR) ---');
+  console.log('cohort            n   bust  fringe  regular  star   (bust <42 · fringe 42-48 · regular 48-58 · star 58+)');
+  for (const key in rows) {
+    const r = rows[key];
+    if (!r.n) { console.log(`${r.label.padEnd(16)} —  (no matured entrants)`); continue; }
+    const pc = (x) => (100 * x / r.n).toFixed(0).padStart(4) + '%';
+    console.log(`${r.label.padEnd(16)}${String(r.n).padStart(4)}  ${pc(r.bust)}  ${pc(r.fringe)}   ${pc(r.regular)}  ${pc(r.star)}`);
+  }
+}
+
 // ---- Report printers --------------------------------------------------------
 function printEraDrift(rows) {
   console.log('\n--- Observatory: era drift (the league line is an output, not a target) ---');
@@ -244,4 +315,7 @@ function printReport(rows) {
   printWar(rows);
 }
 
-module.exports = { observe, eraLine, census, warLite, printReport, DETECTORS };
+module.exports = {
+  observe, eraLine, census, warLite, printReport, DETECTORS,
+  trackPeaks, outcomeCensus, printOutcomes,
+};

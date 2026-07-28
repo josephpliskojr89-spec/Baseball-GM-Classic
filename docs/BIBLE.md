@@ -5214,6 +5214,21 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > twice across a full 350-man class. Bigboard checks 17-19 (now
 > 36). Battery 43/43, e2e 141.
 
+> **Status note (v1.4.1):** Cone phase 1 (§23, design approved —
+> dials: gentle bust rate, FV = future overall, the cone MOVES and
+> never welds shut per the Judge clause, 40/60 scoutable-vs-dice).
+> Shipped: the full §23 spec; observatory prospect-outcome census
+> (trackPeaks/outcomeCensus — every drafted/signed entrant's peak
+> OVR classified at maturity by entry rank) wired into the harness;
+> and the 14-season BASELINE of the fixed-destiny world, which
+> vindicates the design: top-10 kids bust only 23% (too safe, gate
+> 30-35%), ranks 11-30 produce 1% stars (gate 5-12%), the deep pool
+> 0% (gate "never zero") — today's outcomes cluster by entry rank
+> and both tails are missing. Also: one missed v1.3.0 born-speed
+> site (the draft signing-day shift can be positive; legs now move
+> with it). Phases 2-5 await the green light. Battery 43/43, e2e
+> 141.
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):
@@ -7179,3 +7194,231 @@ by the new physics: the release is framed to the player as a fresh
 founding, with a new franchise the honest way in. The 2001 aesthetic
 survives as flavor — broadcast look, workloads, the absence of
 modern-era three-hour TTO slogs as the NORM — but no longer as law.
+
+## 23. The Cone: Development Is the Dice
+
+> Status: DESIGN APPROVED (dials settled with the owner). Phase 1
+> (this spec + observatory instruments) shipped; phases 2-5 await
+> the green light and will be built dark, released together as
+> v2.0.0. Supersedes §9's fixed-destiny model and re-expresses
+> §5.6's archetypes when it lands; both stay LAW until then.
+
+### 23.1 The Principle
+
+The re-founding (§22) fixed WHERE runs come from: the grade is the
+ground truth and the league line is an output. The cone fixes WHERE
+PLAYERS come from, by the same move. Today a player is born with a
+fixed hidden ceiling and development is a slow reveal — all of his
+dice are rolled at 16, the scout band fakes uncertainty with
+symmetric padding (measured: truth never in the bottom quarter of a
+displayed band, top quarter 15%), and every ounce of drama comes
+from bolted-on archetype scripts that violate the ceiling contract
+(the bust's ceiling is a lie; the overachiever's climbs).
+
+Under the cone there is no pre-rolled destiny. A developable tool
+carries a hidden WINDOW [lo, hi] on the 20/80 scale — the range of
+where it can genuinely land — and development itself rolls the
+dice: each checkpoint the projection drifts inside the window,
+weighted by who the kid is (archetype, work ethic, makeup) and
+where he is (org coaching), plus honest noise. Nobody knows the
+landing — not the scouts, not the sim — because the landing has
+not happened yet. Scouts are honest about the center and the
+width; the width is REAL. What the user called it: "actual
+potential lives within the cone."
+
+### 23.2 The Cone
+
+Per developable tool: `cone = { lo, hi }` (20/80 scale, tenths),
+plus a working `center` — the current median projection, which is
+what `hidden.ceiling[k]` BECOMES (same field, new meaning: the
+moving center, not a fixed destiny — this is what keeps the save
+and most downstream systems alive).
+
+Trait classes (v1.3.0 physics carried forward):
+- Speed: born. Width ~0; current ≈ center for life until aging.
+- Stamina: workload trait, role-driven (§22's usage rules), no
+  talent cone.
+- Everything else (contact, power, discipline, defense, arm,
+  velocity, stuff, movement, control): full cone.
+
+Width schedule (half-width in points, by age — the base narrowing;
+all numbers are dials for the phase-2 soak):
+
+  age    16    17    18    19    20    21    22    23    24    25   26+
+  ±      11    10     9     8   6.5     5     4     3     2   1.5   1.5
+
+The cone NEVER welds shut (owner's call — the Judge clause, §23.4):
+±1.5 residual rides forever, so a 27-year-old can still surprise
+you a little, and the late surge can re-open the window outright.
+
+The cone MOVES. Narrowing is not a fixed birth-range collapsing
+toward its own middle: each checkpoint the center translates by the
+drift (§23.3) and then lo/hi pull in toward the NEW center on the
+age schedule. Two kids born with identical windows walk different
+paths and land in different places — that is the whole point.
+
+### 23.3 The Drift
+
+Per checkpoint (offseason, with reduced-scale in-season ticks
+replacing §9's inSeason logic), per tool:
+
+  center' = clamp(center + drift + N(0, vol), lo, hi)
+
+drift = archetype bias + workEthic term + makeup term + coaching
+term + level-fit term. The split is 40/60: about 40% of landing
+variance is explained by the scoutable stuff (WE, makeup, coaching
+— why those blurb lines are worth money), about 60% is dice. The
+weights table lives in constants and is the tuning surface, exactly
+as §22.2's grade dictionary is for the sim:
+
+- Work ethic (1-10): the strongest personal term. The gym rat
+  drifts up, year after year; the 2 drifts down.
+- Makeup (1-10): half the WE weight — adversity response; also
+  gates the late surge (§23.4).
+- Coaching: org development quality (staff.js coach quality, the
+  0.48.0 projects infrastructure) — a good org lands its kids
+  higher ON AVERAGE. Never decisive alone.
+- Level fit: over-levelled kids drift down (replaces §9's drag).
+- Archetype bias: §23.5.
+- vol (noise): base by age (younger = wilder), × archetype vol
+  multiplier.
+
+Current ratings chase the center exactly as they chase the ceiling
+today (rise rates, peak/decline ages, skill-specific aging on the
+way down all survive) — the cone changes what they are chasing.
+
+### 23.4 The Late Surge (the Judge Clause) and the Overflow
+
+Owner's law: "Aaron Judge made huge strides in his early 30s. That
+needs to be possible."
+
+- The residual ±1.5 window never closes, so ordinary small late
+  moves are always live.
+- The LATE SURGE: ages 27-33, a rare event (order ~1-2 real leaps
+  per league-season; dial) re-OPENS a tool's window upward (+4 to
+  +10) and runs the drift hot for one or two seasons. Weighted by
+  makeup and work ethic and by the late-bloom archetype family
+  (late_reinvent, slow_burn, crafty_vet) — weighted, never owed.
+  This absorbs 0.57.0's generational leap (the youth edition keeps
+  its rarity as the under-22 form of the same event).
+- The OVERFLOW: a kid pressed against his cone top with elite work
+  ethic (the overachiever signature) carries a slim chance (~10%;
+  dial) to punch PAST hi by 2-5 points. The top of the scale is a
+  promise, not a wall — but only for the ones who earn the roll.
+
+### 23.5 Archetypes Become Modifiers
+
+§5.6's table converts from development scripts to weight packs —
+every identity coexists as a tendency, none as a certainty:
+
+  bust          → heavy down-bias. He LANDS AT THE BOTTOM of his
+                  cone — the window never lied, the dice were
+                  loaded. (No more secret zero rise-rate.)
+  overachiever  → heavy up-bias + the overflow roll. Lands at the
+                  top, slim chance to exceed it. (No more scripted
+                  climbing ceiling.)
+  quad_a        → cone top capped ~50 at mint (the identity IS the
+                  window).
+  volatile      → vol multiplier ~2× (big yearly steps, both ways).
+  late_bloomer/
+  slow_burn/
+  late_reinvent → drift back-loaded; late-surge weight up.
+  early_peak/
+  flameout      → drift front-loaded; cone closes 1-2 years early;
+                  decline unchanged.
+  steady_decliner, traditional, crafty_vet, workhorse,
+  reliever_conv → mild biases per current flavor; aging identities
+                  unchanged.
+  generational  → wide cone minted HIGH (the anointment lifts lo
+                  and hi), up-bias, youth-leap weight. A bust with
+                  a seductive card stays possible, exactly like
+                  life.
+
+Scouting still never reads the archetype. What it reads — WE and
+makeup — is now mechanically load-bearing, so the fog stays fair.
+
+### 23.6 Scouting Under the Cone
+
+- The stored scout read becomes an estimate of (center, width) —
+  tier and looks buy ACCURACY on the center; the second look also
+  buys the width read (tight-cone safe bet vs wide-cone gamble).
+- The displayed band is the honest cone range through fog. Band
+  edges are REAL places: a 36-57 kid genuinely lands at 57
+  sometimes, and paying for the lottery ticket is a strategy with
+  a hit rate, not a trap.
+- Board discovery (0.78.0) and the second look converge toward the
+  CURRENT center — a moving target, because it moves.
+- The Scout's Book becomes the drift chart: stamped future grades
+  over the years, cone narrowing, direction visible. The bust tell
+  graduates from "the numbers never move" to "the drift keeps
+  pointing down," which is how real orgs sour on a kid.
+
+### 23.7 The Card (FanGraphs Grammar)
+
+Prospect cards carry per-tool PRESENT / FUTURE on 20/80, snapped
+to scouting 5s (FanGraphs grammar, our attributes):
+
+  Hitter:  Hit 30/45 · Power 40/60 · Approach 35/50 · Glove 50/60
+           · Arm 55/55 · Speed 60 (one number — you timed him)
+  Pitcher: Velo · Stuff · Movement · Command, same form.
+
+PRESENT = the fogged current read (existing tier fog). FUTURE =
+the scouts' read of the cone CENTER — the median projection, a
+real future grade. FV = the future OVERALL grade (owner's call:
+"FV in our case would just be overall grade") — the overall
+formula applied to the perceived future tools, shown 20-80 in
+half-grades at the top of the card. The projected-ceiling band
+stays as the range summary (§23.6). The scout-speak blurb (1.4.0)
+rides on top unchanged.
+
+### 23.8 Valuation
+
+prospectValue prices the DISTRIBUTION: perceived center (the
+scout-facing median) plus option value on the width, times the
+existing level-risk/age machinery. Risk appetite differentiates
+clubs: rebuilding windows and patient owners pay up for wide
+cones (lottery tickets are their business); win-now clubs pay for
+tight ones. The observed-WAR loop (§22.10) is untouched — the
+cone prices the unproven, production prices the proven.
+
+### 23.9 The Observatory: Prospect-Outcome Census
+
+New instruments (phase 1, live now, watching the CURRENT world so
+the release gate has a before-picture):
+
+- Outcome tracking: every drafted/signed kid is tagged with his
+  entry cohort and consensus rank; at age 26+ he is classified by
+  peak overall reached — BUST (<42, never a big-league regular),
+  FRINGE (42-47.9), REGULAR (48-57.9), STAR (58+).
+- Census bands (the release-gate targets, gentle by owner's call —
+  our pools are smaller than real life's):
+    top-10 board kids:   ~30-35% bust, ~15-25% star
+    ranks 11-30:         ~45-55% bust, ~5-12% star
+    deep pool (31+):     ~70-85% bust, 1-3% star, never zero
+  (Real-world top-100 rates run 60-70% bust; we deliberately sit
+  gentler.)
+- Pyramid stability: the §22.6 pyramid and era line must hold
+  across 20 seasons while the cone replaces the fixed ceiling —
+  the cone redistributes individual fates, it must not inflate or
+  deflate the league's total talent.
+
+### 23.10 Migration
+
+One-shot at release: every live player's fixed ceiling becomes a
+cone centered on it, width from the age schedule — the save's
+17-year-olds get their mystery back; its 24-year-olds are nearly
+what they are. Existing bust/overachiever identities convert to
+their §23.5 weight packs mid-flight (a bust who hasn't busted yet
+becomes a kid with loaded dice, which is what he always was).
+Stored scout bands re-mint from the new cones (the 1.3.1
+re-anchor machinery generalizes).
+
+### 23.11 Release Policy
+
+Phases: (1) this spec + outcome census — SHIPPED · (2) engine
+core: cone mint + checkpoint drift, dark, soaked until the
+pyramid and era line hold · (3) scouting + the FanGraphs card ·
+(4) cone-priced valuation + AI risk appetite · (5) archetype
+absorption + migration + 20-season release-gate soak with the
+§23.9 census in-band. Ships as v2.0.0. Same discipline as §22:
+built dark, judged by the observatory, opened as THE game.

@@ -781,6 +781,7 @@ window.BBGM_DRAFT = (function () {
         p.ratings[k] = Math.min(p.ratings[k], Math.max(20, p.hidden.ceiling[k] - 2));
       }
       GEN().applyArchetypeCap(p); // the signing-day shift honors the cap (0.53.1)
+      GEN().syncBornSpeed(p, rand); // a positive shift moves his legs with it (1.3.0 law, missed site)
 
       const team = state.league.teams.find((t) => t.id === pick.teamId);
       p.status = 'minors';
