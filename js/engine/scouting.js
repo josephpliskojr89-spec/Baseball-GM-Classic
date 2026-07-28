@@ -514,18 +514,82 @@ window.BBGM_SCOUT = (function () {
       (t, a) => `Scouts love ${t} — ${a}.`,
       (t, a) => `The carrying tool is ${t}: ${a}.`,
       (t, a) => `${t.charAt(0).toUpperCase() + t.slice(1)} jumps off the card — ${a}.`,
+      (t, a) => `Everything in the profile starts with ${t} — ${a}.`,
+      (t, a) => `Our guys keep coming back to ${t}: ${a}.`,
     ];
     notes.push(strengthT[(h >>> 5) % strengthT.length](best[0], adj(best[1])));
 
-    if (worst[1] >= 58) {
+    // The observable facts (1.4.0, user ask): nobody needs a scouting
+    // department for the stopwatch or the radar gun, so these read TRUE
+    // current values in plain scout-speak — flavor, never a projection
+    // anchor. Silence for the unremarkable middle.
+    let gunSaidLow = false;
+    if (!p.isPitcher) {
+      const spd = p.ratings.speed || 45;
+      const speedT = spd >= 70 ? [
+        'A true burner — the kind of speed that changes how a defense lines up.',
+        'Elite wheels. First to third on anything in the gap.',
+      ] : spd >= 62 ? [
+        'Plus runner — the legs play on both sides of the ball.',
+        'Above-average speed; he takes the extra base like it\'s owed to him.',
+      ] : spd <= 38 ? [
+        'Bottom-of-the-scale runner — station to station, so the bat has to carry it.',
+        'Heavy feet. Whatever value comes, comes from the batter\'s box.',
+      ] : null;
+      if (speedT) notes.push(speedT[(h >>> 13) % speedT.length]);
+    } else {
+      const velo = p.ratings.velocity || 45;
+      // The low line stays quiet for teens (the body isn't done — that
+      // projection belongs to the scouts) and whenever the strength
+      // line already champions the velocity ceiling: "scouts love the
+      // velocity" + "fringe velocity" is a report arguing with itself.
+      const gunT = velo >= 72 ? [
+        'Triple digits on the gun — the arm strength is not in question.',
+        'Premium velocity; the radar gun does the recruiting.',
+      ] : velo >= 62 ? [
+        'Works in the mid-to-upper 90s already.',
+        'The fastball gets on hitters in a hurry — mid-90s and comfortable there.',
+      ] : (velo <= 44 && p.age >= 21 && best[0] !== 'the velocity') ? [
+        'Upper-80s stuff — he\'ll have to pitch backwards to survive.',
+        'Fringe velocity; he\'ll have to win with sequencing and guile.',
+      ] : null;
+      if (gunT) {
+        notes.push(gunT[(h >>> 13) % gunT.length]);
+        if (velo <= 44) gunSaidLow = true;
+      }
+    }
+
+    // The gun already said the velocity is light — don't say it twice.
+    const concern = (gunSaidLow && worst[0] === 'the velocity' && tools.length > 1)
+      ? tools[tools.length - 2] : worst;
+    if (concern[1] >= 58) {
       notes.push('No glaring hole in the profile — the rare all-around prospect.');
     } else {
       const concernT = [
         (t) => `The concern is ${t} — it lags well behind.`,
         (t) => `Real questions about ${t}.`,
         (t) => `${t.charAt(0).toUpperCase() + t.slice(1)} needs a pro program to get there.`,
+        (t) => `${t.charAt(0).toUpperCase() + t.slice(1)} is the swing piece — right now it's a question, not an answer.`,
+        (t) => `The book says ${t} decides whether he's a regular or a bench piece.`,
       ];
-      notes.push(concernT[(h >>> 9) % concernT.length](worst[0]));
+      notes.push(concernT[(h >>> 9) % concernT.length](concern[0]));
+    }
+
+    // The frame (visible to anyone with eyes): projectable vs finished,
+    // young players only — the same 0.49.0 body scale generation uses.
+    if (p.age <= 21 && p.heightIn != null && p.weightLb != null) {
+      const adultFrame = (p.heightIn - 60) * 5.5 + 120;
+      if (p.weightLb <= adultFrame - 18) {
+        notes.push([
+          'Projectable frame — real physical growth still coming.',
+          'Wiry frame with room for another fifteen pounds of ballplayer.',
+        ][(h >>> 17) % 2]);
+      } else if (p.weightLb >= adultFrame + 8) {
+        notes.push([
+          'Physically mature — what you see now is the finished body.',
+          'A grown man\'s frame already; the projection is in the skills, not the body.',
+        ][(h >>> 17) % 2]);
+      }
     }
 
     // Role risk for starters whose frame may not hold the workload —

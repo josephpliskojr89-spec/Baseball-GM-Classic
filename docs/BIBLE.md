@@ -5194,6 +5194,26 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > notebook never flags a runner now. Bigboard checks 16 (now 33).
 > Battery 43/43, e2e 141.
 
+> **Status note (v1.4.0):** Scout-speak (user ask: the blurb should
+> still mention speed if he's a burner, and reports could carry more
+> flavor in baseball language). The blurb now splits into JUDGED
+> lines and OBSERVED lines. Judged (tier-noisy ceiling reads, as
+> before): strength and concern, each with five templates now.
+> Observed (TRUE current values, plain speech — nobody needs a
+> department for the stopwatch or the radar gun): hitters get a legs
+> line at the extremes ("a true burner — the kind of speed that
+> changes how a defense lines up" at 70+, plus-runner at 62+,
+> station-to-station at ≤38, silence in the middle); pitchers get a
+> gun line (triple digits at 72+, mid-to-upper 90s at 62+, and a
+> pitch-backwards line for fringe arms — 21+ only, teens' bodies
+> aren't done); kids ≤21 get a frame line off the 0.49.0 body model
+> (projectable vs physically mature). Coherence rules: the low gun
+> line never prints when the strength line champions the velocity
+> ceiling, and the concern re-picks when the gun already said the
+> velocity is light — measured zero reports naming the same tool
+> twice across a full 350-man class. Bigboard checks 17-19 (now
+> 36). Battery 43/43, e2e 141.
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):
