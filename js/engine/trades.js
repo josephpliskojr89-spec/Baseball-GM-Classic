@@ -184,14 +184,34 @@ window.BBGM_TRADES = (function () {
     return clamp(tv, 0, 100);
   }
 
+  // §23.8 (cone): a prospect's window width, in points — the size of
+  // the lottery ticket. 0 while the cone is dark or unminted.
+  function coneWidthOf(p) {
+    const cone = p.hidden && p.hidden.cone;
+    if (!cone || !cone.lo) return 0;
+    let s = 0, n = 0;
+    for (const k in cone.lo) {
+      if (cone.hi[k] == null) continue;
+      s += (cone.hi[k] - cone.lo[k]) / 2;
+      n++;
+    }
+    return n ? s / n : 0;
+  }
+
   function prospectValue(p) {
     // Position-weighted ceiling (0.63.1): the flat all-keys mean let a
     // hitter's bunting and a relief prospect's stamina drag his price —
     // the overall formula's own weighting is the honest read of what
     // the ceiling is worth. Same curve, same scale (measured
     // mean-preserving within ~1 TV on generated farms).
+    // §23.8: under the cone, hidden.ceiling IS the median projection —
+    // so this base already prices the median. The WIDTH is an option
+    // with value of its own: a wide window carries upside no median
+    // can show, and the market pays something for the ticket.
     const ceilOvr = ROSTER().overall({ ...p, ratings: { ...p.ratings, ...p.hidden.ceiling } });
     let tv = clamp((ceilOvr - 44) * 2.0, 0, 62);
+    const CO = window.BBGM_CONSTANTS.CONE;
+    if (CO && CO.ENABLED) tv += coneWidthOf(p) * 0.55;
     tv *= LEVEL_RISK[p.rosterStatus] != null ? LEVEL_RISK[p.rosterStatus] : 0.5;
     // Young-for-level is the classic breakout indicator.
     const youngAge = { AAA: 23, AA: 22, A: 20, Rookie: 19 }[p.rosterStatus] || 22;
@@ -245,6 +265,19 @@ window.BBGM_TRADES = (function () {
     }
     // A team's need at the player's position sweetens their view slightly.
     if (!p.isPitcher && teamNeeds(team, windowPlayers(team)).includes(p.primaryPosition)) tv *= 1.1;
+
+    // §23.8 (cone): risk appetite. Rebuilders and patient owners pay up
+    // for WIDE windows — lottery tickets are their business model; the
+    // win-now club pays for certainty and discounts the gamble.
+    {
+      const CO = window.BBGM_CONSTANTS.CONE;
+      if (CO && CO.ENABLED && isProspect) {
+        const w = coneWidthOf(p);
+        if (win === 'rebuilding') tv *= 1 + w * 0.008;
+        else if (win === 'win-now') tv *= Math.max(0.85, 1 - w * 0.008);
+        if (team.owner === 'patient') tv *= 1 + w * 0.004;
+      }
+    }
 
     // Premium cap (0.63.1, audit fix): fit makes a club PAY a little
     // over market, never wildly over — the stacked window/owner/need

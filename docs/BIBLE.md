@@ -5267,6 +5267,21 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > at the release gate. Flag-off parity exact: battery 43/43, e2e
 > 141.
 
+> **Status note (v1.7.0):** Cone phase 4, DARK (§23.14): the AI
+> prices the cone. prospectValue = median + option value of width;
+> teamValueOf risk appetite (rebuilders and patient owners pay for
+> wide windows, win-now discounts the gamble relative to market).
+> First FULL 20-season release-gate soak of phases 2-4: era line
+> flat 4.28-4.47 R/G, pyramid holds, top-10 census 25% bust / 24%
+> star, mid-board max peak 70, deep-pool max 61 — every §23 story
+> exists at 20-season scale. Three named flip blockers for phase 5
+> (§23.14): one VAN@DAL lineup-starvation sim error (causality
+> control soak running), battery reconciliation to the cone world,
+> and the migration + flip + band re-base. Also fixed: hunch suite
+> check 5 still computed the second-look target with speed included
+> (stale since 1.3.0; flaked on speed-loudest kids). Flag-off
+> parity exact: battery 43/43, e2e 141.
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):
@@ -7528,3 +7543,34 @@ Shipped dark (v1.6.0):
   at the release gate; the tail rate (0.10) is the dial.
 - Era line 4.3-4.5 R/G, CG back in range (52-66), 4+ WAR 86.
   Flag-off parity: battery 43/43, e2e 141.
+
+### 23.14 Phase-4 Valuation — BUILT (dark), release-gate state
+
+Shipped dark (v1.7.0): prospectValue prices the MEDIAN (hidden.
+ceiling is the center, so the 0.63.1 base already does) plus the
+option value of width (+0.55 TV per point of average half-width —
+a wide window carries upside no median can show); teamValueOf risk
+appetite — rebuilding clubs pay up for wide windows (+0.8%/pt),
+patient owners stack (+0.4%/pt), win-now clubs discount the gamble
+(the width-2 vs width-10 probe: rebuilder 29.3→33.9, win-now ratio
+64%→60% of market). Draft/intl AI already rank on the phase-3
+perceived view.
+
+First FULL release-gate soak (20 seasons, phases 2-4, seed
+424242): era line stable the whole way (4.28-4.47 R/G, no drift),
+pyramid holds (4+ WAR 85, 6+ 29), outcome census with real
+samples: top-10 25% bust / 24% star (gates hit), ranks 11-30 3%
+star with max peak 70, deep pool max 61 — every §23 story exists.
+
+FLIP BLOCKERS (phase 5):
+1. ONE sim error in 20 seasons (year 3, VAN@DAL: "away lineup
+   hitters 7 < 8" — the 0.75.2 hitter-starvation class). Flag-off
+   control soak on the same seed determines causality. The v1.0
+   standard is zero.
+2. Battery reconciliation: several suites test absorbed mechanics
+   (leap, overachiever creep, bust decay, band shapes) and must be
+   rewritten against the cone before the flip makes it THE world.
+3. §23.10 migration + the flip itself + census-band re-base with
+   the owner (the 5-12% mid-board rate; mild floods: 100-walk,
+   .330 chase, workhorse-ace/K-monster counts run a notch over
+   their pre-cone bands — taste dials, judged at the flip).
