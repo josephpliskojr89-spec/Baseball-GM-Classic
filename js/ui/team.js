@@ -856,6 +856,28 @@ window.BBGM_UI_TEAM = (function () {
     }, 'Tap a player to promote him to the 26-man or move him between levels. ' +
        '▲ = scouts say he\'s ready for a higher level; ▼ = overmatched, send him ' +
        'down. Development stalls at the wrong level (worse the further off).'));
+    // Align Farm (v2.5.0, owner UX): one tap places every misplaced
+    // minor leaguer at his recommended level — clears every arrow at
+    // once, never touches the 26-man. Only rendered when there's work.
+    {
+      const MIN = window.BBGM_MINORS;
+      const misplaced = team.minors.map((id) => players[id])
+        .filter((p) => p && p.status === 'minors' && MIN.levelFitDelta(p) !== 0).length;
+      if (misplaced > 0) {
+        container.appendChild(U.el('button', {
+          class: 'btn-secondary',
+          style: { width: '100%', 'margin-bottom': '10px' },
+          on: { click: () => {
+            const moves = MIN.alignFarm(state, team);
+            window.BBGM_STATE.set(state);
+            U.showToast(moves.length
+              ? `${moves.length} player${moves.length === 1 ? '' : 's'} moved to their recommended level.`
+              : 'Everyone is already at his recommended level.', 'success');
+            render(document.getElementById('mainView'), state);
+          }},
+        }, `Align Farm — move ${misplaced} player${misplaced === 1 ? '' : 's'} to recommended levels`));
+      }
+    }
     const minors = team.minors.map((id) => players[id]).filter(Boolean);
     const byLevel = { AAA: [], AA: [], A: [], Rookie: [] };
     for (const p of minors) {

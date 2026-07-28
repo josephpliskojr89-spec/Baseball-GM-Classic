@@ -229,6 +229,28 @@ window.BBGM_MINORS = (function () {
   // AI offseason reassignment: one step toward the recommended level per
   // year, two when badly misplaced (now that level fit gates development,
   // orgs don't leave a breakout bat two levels down for two winters).
+  // The Align Farm button (v2.5.0, owner UX): one tap places every org
+  // minors player at his recommended level — the same recommendation
+  // the scout arrows show and development fit grades against. Direct
+  // placement (the GM's order takes effect today, unlike the AI's
+  // one-step-per-winter reassign), never touches the 26-man, skips
+  // anyone already placed right. Returns the moves for the toast.
+  function alignFarm(state, team) {
+    const players = state.players;
+    const moves = [];
+    for (const id of team.minors || []) {
+      const p = players[id];
+      if (!p || p.status !== 'minors') continue;
+      const cur = p.rosterStatus;
+      if (ORDER.indexOf(cur) < 0) continue;
+      const rec = recommendedLevel(p);
+      if (cur === rec) continue;
+      p.rosterStatus = rec;
+      moves.push({ id: p.id, name: p.name, from: cur, to: rec });
+    }
+    return moves;
+  }
+
   function reassignLevel(p) {
     const cur = ORDER.indexOf(p.rosterStatus);
     if (cur < 0) return;
@@ -238,5 +260,5 @@ window.BBGM_MINORS = (function () {
     p.rosterStatus = ORDER[clamp(next, 0, ORDER.length - 1)];
   }
 
-  return { simSeasonLine, monthlyLine, reassignLevel, targetLevel, recommendedLevel, levelFitDelta, placementRating, maxLevelIdxForAge, allowedLevelIdx, LEVELS, ORDER };
+  return { simSeasonLine, monthlyLine, reassignLevel, alignFarm, targetLevel, recommendedLevel, levelFitDelta, placementRating, maxLevelIdxForAge, allowedLevelIdx, LEVELS, ORDER };
 })();

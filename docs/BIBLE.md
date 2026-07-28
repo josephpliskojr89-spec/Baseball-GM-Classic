@@ -5380,6 +5380,16 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > census gates hold, rd-2+ max peaks up (67 HS / 61 deep July 2).
 > Battery 44/44, e2e 141.
 
+> **Status note (v2.5.0):** Align Farm (owner UX). One tap on the
+> Team → Minors tab places every misplaced minor leaguer at his
+> recommended level — the same recommendation the scout arrows show
+> and development fit grades against. Direct placement (unlike the
+> AI's one-step-per-winter reassign), never touches the 26-man, and
+> the button only renders when there's work to do (label carries the
+> count; it retires itself once the farm is aligned). e2e grew a
+> check: click clears every arrow, 26-man byte-identical, button
+> gone. Battery 44/44, e2e 142.
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):
