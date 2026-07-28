@@ -780,18 +780,26 @@ window.BBGM_SCOUT = (function () {
     const ti = tierIdx(team);
     const h = hashOf(state.meta.userTeamId, p.id);
     const tierAmp = [7, 5, 3, 2][ti];
-    // §23.20 (owner law, v2.9.0): the width is truth for GRADES too.
-    // Tier fog alone let elite departments read a 16-year-old's future
-    // to ±2 — the Yankees never read Roderick Arias that well. The fog
-    // on each tool can never fall below a tier-scaled share of that
-    // tool's cone half-width, so teenage futures stay guesses for
-    // everyone and sharpen naturally as the cone narrows with age.
-    // Better tiers keep an edge (a smaller share), and past the cone
-    // years the old tier fog is all that's left.
+    // §23.20 (owner law, v2.9.0, widened v2.10.0): the width is truth
+    // for GRADES too. Tier fog alone let elite departments read a
+    // 16-year-old's future to ±2 — the Yankees never read Roderick
+    // Arias that well. The fog on each tool can never fall below a
+    // share of that tool's cone half-width, so teenage futures stay
+    // guesses for everyone and sharpen naturally as the cone narrows
+    // with age; past the cone years the old tier fog is all that's
+    // left. Owner calibration: a coverage-only read on a teen runs
+    // about ±12 even at Elite — "a 60 that could be 48 or 72,
+    // replacement level to superstar" — and it's the CLOSE look that
+    // buys the sharper book (±8-9): an intl trip or second look, big
+    // board membership, or the kid being in your own organization.
     const cone = p.hidden.cone;
     const hwOf = (k) => (cone && cone.hi && cone.hi[k] != null && cone.lo[k] != null)
       ? (cone.hi[k] - cone.lo[k]) / 2 : 0;
-    const widthShare = [0.95, 0.85, 0.75, 0.65][ti];
+    const looked = (p.teamId != null && p.teamId === state.meta.userTeamId)
+      || hasTargetedLook(state, 'intl', p.id)
+      || hasTargetedLook(state, 'draft', p.id)
+      || hasSecondLook(state, p.id);
+    const widthShare = looked ? [0.72, 0.70, 0.67, 0.65][ti] : [1.2, 1.1, 1.0, 0.9][ti];
     const g5 = (v) => Math.max(20, Math.min(80, Math.round(v / 5) * 5));
     const fog = (k) => {
       const amp = Math.max(tierAmp, Math.round(hwOf(k) * widthShare));

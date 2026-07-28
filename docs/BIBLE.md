@@ -5486,6 +5486,18 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > sharpness, determinism, tier ordering). Battery 45/45, e2e 142
 > clean.
 
+> **Status note (v2.10.0):** The close look buys the book (§23.20
+> recalibrated; owner: "elite could be like ±12 — a 60 that could be
+> 48 or 72... targeted scouting closes it to ±8 or 9"). Coverage-only
+> teen futures now read ±12 at Elite (shares 1.2/1.1/1.0/0.9
+> bare→elite), and a CLOSE look — intl trip, second look, big-board
+> membership, or the kid being in your own org — tightens the share
+> to 0.72→0.65 (±8-9 on a typical 16-year-old). Scouting trips are
+> now information purchases with teeth: the gap between ±12 and ±8
+> is what the trip buys. gridfog suite grew to 9 checks (coverage
+> miss rates, whiff amplitude 14+, own-org tightening + bounded
+> whiffs). Battery 45/45, e2e 142 clean.
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):
@@ -8033,27 +8045,39 @@ scouting spend, and they still missed on Roderick Arias, Brando
 Mayea, Francisco Vilorio — every one a consensus top international
 name. Nobody reads kids that young sharply, at any budget.
 
-The law: a tool's future-grade fog can never fall below a
-tier-scaled share of that tool's cone half-width —
+The law: a tool's future-grade fog can never fall below a share of
+that tool's cone half-width — and the share depends on how CLOSE
+the look is, not just the tier (v2.10.0 owner calibration: "a guy
+reading 60 that could be 48 or 72 feels like the kind of swing we
+see in real international scouting — replacement level to
+superstar; targeted scouting closes it to ±8 or 9"):
 
-    amp(tool) = max(tierAmp, round(halfWidth(tool) × share))
-    tierAmp   = [7, 5, 3, 2]           (bare → elite, unchanged)
-    share     = [0.95, 0.85, 0.75, 0.65] (bare → elite)
+    amp(tool)  = max(tierAmp, round(halfWidth(tool) × share))
+    tierAmp    = [7, 5, 3, 2]            (bare → elite, unchanged)
+    coverage   = [1.2, 1.1, 1.0, 0.9]    (bare → elite)
+    close look = [0.72, 0.70, 0.67, 0.65] (bare → elite)
 
-A 16-year-old with a ~13-point half-width reads ±8 even at Elite
-(±12 at Bare Bones) — his printed "50" future is honestly a
-40s-to-high-50s guess, and FV inherits the same humility. Tiers
-keep an edge (a smaller share of the same irreducible width), and
-the fog sharpens naturally as the cone narrows with age: by the
-early 20s the half-width undercuts the tier amp and the old
-tier-only fog is all that's left. Deterministic as ever per
-(team, player) — no re-roll shopping; the read shifts only as the
-cone itself tightens year over year.
+"Close look" means any of: an intl targeted trip or second look,
+big-board membership (draft: membership IS the look, 0.65.0), or
+the kid being in your own organization — your staff sees him daily.
+
+A coverage-only 16-year-old with a ~13-point half-width reads ±12
+even at Elite (±16 at Bare Bones) — replacement level to superstar
+inside one printed number — and FV inherits the humility. Send the
+scout and the book tightens to ±8-9. Tiers keep an edge (a smaller
+share of the same irreducible width), and the fog sharpens
+naturally as the cone narrows with age: by the early 20s the
+half-width undercuts the tier amp and the old tier-only fog is all
+that's left. Deterministic as ever per (team, player) — no re-roll
+shopping; the read shifts only as the cone tightens year over year
+or a look upgrades the share.
 
 Consequences the design WANTS: an elite grid can now be wrong about
 a teenager in both directions — the consensus darling your card
 calls FV 40 might actually hit, and grid-scanning the pool no
 longer leaks hidden gems (their lifted centers hide inside teen fog
-like everything else). Conviction about the young comes from
-watching development unfold — the Scout's Book trend, second looks,
-level-ups — not from one number on a card.
+like everything else). Scouting trips became information purchases
+with teeth: the difference between ±12 and ±8 IS what the trip
+buys. Conviction about the young comes from looks and from watching
+development unfold — the Scout's Book trend, level-ups — not from
+one number on a card.

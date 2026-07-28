@@ -12,7 +12,7 @@ window.BBGM_UI_MENU = (function () {
     // Build constant is bumped with every release so the user can tell at a
     // glance which dashboard.js the browser actually loaded. Save version
     // is the save-schema version and changes only when the schema changes.
-    const BUILD = 'v2.9.0-gridfog-1';
+    const BUILD = 'v2.10.0-closelook-1';
     card.appendChild(U.el('div', { class: 'inset-list', style: { 'border': 'none' } }, [
       insetRow('Team', userTeam.name),
       insetRow('Date', window.BBGM_DATES.format(state.meta.currentDate)),
