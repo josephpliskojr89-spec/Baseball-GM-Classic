@@ -226,8 +226,11 @@ window.BBGM_PROGRESSION = (function () {
       if (h.ceiling[k] == null) continue;
       let c = h.ceiling[k];
       // The window follows an externally-moved center, width preserved.
+      // The follow never carries the window past the wall (§23.18): an
+      // externally-lifted center above 80 gets its excess clamped away
+      // at the next drift instead of mirrored into the cone.
       if (c < cone.lo[k]) { const w = cone.hi[k] - cone.lo[k]; cone.lo[k] = c; cone.hi[k] = c + w; }
-      else if (c > cone.hi[k]) { const w = cone.hi[k] - cone.lo[k]; cone.hi[k] = c; cone.lo[k] = c - w; }
+      else if (c > cone.hi[k]) { const w = cone.hi[k] - cone.lo[k]; cone.hi[k] = Math.min(80, c); cone.lo[k] = cone.hi[k] - w; }
       const surging = h.surge && h.surge.until >= year;
       if (growing || surging) {
         c += (surging ? CO.SURGE.HOT_BIAS * (h.surge.key === k ? 1 : 0.55) : bias) +

@@ -5512,6 +5512,21 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > clean (soak also grew a WALL BREACH detail line in the harness's
 > 80-wall census — a rare >80 sighting under investigation).
 
+> **Status note (v2.10.2):** The wall breach, found and sealed. The
+> harness's >80 sighting traced to ROLE_CEIL_CAP = 82 in the pen
+> conversion (a relic from before §23.18): the velo/stuff bump could
+> lift a high-70s ceiling to 81-82, the cone's window-follow
+> mirrored it up, and the rating could ride the raised ceiling over
+> the wall. Rare — needs a conversion on an arm already pressed
+> against the top (1 sighting in 16 soaks). Sealed at three layers:
+> ROLE_CEIL_CAP is 80; the window-follow clamps the mirrored top at
+> 80 (an over-lifted center self-heals at the next drift); and a
+> one-shot 2.10.2 migration re-clamps any save that ran conversions
+> under the leaky cap (ratings, ceilings, cone walls, growth dests).
+> gridfog grew a 10th check (a 79.5-ceiling starter converts to the
+> pen without crossing 80). Battery 45/45, e2e 142, seed-4242 soak
+> ABOVE-the-wall 0.
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):

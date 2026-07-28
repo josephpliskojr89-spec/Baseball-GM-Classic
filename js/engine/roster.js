@@ -545,7 +545,12 @@ window.BBGM_ROSTER = (function () {
   const ROLE_SHIFT = { velocity: 2, stuff: 1 };
   const SP_STAMINA_PAR = 60;                       // a starter's baseline
   const STRETCH_RATE = { velocity: 0.15, stuff: 0.10 }; // per point short
-  const ROLE_HARD_MIN = 20, ROLE_CEIL_CAP = 82;
+  // ROLE_CEIL_CAP was 82 before the 80 wall (§23.18) — the pen bump
+  // could lift a high-70s velo/stuff ceiling past 80, the cone's
+  // window-follow mirrored it up, and a rating could ride the raised
+  // ceiling over the wall (the harness's WALL BREACH sighting). The
+  // scale ends at 80 for conversions like everything else.
+  const ROLE_HARD_MIN = 20, ROLE_CEIL_CAP = 80;
 
   // The would-be deltas of converting `p` to `toPos`, WITHOUT mutating —
   // feeds the UI note so the price is on the sticker before the tap.

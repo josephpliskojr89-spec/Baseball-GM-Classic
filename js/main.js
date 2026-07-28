@@ -1236,6 +1236,36 @@ window.BBGM_MAIN = (function () {
       window.BBGM_STATE.set(state);
     }
 
+    // Migration (2.10.2): re-run the 80-wall clamp. Pen conversions
+    // since 2.3.0 could lift velo/stuff ceilings to the old
+    // ROLE_CEIL_CAP of 82 and the cone's window-follow mirrored them up
+    // (the harness's WALL BREACH); the cap is 80 now, and this one-shot
+    // heals any save that ran conversions under the leaky cap.
+    if (versionLt(saveVersion, '2.10.2')) {
+      let clamped = 0;
+      const wall = (p) => {
+        if (!p || p.retired) return;
+        const cap = (obj) => {
+          if (!obj) return;
+          for (const k in obj) {
+            if (typeof obj[k] === 'number' && obj[k] > 80) { obj[k] = 80; clamped++; }
+          }
+        };
+        cap(p.ratings);
+        if (p.hidden) {
+          cap(p.hidden.ceiling);
+          if (p.hidden.cone) {
+            cap(p.hidden.cone.hi);
+            cap(p.hidden.cone.lo);
+          }
+          if (p.hidden.growth && p.hidden.growth.dest) cap(p.hidden.growth.dest);
+        }
+      };
+      for (const id in state.players) wall(state.players[id]);
+      if (clamped) console.log(`2.10.2 migration: ${clamped} conversion-lifted value(s) clamped back to the 80 wall.`);
+      window.BBGM_STATE.set(state);
+    }
+
     // Stamp the save forward now that every migration has run. This is
     // what makes the versionLt gates above one-shot, and it makes the
     // Menu's "Save version" reflect the code the save actually runs under
