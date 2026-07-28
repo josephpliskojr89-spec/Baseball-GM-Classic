@@ -250,7 +250,11 @@ const PATH_BUCKETS = [
   { key: 'col_r1', label: 'rd-1 college', of: (e) => e.kind === 'draft' && e.path === 'college' && e.rank <= 30 },
   { key: 'hs_late', label: 'rd-2+ HS', of: (e) => e.kind === 'draft' && e.path === 'hs' && e.rank > 30 },
   { key: 'col_late', label: 'rd-2+ college', of: (e) => e.kind === 'draft' && e.path === 'college' && e.rank > 30 },
-  { key: 'j2_top', label: 'July 2 top-30', of: (e) => e.kind === 'intl' && e.rank <= 30 },
+  // Rank-fair splits: the top-5 of a 100-kid July class is the intl
+  // equivalent of first-round real estate (same 72-79 mint targets);
+  // ranks 6-30 map to draft rounds 2-4, and 31+ is the true lottery.
+  { key: 'j2_top5', label: 'July 2 top-5', of: (e) => e.kind === 'intl' && e.rank <= 5 },
+  { key: 'j2_mid', label: 'July 2 6-30', of: (e) => e.kind === 'intl' && e.rank > 5 && e.rank <= 30 },
   { key: 'j2_deep', label: 'July 2 deep', of: (e) => e.kind === 'intl' && e.rank > 30 },
 ];
 
