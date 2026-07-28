@@ -322,7 +322,10 @@ window.BBGM_UI_PLAYER = (function () {
         farmNote = TEAM0.minorsScoutNote(p);
       }
     }
-    body.appendChild(U.el('div', { class: 'inset-list', style: { 'margin-top': '10px' } }, bioRows));
+    // Flat card language (v2.8.0, owner mock): uppercase section label,
+    // hairline rows — the panels are gone.
+    body.appendChild(U.el('div', { class: 'flat-title', style: { 'margin-top': '12px' } }, 'Player info'));
+    body.appendChild(U.el('div', {}, bioRows));
     if (farmNote) {
       body.appendChild(U.el('p', { class: 'muted', style: { 'font-size': '12px', 'margin-top': '6px' } }, farmNote));
     }
@@ -364,44 +367,48 @@ window.BBGM_UI_PLAYER = (function () {
     // Current season.
     const year = state.meta.currentDate.year;
     const s = p.stats[year];
-    body.appendChild(U.el('div', { class: 'card-title', style: { 'margin-top': '14px' } }, `${year} Stats`));
+    body.appendChild(U.el('div', { class: 'flat-title' }, `${year} stats`));
     if (p.isPitcher) {
       body.appendChild(pitcherStatGrid(s));
       if (s && s.batting && s.batting.pa > 0) {
-        body.appendChild(U.el('div', { class: 'card-title', style: { 'margin-top': '16px' } }, 'Batting'));
+        body.appendChild(U.el('div', { class: 'flat-title' }, 'Batting'));
         body.appendChild(hitterStatGrid(s.batting));
       }
     } else {
       body.appendChild(hitterStatGrid(s));
     }
 
-    // Tool grades — through the scouting fog (5.7).
+    // Tool grades — through the scouting fog (5.7). Flat card language
+    // (v2.8.0, owner mock): one two-column hairline table carries
+    // everything — current grades, inline futures for own players 27
+    // and under ("45 / 60", the boxed FanGraphs grid's information in
+    // the mock's dialect), the potential row, and the 20-80 band bar
+    // underneath for the developing.
     const rep = window.BBGM_SCOUT.report(state, p);
-    body.appendChild(U.el('div', { class: 'card-title', style: { 'margin-top': '16px' } },
-      rep.mode === 'exact' ? 'Ratings' : 'Scouting Report'));
+    const futs = futuresFor(state, p, rep);
+    const ratingsTitle = U.el('div', { class: 'flat-title' },
+      rep.mode === 'exact' ? 'Ratings' : 'Scouting report');
+    if (futs) {
+      ratingsTitle.appendChild(U.el('span', { style: { 'text-transform': 'none', 'letter-spacing': '0' } }, [
+        U.el('span', { class: U.gradeClass(futs.fv), style: { 'font-size': '14px', 'font-weight': '700' } }, `FV ${futs.fv}`),
+        U.el('span', { class: 'muted', style: { 'font-size': '10px', 'font-weight': '400' } }, '  present / future'),
+      ]));
+    }
+    body.appendChild(ratingsTitle);
     if (rep.mode === 'min') {
       body.appendChild(U.el('div', { class: 'empty-state' },
         'Your scouts have no book on him. A higher scouting tier (GM → Staff) opens up reports at this level.'));
     } else {
-      // One card language (v2.7.0, owner UX): the org card leads with
-      // the same FanGraphs present/future grid and 20-80 band bar the
-      // prospect modals wear — a farmhand's page finally reads like
-      // the report that signed him, and the veteran's reads like his
-      // FanGraphs page. The detailed per-attribute rows follow for the
-      // full picture.
-      // (Both gate at 27-and-under: past the peak the cone's center
-      // froze where his talent topped out, and a "future" grade on a
-      // fading veteran would read as a projection nobody is making.)
       const HUB = window.BBGM_UI_DRAFT;
-      if (p.age <= 27 && HUB && HUB.renderConeGrid) HUB.renderConeGrid(body, state, p);
       const pot = window.BBGM_SCOUT.potentialBand(state, p);
-      if (pot && p.age <= 27 && HUB && HUB.renderBandBar) {
+      body.appendChild(p.isPitcher ? pitcherRatings(state, p, rep, pot, futs) : hitterRatings(state, p, rep, pot, futs));
+      const barShown = pot && p.age <= 27 && HUB && HUB.renderBandBar;
+      if (barShown) {
         HUB.renderBandBar(body, pot, rep.mode === 'exact' ? null
           : 'Your department\'s overall projection — the truth may sit outside a band.',
           { label: 'Projected ceiling — overall' });
       }
-      body.appendChild(p.isPitcher ? pitcherRatings(state, p, rep, pot) : hitterRatings(state, p, rep, pot));
-      if (rep.mode !== 'exact') {
+      if (rep.mode !== 'exact' && !barShown) {
         body.appendChild(U.el('p', { class: 'muted', style: { 'font-size': '11px', 'margin-top': '6px' } },
           'Projected ranges from your scouting department — the truth may sit outside a band.'));
       }
@@ -628,91 +635,96 @@ window.BBGM_UI_PLAYER = (function () {
     }
   }
 
-  function hitterStatGrid(s) {
-    const grid = U.el('div', { class: 'stat-grid' });
-    if (!s || s.pa === 0) {
-      const cell = U.el('div', { class: 'stat-cell', style: { 'grid-column': '1 / -1' } });
-      cell.appendChild(U.el('div', { class: 'k' }, 'No games played yet'));
-      grid.appendChild(cell);
-      return grid;
-    }
-    const stats = [
-      ['G', String(s.g)],
-      ['AB', String(s.ab)],
-      ['H', String(s.h)],
-      ['HR', String(s.hr)],
-      ['RBI', String(s.rbi)],
-      ['SB', String(s.sb)],
-      ['BB', String(s.bb)],
-      ['SO', String(s.k)],
-      ['AVG', S.fmtAvg(S.avg(s))],
-      ['OBP', S.fmtAvg(S.obp(s))],
-      ['SLG', S.fmtAvg(S.slg(s))],
-      ['OPS', S.ops(s).toFixed(3)],
-    ];
-    for (const [k, v] of stats) {
-      const cell = U.el('div', { class: 'stat-cell' });
+  // Flat card language (v2.8.0, owner mock): divider-columned stat
+  // strips instead of boxed cells — two rows, counting stats over rate
+  // stats, hairline verticals between columns.
+  function statStrip(pairs) {
+    const strip = U.el('div', { class: 'stat-strip' });
+    for (const [k, v] of pairs) {
+      const cell = U.el('div');
       cell.appendChild(U.el('div', { class: 'v' }, v));
       cell.appendChild(U.el('div', { class: 'k' }, k));
-      grid.appendChild(cell);
+      strip.appendChild(cell);
     }
-    return grid;
+    return strip;
+  }
+  function emptyStatLine(text) {
+    return U.el('p', { class: 'muted', style: { 'font-size': '13px', padding: '10px 0' } }, text);
+  }
+
+  function hitterStatGrid(s) {
+    const wrap = U.el('div');
+    if (!s || s.pa === 0) {
+      wrap.appendChild(emptyStatLine('No games played yet'));
+      return wrap;
+    }
+    wrap.appendChild(statStrip([
+      ['G', String(s.g)], ['AB', String(s.ab)], ['H', String(s.h)], ['HR', String(s.hr)],
+      ['RBI', String(s.rbi)], ['SB', String(s.sb)], ['BB', String(s.bb)], ['SO', String(s.k)],
+    ]));
+    wrap.appendChild(statStrip([
+      ['AVG', S.fmtAvg(S.avg(s))], ['OBP', S.fmtAvg(S.obp(s))],
+      ['SLG', S.fmtAvg(S.slg(s))], ['OPS', S.ops(s).toFixed(3)],
+    ]));
+    return wrap;
   }
 
   function pitcherStatGrid(s) {
-    const grid = U.el('div', { class: 'stat-grid' });
+    const wrap = U.el('div');
     if (!s || (s.ipOuts || 0) === 0) {
-      const cell = U.el('div', { class: 'stat-cell', style: { 'grid-column': '1 / -1' } });
-      cell.appendChild(U.el('div', { class: 'k' }, 'No games pitched yet'));
-      grid.appendChild(cell);
-      return grid;
+      wrap.appendChild(emptyStatLine('No games pitched yet'));
+      return wrap;
     }
-    const stats = [
-      ['G', String(s.g || 0)],
-      ['GS', String(s.gs || 0)],
-      ['W', String(s.w || 0)],
-      ['L', String(s.l || 0)],
-      ['SV', String(s.sv || 0)],
-      ['IP', S.fmtIP(s.ipOuts || 0)],
-      ['H', String(s.h || 0)],
-      ['ER', String(s.er || 0)],
-      ['BB', String(s.bb || 0)],
-      ['K', String(s.k || 0)],
-      ['ERA', S.era(s).toFixed(2)],
-      ['WHIP', S.whip(s).toFixed(2)],
-    ];
-    for (const [k, v] of stats) {
-      const cell = U.el('div', { class: 'stat-cell' });
-      cell.appendChild(U.el('div', { class: 'v' }, v));
-      cell.appendChild(U.el('div', { class: 'k' }, k));
-      grid.appendChild(cell);
-    }
-    return grid;
+    wrap.appendChild(statStrip([
+      ['G', String(s.g || 0)], ['GS', String(s.gs || 0)], ['W', String(s.w || 0)],
+      ['L', String(s.l || 0)], ['SV', String(s.sv || 0)], ['IP', S.fmtIP(s.ipOuts || 0)],
+    ]));
+    wrap.appendChild(statStrip([
+      ['H', String(s.h || 0)], ['ER', String(s.er || 0)], ['BB', String(s.bb || 0)],
+      ['K', String(s.k || 0)], ['ERA', S.era(s).toFixed(2)], ['WHIP', S.whip(s).toFixed(2)],
+    ]));
+    return wrap;
   }
 
   // rep (optional): scouting report — band mode renders ranges instead of
   // exact grades (5.7). Exact cells with accumulated history are tappable
   // (0.33.0): the year-over-year chart is the archetype detective tool.
-  function ratingCell(state, p, label, value, key, rep) {
+  // Flat row (v2.8.0, owner mock): label left, value right, hairline
+  // under — no panel. Rows with accumulated history stay tappable
+  // (0.33.0's year-over-year chart). Own young players show the
+  // future grade inline ("45 / 60") — the boxed FanGraphs grid's
+  // information, folded into the mock's language.
+  function ratingCell(state, p, label, value, key, rep, futs) {
     const band = rep && rep.mode !== 'exact' ? rep.band(key) : null;
     const hist = !band && p.ratingsHistory &&
       Object.keys(p.ratingsHistory).some((y) => p.ratingsHistory[y][key] != null);
     const cell = U.el(hist ? 'button' : 'div', {
-      class: 'rating-cell',
+      class: 'flat-row',
       ...(hist ? {
-        style: { cursor: 'pointer', 'text-align': 'inherit' },
+        style: { cursor: 'pointer' },
         on: { click: () => { U.closeModal(); setTimeout(() => showRatingHistory(state, p, key, label), 0); } },
       } : {}),
     });
-    cell.appendChild(U.el('div', { class: 'label' }, label + (hist ? ' ›' : '')));
+    cell.appendChild(U.el('span', { class: 'label' }, label + (hist ? ' ›' : '')));
     if (band) {
       const mid = (band[0] + band[1]) / 2;
-      cell.appendChild(U.el('div', {
-        class: U.gradeClass(mid),
-        style: { 'font-weight': '700', 'font-variant-numeric': 'tabular-nums' },
+      cell.appendChild(U.el('span', {
+        class: 'value ' + U.gradeClass(mid),
       }, `${band[0]}–${band[1]}`));
     } else {
-      cell.appendChild(U.ratingDisplay(value));
+      const fut = futs && futs.futs ? futs.futs[key] : null;
+      const g = Math.round(value);
+      if (fut != null && fut > g) {
+        cell.appendChild(U.el('span', { class: 'value' }, [
+          U.el('span', { class: U.gradeClass(value) }, String(U.gradeFor(value))),
+          U.el('span', { class: 'muted', style: { 'font-weight': '400' } }, ' / '),
+          U.el('span', { class: U.gradeClass(fut) }, String(fut)),
+        ]));
+      } else {
+        const v = U.ratingDisplay(value);
+        v.classList.add('value');
+        cell.appendChild(v);
+      }
     }
     return cell;
   }
@@ -802,21 +814,42 @@ window.BBGM_UI_PLAYER = (function () {
   // always a range on the 20-80 scale (tier-dependent width), never a
   // hard number: nobody knows potential, not even your own staff.
   function potentialCell(pot) {
-    const cell = U.el('div', { class: 'rating-cell' });
-    cell.appendChild(U.el('div', { class: 'label' }, 'Potential'));
+    const cell = U.el('div', { class: 'flat-row' });
+    cell.appendChild(U.el('span', { class: 'label' }, 'Potential'));
     if (!pot) {
-      cell.appendChild(U.el('div', { class: 'muted', style: { 'font-weight': '700' } }, '??'));
+      cell.appendChild(U.el('span', { class: 'value muted' }, '??'));
     } else {
       const mid = (pot[0] + pot[1]) / 2;
-      cell.appendChild(U.el('div', {
-        class: U.gradeClass(mid),
-        style: { 'font-weight': '700', 'font-variant-numeric': 'tabular-nums' },
+      cell.appendChild(U.el('span', {
+        class: 'value ' + U.gradeClass(mid),
       }, `${pot[0]}–${pot[1]}`));
     }
     return cell;
   }
 
-  function hitterRatings(state, p, rep, pot) {
+  // Futures for the flat rows (v2.8.0): the cone card's condensed
+  // present/future grades, mapped back to the per-attribute keys the
+  // ratings table shows. Own players 27-and-under only — the same
+  // gates the boxed grid used, now folded into the table itself.
+  function futuresFor(state, p, rep) {
+    if (p.age > 27 || !rep || rep.mode !== 'exact') return null;
+    const SC = window.BBGM_SCOUT;
+    const card = SC.coneCard && SC.coneCard(state, p);
+    if (!card) return null;
+    const byLabel = {};
+    for (const row of card.rows) byLabel[row.label] = row.fut;
+    const map = p.isPitcher
+      ? { velocity: 'Velo', stuff: 'Stuff', movement: 'Move', control: 'Cmd' }
+      : { contactVsR: 'Hit', contactVsL: 'Hit', powerVsR: 'Pow', powerVsL: 'Pow',
+          discipline: 'App', defense: 'Glove', arm: 'Arm' };
+    const futs = {};
+    for (const k in map) {
+      if (byLabel[map[k]] != null) futs[k] = byLabel[map[k]];
+    }
+    return { futs, fv: card.fv };
+  }
+
+  function hitterRatings(state, p, rep, pot, futs) {
     const r = p.ratings;
     const items = [
       ['Contact (R)', r.contactVsR, 'contactVsR'],
@@ -829,13 +862,13 @@ window.BBGM_UI_PLAYER = (function () {
       ['Arm', r.arm, 'arm'],
       ['Bunting', r.bunting, 'bunting'],
     ];
-    const grid = U.el('div', { class: 'ratings-grid' });
-    for (const [label, v, key] of items) grid.appendChild(ratingCell(state, p, label, v, key, rep));
+    const grid = U.el('div', { class: 'flat-cols' });
+    for (const [label, v, key] of items) grid.appendChild(ratingCell(state, p, label, v, key, rep, futs));
     grid.appendChild(potentialCell(pot));
     return grid;
   }
 
-  function pitcherRatings(state, p, rep, pot) {
+  function pitcherRatings(state, p, rep, pot, futs) {
     const r = p.ratings;
     const items = [
       ['Stuff', r.stuff, 'stuff'],
@@ -844,8 +877,8 @@ window.BBGM_UI_PLAYER = (function () {
       ['Control', r.control, 'control'],
       ['Stamina', r.stamina, 'stamina'],
     ];
-    const grid = U.el('div', { class: 'ratings-grid' });
-    for (const [label, v, key] of items) grid.appendChild(ratingCell(state, p, label, v, key, rep));
+    const grid = U.el('div', { class: 'flat-cols' });
+    for (const [label, v, key] of items) grid.appendChild(ratingCell(state, p, label, v, key, rep, futs));
     grid.appendChild(potentialCell(pot));
     return grid;
   }
@@ -970,7 +1003,7 @@ window.BBGM_UI_PLAYER = (function () {
     // live on the Overview tab's bio block).
     if (p.draft && p.draft.bonus) rows.push(insetRow('Signing Bonus', `$${p.draft.bonus}M (${p.draft.year} draft)`));
     else if (p.intl && p.intl.bonus) rows.push(insetRow('Signing Bonus', `$${p.intl.bonus}M (${p.intl.year} int’l)`));
-    const grid = U.el('div', { class: 'inset-list' }, rows);
+    const grid = U.el('div', {}, rows); // flat rows (v2.8.0) — no panel
     return grid;
   }
 
@@ -1033,7 +1066,9 @@ window.BBGM_UI_PLAYER = (function () {
   }
 
   function insetRow(label, value) {
-    const r = U.el('div', { class: 'inset-row' });
+    // v2.8.0 (owner mock): rows are flat everywhere on the card —
+    // hairline under, label left, value right, no panel.
+    const r = U.el('div', { class: 'flat-row' });
     r.appendChild(U.el('span', { class: 'label' }, label));
     r.appendChild(U.el('span', { class: 'value' }, value));
     return r;

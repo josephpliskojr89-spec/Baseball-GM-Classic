@@ -1127,3 +1127,28 @@
   font-size: 13px;
   line-height: 1.55;
 }
+
+/* Flat card language (v2.8.0, owner mock): the player card Overview
+   drops its panels — uppercase section labels, hairline rows with the
+   label left and the value right, and divider-columned stat strips.
+   The old boxed classes stay for the screens that still wear them. */
+.flat-title {
+  display: flex; justify-content: space-between; align-items: baseline;
+  font-size: 12px; font-weight: 700; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--text-muted, #8b949e);
+  margin: 20px 0 2px;
+}
+.flat-row {
+  display: flex; justify-content: space-between; align-items: baseline;
+  gap: 12px; padding: 10px 0; width: 100%;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: none; border-top: none; border-left: none; border-right: none;
+}
+.flat-row .label { color: var(--text-muted, #8b949e); font-size: 14px; }
+.flat-row .value { font-weight: 700; font-size: 15px; font-variant-numeric: tabular-nums; }
+.flat-cols { display: grid; grid-template-columns: 1fr 1fr; column-gap: 28px; }
+.stat-strip { display: flex; margin: 8px 0 0; }
+.stat-strip > div { flex: 1 1 0; text-align: center; padding: 8px 2px; }
+.stat-strip > div + div { border-left: 1px solid rgba(255, 255, 255, 0.10); }
+.stat-strip .v { font-weight: 700; font-size: 17px; font-variant-numeric: tabular-nums; }
+.stat-strip .k { font-size: 10px; color: var(--text-muted, #8b949e); margin-top: 2px; letter-spacing: 0.05em; }

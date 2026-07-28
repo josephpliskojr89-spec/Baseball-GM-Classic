@@ -5418,6 +5418,27 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > screenshot-verified on a teenage farmhand; battery 44/44, e2e 142
 > clean.
 
+> **Status note (v2.8.0):** Flat card language (owner mockup: "it's
+> just the panels in general that I don't like"). The standard player
+> card's Overview drops every boxed panel for the mock's dialect:
+> uppercase muted section titles (PLAYER INFO / YEAR STATS / RATINGS),
+> hairline-separated label-left/value-right rows, and stat strips —
+> centered values over tiny muted labels with thin vertical dividers
+> (counting row + rates row for hitters; line row + rates row for
+> pitchers). Ratings render as one two-column hairline table: exact
+> mode shows "cur / fut" inline (futures from coneCard, own players
+> ≤27, FV chip on the RATINGS title line); fog mode shows the band as
+> the value. Potential is a plain row in the table; the 20-80 band bar
+> keeps its place beneath (≤27), and the duplicate fog caption is
+> suppressed when the bar already carries it. The File tab's rows
+> inherit the same flat-row treatment. Prospect modals keep their
+> v2.6.0 boxed design — the pool is a different room. New CSS:
+> .flat-title/.flat-row/.flat-cols/.stat-strip; old panel classes
+> remain for the six other screens that use them. Chromium
+> screenshot-verified on five variants (teen farmhand, veteran +
+> File tab, unscouted rival, banded rival under elite scouting, young
+> pitcher); battery 44/44, e2e 142 clean.
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):
