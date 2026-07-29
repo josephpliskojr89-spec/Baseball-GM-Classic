@@ -944,6 +944,20 @@ OBS.printOutcomes(OBS.outcomeCensus(state, outcomeStore, harnessStartYear, state
       if (c != null && c >= 79.5) ceil80++;
     }
   }
+  // Farm-size census (v2.12.0): the hard 30-cap is dead; merit washouts
+  // must hold the league in equilibrium instead. Watch for bloat.
+  {
+    // AI orgs only for the alarm — the harness's "user" club never
+    // releases anyone (in real play the GM acts on the washout letter),
+    // so it grows by design and would poison the average.
+    const ai = state.league.teams.filter((t) => t.id !== state.meta.userTeamId);
+    const sizes = ai.map((t) => (t.minors || []).length);
+    const avg = sizes.reduce((s, x) => s + x, 0) / sizes.length;
+    const max = Math.max(...sizes);
+    const userSize = ((state.league.teams.find((t) => t.id === state.meta.userTeamId) || {}).minors || []).length;
+    console.log(`\n--- Observatory: farm sizes (no cap — merit washouts) ---`);
+    console.log(`AI avg ${avg.toFixed(1)} / max ${max} per org (floor 22; bloat alarm if avg > 45)${avg > 45 ? '  ⚠ FARM BLOAT' : ''} | user (never auto-cut): ${userSize}`);
+  }
   console.log(`\n--- Observatory: the 80 wall (§23.18) ---`);
   console.log(`80-GRADE tools on the card (cur >= 77.5): ${card80} (band ~4-18) | literal >=79.5: ${lit80} | 80-ceiling promises: ${ceil80} | ABOVE the wall (>80, must be 0): ${over80}`);
   if (names80.length) console.log(`the two hands: ${names80.join(' | ')}`);

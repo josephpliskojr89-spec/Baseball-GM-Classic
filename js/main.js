@@ -2645,6 +2645,28 @@ window.BBGM_MAIN = (function () {
         action: { type: 'navigate', tab: 'team' },
       });
     }
+    // Farm director's washout list (v2.12.0): the hard 30-cap that
+    // silently deleted the user's farmhands is dead. AI orgs release
+    // their stalled players at rollover; for YOUR club nobody is
+    // touched — the same list arrives as a recommendation letter and
+    // every release is your call, made from the player's card.
+    if ((summary.farmWashouts || []).length) {
+      const list = summary.farmWashouts.slice()
+        .sort((a, b) => b.age - a.age)
+        .map((w) => `${w.name} (${w.pos}, ${w.age}) — ${U.gradeFor(w.ovr)} now, ceiling ${U.gradeFor(w.ceil)}`);
+      const n = list.length;
+      window.BBGM_INBOX.push(state, {
+        from: 'Farm Director',
+        subject: `The washout list: ${n} name${n === 1 ? '' : 's'} the system has passed by`,
+        body: `My winter review of the farm. ${n === 1 ? 'This player has' : 'These players have'} ` +
+              `stalled — the age has caught the ceiling and the development staff sees nothing ` +
+              `left to unlock: ${list.join('. ')}. Around the league, organizations release ` +
+              `players like these to clear the roster board for the next class. I haven't touched ` +
+              `anyone — every release is your call, from the player's card. Keeping a few organizational ` +
+              `soldiers is fine too; somebody has to catch the bullpens in Rookie ball.`,
+        action: { type: 'navigate', tab: 'team' },
+      });
+    }
     // Walk-year letters (0.70.0): the agent of a user-team regular
     // entering his final control season opens the door — tap through to
     // the extension table before November does the negotiating for you.

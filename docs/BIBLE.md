@@ -5560,6 +5560,26 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > soak clean. Applies from the next monthly tick — no migration,
 > past lines are history.
 
+> **Status note (v2.12.0):** The farm cap is dead (owner: "a very
+> early version relic that should probably be yeeted into the sun" —
+> found when the silent 30-cap cut deleted a dozen of his farmhands
+> the first winter after a big draft + July 2 class). Replaced by
+> merit washouts: an org releases players whose careers have STALLED
+> — the ladder rises with age (22: ceiling <52 / 23: fringe going
+> nowhere / 24: dream dead / 25: depth passed by / 26: AAA org guy,
+> no future; catchers hoarded until 27). AI orgs act on the list;
+> the USER's club is NEVER auto-cut (Pillar 4) — the same list
+> arrives as the Farm Director's winter letter ("the washout list"),
+> and every release is the GM's call from the player's card.
+> Disposition unchanged (young no-MLB fringe deleted for save size,
+> the rest to the FA pool). Ladder calibrated by 8-season soaks:
+> gentle rules bloated AI farms to avg 59/org; the shipped ladder
+> holds AI avg ~40 with league active count plateauing ~2700. New
+> permanent harness census: farm sizes (AI avg/max + user, bloat
+> alarm at 45). Watch item: non-tender winters occasionally spike
+> past the 10-35 band with the bigger farms. Battery 46/46, e2e
+> clean, 8-season soak green.
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):

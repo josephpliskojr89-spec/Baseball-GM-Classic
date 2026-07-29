@@ -913,46 +913,78 @@ window.BBGM_OFFSEASON = (function () {
       }
     }
 
-    // Backfill and top-up every org, then rebuild configs. The 30-cap cut
-    // keeps whoever the org would actually keep: ceiling and youth count
-    // alongside current ability, so a raw 18-year-old draftee with a 70
-    // ceiling outranks the 27-year-old AAA depth arm he displaces (12.8).
+    // Backfill and top-up every org, then rebuild configs. The old hard
+    // 30-cap farm cut is DEAD (v2.12.0, owner: "a very early version
+    // relic that should probably be yeeted into the sun") — it silently
+    // deleted a dozen of the user's own farmhands the first winter after
+    // a big draft + July 2 class. In its place: merit washouts. An org
+    // releases players whose careers have STALLED — age has caught the
+    // ceiling and the dream is dead — however many or few that is.
+    // AI orgs act on the list; the USER's club is never auto-cut (Pillar
+    // 4: that call is the GM's) — the same list arrives as the farm
+    // director's winter letter instead.
     const ceilBest = (p) => {
       const c = (p.hidden && p.hidden.ceiling) || {};
       const vals = Object.keys(c).filter((k) => k !== 'stamina').map((k) => c[k]);
       return vals.length ? Math.max(...vals) : ROSTER().overall(p);
     };
+    const farmWashout = (p) => {
+      const ovr = ROSTER().overall(p);
+      const ceil = ceilBest(p);
+      // Orgs hoard catchers — only a genuinely done org lifer goes.
+      if (!p.isPitcher && p.primaryPosition === 'C') return p.age >= 27 && ovr < 44;
+      // The ladder: each birthday the bar to keep a roster spot rises.
+      // Calibrated by soak — inflow is ~11/org/yr (draft + July 2 +
+      // floor fills), so most non-prospects must move on inside ~3-4
+      // years or the league bloats (the 555-seed soak hit avg 59/org
+      // on a gentler ladder; this one holds ~30).
+      if (p.age >= 26 && ovr < 52 && ceil < 60) return true; // AAA org guy, no future
+      if (p.age >= 25 && ovr < 50 && ceil < 62) return true; // depth, org moving on
+      if (p.age >= 24 && ovr < 48 && ceil < 56) return true; // the dream is dead
+      if (p.age >= 23 && ovr < 42 && ceil < 55) return true; // fringe, going nowhere
+      if (p.age >= 22 && ceil < 52) return true;             // never a prospect
+      return false;
+    };
+    summary.farmWashouts = [];
     for (const t of teams) {
       topUpTeam(state, t, summary);
-      while ((t.minors || []).length > 30) {
-        const cut = t.minors
-          .map((id) => players[id])
-          .filter(Boolean)
-          .sort((a, b) =>
-            (ROSTER().overall(a) * 0.7 + ceilBest(a) * 0.5 + (30 - a.age)) -
-            (ROSTER().overall(b) * 0.7 + ceilBest(b) * 0.5 + (30 - b.age)))[0];
-        if (!cut) break;
-        t.minors.splice(t.minors.indexOf(cut.id), 1);
-        // Young fringe releases leave affiliated ball entirely (indy ball,
-        // back to school) instead of accumulating in the FA pool. A cut kid
-        // who never appeared in an MLB game is deleted outright — nothing
-        // references him and keeping ~250 washouts/yr as retired players
-        // balloons the save.
-        const playedMLB = Object.keys(cut.stats || {}).some((y) => {
-          const s = cut.stats[y];
-          return s && ((s.pa || 0) > 0 || (s.ipOuts || 0) > 0);
-        });
-        if (cut.age <= 25 && ceilBest(cut) < 62) {
-          if (playedMLB) {
-            cut.retired = { year, age: cut.age, openToCoaching: false, released: true };
-            cut.status = 'retired';
-            cut.rosterStatus = 'retired';
-            cut.teamId = null;
+      const isUser = t.id === state.meta.userTeamId;
+      const stalled = (t.minors || [])
+        .map((id) => players[id])
+        .filter((p) => p && farmWashout(p));
+      if (isUser) {
+        // Recommend, never act: the letter is generated from this list
+        // at the calendar tick (main.js reads summary.farmWashouts).
+        for (const p of stalled) {
+          summary.farmWashouts.push({
+            playerId: p.id, name: p.name, pos: p.primaryPosition,
+            age: p.age, ovr: Math.round(ROSTER().overall(p)), ceil: Math.round(ceilBest(p)),
+          });
+        }
+      } else {
+        for (const cut of stalled) {
+          t.minors.splice(t.minors.indexOf(cut.id), 1);
+          // Young fringe releases leave affiliated ball entirely (indy
+          // ball, back to school) instead of accumulating in the FA
+          // pool. A cut kid who never appeared in an MLB game is deleted
+          // outright — nothing references him and keeping washouts as
+          // retired players balloons the save.
+          const playedMLB = Object.keys(cut.stats || {}).some((y) => {
+            const s = cut.stats[y];
+            return s && ((s.pa || 0) > 0 || (s.ipOuts || 0) > 0);
+          });
+          if (cut.age <= 25 && ceilBest(cut) < 62) {
+            if (playedMLB) {
+              cut.retired = { year, age: cut.age, openToCoaching: false, released: true };
+              cut.status = 'retired';
+              cut.rosterStatus = 'retired';
+              cut.teamId = null;
+            } else {
+              delete players[cut.id];
+            }
           } else {
-            delete players[cut.id];
+            FA().releaseToPool(state, cut, 'released');
           }
-        } else {
-          FA().releaseToPool(state, cut, 'released');
         }
       }
       rebuildTeamConfig(state, t, summary);
