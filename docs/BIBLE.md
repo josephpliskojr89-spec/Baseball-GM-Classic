@@ -8197,3 +8197,31 @@ minting and labels, not physics:
 Watch item from planning: boards will rank hot teen arms somewhat
 higher (current-ability component rises) — realistic, and the
 age-based level caps stop OVR-warmth from rushing anyone.
+
+## 24. PLANNED — Platform: the native shell (owner-scheduled)
+
+Owner decision: move off the browser. Drivers, in order: SAVE
+SAFETY (IndexedDB is evictable cache — Android may wipe the
+franchise under storage pressure) and SIZE RESTRAINTS (the quota
+that forced retiree slimming, history caps, and wash-out deletion
+sizing). Feel is a bonus; Play Store is future, not immediate.
+
+Staged plan (stage 1 scheduled with the owner):
+1. HYBRID SHELL — Capacitor Android app, WebView loads the deployed
+   game; native file/SQLite storage replaces IndexedDB behind the
+   single BBGM_STATE seam; first-run Export→Import migration from
+   the browser save. Built by GitHub Actions (APK artifact; signing
+   keystore in repo secrets); owner sideloads. The push-to-ship
+   loop and the testing-branch beta channel survive untouched.
+   Developed on `testing` per the staging workflow; browser version
+   untouched and zero-risk throughout.
+2. BUNDLED APP — code ships inside the APK, fully offline; releases
+   are Actions builds on the releases page. The feel payoff. Also
+   unlocks relaxing the save-size constraints (richer retiree
+   records, deeper stat archives) if the owner wants them.
+3. PLAY STORE — stage 2 + $25 developer account + store assets.
+
+Expectation set with the owner: the first CI Android build will
+take a few iterations to go green (Gradle/SDK levels); after that
+it stays boring. Device testing is the owner's hands — screenshots
+close the loop, as ever.
