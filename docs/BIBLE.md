@@ -8123,3 +8123,37 @@ with teeth: the difference between ±12 and ±8 IS what the trip
 buys. Conviction about the young comes from looks and from watching
 development unfold — the Scout's Book trend, level-ups — not from
 one number on a card.
+
+### 23.21 PLANNED (approved for planning only — NOT shipped): the
+### arm is born, the pitcher is developed
+
+Owner direction (planning approved, implementation deferred while
+the owner plays the current build): "it's counterintuitive to see a
+kid whose carrying tool is 80-grade velocity but his current says
+35... if he's going to throw 100+ I'd expect him sitting high 90s
+already" and "just throwing hard does not make a good pitcher — the
+other 3 attributes are the important ones."
+
+The sim physics already agree (§5.4: "velocity alone is nearly
+worthless, and that is intended" — velocity is a multiplier on
+stuff, no real direct term). The planned release therefore touches
+minting and labels, not physics:
+
+1. Mint velocity CURRENT near its ceiling, age-shaped gap (mirror
+   of syncBornSpeed): ~10-15 grade points of runway at 16 (the
+   projection era — the signs are there), ~6-10 at 18, ~2-5 by 21+.
+   The 45-point velo climb stops being a default development arc.
+2. Trim velocity's pitcher-OVR weight .15 → ~.10, redistributing to
+   control and movement (≈ stuff .30 / control .27 / movement .23 /
+   velocity .10 / stamina .10). OVR is a label, not physics — this
+   changes valuation/placement/AI judgment, not run prevention.
+3. Unfog PRESENT velocity on prospect cards (the 1.3.0 radar-gun
+   parallel: you timed him yourself); future velo keeps its fog.
+4. Velocity jumps survive only as surges — the found-velo winter
+   becomes a headline, not the assumed path.
+5. Ship gate: full 20-season calibration soak (star curve, board
+   order, level caps hold) + class/pool regeneration migration.
+
+Watch item from planning: boards will rank hot teen arms somewhat
+higher (current-ability component rises) — realistic, and the
+age-based level caps stop OVR-warmth from rushing anyone.
