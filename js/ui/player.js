@@ -905,89 +905,85 @@ window.BBGM_UI_PLAYER = (function () {
     };
     const teamFor = (y, s) =>
       (+y === curYear && !p.retired && p.teamId != null) ? abbrOf(p.teamId) : abbrOf(s.teamId);
-    const wrap = U.el('div', { class: 'stats-scroll' });
-    const table = U.el('table', { class: 'stats-table' });
-    const thead = U.el('thead');
-    const trh = U.el('tr');
-    const headers = isP
-      ? ['Year', 'Tm', 'G', 'GS', 'W', 'L', 'SV', 'IP', 'ERA', 'WHIP', 'K', 'BB']
-      : ['Year', 'Tm', 'G', 'AB', 'H', 'HR', 'RBI', 'SB', 'AVG', 'OBP', 'SLG'];
-    for (const h of headers) trh.appendChild(U.el('th', {}, h));
-    thead.appendChild(trh);
-    table.appendChild(thead);
-
-    const rowFor = (label, s, cls, tm) => {
-      const tr = U.el('tr', cls ? { style: { color: 'var(--text-muted)' } } : {});
-      tr.appendChild(U.el('td', {}, label));
-      tr.appendChild(U.el('td', {}, tm || ''));
+    // Vertical career (v2.12.1, owner: "make the stats page read
+    // vertically — easier to see everything"). The wide table ran off a
+    // phone screen at the ERA column; now each season is a stat-strip
+    // block in the flat card language (v2.8.0), newest season first,
+    // career totals on top. Nothing scrolls sideways.
+    const container = U.el('div');
+    const stripsFor = (s) => {
+      const block = U.el('div');
       if (isP) {
-        tr.appendChild(U.el('td', {}, String(s.g || 0)));
-        tr.appendChild(U.el('td', {}, String(s.gs || 0)));
-        tr.appendChild(U.el('td', {}, String(s.w || 0)));
-        tr.appendChild(U.el('td', {}, String(s.l || 0)));
-        tr.appendChild(U.el('td', {}, String(s.sv || 0)));
-        tr.appendChild(U.el('td', {}, S.fmtIP(s.ipOuts || 0)));
-        tr.appendChild(U.el('td', {}, S.era(s).toFixed(2)));
-        tr.appendChild(U.el('td', {}, S.whip(s).toFixed(2)));
-        tr.appendChild(U.el('td', {}, String(s.k || 0)));
-        tr.appendChild(U.el('td', {}, String(s.bb || 0)));
+        block.appendChild(statStrip([
+          ['G', String(s.g || 0)], ['GS', String(s.gs || 0)], ['W', String(s.w || 0)],
+          ['L', String(s.l || 0)], ['SV', String(s.sv || 0)], ['IP', S.fmtIP(s.ipOuts || 0)],
+        ]));
+        block.appendChild(statStrip([
+          ['ERA', S.era(s).toFixed(2)], ['WHIP', S.whip(s).toFixed(2)],
+          ['K', String(s.k || 0)], ['BB', String(s.bb || 0)],
+        ]));
       } else {
-        tr.appendChild(U.el('td', {}, String(s.g || 0)));
-        tr.appendChild(U.el('td', {}, String(s.ab || 0)));
-        tr.appendChild(U.el('td', {}, String(s.h || 0)));
-        tr.appendChild(U.el('td', {}, String(s.hr || 0)));
-        tr.appendChild(U.el('td', {}, String(s.rbi || 0)));
-        tr.appendChild(U.el('td', {}, String(s.sb || 0)));
-        tr.appendChild(U.el('td', {}, S.fmtAvg(S.avg(s))));
-        tr.appendChild(U.el('td', {}, S.fmtAvg(S.obp(s))));
-        tr.appendChild(U.el('td', {}, S.fmtAvg(S.slg(s))));
+        block.appendChild(statStrip([
+          ['G', String(s.g || 0)], ['AB', String(s.ab || 0)], ['H', String(s.h || 0)],
+          ['HR', String(s.hr || 0)], ['RBI', String(s.rbi || 0)], ['SB', String(s.sb || 0)],
+        ]));
+        block.appendChild(statStrip([
+          ['AVG', S.fmtAvg(S.avg(s))], ['OBP', S.fmtAvg(S.obp(s))], ['SLG', S.fmtAvg(S.slg(s))],
+        ]));
       }
-      return tr;
+      return block;
+    };
+    const seasonBlock = (label, s, opts = {}) => {
+      const b = U.el('div', { style: {
+        'margin-bottom': '4px', 'padding-bottom': '6px',
+        ...(opts.muted ? { opacity: '0.72' } : {}),
+        ...(opts.hidden ? { display: 'none' } : {}),
+      } });
+      const title = U.el('div', { class: 'flat-title', style: { 'margin-top': '10px' } }, label);
+      if (opts.tag) title.appendChild(U.el('span', {}, opts.tag));
+      b.appendChild(title);
+      b.appendChild(stripsFor(s));
+      return b;
     };
 
-    const tbody = U.el('tbody');
-    // Playoff lines collapse behind one toggle (0.65.2) — a long career
-    // doubles its row count with October lines otherwise.
-    const psRows = [];
-    for (const y of years) {
+    // Career MLB totals lead (aggregated at each rollover).
+    const c = p.careerStats;
+    const hasCareer = c && (isP ? (c.ipOuts || 0) > 0 || (c.g || 0) > 0 : (c.pa || c.ab || 0) > 0);
+    if (hasCareer) container.appendChild(seasonBlock('Career totals', c));
+
+    // Playoff blocks collapse behind one toggle (0.65.2) — a long career
+    // doubles its length with October lines otherwise.
+    const psBlocks = [];
+    let btn = null;
+    // Newest season first: the year you care about is on top.
+    for (const y of years.slice().reverse()) {
       const s = p.stats[y];
       const tm = teamFor(y, s);
       const playedMLB = isP ? (s.ipOuts || 0) > 0 || (s.g || 0) > 0 : (s.pa || 0) > 0;
-      if (playedMLB) tbody.appendChild(rowFor(y, s, false, tm));
-      // Minor-league season line (stamped at rollover) — shown muted.
-      if (s.minorsLine) tbody.appendChild(rowFor(`${y} ${s.minorsLine.level}`, s.minorsLine, true, tm));
-      // Postseason line, muted, tagged, hidden until the toggle opens.
+      if (playedMLB) container.appendChild(seasonBlock(`${y} · ${tm}`, s));
       if (s.postseason) {
-        const tr = rowFor(`${y} PS`, s.postseason, true, tm);
-        tr.style.display = 'none';
-        psRows.push(tr);
-        tbody.appendChild(tr);
+        const b = seasonBlock(`${y} Playoffs · ${tm}`, s.postseason, { muted: true, hidden: true });
+        psBlocks.push(b);
+        container.appendChild(b);
+      }
+      // Minor-league season line (stamped at rollover) — shown muted.
+      if (s.minorsLine) {
+        container.appendChild(seasonBlock(`${y} · ${s.minorsLine.level}`, s.minorsLine, { muted: true }));
       }
     }
-    // Career MLB totals (aggregated at each rollover).
-    const c = p.careerStats;
-    const hasCareer = c && (isP ? (c.ipOuts || 0) > 0 || (c.g || 0) > 0 : (c.pa || c.ab || 0) > 0);
-    if (hasCareer) {
-      const tr = rowFor('Career', c);
-      tr.style.fontWeight = '700';
-      tbody.appendChild(tr);
+    if (psBlocks.length) {
+      let open = false;
+      btn = U.el('button', {
+        class: 'btn-secondary btn-sm',
+        style: { 'margin-top': '10px' },
+        on: { click: () => {
+          open = !open;
+          for (const b of psBlocks) b.style.display = open ? '' : 'none';
+          btn.textContent = open ? '▾ Hide Playoffs' : `▸ Show Playoffs (${psBlocks.length})`;
+        }},
+      }, `▸ Show Playoffs (${psBlocks.length})`);
+      container.insertBefore(btn, container.firstChild);
     }
-    table.appendChild(tbody);
-    wrap.appendChild(table);
-    if (!psRows.length) return wrap;
-    const container = U.el('div');
-    let open = false;
-    const btn = U.el('button', {
-      class: 'btn-secondary btn-sm',
-      style: { 'margin-bottom': '8px' },
-      on: { click: () => {
-        open = !open;
-        for (const r of psRows) r.style.display = open ? '' : 'none';
-        btn.textContent = open ? '▾ Hide Playoffs' : `▸ Show Playoffs (${psRows.length})`;
-      }},
-    }, `▸ Show Playoffs (${psRows.length})`);
-    container.appendChild(btn);
-    container.appendChild(wrap);
     return container;
   }
 

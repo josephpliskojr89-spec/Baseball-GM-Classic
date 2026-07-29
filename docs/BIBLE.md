@@ -5580,6 +5580,17 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > past the 10-35 band with the bigger farms. Battery 46/46, e2e
 > clean, 8-season soak green.
 
+> **Status note (v2.12.1):** The Stats tab reads vertically (owner:
+> "easier to see everything" — the wide career table ran off a phone
+> screen at the ERA column). Each season is now a stat-strip block
+> in the v2.8.0 flat card language: Career totals on top, newest
+> season first, minors years and playoff lines muted (playoffs still
+> collapse behind the 0.65.2 toggle). Nothing scrolls sideways. The
+> league-wide Stats screens keep their sortable tables — sorting a
+> league needs columns; reading one man's career doesn't. Chromium
+> screenshot-verified on a fabricated three-year career (MLB + AA +
+> playoffs); battery 46/46, e2e 142 clean.
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):
