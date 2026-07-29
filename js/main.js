@@ -3540,6 +3540,9 @@ window.BBGM_MAIN = (function () {
       // released or undrafted FA catches on somewhere before the lines
       // are written.
       if (window.BBGM_FLAVOR) window.BBGM_FLAVOR.ensureAssignments(state, today.year);
+      // Level-relative grading (v2.11.0): measure each level's actual
+      // average talent once per tick; every farm line grades against it.
+      const anchors = window.BBGM_MINORS.dynamicAnchors(state.players);
       for (const id in state.players) {
         const p = state.players[id];
         if (!p || p.retired || p.status === 'retired') continue;
@@ -3547,7 +3550,7 @@ window.BBGM_MAIN = (function () {
         // Monthly stat lines (0.41.0): farmhands and flavor-league FAs
         // post a month of numbers on the 1st — immersion only, no sim.
         if (p.status === 'minors') {
-          window.BBGM_MINORS.monthlyLine(p, today.year);
+          window.BBGM_MINORS.monthlyLine(p, today.year, { anchors });
         } else if (p.status === 'FA' && p.playsIn && window.BBGM_FLAVOR) {
           window.BBGM_MINORS.monthlyLine(p, today.year, window.BBGM_FLAVOR.lineOpts(p) || {});
         }

@@ -26,6 +26,47 @@ window.BBGM_MINORS = (function () {
     Rookie: { anchor: 31, noise: 2.0 },
   };
 
+  // Dynamic anchors (v2.11.0, owner: "my rookie ball team is all 20-35
+  // but in relation to other rookie ball teams, that's not bad").
+  // The static anchors were tuned before the rawness passes made
+  // teenagers genuinely raw — the real populations drifted below them,
+  // so nearly every low-minors kid graded as overmatched and posted an
+  // ugly line. Measure the ACTUAL average talent at each level across
+  // every org, per side (bats and arms live on different scales), and
+  // grade against that: an average-for-the-level player hits like a
+  // league-average player at that level, whatever the level's average
+  // happens to be. Clamped to static ±8 so a freak population year
+  // bends the scale rather than breaking it; thin populations (<12 a
+  // side) fall back to the static anchor.
+  function batComposite(r) {
+    return ((r.contactVsR + r.contactVsL) / 2 + (r.powerVsR + r.powerVsL) / 2 + r.discipline) / 3;
+  }
+  function armComposite(r) {
+    return ((r.stuff + r.velocity) / 2 + r.control + r.movement) / 3;
+  }
+  function dynamicAnchors(players) {
+    const acc = {};
+    for (const lv in LEVELS) acc[lv] = { bat: [], arm: [] };
+    for (const id in players) {
+      const p = players[id];
+      if (!p || p.retired || p.status !== 'minors' || !p.ratings) continue;
+      const bucket = acc[p.rosterStatus];
+      if (!bucket) continue;
+      if (p.isPitcher) bucket.arm.push(armComposite(p.ratings));
+      else bucket.bat.push(batComposite(p.ratings));
+    }
+    const out = {};
+    for (const lv in LEVELS) {
+      const st = LEVELS[lv].anchor;
+      const avg = (a) => a.reduce((s, x) => s + x, 0) / a.length;
+      out[lv] = {
+        bat: acc[lv].bat.length >= 12 ? clamp(avg(acc[lv].bat), st - 8, st + 8) : st,
+        arm: acc[lv].arm.length >= 12 ? clamp(avg(acc[lv].arm), st - 8, st + 8) : st,
+      };
+    }
+    return out;
+  }
+
   // Star curve (0.71.2, user request: "I'd like to see some prospects
   // dominating"): the talent-vs-anchor response is linear only NEAR the
   // level. Past +8 the slope steepens — a bat that has nothing left to
@@ -98,8 +139,18 @@ window.BBGM_MINORS = (function () {
   // Full-season line in one shot — the pre-0.41.0 behavior, kept as the
   // rollover backfill for players who missed the monthly path (signed
   // late, migrated saves). Overwrites.
-  function simSeasonLine(p, year) {
-    const lvl = LEVELS[p.rosterStatus] || LEVELS.AAA;
+  // Resolve the grading anchor for one player: an explicit override
+  // (flavor leagues) wins, then the measured level average for his
+  // side, then the static baseline.
+  function lvlFor(p, opts) {
+    const base = LEVELS[p.rosterStatus] || LEVELS.AAA;
+    if (opts && opts.anchor != null) return { anchor: opts.anchor, noise: opts.noise || 1.2 };
+    const dyn = opts && opts.anchors && opts.anchors[p.rosterStatus];
+    return dyn ? { anchor: p.isPitcher ? dyn.arm : dyn.bat, noise: base.noise } : base;
+  }
+
+  function simSeasonLine(p, year, opts = {}) {
+    const lvl = lvlFor(p, opts);
     const season = S().ensureSeason(p, year);
     season.minorsLine = { level: p.rosterStatus, ...lineChunk(p, lvl, 1) };
   }
@@ -111,9 +162,7 @@ window.BBGM_MINORS = (function () {
   function monthlyLine(p, year, opts = {}) {
     const season = S().ensureSeason(p, year);
     const frac = opts.frac != null ? opts.frac : 1 / 6;
-    const lvl = opts.anchor != null
-      ? { anchor: opts.anchor, noise: opts.noise || 1.2 }
-      : (LEVELS[p.rosterStatus] || LEVELS.AAA);
+    const lvl = lvlFor(p, opts);
     const tag = opts.league || p.rosterStatus;
     const chunk = lineChunk(p, lvl, frac);
     if (!season.minorsLine) {
@@ -260,5 +309,5 @@ window.BBGM_MINORS = (function () {
     p.rosterStatus = ORDER[clamp(next, 0, ORDER.length - 1)];
   }
 
-  return { simSeasonLine, monthlyLine, reassignLevel, alignFarm, targetLevel, recommendedLevel, levelFitDelta, placementRating, maxLevelIdxForAge, allowedLevelIdx, LEVELS, ORDER };
+  return { simSeasonLine, monthlyLine, dynamicAnchors, reassignLevel, alignFarm, targetLevel, recommendedLevel, levelFitDelta, placementRating, maxLevelIdxForAge, allowedLevelIdx, LEVELS, ORDER };
 })();

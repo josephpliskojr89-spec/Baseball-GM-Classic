@@ -5540,6 +5540,26 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > onto the board, version stamped forward, zero page errors. Battery
 > 45/45, e2e 142 clean.
 
+> **Status note (v2.11.0):** Level-relative minors lines (owner: "my
+> rookie ball team is all 20-35 but in relation to other rookie ball
+> teams, that's not bad"). The static level anchors (R 31 / A 36 /
+> AA 42 / AAA 47) were tuned before the rawness passes moved the
+> real populations — measured on a fresh league the farm actually
+> averages ~34.7/35.3/36.9/39.7 (bats), so AAA players graded seven
+> points "below average" against a phantom league and posted ugly
+> lines everywhere. Now dynamicAnchors(players) measures each
+> level's ACTUAL average talent per side (bats and arms separately)
+> once per monthly tick / rollover, clamped static±8, thin
+> populations (<12 a side) falling back to static; every farm line
+> grades against its real peers, so the average-for-the-level kid
+> hits ~.262 with a ~4.4 ERA wherever he plays. Flavor-league
+> explicit anchors unchanged. New permanent suite: levelrel (7
+> checks). archfix's quad-A career bound corrected to the cone-era
+> honest cap (52-lid tools + exempt 80 speed ⇒ 54.8 peak; the old 53
+> threshold was a latent coin-flip). Battery 46/46, e2e 142, 3-season
+> soak clean. Applies from the next monthly tick — no migration,
+> past lines are history.
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):

@@ -328,18 +328,21 @@ window.BBGM_OFFSEASON = (function () {
     // saves migrated mid-season) get the classic one-shot backfill.
     {
       const FLAV = window.BBGM_FLAVOR;
+      // Level-relative grading (v2.11.0): measure each level's actual
+      // average talent once, then every farm line grades against it.
+      const anchors = MIN().dynamicAnchors(players);
       for (const id in players) {
         const p = players[id];
         if (p.retired) continue;
         const isFarm = p.status === 'minors';
         const isFlavor = p.status === 'FA' && p.playsIn && FLAV;
         if (!isFarm && !isFlavor) continue;
-        const opts = isFlavor ? (FLAV.lineOpts(p) || {}) : {};
+        const opts = isFlavor ? (FLAV.lineOpts(p) || {}) : { anchors };
         const hasMonthly = p.stats && p.stats[year] && p.stats[year].minorsLine;
         if (hasMonthly) {
           MIN().monthlyLine(p, year, opts);
         } else if (isFarm) {
-          MIN().simSeasonLine(p, year);
+          MIN().simSeasonLine(p, year, { anchors });
         } else {
           MIN().monthlyLine(p, year, { ...opts, frac: 1 });
         }
