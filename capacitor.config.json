@@ -1,0 +1,12 @@
+{
+  "appId": "com.baseballgmclassic.app",
+  "appName": "Baseball GM Classic",
+  "webDir": "shell/www",
+  "server": {
+    "url": "https://josephpliskojr89-spec.github.io/Baseball-GM-Classic/",
+    "cleartext": false
+  },
+  "android": {
+    "allowMixedContent": false
+  }
+}

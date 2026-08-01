@@ -5591,6 +5591,25 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > screenshot-verified on a fabricated three-year career (MLB + AA +
 > playoffs); battery 46/46, e2e 142 clean.
 
+> **Status note (v2.13.0):** §24 stage 1 shipped — the hybrid
+> Android shell. Capacitor 8 wraps the deployed game (server.url →
+> the Pages site) with NATIVE FILE SAVES: js/state.js's four
+> persistence primitives now dispatch — Capacitor Filesystem
+> (Directory.Data, a real OS-protected file) inside the shell,
+> IndexedDB in any browser, byte-identical behavior there (proven:
+> battery 46/46 + e2e 142 through the browser path). Repo grows
+> package.json (@capacitor/core+android+filesystem 8.x), the
+> android/ platform, shell/www (offline fallback page), and the
+> android-shell workflow: GitHub's runners build a SIGNED release
+> APK (committed keystore, deliberately — a stable signature is what
+> lets updates install over each other; the key protects nothing but
+> a personal sideloaded game) versioned by run number and publish it
+> to the rolling `shell-latest` prerelease. First-run migration is
+> the existing Export→Import. The adapter had to ride to main
+> (the shell loads what Pages serves), justified by proven
+> inertness; the beta trick (Pages source → testing) works inside
+> the app too.
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):

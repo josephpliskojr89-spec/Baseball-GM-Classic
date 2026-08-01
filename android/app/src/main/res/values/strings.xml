@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Baseball GM Classic</string>
+    <string name="title_activity_main">Baseball GM Classic</string>
+    <string name="package_name">com.baseballgmclassic.app</string>
+    <string name="custom_url_scheme">com.baseballgmclassic.app</string>
+</resources>

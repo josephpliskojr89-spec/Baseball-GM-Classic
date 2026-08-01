@@ -1,0 +1,75 @@
+# §24 stage 1: build the Android shell APK on GitHub's runners and
+# publish it to a rolling prerelease ("shell-latest") so the owner can
+# download and sideload it from the releases page on a phone. The web
+# game is untouched by this workflow — it only builds the Capacitor
+# wrapper in android/.
+name: android-shell
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [testing, main]
+    paths:
+      - 'android/**'
+      - 'shell/**'
+      - 'capacitor.config.json'
+      - 'package.json'
+      - 'package-lock.json'
+      - '.github/workflows/android-shell.yml'
+
+permissions:
+  contents: write # the rolling prerelease needs to create/update a tag
+
+concurrency:
+  group: android-shell
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install Capacitor
+        run: npm ci
+
+      - name: Sync native project
+        run: npx cap sync android
+
+      - name: Build signed release APK
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleRelease \
+            -PbbgmVersionCode=${{ github.run_number }} \
+            -PbbgmVersionName="shell-${{ github.run_number }}"
+
+      - name: Rename APK
+        run: cp android/app/build/outputs/apk/release/app-release.apk baseball-gm-classic.apk
+
+      - name: Publish rolling prerelease
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: shell-latest
+          name: 'Android shell (latest build)'
+          prerelease: true
+          body: |
+            The Baseball GM Classic Android shell — §24 stage 1 (hybrid).
+            Loads the deployed game with native file-based saves.
+
+            Install: download baseball-gm-classic.apk on your phone and
+            open it. First time only, Android asks you to allow installs
+            from your browser. Updates install over the previous build.
+
+            Build ${{ github.run_number }} from ${{ github.sha }}.
+          files: baseball-gm-classic.apk

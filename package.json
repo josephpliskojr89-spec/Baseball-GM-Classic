@@ -1,0 +1,15 @@
+{
+  "name": "baseball-gm-classic-shell",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Native Android shell for Baseball GM Classic (Capacitor). The game itself is the vanilla-JS app at the repo root; this package exists only to build the shell.",
+  "scripts": {
+    "sync": "cap sync android"
+  },
+  "devDependencies": {
+    "@capacitor/android": "^8.5.0",
+    "@capacitor/cli": "^8.5.0",
+    "@capacitor/core": "^8.5.0",
+    "@capacitor/filesystem": "^8.1.2"
+  }
+}

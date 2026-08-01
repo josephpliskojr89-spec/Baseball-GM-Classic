@@ -87,6 +87,60 @@ window.BBGM_STATE = (function () {
     }));
   }
 
+  // ---- Native shell storage (§24 stage 1) ---------------------------------
+  // Inside the Capacitor Android shell the save lives as a real file in
+  // app-private storage (Directory.Data) instead of IndexedDB — the OS
+  // protects files like documents, while IndexedDB is evictable cache
+  // the browser may wipe under storage pressure. The four primitives
+  // below dispatch on the runtime; in any browser this whole branch is
+  // dead code and persistence is byte-identical to before.
+  const SAVE_FILE = 'bbgm-classic-save.json';
+  function nativeFS() {
+    const cap = window.Capacitor;
+    if (!cap || !cap.isNativePlatform || !cap.isNativePlatform()) return null;
+    return (cap.Plugins && cap.Plugins.Filesystem) || null;
+  }
+
+  function storePut(value) {
+    const fs = nativeFS();
+    if (!fs) return idbPut(value);
+    return fs.writeFile({
+      path: SAVE_FILE, directory: 'DATA', encoding: 'utf8',
+      data: JSON.stringify(value),
+    });
+  }
+
+  function storeGet() {
+    const fs = nativeFS();
+    if (!fs) return idbGet();
+    return fs.readFile({ path: SAVE_FILE, directory: 'DATA', encoding: 'utf8' })
+      .then((res) => {
+        try { return res && res.data ? JSON.parse(res.data) : null; }
+        catch (e) { throw new Error('Native save file is corrupted: ' + e.message); }
+      })
+      .catch((e) => {
+        // A missing file is "no save yet", not an error.
+        if (String(e && e.message).toLowerCase().includes('does not exist') ||
+            String(e && e.message).toLowerCase().includes('no such file')) return null;
+        throw e;
+      });
+  }
+
+  function storeHasKey() {
+    const fs = nativeFS();
+    if (!fs) return idbHasKey();
+    return fs.stat({ path: SAVE_FILE, directory: 'DATA' })
+      .then(() => true)
+      .catch(() => false);
+  }
+
+  function storeDelete() {
+    const fs = nativeFS();
+    if (!fs) return idbDelete();
+    return fs.deleteFile({ path: SAVE_FILE, directory: 'DATA' })
+      .catch(() => {}); // deleting a save that isn't there is a no-op
+  }
+
   function readLegacySave() {
     try {
       const raw = localStorage.getItem(LEGACY_STORAGE_KEY);
@@ -115,8 +169,8 @@ window.BBGM_STATE = (function () {
     state = null;
     clearLegacySave();
     notify();
-    return idbDelete().catch((e) => {
-      console.error('Reset: failed to delete IndexedDB save:', e);
+    return storeDelete().catch((e) => {
+      console.error('Reset: failed to delete save:', e);
     });
   }
 
@@ -149,7 +203,7 @@ window.BBGM_STATE = (function () {
 
   function saveNow() {
     if (!state) return Promise.resolve();
-    return idbPut(state).catch((e) => {
+    return storePut(state).catch((e) => {
       console.error('Save failed:', e);
       if (saveErrorHandler) {
         try { saveErrorHandler(e); } catch (err) { console.error(err); }
@@ -161,9 +215,9 @@ window.BBGM_STATE = (function () {
   // localStorage save if IndexedDB has none. Resolves to the state object
   // or null when no save exists.
   function load() {
-    return idbGet()
+    return storeGet()
       .catch((e) => {
-        console.warn('IndexedDB load failed, checking legacy save:', e);
+        console.warn('Save load failed, checking legacy save:', e);
         return null;
       })
       .then((saved) => {
@@ -177,7 +231,7 @@ window.BBGM_STATE = (function () {
         // Migrate: write to IndexedDB, then clear the localStorage copy to
         // free its quota. Keep the legacy copy if the write fails so the
         // user can't lose the save to a botched migration.
-        return idbPut(legacy)
+        return storePut(legacy)
           .then(() => { clearLegacySave(); return state; })
           .catch((e) => {
             console.error('Legacy save migration to IndexedDB failed:', e);
@@ -187,7 +241,7 @@ window.BBGM_STATE = (function () {
   }
 
   function hasSave() {
-    return idbHasKey()
+    return storeHasKey()
       .catch(() => false)
       .then((has) => has || !!readLegacySave());
   }
@@ -253,7 +307,7 @@ window.BBGM_STATE = (function () {
           // unsaved import while disk still held the old save — a crash
           // silently reverted the player hours back. Persist-before-resolve
           // also beats menu.js's success reload racing the debounced save.
-          idbPut(obj).then(() => {
+          storePut(obj).then(() => {
             state = obj;
             notify();
             resolve(obj);
