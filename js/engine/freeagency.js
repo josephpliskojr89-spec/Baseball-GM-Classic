@@ -40,6 +40,11 @@ window.BBGM_FA = (function () {
   // (top-level stats[year].g is MLB-only; farm/indie play lives under
   // minorsLine) is the tie-breaker (W3, 0.68.1).
   function neverPlayedMLB(p) {
+    // A posted NPB arm, KBO expat, or Cuban defector (v2.13.1) has zero
+    // MLB service but a real professional resume — he negotiates like a
+    // veteran, never like the undrafted indie kid. His fake 6-year
+    // service stamp is gone; this marker carries the leverage instead.
+    if (p.intlEvent) return false;
     if (p.serviceTime && p.serviceTime.years) return false;
     if (p.careerStats && p.careerStats.g > 0) return false;
     for (const y in p.stats || {}) {

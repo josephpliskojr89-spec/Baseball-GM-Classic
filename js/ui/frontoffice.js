@@ -192,7 +192,7 @@ window.BBGM_UI_FRONTOFFICE = (function () {
       'In-season signings are minor-league deals — the player reports to AAA (bible 16.9).'));
     const needSet = new Set(TRADES().teamNeeds(userTeam, state.players));
     const list = U.el('div', { class: 'roster-list' });
-    for (const p of pool.slice(0, 50)) {
+    for (const p of pool.slice(0, faShown)) {
       // Card-first (0.64.1): the row opens the PROFILE; the sign action
       // lives on the card — the old flow confirmed a deal for a player
       // the user had never even looked at.
@@ -219,6 +219,15 @@ window.BBGM_UI_FRONTOFFICE = (function () {
       list.appendChild(row);
     }
     container.appendChild(list);
+    // Nobody vanishes below the fold (v2.13.1): the pool pages instead
+    // of silently truncating — a just-released player is always findable.
+    if (pool.length > faShown) {
+      container.appendChild(U.el('button', {
+        class: 'btn-secondary btn-sm',
+        style: { 'margin-top': '10px', width: '100%' },
+        on: { click: () => { faShown += 50; window.BBGM_MAIN.refresh(); } },
+      }, `Show more (${pool.length - faShown} more in the pool)`));
+    }
   }
 
   // ---------- Trade Center ----------
@@ -227,6 +236,9 @@ window.BBGM_UI_FRONTOFFICE = (function () {
   let draft = null;
   let finderPos = null; // Trade Finder position filter (0.34.0)
   let faPos = null;     // Free agency position filter (0.48.0)
+  let faShown = 50;     // FA pool page size (v2.13.1 — the silent top-50
+                        // cap made a DFA'd fringe arm look DELETED: he
+                        // cleared to a 200+ man pool below the fold)
 
   // Trade Finder (0.34.0): pick a position, see who around the league
   // might actually move — computed from the same team-perspective values

@@ -5610,6 +5610,24 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > inertness; the beta trick (Pages source → testing) works inside
 > the app too.
 
+> **Status note (v2.13.1):** Playtest bug sweep (owner's five-item
+> report). (1) "DFA'd players disappear" — they never did: they
+> cleared waivers into a 200+ man FA pool whose screen silently
+> rendered only the top 50 by OVR; the pool now pages ("Show more")
+> so nobody sinks below the fold. New permanent suite: dfa (3
+> checks — wire resolution visibility + ghost-entry audit). (2)
+> International pros (NPB postings / KBO / defectors) carried a fake
+> 6.000 MLB service stamp so they'd negotiate like FAs; negotiation
+> now keys off p.intlEvent (neverPlayedMLB exempts them), the stamp
+> is a real 0, and a 2.13.1 migration re-clocks existing intl pros
+> to seasons actually played — club control until 6 real years, as
+> in life. (3) Leaders → SV qualified relievers by STARTER innings
+> (~160 IP) so the list never updated; saves now qualify by having
+> saves. (4) Minors hitter lines never carried G — generated lines
+> now include it (~4.3 PA/game) and old stored lines estimate it at
+> display. (5) OPS added to the card's hitter rate strip. Battery
+> 47/47, e2e 142 clean.
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):

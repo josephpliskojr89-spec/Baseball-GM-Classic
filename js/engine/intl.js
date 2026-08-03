@@ -968,7 +968,8 @@ window.BBGM_INTL = (function () {
       const p = makeEventPlayer(state, {
         event: 'posting', country: 'Japan', age: rint(25, 30),
         tier: rand() < 0.4 ? 'star' : 'plus', slotPos: EVENT_POS(),
-        serviceYears: 6, // negotiates like a free agent (14.7)
+        serviceYears: 0, // real MLB service starts at zero (v2.13.1) —
+        // FA-style negotiation now keys off p.intlEvent, not a fake clock
       });
       events.push({ kind: 'posting', playerId: p.id, name: p.name, pos: p.primaryPosition, age: p.age,
         fee: rint(20, 50) });
@@ -980,7 +981,7 @@ window.BBGM_INTL = (function () {
       const p = makeEventPlayer(state, {
         event: 'defector', country: 'Cuba', age: rint(22, 27),
         tier: rand() < 0.35 ? 'plus' : 'avg', slotPos: EVENT_POS(),
-        serviceYears: 6,
+        serviceYears: 0,
       });
       // Extra uncertainty: a hidden swing either way on the whole profile.
       const keys = talentKeys(p);
@@ -1000,7 +1001,7 @@ window.BBGM_INTL = (function () {
       const p = makeEventPlayer(state, {
         event: 'kbo', country: 'South Korea', age: rint(28, 32),
         tier: rand() < 0.5 ? 'plus' : 'avg', slotPos: EVENT_POS(),
-        serviceYears: 6,
+        serviceYears: 0,
       });
       events.push({ kind: 'kbo', playerId: p.id, name: p.name, pos: p.primaryPosition, age: p.age });
     }

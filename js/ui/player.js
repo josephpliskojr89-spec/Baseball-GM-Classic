@@ -923,12 +923,16 @@ window.BBGM_UI_PLAYER = (function () {
           ['K', String(s.k || 0)], ['BB', String(s.bb || 0)],
         ]));
       } else {
+        // Pre-2.13.1 minors hitter lines never stored G — estimate from
+        // PA so old seasons read honestly instead of "0 games played".
+        const g = s.g || (s.pa ? Math.max(1, Math.round(s.pa / 4.3)) : 0);
         block.appendChild(statStrip([
-          ['G', String(s.g || 0)], ['AB', String(s.ab || 0)], ['H', String(s.h || 0)],
+          ['G', String(g)], ['AB', String(s.ab || 0)], ['H', String(s.h || 0)],
           ['HR', String(s.hr || 0)], ['RBI', String(s.rbi || 0)], ['SB', String(s.sb || 0)],
         ]));
         block.appendChild(statStrip([
-          ['AVG', S.fmtAvg(S.avg(s))], ['OBP', S.fmtAvg(S.obp(s))], ['SLG', S.fmtAvg(S.slg(s))],
+          ['AVG', S.fmtAvg(S.avg(s))], ['OBP', S.fmtAvg(S.obp(s))],
+          ['SLG', S.fmtAvg(S.slg(s))], ['OPS', S.ops(s).toFixed(3)],
         ]));
       }
       return block;

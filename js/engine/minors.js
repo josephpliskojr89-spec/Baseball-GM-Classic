@@ -99,6 +99,9 @@ window.BBGM_MINORS = (function () {
       const avg = clamp(0.262 + delta * 0.0032 + rnorm(0, 0.016 * lvl.noise * Math.sqrt(1 / Math.max(frac, 0.05))), 0.140, 0.440);
       const hrRate = clamp(0.018 + levelDelta(power, lvl.anchor) * 0.0011 + rnorm(0, 0.004 * lvl.noise), 0.001, 0.075);
 
+      // Games played (v2.13.1, user report: minors hitters always read
+      // 0 G — the line never carried the field). ~4.3 PA per game.
+      const g = Math.max(1, Math.round(pa / 4.3));
       const bb = Math.round(pa * bbRate);
       const ab = pa - bb - Math.round(pa * 0.012); // walks + a few HBP/sac
       const h = Math.round(ab * avg);
@@ -109,7 +112,7 @@ window.BBGM_MINORS = (function () {
       const sb = Math.max(0, Math.round(((r.speed - 42) * 0.55 + rnorm(0, 3)) * frac));
       const runsish = Math.round(h * 0.42 + bb * 0.25 + hr * 0.6);
       return {
-        pa, ab, h, b2, b3, hr,
+        g, pa, ab, h, b2, b3, hr,
         r: runsish, rbi: Math.round(h * 0.38 + hr * 1.1),
         sb, cs: Math.round(sb * 0.3), bb, k,
       };

@@ -1298,6 +1298,30 @@ window.BBGM_MAIN = (function () {
       window.BBGM_STATE.set(state);
     }
 
+    // Migration (2.13.1): honest MLB service for international pros.
+    // NPB postings / KBO expats / Cuban defectors were minted with a
+    // fake 6-year service stamp so they'd negotiate like free agents;
+    // negotiation now keys off p.intlEvent, and the visible clock should
+    // be REAL service. Recompute from MLB seasons actually played.
+    if (versionLt(saveVersion, '2.13.1')) {
+      let fixed = 0;
+      for (const id in state.players) {
+        const p = state.players[id];
+        if (!p || p.retired || !p.intlEvent || !p.serviceTime) continue;
+        let played = 0;
+        for (const y in (p.stats || {})) {
+          const s = p.stats[y];
+          if (s && ((s.g || 0) > 0 || (s.pa || 0) > 0 || (s.ipOuts || 0) > 0)) played++;
+        }
+        if (p.serviceTime.years !== played) {
+          p.serviceTime.years = Math.min(20, played);
+          fixed++;
+        }
+      }
+      if (fixed) console.log(`2.13.1 migration: ${fixed} international pro(s) re-clocked to real MLB service.`);
+      window.BBGM_STATE.set(state);
+    }
+
     // Stamp the save forward now that every migration has run. This is
     // what makes the versionLt gates above one-shot, and it makes the
     // Menu's "Save version" reflect the code the save actually runs under

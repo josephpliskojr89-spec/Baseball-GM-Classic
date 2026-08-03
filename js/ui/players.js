@@ -325,7 +325,13 @@ window.BBGM_UI_PLAYERS = (function () {
     container.appendChild(leaderList('Wins', pitchers, (x) => x.s.w || 0, (v) => String(v)));
     container.appendChild(leaderList('ERA', pitchers, (x) => S.era(x.s), (v) => v.toFixed(2), 10, false, true));
     container.appendChild(leaderList('K', pitchers, (x) => x.s.k || 0, (v) => String(v)));
-    container.appendChild(leaderList('SV', pitchers, (x) => x.s.sv || 0, (v) => String(v)));
+    // Saves qualify by HAVING SAVES, not by starter innings (v2.13.1,
+    // user report: "Leaders → Saves not updating" — no closer throws
+    // the ~160 IP the qualifier demanded, so the list never moved).
+    const savers = players
+      .filter((p) => p.isPitcher && p.stats[year] && (p.stats[year].sv || 0) > 0)
+      .map((p) => ({ p, s: p.stats[year] }));
+    container.appendChild(leaderList('SV', savers, (x) => x.s.sv || 0, (v) => String(v)));
   }
 
   function leaderList(title, list, fn, fmt, n = 10, isAvgFmt = false, ascending = false) {
