@@ -5628,6 +5628,27 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > display. (5) OPS added to the card's hitter rate strip. Battery
 > 47/47, e2e 142 clean.
 
+> **Status note (v2.14.0):** The living winter (owner: "the offseason
+> feels disjointed... more of a chore" + "stick with calendar mode
+> but include a sim to next event button" + "the inbox should be
+> super active in the offseason"). Two systems: (1) SIM TO NEXT
+> EVENT — the offseason card's main gear runs FA periods
+> back-to-back until something matters: your signing lands, you're
+> OUTBID on a target (an offer that vanishes without your signing
+> stops the clock with a warning), a 57+ OVR name comes off the
+> board, a decision hits the queue, or the market closes. Skipped
+> rounds arrive as one Transactions Wire letter (top 8 signings
+> with terms) instead of vanishing toasts; One Period stays for the
+> deliberate. (2) THE WINTER BRIEFING — rollover opens the inbox
+> with the GM's full desk: the Arbitration Docket (every case with
+> projected salary), the FA Market preview (top 12 with market
+> AAV), the Sellers Report (rebuilding/retooling clubs and the vets
+> our scouts think could move), joining the existing expiring
+> ledger and washout list; market close adds a Winter in Review
+> letter. e2e grew 3 checks — 144 clean, battery 47/47. NEXT in
+> this program (owner-approved): the January 15 international
+> signing day — the winter's tentpole, mirroring the real calendar.
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):

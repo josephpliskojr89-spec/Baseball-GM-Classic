@@ -310,11 +310,17 @@ window.BBGM_UI_DASHBOARD = (function () {
       class: 'btn-primary btn-sm', style: { width: '100%', 'margin-bottom': '8px' },
       on: { click: () => window.BBGM_MAIN.navigate('team', { tab: 'freeagents' }) },
     }, 'Browse Free Agents'));
+    // Sim to Next Event (v2.14.0): the winter's main gear. One period
+    // at a time stays available for the deliberate.
+    card.appendChild(U.el('button', {
+      class: 'btn-primary btn-sm', style: { width: '100%', 'margin-bottom': '8px' },
+      on: { click: () => window.BBGM_MAIN.advanceFAToEvent() },
+    }, 'Sim to Next Event ▶▶'));
     const grid = U.el('div', { style: { display: 'flex', gap: '8px', flexWrap: 'wrap' } });
     grid.appendChild(U.el('button', {
       class: 'btn-secondary btn-sm', style: { flex: '1 1 calc(50% - 4px)' },
       on: { click: () => window.BBGM_MAIN.advanceFAPeriod() },
-    }, 'Advance FA Period ▶'));
+    }, 'One Period ▶'));
     grid.appendChild(U.el('button', {
       class: 'btn-secondary btn-sm', style: { flex: '1 1 calc(50% - 4px)' },
       on: { click: () => window.BBGM_MAIN.navigate('team', { tab: 'trades' }) },

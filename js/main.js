@@ -2127,19 +2127,125 @@ window.BBGM_MAIN = (function () {
     } else {
       U.showToast(`FA period ${result.round}/${state.faMarket.totalRounds} — ${result.signings.length} players signed league-wide.`, 'info');
     }
-    if (result.done) {
-      U.showModal({
-        title: 'Free Agency Winding Down',
-        body: 'The market has run its course. Start the season?',
-        actions: [
-          { label: 'Not Yet', kind: 'secondary', onClick: () => true },
-          { label: 'Start Season', kind: 'primary', onClick: () => {
-            setTimeout(() => startSeasonFlow(state), 50);
-            return true;
-          }},
-        ],
+    if (result.done) marketWindDown(state);
+  }
+
+  // Shared market-close moment (v2.14.0): the Winter in Review letter
+  // (once per winter) plus the start-the-season prompt.
+  function marketWindDown(state) {
+    if (state.faMarket && !state.faMarket.reviewed) {
+      state.faMarket.reviewed = true;
+      const R = window.BBGM_ROSTER;
+      const signed = (state.faMarket.entries || [])
+        .filter((e) => e.signedTeamId != null)
+        .map((e) => ({ p: state.players[e.playerId], e }))
+        .filter((x) => x.p)
+        .sort((a, b) => R.overall(b.p) - R.overall(a.p))
+        .slice(0, 10);
+      const teamOf = (tid) => state.league.teams.find((t) => t.id === tid);
+      if (signed.length) {
+        const rows = signed.map((x) => {
+          const t = teamOf(x.e.signedTeamId);
+          return `${x.p.name} (${x.p.primaryPosition}) → ${t ? t.abbr : '?'}`;
+        });
+        const mine = signed.filter((x) => x.e.signedTeamId === state.meta.userTeamId).length;
+        window.BBGM_INBOX.push(state, {
+          from: 'The NABL Ledger',
+          subject: 'Winter in review: how the market shook out',
+          body: `The signings that mattered: ${rows.join('. ')}. ` +
+                (mine ? `Your club landed ${mine} of the winter's top names. `
+                      : `Your club sat out the top of the market. `) +
+                `Camps open shortly — the rosters are what they are now.`,
+          action: { type: 'navigate', tab: 'dashboard' },
+        });
+      }
+    }
+    U.showModal({
+      title: 'Free Agency Winding Down',
+      body: 'The market has run its course. Start the season?',
+      actions: [
+        { label: 'Not Yet', kind: 'secondary', onClick: () => true },
+        { label: 'Start Season', kind: 'primary', onClick: () => {
+          setTimeout(() => startSeasonFlow(state), 50);
+          return true;
+        }},
+      ],
+    });
+  }
+
+  // Sim to Next Event (v2.14.0, owner: "constantly moving toward the
+  // next thing"). Runs FA periods back-to-back until something worth
+  // stopping for: your signing lands, you get outbid on a target, a
+  // star comes off the board, a decision hits the queue, or the market
+  // closes. The skipped rounds arrive as one Transactions Wire letter
+  // instead of a stack of vanishing toasts.
+  function advanceFAToEvent() {
+    const state = window.BBGM_STATE.get();
+    if (!state || state.meta.offseasonPhase !== 'freeAgency') return;
+    const backup = snapshotState(state);
+    const R = window.BBGM_ROSTER;
+    const skipped = [];
+    let stop = null;   // { kind, name, teamAbbr }
+    let result = null;
+    try {
+      let guard = 0;
+      while (guard++ < 20) {
+        const offersBefore = (state.faMarket.userOffers || []).map((o) => o.playerId);
+        result = window.BBGM_OFFSEASON.advanceFARound(state);
+        skipped.push(...result.signings);
+        const teamAbbrOf = (t) => (t && t.abbr) || '?';
+        const userSig = result.signings.find((s) => s.isUser);
+        if (userSig) {
+          stop = { kind: 'signed', name: state.players[userSig.entry.playerId].name };
+          break;
+        }
+        const offersNow = new Set((state.faMarket.userOffers || []).map((o) => o.playerId));
+        const lostId = offersBefore.find((id) => !offersNow.has(id));
+        if (lostId) {
+          const lost = result.signings.find((s) => s.entry.playerId === lostId);
+          stop = { kind: 'outbid', name: state.players[lostId] ? state.players[lostId].name : 'your target',
+            teamAbbr: lost ? teamAbbrOf(lost.team) : '?' };
+          break;
+        }
+        if ((state.pendingDecisions || []).length) { stop = { kind: 'decision' }; break; }
+        const star = result.signings
+          .map((s) => ({ s, p: state.players[s.entry.playerId] }))
+          .filter((x) => x.p && !x.s.isUser)
+          .find((x) => R.overall(x.p) >= 57);
+        if (star) {
+          stop = { kind: 'star', name: star.p.name, teamAbbr: teamAbbrOf(star.s.team) };
+          break;
+        }
+        if (result.done) { stop = { kind: 'done' }; break; }
+      }
+    } catch (e) {
+      offseasonError(e, backup);
+      return;
+    }
+    // The wire digest: everything that happened while the clock ran.
+    if (skipped.length) {
+      const rows = skipped
+        .map((s) => ({ s, p: state.players[s.entry.playerId] }))
+        .filter((x) => x.p)
+        .sort((a, b) => R.overall(b.p) - R.overall(a.p))
+        .slice(0, 8)
+        .map((x) => `${x.p.name} (${x.p.primaryPosition}) → ${(x.s.team && x.s.team.abbr) || '?'}, $${(x.s.total || 0).toFixed(1)}M/${x.s.years}yr`);
+      window.BBGM_INBOX.push(state, {
+        from: 'Transactions Wire',
+        subject: `FA wire: ${skipped.length} signing${skipped.length === 1 ? '' : 's'} league-wide`,
+        body: `While the market ran — period ${state.faMarket.round}/${state.faMarket.totalRounds}: ` +
+              rows.join('. ') + (skipped.length > 8 ? `. Plus ${skipped.length - 8} depth moves.` : '.'),
+        action: { type: 'navigate', tab: 'team', opts: { tab: 'freeagents' } },
       });
     }
+    window.BBGM_STATE.set(state);
+    refresh();
+    if (!stop) stop = { kind: 'idle' };
+    if (stop.kind === 'signed') U.showToast(`Signed: ${stop.name}!`, 'success', 5000);
+    else if (stop.kind === 'outbid') U.showToast(`Outbid — ${stop.name} signed with ${stop.teamAbbr}.`, 'warning', 6000);
+    else if (stop.kind === 'star') U.showToast(`Big name off the board: ${stop.name} → ${stop.teamAbbr}.`, 'info', 6000);
+    else if (stop.kind === 'decision') showPendingDecisions(state);
+    if (result && result.done) marketWindDown(state);
   }
 
   function startSeasonFlow(state) {
@@ -2669,6 +2775,77 @@ window.BBGM_MAIN = (function () {
         action: { type: 'navigate', tab: 'team' },
       });
     }
+    // ---- The winter briefing (v2.14.0, owner: "there's a lack of
+    // information in the offseason... the inbox should be super
+    // active") — the front office opens the winter with a full desk:
+    // the arbitration docket, the shape of the FA market, and which
+    // clubs are quietly selling.
+    if (state.arb && state.arb.cases && state.arb.cases.length) {
+      const rows = state.arb.cases.map((c) => {
+        const p = state.players[c.playerId];
+        return p ? `${p.name} (${p.primaryPosition}, ${p.age}) — projected $${(c.salary || 0.74).toFixed(1)}M` : null;
+      }).filter(Boolean);
+      if (rows.length) {
+        window.BBGM_INBOX.push(state, {
+          from: 'Front Office (Payroll)',
+          subject: `Arbitration docket: ${rows.length} case${rows.length === 1 ? '' : 's'} this winter`,
+          body: `The players with the service time to file, and what the hearings ` +
+                `will likely cost: ${rows.join('. ')}. Tender them and pay, or ` +
+                `non-tender and watch them walk — the review is on your desk.`,
+          action: { type: 'navigate', tab: 'dashboard' },
+        });
+      }
+    }
+    {
+      const R = window.BBGM_ROSTER;
+      const topFAs = (state.freeAgents || []).map((id) => state.players[id])
+        .filter((p) => p && !p.retired)
+        .sort((a, b) => R.overall(b) - R.overall(a))
+        .slice(0, 12);
+      if (topFAs.length >= 3) {
+        const rows = topFAs.map((p) => {
+          const aav = window.BBGM_TRADES.expectedAAV(R.overall(p), p.age, p);
+          return `${p.name} (${p.primaryPosition}, ${p.age}) — ${U.gradeFor(R.overall(p))} OVR, market ~$${aav.toFixed(1)}M/yr`;
+        });
+        window.BBGM_INBOX.push(state, {
+          from: 'Pro Scouting',
+          subject: `The free agent market: this winter's class`,
+          body: `The board as the market opens, best first: ${rows.join('. ')}. ` +
+                `The top of the class goes early and over asking — if one of ` +
+                `these names fixes us, the first period is the time to bid.`,
+          action: { type: 'navigate', tab: 'team', opts: { tab: 'freeagents' } },
+        });
+      }
+    }
+    {
+      const R = window.BBGM_ROSTER;
+      const sellers = state.league.teams
+        .filter((t) => t.id !== userTeamId &&
+          (t.competitiveWindow === 'rebuilding' || t.competitiveWindow === 'retooling'))
+        .map((t) => {
+          const names = t.roster.map((id) => state.players[id])
+            .filter((p) => p && !p.retired && p.age >= 27 && R.overall(p) >= 52 &&
+              p.contract && p.contract.years <= 2)
+            .sort((a, b) => R.overall(b) - R.overall(a))
+            .slice(0, 2)
+            .map((p) => `${p.name} (${p.primaryPosition}, ${U.gradeFor(R.overall(p))})`);
+          return names.length ? `${t.abbr} — ${names.join(', ')}` : null;
+        })
+        .filter(Boolean)
+        .slice(0, 6);
+      if (sellers.length) {
+        window.BBGM_INBOX.push(state, {
+          from: 'Pro Scouting',
+          subject: `Clubs listening on veterans this winter`,
+          body: `Front offices in a rebuild take calls — and these are the ` +
+                `names our guys believe could move for the right package: ` +
+                `${sellers.join('. ')}. Short deals on selling clubs are the ` +
+                `cheapest wins on the trade market all year.`,
+          action: { type: 'navigate', tab: 'team', opts: { tab: 'trades' } },
+        });
+      }
+    }
+
     // Farm director's washout list (v2.12.0): the hard 30-cap that
     // silently deleted the user's farmhands is dead. AI orgs release
     // their stalled players at rollover; for YOUR club nobody is
@@ -4122,7 +4299,7 @@ window.BBGM_MAIN = (function () {
 
   return {
     navigate, refresh, advanceDay, simToNextEvent, simToEndOfMonth, simToSeasonEnd,
-    advanceFAPeriod, startSeasonFlow, validateCurrentSave,
+    advanceFAPeriod, advanceFAToEvent, startSeasonFlow, validateCurrentSave,
     showPendingDecisions,
     // 0.49.1: exposed for the rival-pitch regression tests (dice-free).
     sendRivalPitch,
