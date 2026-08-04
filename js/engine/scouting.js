@@ -744,7 +744,7 @@ window.BBGM_SCOUT = (function () {
 
   // ---- The second look (1.1.0) ---------------------------------------------
   // A return trip on a kid the department already covers: tightening a
-  // real read before a big July 2 bid instead of buying a new one. The
+  // real read before a big signing-day bid instead of buying a new one. The
   // band narrows AND re-centers halfway toward the truth of his best
   // tool — the same discovery physics as the draft board (0.78.0), paid
   // for in one trip instead of weeks of attention. Once per kid per

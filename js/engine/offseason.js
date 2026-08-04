@@ -786,12 +786,16 @@ window.BBGM_OFFSEASON = (function () {
 
     // 6.5. International (bible 14): special-event players (NPB postings,
     // Cuban defectors, KBO declarations) join the FA pool as headline
-    // names BEFORE the market is built, and next July's signing class +
-    // pool budgets are set (14.1's November 1) so the user can scout all
-    // offseason.
+    // names BEFORE the market is built. Since v2.15.0 the January 15
+    // class posts at season START (intl.js ensureClass) — in the steady
+    // state it already exists here, and regenerating would wipe a
+    // season's scouting looks and trip money. Generation here is only
+    // the fallback for a save that somehow missed the in-season post.
     const INTL = window.BBGM_INTL;
     summary.intlEvents = INTL.rollOffseasonEvents(state);
-    INTL.generateClass(state, year + 1);
+    if (!state.intl || (state.intl.year < year + 1 && state.intl.phase === 'complete')) {
+      INTL.generateClass(state, year + 1);
+    }
 
     // 7. Build the FA market and open the window (16.1: mid-November).
     FA().buildMarket(state);
@@ -831,6 +835,16 @@ window.BBGM_OFFSEASON = (function () {
     let guard = 0;
     while (state.faMarket && state.faMarket.round < state.faMarket.totalRounds && guard++ < 12) {
       FA().resolveRound(state);
+    }
+    // January 15 signing window (v2.15.0): the new season never opens on
+    // an unworked window. The interactive path stops the FA fast-forward
+    // at signing day; this is the headless/skipped-ahead backstop — note
+    // the date check is on the PHASE, not the calendar, because a user
+    // who starts the season from a December date jumps straight past
+    // January.
+    const INTL = window.BBGM_INTL;
+    if (state.intl && state.intl.phase !== 'complete' && state.intl.year <= year + 1) {
+      INTL.autoRunWindow(state);
     }
     // Unsigned FAs stay in state.freeAgents for mid-season deals (16.8/16.9).
     state.meta.offseasonPhase = null;
@@ -917,7 +931,7 @@ window.BBGM_OFFSEASON = (function () {
     // 30-cap farm cut is DEAD (v2.12.0, owner: "a very early version
     // relic that should probably be yeeted into the sun") — it silently
     // deleted a dozen of the user's own farmhands the first winter after
-    // a big draft + July 2 class. In its place: merit washouts. An org
+    // a big draft + int'l class. In its place: merit washouts. An org
     // releases players whose careers have STALLED — age has caught the
     // ceiling and the dream is dead — however many or few that is.
     // AI orgs act on the list; the USER's club is never auto-cut (Pillar
@@ -934,7 +948,7 @@ window.BBGM_OFFSEASON = (function () {
       // Orgs hoard catchers — only a genuinely done org lifer goes.
       if (!p.isPitcher && p.primaryPosition === 'C') return p.age >= 27 && ovr < 44;
       // The ladder: each birthday the bar to keep a roster spot rises.
-      // Calibrated by soak — inflow is ~11/org/yr (draft + July 2 +
+      // Calibrated by soak — inflow is ~11/org/yr (draft + Jan 15 +
       // floor fills), so most non-prospects must move on inside ~3-4
       // years or the league bloats (the 555-seed soak hit avg 59/org
       // on a gentler ladder; this one holds ~30).

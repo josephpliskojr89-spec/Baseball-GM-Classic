@@ -1322,6 +1322,50 @@ window.BBGM_MAIN = (function () {
       window.BBGM_STATE.set(state);
     }
 
+    // Migration (2.15.0): the signing calendar moves from July 2 to
+    // January 15 (owner's call — "mirror real life"). A pending class
+    // built for a July window needs two repairs: (1) a SCOUTING-phase
+    // class re-tags to the next January 15 on the calendar (a mid-season
+    // save's "this July" class becomes "this coming January's" — every
+    // look, offer, focus and trip survives; only the date moves); (2)
+    // every unsigned birthday re-pins into the January window's shadow
+    // so board age is still signing age. A class caught MID-window keeps
+    // its year — the new "on or after" pending check lets it finish
+    // where it stands. Completed classes need nothing: the next class
+    // posts on the next simmed day under the new cycle.
+    if (versionLt(saveVersion, '2.15.0') && state.intl &&
+        state.intl.phase !== 'complete' && window.BBGM_INTL.repinClassBirthdates) {
+      const today = state.meta.currentDate;
+      const oldYear = state.intl.year;
+      // Re-tag ONLY the July-era mid-season class (this year's, past Jan
+      // 15): its window silently moved into the past, so it slides to
+      // the coming January. An offseason save's next-year class keeps
+      // its year — if its January 15 has already passed on the calendar
+      // (a late-January FA save), the window simply fires on the next
+      // advance instead of waiting another year.
+      if (state.intl.phase === 'scouting' && state.intl.year === today.year &&
+          (today.month > 1 || today.day > 15)) {
+        state.intl.year = today.year + 1;
+        for (const pid in state.intl.prospects) {
+          state.intl.prospects[pid].intlClass = state.intl.year;
+        }
+      }
+      const repinned = window.BBGM_INTL.repinClassBirthdates(state, today);
+      window.BBGM_INBOX.push(state, {
+        from: 'League Office',
+        subject: 'International signing day moves to January 15',
+        body: `By owners' vote, the international signing period now opens January 15 — ` +
+              `the winter's marquee date, landing mid-free-agency. ` +
+              (state.intl.year !== oldYear
+                ? `The class you've been scouting signs January 15, ${state.intl.year}; every report, look, and offer carries over. `
+                : `Your current class now signs on the January calendar. `) +
+              `The board and your bonus pool are unchanged in the Draft Hub.`,
+        action: { type: 'navigate', tab: 'draft', opts: { tab: 'intl' } },
+      });
+      console.log(`2.15.0 migration: intl class ${oldYear} → January 15, ${state.intl.year}; ${repinned} birthday(s) re-pinned.`);
+      window.BBGM_STATE.set(state);
+    }
+
     // Stamp the save forward now that every migration has run. This is
     // what makes the versionLt gates above one-shot, and it makes the
     // Menu's "Save version" reflect the code the save actually runs under
@@ -1906,8 +1950,9 @@ window.BBGM_MAIN = (function () {
       showDraftDayModal(state);
       return;
     }
-    // International signing day (bible 14.1): July 2 halts the sim until
-    // the window is worked (or auto-run from the hub).
+    // International signing day (bible 14.1, v2.15.0): January 15 halts
+    // the calendar until the window is worked (or auto-run from the hub).
+    // In-season this only fires as a heal for a save that skipped it.
     if (window.BBGM_INTL.windowPending(state, today)) {
       showIntlWindowModal(state);
       return;
@@ -1919,8 +1964,8 @@ window.BBGM_MAIN = (function () {
     const year = state.meta.currentDate.year;
     U.showModal({
       title: `International Signing Day — ${year}`,
-      body: `The July 2 international signing window is open. ~100 prospects, ` +
-            `your bonus pool, and 29 rival front offices. The season resumes ` +
+      body: `The January 15 international signing window is open. ~100 prospects, ` +
+            `your bonus pool, and 29 rival front offices. The calendar resumes ` +
             `once the window closes.`,
       actions: [
         { label: 'Not Yet', kind: 'secondary', onClick: () => true },
@@ -2106,6 +2151,12 @@ window.BBGM_MAIN = (function () {
   function advanceFAPeriod() {
     const state = window.BBGM_STATE.get();
     if (!state || state.meta.offseasonPhase !== 'freeAgency') return;
+    // January 15 (v2.15.0): the market doesn't move past an unworked
+    // signing window — same halt the July draft-day sim used to enforce.
+    if (window.BBGM_INTL.windowPending(state, state.meta.currentDate)) {
+      showIntlWindowModal(state);
+      return;
+    }
     // Snapshot/restore (0.45.0): Part A and Part B both back up before
     // mutating, but the FA rounds between them didn't — a throw mid-round
     // left a half-resolved league-wide bidding round (contracts signed,
@@ -2126,6 +2177,12 @@ window.BBGM_MAIN = (function () {
       U.showToast(`Signed: ${names}!`, 'success', 5000);
     } else {
       U.showToast(`FA period ${result.round}/${state.faMarket.totalRounds} — ${result.signings.length} players signed league-wide.`, 'info');
+    }
+    // The round just crossed January 15: signing day arrives before the
+    // market's wind-down moment.
+    if (window.BBGM_INTL.windowPending(state, state.meta.currentDate)) {
+      showIntlWindowModal(state);
+      return;
     }
     if (result.done) marketWindDown(state);
   }
@@ -2182,6 +2239,10 @@ window.BBGM_MAIN = (function () {
   function advanceFAToEvent() {
     const state = window.BBGM_STATE.get();
     if (!state || state.meta.offseasonPhase !== 'freeAgency') return;
+    if (window.BBGM_INTL.windowPending(state, state.meta.currentDate)) {
+      showIntlWindowModal(state);
+      return;
+    }
     const backup = snapshotState(state);
     const R = window.BBGM_ROSTER;
     const skipped = [];
@@ -2208,6 +2269,12 @@ window.BBGM_MAIN = (function () {
           break;
         }
         if ((state.pendingDecisions || []).length) { stop = { kind: 'decision' }; break; }
+        // January 15 (v2.15.0): signing day is THE event of the winter —
+        // the fast-forward always stops for it.
+        if (window.BBGM_INTL.windowPending(state, state.meta.currentDate)) {
+          stop = { kind: 'intl' };
+          break;
+        }
         const star = result.signings
           .map((s) => ({ s, p: state.players[s.entry.playerId] }))
           .filter((x) => x.p && !x.s.isUser)
@@ -2245,6 +2312,7 @@ window.BBGM_MAIN = (function () {
     else if (stop.kind === 'outbid') U.showToast(`Outbid — ${stop.name} signed with ${stop.teamAbbr}.`, 'warning', 6000);
     else if (stop.kind === 'star') U.showToast(`Big name off the board: ${stop.name} → ${stop.teamAbbr}.`, 'info', 6000);
     else if (stop.kind === 'decision') showPendingDecisions(state);
+    else if (stop.kind === 'intl') { showIntlWindowModal(state); return; }
     if (result && result.done) marketWindDown(state);
   }
 
@@ -3478,21 +3546,22 @@ window.BBGM_MAIN = (function () {
       });
     }
 
-    // International class fallback (bible 14.1): normally generated at the
-    // rollover; season 1 has no prior rollover, so it appears on day one.
+    // International class post (bible 14.1, v2.15.0): the next January's
+    // class posts here once last winter's window is done — in practice
+    // the first simmed day of each season (and day one of a new save).
     const intlClass = window.BBGM_INTL.ensureClass(state, today);
     if (intlClass) {
       if (!state.news) state.news = [];
       state.news.push({
         date: { ...today },
         body: `<strong>The ${intlClass.year} international class is posted.</strong> ` +
-              `~100 prospects sign July 2 — scout the pool and your bonus budget in the Draft Hub.`,
+              `~100 prospects sign January 15 — scout the pool and your bonus budget in the Draft Hub.`,
         go: { type: 'nav', tab: 'draft', opts: { tab: 'intl' } },
       });
       window.BBGM_INBOX.push(state, {
         from: 'International Scouting',
         subject: `${intlClass.year} int'l board is up`,
-        body: 'The class is posted — roughly a hundred names, signing day July 2. ' +
+        body: 'The class is posted — roughly a hundred names, signing day January 15. ' +
               'We\'ve filed first reads on the top of the board; say the word and we\'ll send targeted looks at anyone unscouted.',
         action: { type: 'navigate', tab: 'draft', opts: { tab: 'intl' } },
       });
@@ -3514,7 +3583,7 @@ window.BBGM_MAIN = (function () {
         body: `Early looks at the ${state.intl.year} class: the talent is concentrated in ` +
               `${r1.label} — ${r1.top30} of my top 30 — ` +
               (r2 && r2.top30 ? `with ${r2.label} close behind (${r2.top30}). ` : '. ') +
-              'Give me a region and I\'ll live there until July; my reads on those kids will be a lot sharper. ' +
+              'Give me a region and I\'ll live there until signing day; my reads on those kids will be a lot sharper. ' +
               'Set my focus from the international hub whenever you\'ve decided.',
         action: { type: 'navigate', tab: 'draft', opts: { tab: 'intl' } },
       });

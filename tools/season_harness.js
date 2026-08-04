@@ -98,6 +98,7 @@ let consecDayViolations = 0; // reliever appearing on a 4th straight day
 let devBase = null;          // May 1 pre-tick OVR/age snapshot
 let msSwaps = 0, msLevelMoves = 0;
 let msSwapsPrev = 0, msLevelPrev = 0;
+let lastIntlNamesYear = 0; // v2.15.0: name check keys on archived windows
 // 0.75.2 regression guard: weekly count of clubs that couldn't survive a
 // bad day — fewer than 9 healthy hitters on the 26-man. The composition
 // floors + repair should hold this at zero forever.
@@ -279,24 +280,29 @@ function simOneDay(state) {
       ` | signed ${recap.signedCount}/300 picks (class 350)` +
       ` | best teen signee OVR ${maxTeenOvr.toFixed(0)} (t <=45)`);
   }
-  // International window: class exists all year (rollover / season-1
-  // fallback), auto-run on July 2 (mirrors main.js + hub).
+  // International class (v2.15.0): next January's class posts at season
+  // start via ensureClass; the window itself resolves inside the rollover
+  // (Part B auto-run). windowPending in-season is only the overdue heal —
+  // if it ever fires here, run it exactly as main.js would.
   W.BBGM_INTL.ensureClass(state, today);
   if (W.BBGM_INTL.windowPending(state, today)) {
     const recap = W.BBGM_INTL.autoRunWindow(state);
     const top = recap.top5[0];
-    draftLines.push(`  ${today.year} intl window: signed ${recap.signedCount}/100` +
+    draftLines.push(`  ${today.year} intl window (in-season HEAL — should not happen): signed ${recap.signedCount}/100` +
       ` | #1 ${top ? `${top.name} (${top.pos}, ${top.country}) $${top.bonus}M to ${top.teamId}` : '?'}`);
   }
   // Intl name pools (0.17.1): every prospect from a pooled country must
   // carry a name drawn from that country's pool, never the Anglo default.
-  if (state.intl && state.intl.phase === 'complete' && state.intl.recap && !state.intl.namesChecked) {
-    state.intl.namesChecked = true;
+  // Keyed on the archived-window ledger (v2.15.0): state.intl itself is
+  // replaced by the NEXT class the day after a window resolves.
+  const ihist = state.intlHistory || [];
+  if (ihist.length && ihist[ihist.length - 1].year !== lastIntlNamesYear) {
+    lastIntlNamesYear = ihist[ihist.length - 1].year;
     const IN = W.BBGM_INTL_NAMES;
     let wrong = 0;
     for (const id in state.players) {
       const p = state.players[id];
-      if (!p.intl || p.intl.year !== today.year) continue;
+      if (!p.intl || p.intl.year !== lastIntlNamesYear) continue;
       const key = IN.COUNTRY_POOL[p.origin];
       if (!key) continue;
       const pool = IN.POOLS[key];
@@ -306,7 +312,7 @@ function simOneDay(state) {
         if (wrong <= 3) console.log(`✗ INTL NAME MISMATCH: ${p.name} from ${p.origin}`);
       }
     }
-    if (wrong) { console.log(`✗ ${wrong} INTL NAME MISMATCHES in ${today.year}`); process.exit(1); }
+    if (wrong) { console.log(`✗ ${wrong} INTL NAME MISMATCHES in class ${lastIntlNamesYear}`); process.exit(1); }
   }
 
   // All-Star Game on the mid-July break (mirrors main.js).
@@ -636,6 +642,17 @@ if (seasonsArg > 1) {
     simErrorsTolerated = simErrors;
     retirementCounts.push(summary.retirements.length);
     totalNewPlayers += summary.newPlayers;
+    // January 15 window (v2.15.0): resolves inside the rollover now —
+    // report the winter's signings from the archived ledger, and fail
+    // loud if a rollover ever completes with the window still open.
+    const iwin = (state.intlHistory || [])[Math.max(0, (state.intlHistory || []).length - 1)];
+    if (iwin) {
+      console.log(`  Jan 15, ${iwin.year} intl window: signed ${(iwin.signings || []).length}/100`);
+    }
+    if (state.intl && state.intl.phase !== 'complete' && state.intl.year <= summary.year + 1) {
+      console.log(`✗ INTL WINDOW UNRESOLVED after ${summary.year} rollover (class ${state.intl.year}, phase ${state.intl.phase})`);
+      process.exit(1);
+    }
     trackYear();
     const faSigned = state.faMarket ? state.faMarket.entries.filter((e) => e.signedTeamId).length : 0;
     const faUnsigned = state.faMarket ? state.faMarket.entries.length - faSigned : 0;

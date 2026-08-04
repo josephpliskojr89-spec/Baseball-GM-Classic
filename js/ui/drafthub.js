@@ -181,7 +181,7 @@ window.BBGM_UI_DRAFT = (function () {
     }
 
     // Tabbed hub — Overview / Big Board / My Board for the draft class,
-    // Int'l for the July 2 signing pool (bible 14). Event hero cards sit
+    // Int'l for the January 15 signing pool (bible 14). Event hero cards sit
     // ABOVE the tabs so they're visible no matter which tab is open.
     if (isDraftDay) renderDraftDayCard(container, state);
     if (isIntlDay) renderIntlDayCard(container, state);
@@ -1014,7 +1014,7 @@ window.BBGM_UI_DRAFT = (function () {
   }
 
   // ---- International tab (bible 14) -----------------------------------------
-  // The July 2 signing pool lives beside the draft: same hub, same
+  // The January 15 signing pool lives beside the draft: same hub, same
   // scouting rhythms, different rules — a bonus pool instead of picks.
 
   let intlDepth = 30;
@@ -1028,7 +1028,7 @@ window.BBGM_UI_DRAFT = (function () {
     card.appendChild(U.el('div', { class: 'card-title' }, `International Signing Day — ${intl.year}`));
     card.appendChild(U.el('p', { style: { 'font-size': '13px', 'margin-bottom': '10px' } },
       `The window is open. Work your bonus pool against 29 rival clubs — ` +
-      `the season resumes when the window closes.`));
+      `the calendar resumes when the window closes.`));
     card.appendChild(U.el('button', {
       class: 'btn-primary', style: { width: '100%' },
       on: { click: () => {
@@ -1057,9 +1057,9 @@ window.BBGM_UI_DRAFT = (function () {
     const { b, committed, remaining } = intlBudgetLine(state);
     const card = U.el('div', { class: 'card' });
     card.appendChild(U.el('div', { class: 'card-title' }, `${intl.year} International Class`));
-    const daysOut = Math.max(0, D.diffDays(today, D.fromYMD(intl.year, 7, 2)));
+    const daysOut = Math.max(0, D.diffDays(today, D.fromYMD(intl.year, 1, 15)));
     card.appendChild(U.el('p', { style: { 'font-size': '13px', 'margin-bottom': '6px' } },
-      `~100 prospects sign starting July 2` +
+      `~100 prospects sign starting January 15` +
       (intl.phase === 'scouting' ? ` — ${daysOut} day${daysOut !== 1 ? 's' : ''} out.` : '.')));
     const over = remaining < 0;
     card.appendChild(U.el('p', {
@@ -1120,7 +1120,7 @@ window.BBGM_UI_DRAFT = (function () {
         `Winter focus: ${INTL.regionLabel(intl.userFocus)} — his reads there run sharper.`));
     } else if (intl.phase === 'scouting') {
       card.appendChild(U.el('p', { class: 'muted', style: { 'font-size': '12px', 'margin-top': '6px' } },
-        'No focus set — pick the region he works until July (one per class):'));
+        'No focus set — pick the region he works until signing day (one per class):'));
       const wrap = U.el('div', { class: 'filter-bar', style: { 'margin-top': '6px', 'flex-wrap': 'wrap', 'overflow-x': 'visible' } });
       for (const r of INTL.regionStrengths(intl)) {
         wrap.appendChild(U.el('button', {

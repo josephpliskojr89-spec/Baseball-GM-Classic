@@ -1167,7 +1167,7 @@ window.BBGM_UI_FRONTOFFICE = (function () {
       `${team.ownerPerson ? team.ownerPerson + ' — ' : ''}${team.ownerName} • ` +
       `${team.market === 'large' ? 'Large' : team.market === 'small' ? 'Small' : 'Mid'} market`));
     head.appendChild(U.el('p', { class: 'muted', style: { 'font-size': '11px', 'margin-top': '4px' } },
-      'Two ledgers: player payroll and the operating budget. The July 2 signing pool is its own money (Draft Hub).'));
+      'Two ledgers: player payroll and the operating budget. The January 15 signing pool is its own money (Draft Hub).'));
     container.appendChild(head);
 
     // ---- Player payroll ----

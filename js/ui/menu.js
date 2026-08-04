@@ -12,7 +12,7 @@ window.BBGM_UI_MENU = (function () {
     // Build constant is bumped with every release so the user can tell at a
     // glance which dashboard.js the browser actually loaded. Save version
     // is the save-schema version and changes only when the schema changes.
-    const BUILD = 'v2.14.0-livingwinter-1';
+    const BUILD = 'v2.15.0-january15-1';
     card.appendChild(U.el('div', { class: 'inset-list', style: { 'border': 'none' } }, [
       insetRow('Team', userTeam.name),
       insetRow('Date', window.BBGM_DATES.format(state.meta.currentDate)),
@@ -209,11 +209,11 @@ window.BBGM_UI_MENU = (function () {
     ]],
     ['The Money', [
       'Two ledgers, visible under GM → Finances. The payroll budget pays players, full stop. The operating budget pays the scouting department and your staff — a bigger scouting operation or a famous manager has to fit inside it.',
-      'International signing-pool money is its own pot, granted each year: it signs the July 2 class, and it pays for extra scouting trips on that class. Information competes with bidding power — every dollar spent learning about a kid is a dollar you can\'t offer him.',
+      'International signing-pool money is its own pot, granted each year: it signs the January 15 class, and it pays for extra scouting trips on that class. Information competes with bidding power — every dollar spent learning about a kid is a dollar you can\'t offer him.',
     ]],
     ['Draft & International', [
       'The amateur draft runs June 30. Every club keeps a thirty-man board — the names your scouts actually follow. The longer a kid sits on your board, the better your book on him gets, so early conviction is worth more than a late scramble; drop a name and the book goes cold. A projection on a teenager still carries the widest error bars in the sport, and high-school picks are the boom-or-bust end.',
-      'The international class signs July 2. It skews younger (16-17), rawer, and riskier than the draft: budgets are limited, the offer ladder decides contested kids, and the top of the class is fought over while the deep pool is a lottery. Your scout\'s winter focus region sharpens his reads there.',
+      'The international class signs January 15 — the winter\'s marquee date, mid-free-agency. It skews younger (16-17), rawer, and riskier than the draft: budgets are limited, the offer ladder decides contested kids, and the top of the class is fought over while the deep pool is a lottery. Your scout\'s winter focus region sharpens his reads there.',
     ]],
     ['Your Staff', [
       'A manager (his tendencies shape the on-field game — he\'ll write you his plan each spring), two coaches (they speed development on their side of the ball, and pitch personal projects), and a head scout. All hired from open markets, all paid from the operating budget, all with reputations that matter. They write letters; most letters carry a one-tap decision.',

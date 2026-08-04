@@ -341,11 +341,11 @@ Regenerated each offseason. Plausible-not-perfect is the goal.
 - **Mid November:** Retirements, free agency begins, manager/coach hiring opens
 - **Dec – Jan:** FA period, trade activity
 - **February:** Pitchers and catchers report (flavor)
+- **January 15:** International signing day (v2.15.0 — mid-free-agency, the winter's tentpole)
 - **Mid-March:** Spring training concludes
 - **Late March/Early April:** Opening Day
 - **Mid-July:** All-Star Game
 - **June 30:** Amateur Draft
-- **July 2:** International signing window opens
 - **End of July:** Trade deadline
 - **September 1:** Roster expansion (26 → 28)
 - **Late September:** Regular season ends
@@ -854,7 +854,7 @@ Players enter the world through several generation paths, each with different pa
 
 1. **Initial league population** at game start (March 2026)
 2. **Annual amateur draft** (every June 30)
-3. **Annual international signing pool** (every July 2)
+3. **Annual international signing pool** (every January 15, v2.15.0 — was July 2)
 4. **Special international events** (Japanese postings, Cuban defectors, Korean declarations)
 5. **Replacement-level fill** (rare; minor-league filler)
 
@@ -983,7 +983,7 @@ The asymmetry is the point. An elite-scouting team enters the draft with informa
 Pre-draft mock drafts are generated based on consensus rankings with appropriate noise. The user sees public mock drafts that are accurate ~60-70% of the time on top picks, less accurate further down. These exist regardless of user's scouting tier (they're industry-wide reports).
 Replaces Section 6.7 — International Pool Generation
 6.7 International Pool Generation (Annual)
-Every July 2, a new international signing class enters the pool. ~100 prospects per year.
+Every January 15 (v2.15.0 — was July 2), a new international signing class signs. ~100 prospects per year; the class posts at the START of the prior season for a season-long scouting runway.
 Origin distribution:
 Dominican Republic: 35%
 Venezuela: 20%
@@ -1160,7 +1160,7 @@ Most teams avoid going over significantly. The penalties are designed to be puni
 
 ### 6.10.5 Pool Updates
 
-Pools are recalculated and assigned each year on November 1 based on the just-completed season's standings. The user is notified of their pool size at that time, well before the July 2 signing window opens. This gives the user time to plan their offseason knowing what pool they'll have.
+Pools are recalculated and assigned when the class posts — since v2.15.0 that is the start of the season preceding its January 15 window (based on the prior season's standings). The user sees their pool the day the board goes up, giving a full season plus the early offseason to plan.
 
 ## 7. Simulation Engine
 
@@ -2448,7 +2448,7 @@ The system handles this semi-automatically by cutting the lowest-rated, oldest m
 
 ### 13.1 Draft Timing
 
-The amateur draft runs annually on **June 30**. This timing is fixed (after college season ends, before international signing window opens July 2). The draft event surfaces in the user's offseason calendar and pauses normal sim flow.
+The amateur draft runs annually on **June 30**. This timing is fixed (after the college season ends). The draft event surfaces in the user's offseason calendar and pauses normal sim flow.
 
 ### 13.2 Draft Order
 
@@ -2563,13 +2563,11 @@ Recap screen: post-draft summary of user's class with notes
 
 ### 14.1 Annual Cycle
 
-The international signing window opens **July 2** each year and runs through approximately the end of the following June (when the next class enters). However, the vast majority of signings happen in the first 2-3 weeks of the window. This sim simplifies the process to a single concentrated event.
-
-Pool budgets are set on November 1 of the prior year (based on previous season standings — see 6.10). This gives the user 8 months to plan before signings open.
+The international signing window opens **January 15** each year (v2.15.0, owner's call — "mirror real life... something to look forward to"), landing mid-free-agency as the winter's tentpole. The vast majority of signings happen in the first 2-3 weeks of the real window; this sim concentrates it into a single event that halts the offseason calendar until worked (or auto-run). The class and pool budgets post at the START of the preceding season (~9.5-month runway; budgets per 6.10 from that prior season's standings). The Sim-to-Next-Event fast-forward always stops for signing day, and a season can never open on an unworked window (the rollover resolves it as a backstop).
 
 ### 14.2 Pre-Window Scouting Phase
 
-From November through July 1, the user can review the international pool:
+From the class posting (season start) through January 14, the user can review the international pool:
 
 - **Top 30 prospects** get visible scouting reports (depth based on team scouting tier)
 - **Bottom 70 prospects** are listed with minimal info
@@ -2580,7 +2578,7 @@ The user can build a target list and rough budget allocation plan before the win
 
 ### 14.3 Signing Window Execution
 
-When the window opens July 2, the user enters the signing phase:
+When the window opens January 15, the user enters the signing phase:
 
 **Phase 1: Top-tier signings (first week)**
 The most coveted prospects sign quickly with teams that have the budget and interest. The user can bid on top prospects against AI competition.
@@ -3232,7 +3230,7 @@ This phase typically resolves within 1-2 in-game weeks but can stretch to early 
 
 ### 18.6 Phase 5: International Pool Assignment (November 1)
 
-Each team's international bonus pool for the upcoming year is announced (calculation per 6.10). User sees their pool size displayed. This drives planning for the international signing window opening July 2.
+Superseded by v2.15.0: the pool is announced with the class posting at season start (see 6.10.5 / 14.1). By November the user has been planning for months; the winter phase list now points at January 15 as the signing date.
 
 ### 18.7 Phase 6: Arbitration and Tendering (December)
 
@@ -5648,6 +5646,33 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > letter. e2e grew 3 checks — 144 clean, battery 47/47. NEXT in
 > this program (owner-approved): the January 15 international
 > signing day — the winter's tentpole, mirroring the real calendar.
+
+> **Status note (v2.15.0):** SHIPPED — January 15 international
+> signing day (owner: "it would mirror real life and be something to
+> look forward to"). The window moves off July 2 and into the winter,
+> landing mid-free-agency as the offseason's tentpole. New cycle: the
+> class + pool budgets post at season START for the NEXT January
+> (ensureClass is now the primary generation point, ~9.5-month
+> scouting runway; the rollover only generates as a fallback and never
+> clobbers a scouted class). windowPending is "on or after Jan 15
+> until worked" — the honest predicate for a calendar that moves in
+> 12-day FA hops, and it doubles as the heal for any save that skips
+> the window. The FA fast-forward and One Period both halt at signing
+> day with the modal; Part B auto-runs the window so a season never
+> opens on an unworked class. Birthday pin rewritten for the January
+> shadow (Jan 16 ≤ birthday ≤ today; same-month pins stop AT today —
+> the July code's Math.max floor would have pinned future birthdays).
+> Migration 2.15.0: a July-era mid-season class re-tags to the coming
+> January (looks/offers/focus survive), pool birthdays re-pin, League
+> Office letter explains the move; an offseason save whose Jan 15
+> already passed just fires the window on the next advance. Copy swept
+> (news, inbox, modal, hub countdown now counts to Jan 15, guide,
+> dashboard). New intlcal suite (27 checks: signingYearFor edges,
+> pending predicate, no-clobber, pin invariants from four awkward
+> migration dates, headless resolution); battery 48/48, e2e grew to
+> 147 (class posts for NEXT January, overdue-heal halt, FA-market
+> halt at the January window), 6-season soak: exactly one window per
+> winter, 6 archived, zero unresolved.
 
 ### 20.2 Global Navigation
 

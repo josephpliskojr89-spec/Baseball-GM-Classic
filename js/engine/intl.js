@@ -1,12 +1,14 @@
 // International signings (bible 14 / Phase 12).
 //
-// Annual cycle (14.1): pool budgets and the ~100-prospect class are set at
-// the season rollover (bible's November 1), giving the user the whole
-// offseason and first half of the season to scout. The signing window
-// opens July 2 — two days after the draft — and the sim halts there until
-// the window is worked (or auto-run). Season 1 has no prior rollover, so
-// the class generates lazily on opening day with budgets from a flat
-// baseline.
+// Annual cycle (14.1, v2.15.0 — owner: "a January 15 international signing
+// day would help a lot... it would mirror real life and be something to
+// look forward to"): the next winter's class and pool budgets post at the
+// START of the season (the daily ensureClass hook), giving the user the
+// whole season plus the early offseason to scout. The signing window opens
+// January 15 — the winter's tentpole, landing mid-free-agency — and the
+// calendar halts there until the window is worked (or auto-run). The
+// rollover only generates as a fallback for saves that missed the
+// in-season post.
 //
 // Pool budgets (6.10): reverse previous-season standings tiers
 // ($9.0M worst 5 … $4.0M best 5), small-market +$0.5M / large -$0.5M,
@@ -114,13 +116,13 @@ window.BBGM_INTL = (function () {
     p.name = `${drawn.first} ${drawn.last}`;
   }
 
-  // July 2 signings are TEENAGERS (0.41.0): predominantly 16-17, a few
+  // Signing-day kids are TEENAGERS (0.41.0): predominantly 16-17, a few
   // late-blooming 18s, never older. A 19+ arrival takes a different
   // road to the majors — NPB postings, KBO free agency, defections —
   // which is exactly what rollOffseasonEvents models.
   function rollAge() {
     // §23.17 (v2.2.0, owner report: "entirely too many 18 year olds"):
-    // the real July 2 market is overwhelmingly sixteen — the 17s are
+    // the real international market is overwhelmingly sixteen — the 17s are
     // late bloomers the market re-found, the 18s are rare (defector
     // arcs, visa messes), and both are priced as what they are.
     const r = rand();
@@ -130,11 +132,12 @@ window.BBGM_INTL = (function () {
   }
 
   // §23.17: the age on the board is the age at the signing table. A
-  // birthday landing between class generation and July 2 silently
+  // birthday landing between class generation and January 15 silently
   // bumped kids +1 before the window — the board's "16" signed at 17,
   // and a rolled 18 could sign at NINETEEN. Pin the birthday into the
-  // window's shadow (after July 2, on or before "today" when today is
-  // already past it) so the next birthday always falls AFTER signing.
+  // window's shadow (after Jan 15, on or before "today" when today is
+  // already past that anniversary) so the next birthday always falls
+  // AFTER signing.
   function pinBirthdatePostWindow(p, today, windowYear) {
     const bumpsPre = (() => {
       const notYet = p.birthMonth > today.month ||
@@ -142,15 +145,18 @@ window.BBGM_INTL = (function () {
       const nextY = notYet ? today.year : today.year + 1;
       if (nextY < windowYear) return true;
       if (nextY > windowYear) return false;
-      return p.birthMonth < 7 || (p.birthMonth === 7 && p.birthDay <= 2);
+      return p.birthMonth === 1 && p.birthDay <= 15;
     })();
     if (!bumpsPre) return;
-    const pastWindow = today.month > 7 || (today.month === 7 && today.day > 2);
+    const pastWindow = today.month > 1 || (today.month === 1 && today.day > 15);
     const lastMonth = pastWindow ? today.month : 12;
-    const m = 7 + Math.floor(rand() * (lastMonth - 7 + 1));
+    const m = 1 + Math.floor(rand() * lastMonth);
     let dMax = 28;
-    if (pastWindow && m === today.month) dMax = Math.max(3, today.day);
-    const dMin = m === 7 ? 3 : 1;
+    // Same-month pins stop at today — a pin even a day into the future
+    // is a birthday BEFORE next January's window. (For m === 1,
+    // pastWindow guarantees today.day > 15, so dMax >= dMin holds.)
+    if (pastWindow && m === today.month) dMax = today.day;
+    const dMin = m === 1 ? 16 : 1;
     const d = dMin + Math.floor(rand() * (Math.max(1, dMax - dMin) + 1));
     p.birthMonth = m;
     p.birthDay = Math.min(d, dMax);
@@ -221,7 +227,7 @@ window.BBGM_INTL = (function () {
     p.age = age;
     // Birthday-consistent (0.66.2): pinned to his class-day age.
     window.BBGM_PROGRESSION.alignBirthdate(p, state.meta.currentDate);
-    // §23.17: and pinned past July 2 — board age IS signing age.
+    // §23.17: and pinned past January 15 — board age IS signing age.
     pinBirthdatePostWindow(p, state.meta.currentDate, year);
     p.teamId = null;
     p.contract = null;
@@ -527,19 +533,32 @@ window.BBGM_INTL = (function () {
     return { ok: true, cost };
   }
 
-  // Daily hook: make sure the current year's class exists (season 1 has no
-  // prior rollover to have generated it).
-  function ensureClass(state, today) {
-    if (today.month > 7 || (today.month === 7 && today.day >= 2)) return null;
-    if (state.intl && state.intl.year === today.year) return null;
-    return generateClass(state, today.year);
+  // Which January 15 the calendar is marching toward: this year's (Jan
+  // 1-15) or next year's (any later date).
+  function signingYearFor(today) {
+    return (today.month > 1 || today.day > 15) ? today.year + 1 : today.year;
   }
 
+  // Daily hook — the PRIMARY generation point since v2.15.0: once last
+  // winter's window is done, the next January's class posts on the next
+  // simmed day (in practice the first day of the new season, or day one
+  // of a brand-new save), giving a season-long scouting runway. Never
+  // clobbers a class whose window hasn't run.
+  function ensureClass(state, today) {
+    const target = signingYearFor(today);
+    if (state.intl && (state.intl.year >= target || state.intl.phase !== 'complete')) return null;
+    return generateClass(state, target);
+  }
+
+  // The window is due from January 15 until it's worked. No upper date
+  // bound: the offseason calendar moves in 12-day free-agency hops (and
+  // Part B jumps straight to spring), so an exact-day match would sail
+  // past signing day — "on or after" is the only honest predicate, and
+  // it doubles as the heal for any save that skipped the window.
   function windowPending(state, today) {
-    return !!(state.intl &&
-      state.intl.year === today.year &&
-      state.intl.phase !== 'complete' &&
-      today.month === 7 && today.day >= 2);
+    if (!state.intl || state.intl.phase === 'complete') return false;
+    if (today.year !== state.intl.year) return today.year > state.intl.year;
+    return today.month > 1 || (today.month === 1 && today.day >= 15);
   }
 
   function openWindow(state) {
@@ -1049,9 +1068,28 @@ window.BBGM_INTL = (function () {
     return cands[Math.floor(rand() * cands.length)];
   }
 
+  // Migration aid (v2.15.0, July 2 → January 15): re-pin an existing
+  // class's birthdays into the January window's shadow. Signed kids left
+  // alone — only the open pool re-pins.
+  function repinClassBirthdates(state, today) {
+    const intl = state.intl;
+    if (!intl || !intl.prospects) return 0;
+    const signed = new Set((intl.signings || []).map((s) => s.prospectId));
+    let n = 0;
+    for (const id in intl.prospects) {
+      if (signed.has(id)) continue;
+      const p = intl.prospects[id];
+      const before = `${p.birthYear}-${p.birthMonth}-${p.birthDay}`;
+      pinBirthdatePostWindow(p, today, intl.year);
+      if (`${p.birthYear}-${p.birthMonth}-${p.birthDay}` !== before) n++;
+    }
+    return n;
+  }
+
   return {
     CLASS_SIZE,
     generateClass, ensureClass, windowPending, rankBoard,
+    signingYearFor, repinClassBirthdates,
     openWindow, advanceWindow, userSign, autoRunWindow, closeWindow,
     unsignedBoard, remainingFor, computeBudgets,
     rollOffseasonEvents,

@@ -138,12 +138,12 @@ window.BBGM_UI_DASHBOARD = (function () {
   function renderDraftCallout(state) {
     const DRAFT = window.BBGM_DRAFT;
     const today = state.meta.currentDate;
-    // International signing day outranks everything (July 2 sim halt).
+    // International signing day outranks everything (Jan 15 calendar halt).
     if (window.BBGM_INTL.windowPending(state, today)) {
       const card = U.el('div', { class: 'card' });
       card.appendChild(U.el('div', { class: 'card-title' }, `🌎 International Signing Day — ${today.year}`));
       card.appendChild(U.el('p', { style: { 'font-size': '13px', 'margin-bottom': '8px' } },
-        'The July 2 window is open. The season resumes once it closes.'));
+        'The January 15 window is open. The calendar resumes once it closes.'));
       card.appendChild(U.el('button', {
         class: 'btn-primary btn-sm', style: { width: '100%' },
         on: { click: () => window.BBGM_MAIN.navigate('draft', { tab: 'intl' }) },
