@@ -125,6 +125,7 @@ window.BBGM_ROSTER = (function () {
     const pitCount = roster.length - hitCount;
     const byOverall = (a, b) => overall(a) - overall(b);
     const eligible = roster.filter((q) => !excludeIds.includes(q.id) && q.id !== team.closer &&
+        !q.rule5 &&  // Rule 5 picks can't be trimmed to the farm (§26)
         !(q.primaryPosition === 'C' && cCount <= 2) &&
         !(q.primaryPosition === 'SP' && spCount <= 5) &&
         !(!q.isPitcher && hitCount <= 12) &&
@@ -620,6 +621,12 @@ window.BBGM_ROSTER = (function () {
   // sometimes swallow their pride and take the uniform anyway (~40%),
   // deterministic per (player, year) so a reload can't change his mind.
   function acceptsMinors(p, year) {
+    // Rule 5 (v2.17.0, §26): a pick can't be optioned down, period —
+    // the doors say no before the veteran-consent rules even look.
+    // Flags clear at the rollover, so presence means the obligation is
+    // live. (The user's send-down flow shows the offer-back modal
+    // instead of the vet-refusal copy — team.js branches first.)
+    if (p.rule5) return false;
     if (((p.serviceTime && p.serviceTime.years) || 0) < 5) return true;
     if (overall(p) >= 48) return false;
     let h = (year || 0) >>> 0;
@@ -802,6 +809,11 @@ window.BBGM_ROSTER = (function () {
     for (const team of state.league.teams) {
       if (weekly) {
         const isUser = team.id === userId;
+        // Rule 5 conscience + self-heal (v2.17.0, §26): shared here so
+        // the harness and the app enforce the stick rule identically.
+        if (window.BBGM_RULE5) {
+          events.push(...window.BBGM_RULE5.aiStickTick(state, team, today));
+        }
         // Composition triage first (0.75.2) — AI clubs only; the user's
         // roster is the user's to shape, and the engine-side floors
         // already stop drift on every path the user doesn't drive.

@@ -834,6 +834,13 @@ window.BBGM_OFFSEASON = (function () {
       summary.traitReveals = { october: octoberOuted, clubhouse };
     }
 
+    // 6.4c. Rule 5 graduations (v2.17.0, §26): the season is over —
+    // every pick who stuck the whole year is his club's player now,
+    // free and clear. main.js letters the user about his own gains
+    // and his old farmhands who made it elsewhere.
+    summary.rule5Survivors = window.BBGM_RULE5
+      ? window.BBGM_RULE5.clearFlags(state, year) : [];
+
     // 6.5. International (bible 14): special-event players (NPB postings,
     // Cuban defectors, KBO declarations) join the FA pool as headline
     // names BEFORE the market is built. Since v2.15.0 the January 15
@@ -895,6 +902,16 @@ window.BBGM_OFFSEASON = (function () {
     const INTL = window.BBGM_INTL;
     if (state.intl && state.intl.phase !== 'complete' && state.intl.year <= year + 1) {
       INTL.autoRunWindow(state);
+    }
+    // Rule 5 backstop (v2.17.0, §26): same contract as the signing
+    // window — the December tentpole ALWAYS happens, even for a user
+    // who jumps to spring from a November date. Checked on the winter's
+    // ledger, not the calendar: an unrun draft runs here, headless.
+    if (window.BBGM_RULE5) {
+      const wy = window.BBGM_RULE5.winterYearFor(state.meta.currentDate);
+      if (!(state.rule5History || []).some((h) => h.year === wy)) {
+        window.BBGM_RULE5.runDraft(state, { auto: true });
+      }
     }
     // Unsigned FAs stay in state.freeAgents for mid-season deals (16.8/16.9).
     state.meta.offseasonPhase = null;
@@ -1134,6 +1151,15 @@ window.BBGM_OFFSEASON = (function () {
           playerPos: pr.player.primaryPosition, playerAge: pr.player.age,
           attrs: pr.attrs,
         })) : [];
+    }
+
+    // Rule 5 spring compliance (v2.17.0, §26): the rebuilds above have
+    // no memory of December — any pick they bumped to the farm is
+    // resolved here: AI clubs' bumped picks go home (the March return),
+    // the user's pick is re-promoted. Runs BEFORE the readiness check
+    // so the validated rosters are the compliant ones.
+    if (window.BBGM_RULE5) {
+      summary.rule5Spring = window.BBGM_RULE5.springCompliance(state);
     }
 
     // Fail loud if any org came out of the offseason unplayable.

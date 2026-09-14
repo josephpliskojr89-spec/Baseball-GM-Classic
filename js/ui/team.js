@@ -356,6 +356,28 @@ window.BBGM_UI_TEAM = (function () {
   function confirmSendDown(state, team, p) {
     const players = state.players;
     const R = window.BBGM_ROSTER;
+    // Rule 5 (v2.17.0, §26): a pick can't be optioned — off the 26-man
+    // means BACK to his old club for $50K. The choice is spelled out.
+    if (p.rule5) {
+      const home = state.league.teams.find((t) => t.id === p.rule5.fromTeamId);
+      U.showModal({
+        title: `${p.name} is a Rule 5 pick`,
+        body: `He can't be sent to the minors — the rule is the 26-man all season or back ` +
+              `he goes. Taking him off the roster returns him to the ` +
+              `${home ? home.abbr : 'club you drafted him from'} for $50K, and you lose him.`,
+        actions: [
+          { label: 'Keep Him', kind: 'secondary', onClick: () => true },
+          { label: `Return Him to ${home ? home.abbr : 'His Club'}`, kind: 'danger', onClick: () => {
+            window.BBGM_RULE5.returnPick(state, p);
+            window.BBGM_STATE.set(state);
+            render(document.getElementById('mainView'), state);
+            U.showToast(`${p.name} returned — the $50K stings less than the roster spot.`, 'info');
+            return true;
+          }},
+        ],
+      });
+      return;
+    }
     // Veteran consent (0.72.0): 5+ years of service buy the right to
     // refuse the assignment. Your remaining moves are his terms: keep
     // him, or designate him for assignment and let the wire sort it out.
@@ -463,6 +485,12 @@ window.BBGM_UI_TEAM = (function () {
   // fromMinors: releasing a farmhand needs no legality math beyond the
   // org position coverage; a 26-man release also cleans team configs.
   function confirmRelease(state, team, p, fromMinors) {
+    // Rule 5 (v2.17.0, §26): no waiving a pick either — off the roster
+    // means offered back. Route to the same return flow send-down uses.
+    if (p.rule5) {
+      confirmSendDown(state, team, p);
+      return;
+    }
     if (!fromMinors) {
       const blocker = releaseBlocker(state, team, p);
       if (blocker) {

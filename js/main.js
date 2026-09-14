@@ -1627,6 +1627,13 @@ window.BBGM_MAIN = (function () {
         setTimeout(() => navigate(m.action.tab, m.action.opts || {}), 0);
         return true;
       }});
+    } else if (m.action && m.action.type === 'rule5protect') {
+      // The Farm Director's exposure letter (v2.17.0, §26) opens the
+      // protection modal directly — the three-shield decision.
+      actions.push({ label: 'Set the Protection List', kind: 'primary', onClick: () => {
+        setTimeout(() => openRule5Protection(window.BBGM_STATE.get()), 0);
+        return true;
+      }});
     } else if (m.action && m.action.type === 'viewPlayer') {
       // Open a player card straight from a letter (0.60.0 scout
       // re-grades). Guarded — the player may have left the game.
@@ -2000,6 +2007,188 @@ window.BBGM_MAIN = (function () {
     simDays(1);
   }
 
+  // ---- The Rule 5 draft room (v2.17.0, §26) --------------------------------
+  // One modal, the whole event: the board (best available, with the
+  // club each name comes from), your slot in the reverse-standings
+  // order, and the obligation spelled out. Tap a name to draft him;
+  // Pass runs the round without you. Either way the draft resolves in
+  // one stroke and the recap tells you what December did to you.
+  function showRule5Modal(state) {
+    const R5 = window.BBGM_RULE5;
+    const R = window.BBGM_ROSTER;
+    const board = R5.draftBoard(state);
+    const body = U.el('div');
+    body.appendChild(U.el('p', { style: { 'font-size': '13px', 'margin-bottom': '8px' } },
+      `Reverse standings — you select #${board.userSlot} of 30. A pick costs the $100K fee ` +
+      `and must spend the ENTIRE season on your 26-man roster (IL time counts), or be ` +
+      `offered back to his old club for $50K.`));
+    if (!board.pool.length) {
+      body.appendChild(U.el('p', { class: 'muted', style: { 'font-size': '12px' } },
+        'Thin year — no unprotected name on the board is worth a roster spot.'));
+    }
+    const list = U.el('div', { class: 'roster-list',
+      style: { 'max-height': '45vh', 'overflow-y': 'auto' } });
+    for (const entry of board.pool) {
+      const p = state.players[entry.playerId];
+      const from = state.league.teams.find((t) => t.id === entry.fromTeamId);
+      const row = U.el('button', { class: 'roster-row', style: { width: '100%', 'text-align': 'left' },
+        on: { click: () => {
+          U.showModal({
+            title: `Draft ${p.name}?`,
+            body: `${p.primaryPosition}, ${p.age}, from the ${from ? from.abbr : '?'} farm — ` +
+                  `$100K fee. He joins your 26-man TODAY and stays there all season, ` +
+                  `or goes back for $50K. No optioning him down.`,
+            actions: [
+              { label: 'Back to the Board', kind: 'secondary', onClick: () => {
+                setTimeout(() => showRule5Modal(state), 0);
+                return true;
+              }},
+              { label: 'Make the Pick', kind: 'primary', onClick: () => {
+                setTimeout(() => resolveRule5(state, p.id), 0);
+                return true;
+              }},
+            ],
+          });
+        }},
+      });
+      const info = U.el('div', { style: { flex: '1', 'min-width': 0 } });
+      info.appendChild(U.el('div', { class: 'player-row-name' }, p.name));
+      info.appendChild(U.el('div', { class: 'player-row-meta' },
+        `${p.primaryPosition} • ${p.age} • ${U.gradeFor(Math.round(R.overall(p)))} now • ${from ? from.abbr : '?'} farm`));
+      row.appendChild(info);
+      list.appendChild(row);
+    }
+    body.appendChild(list);
+    U.showModal({
+      title: `Rule 5 Draft — December ${board.year}`,
+      body,
+      actions: [
+        { label: 'Not Yet', kind: 'secondary', onClick: () => true },
+        { label: 'Pass — Run the Draft', kind: 'primary', onClick: () => {
+          setTimeout(() => resolveRule5(state, null), 0);
+          return true;
+        }},
+      ],
+    });
+  }
+
+  function resolveRule5(state, userChoice) {
+    const res = window.BBGM_RULE5.runDraft(state, { userChoice });
+    // Letters: what December took, and what it handed you.
+    if (res.userLost.length) {
+      const lines = res.userLost.map((k) => `${k.name} (${k.pos}, ${k.age}) → ${k.teamAbbr}`);
+      window.BBGM_INBOX.push(state, {
+        from: 'Farm Director',
+        subject: `Rule 5: they took ${res.userLost.length} of ours`,
+        body: `The December bill for a crowded reserve list: ${lines.join('. ')}. ` +
+              `Cold comfort, but real: each one must hold their 26-man ALL season ` +
+              `or he comes back to us for $50K. I'll be watching their box scores.`,
+        action: { type: 'navigate', tab: 'team' },
+      });
+    }
+    if (res.userResult && res.userResult.kind === 'picked') {
+      const k = res.userResult.pick;
+      window.BBGM_INBOX.push(state, {
+        from: 'Farm Director',
+        subject: `Rule 5: ${k.name} is on the 26-man — and stays there`,
+        body: `We took ${k.name} (${k.pos}, ${k.age}) off the ${k.fromAbbr} farm. The rule is ` +
+              `the rule: he spends the whole season on our active roster or goes back for ` +
+              `half the fee. No options, no stashing him in AAA. Carry him with intent.`,
+        about: k.playerId,
+        action: { type: 'viewPlayer', playerId: k.playerId },
+      });
+    }
+    window.BBGM_STATE.set(state);
+    refresh();
+    // The recap.
+    const body = U.el('div');
+    const ur = res.userResult || { kind: 'passed' };
+    body.appendChild(U.el('p', { style: { 'font-size': '13px', 'font-weight': '600', 'margin-bottom': '8px' } },
+      ur.kind === 'picked' ? `Your pick: ${ur.pick.name} (${ur.pick.pos}) from the ${ur.pick.fromAbbr} farm.` :
+      ur.kind === 'sniped' ? `Sniped — ${ur.name} was gone before your slot came up.` :
+      'You passed.'));
+    if (res.userLost.length) {
+      body.appendChild(U.el('p', { style: { 'font-size': '13px', 'margin-bottom': '8px', color: 'var(--danger, #f85149)' } },
+        `From your farm: ${res.userLost.map((k) => `${k.name} → ${k.teamAbbr}`).join(', ')}.`));
+    }
+    body.appendChild(U.el('p', { class: 'muted', style: { 'font-size': '12px', 'margin-bottom': '6px' } },
+      `${res.picks.length} selection${res.picks.length === 1 ? '' : 's'} league-wide:`));
+    for (const k of res.picks) {
+      body.appendChild(U.el('div', { style: { 'font-size': '12px', padding: '2px 0' } },
+        `${k.teamAbbr} — ${k.name} (${k.pos}, ${k.age}) from ${k.fromAbbr}`));
+    }
+    U.showModal({
+      title: 'Rule 5 Draft — Complete',
+      body,
+      actions: [{ label: 'Back to the Winter', kind: 'primary', onClick: () => true }],
+    });
+  }
+
+  // The protection modal (§26): the Farm Director can squeeze three
+  // extra names onto the reserve list — the user's one November lever.
+  function openRule5Protection(state) {
+    const R5 = window.BBGM_RULE5;
+    const team = state.league.teams.find((t) => t.id === state.meta.userTeamId);
+    const wy = R5.winterYearFor(state.meta.currentDate);
+    if (!state.rule5Shield || state.rule5Shield.year !== wy) {
+      state.rule5Shield = { year: wy, ids: [] };
+    }
+    const shield = state.rule5Shield;
+    // Show the CURRENTLY exposed list plus anyone already shielded (so
+    // un-shielding is possible without the name vanishing from the menu).
+    const R = window.BBGM_ROSTER;
+    const menu = R5.exposedFor(state, team)
+      .concat((shield.ids || []).map((id) => state.players[id]).filter(Boolean))
+      .filter((p, i, a) => a.findIndex((q) => q.id === p.id) === i);
+    const body = U.el('div');
+    body.appendChild(U.el('p', { style: { 'font-size': '13px', 'margin-bottom': '8px' } },
+      'Exposed to December\'s Rule 5 draft. Shield up to THREE — everyone else rides on ' +
+      'the hope that no rival thinks he can stick on a 26-man all year.'));
+    const count = U.el('p', { style: { 'font-size': '12px', 'font-weight': '700', 'margin-bottom': '6px' } });
+    const setCount = () => { count.textContent = `Shielded: ${shield.ids.length} of 3`; };
+    setCount();
+    body.appendChild(count);
+    const list = U.el('div', { class: 'roster-list', style: { 'max-height': '45vh', 'overflow-y': 'auto' } });
+    for (const p of menu) {
+      const mark = U.el('span', { class: 'value', style: { 'font-weight': '700', 'margin-left': '10px', 'white-space': 'nowrap' } });
+      const paint = () => {
+        const on = shield.ids.includes(p.id);
+        mark.textContent = on ? 'SHIELDED ●' : 'exposed ○';
+        mark.style.color = on ? 'var(--success, #3fb950)' : 'var(--muted, #8b949e)';
+      };
+      paint();
+      const row = U.el('button', { class: 'roster-row', style: { width: '100%', 'text-align': 'left' },
+        on: { click: () => {
+          const i = shield.ids.indexOf(p.id);
+          if (i >= 0) shield.ids.splice(i, 1);
+          else if (shield.ids.length < 3) shield.ids.push(p.id);
+          else { U.showToast('Three is the limit — un-shield someone first.', 'warning'); return; }
+          paint();
+          setCount();
+        }},
+      });
+      const info = U.el('div', { style: { flex: '1', 'min-width': 0 } });
+      info.appendChild(U.el('div', { class: 'player-row-name' }, p.name));
+      info.appendChild(U.el('div', { class: 'player-row-meta' },
+        `${p.primaryPosition} • ${p.age} • ${U.gradeFor(Math.round(R.overall(p)))} now`));
+      row.appendChild(info);
+      row.appendChild(mark);
+      list.appendChild(row);
+    }
+    body.appendChild(list);
+    U.showModal({
+      title: 'Rule 5 Protection',
+      body,
+      actions: [{ label: 'Done', kind: 'primary', onClick: () => {
+        window.BBGM_STATE.set(state);
+        U.showToast(shield.ids.length
+          ? `${shield.ids.length} name${shield.ids.length === 1 ? '' : 's'} shielded from the December draft.`
+          : 'Nobody shielded — the list rides as-is.', 'info');
+        return true;
+      }}],
+    });
+  }
+
   function showIntlWindowModal(state) {
     const year = state.meta.currentDate.year;
     U.showModal({
@@ -2191,6 +2380,13 @@ window.BBGM_MAIN = (function () {
   function advanceFAPeriod() {
     const state = window.BBGM_STATE.get();
     if (!state || state.meta.offseasonPhase !== 'freeAgency') return;
+    // December 10 (v2.17.0): the Rule 5 draft halts the market first —
+    // it comes before January on the calendar, and the same overdue
+    // heal applies if a save somehow skipped it.
+    if (window.BBGM_RULE5.pending(state, state.meta.currentDate)) {
+      showRule5Modal(state);
+      return;
+    }
     // January 15 (v2.15.0): the market doesn't move past an unworked
     // signing window — same halt the July draft-day sim used to enforce.
     if (window.BBGM_INTL.windowPending(state, state.meta.currentDate)) {
@@ -2218,8 +2414,12 @@ window.BBGM_MAIN = (function () {
     } else {
       U.showToast(`FA period ${result.round}/${state.faMarket.totalRounds} — ${result.signings.length} players signed league-wide.`, 'info');
     }
-    // The round just crossed January 15: signing day arrives before the
-    // market's wind-down moment.
+    // The round just crossed a tentpole: Rule 5 day (Dec 10) or signing
+    // day (Jan 15) arrives before the market's wind-down moment.
+    if (window.BBGM_RULE5.pending(state, state.meta.currentDate)) {
+      showRule5Modal(state);
+      return;
+    }
     if (window.BBGM_INTL.windowPending(state, state.meta.currentDate)) {
       showIntlWindowModal(state);
       return;
@@ -2279,6 +2479,10 @@ window.BBGM_MAIN = (function () {
   function advanceFAToEvent() {
     const state = window.BBGM_STATE.get();
     if (!state || state.meta.offseasonPhase !== 'freeAgency') return;
+    if (window.BBGM_RULE5.pending(state, state.meta.currentDate)) {
+      showRule5Modal(state);
+      return;
+    }
     if (window.BBGM_INTL.windowPending(state, state.meta.currentDate)) {
       showIntlWindowModal(state);
       return;
@@ -2309,8 +2513,12 @@ window.BBGM_MAIN = (function () {
           break;
         }
         if ((state.pendingDecisions || []).length) { stop = { kind: 'decision' }; break; }
-        // January 15 (v2.15.0): signing day is THE event of the winter —
-        // the fast-forward always stops for it.
+        // The tentpoles (v2.15.0/v2.17.0): Rule 5 day and signing day
+        // are THE events of the winter — the fast-forward always stops.
+        if (window.BBGM_RULE5.pending(state, state.meta.currentDate)) {
+          stop = { kind: 'rule5' };
+          break;
+        }
         if (window.BBGM_INTL.windowPending(state, state.meta.currentDate)) {
           stop = { kind: 'intl' };
           break;
@@ -2352,6 +2560,7 @@ window.BBGM_MAIN = (function () {
     else if (stop.kind === 'outbid') U.showToast(`Outbid — ${stop.name} signed with ${stop.teamAbbr}.`, 'warning', 6000);
     else if (stop.kind === 'star') U.showToast(`Big name off the board: ${stop.name} → ${stop.teamAbbr}.`, 'info', 6000);
     else if (stop.kind === 'decision') showPendingDecisions(state);
+    else if (stop.kind === 'rule5') { showRule5Modal(state); return; }
     else if (stop.kind === 'intl') { showIntlWindowModal(state); return; }
     if (result && result.done) marketWindDown(state);
   }
@@ -2954,6 +3163,51 @@ window.BBGM_MAIN = (function () {
       }
     }
 
+    // Rule 5 exposure (v2.17.0, §26): the Farm Director flags who the
+    // December draft can take, and offers the three-shield lever. Fires
+    // at rollover so there's a month of winter to think about it.
+    if (window.BBGM_RULE5) {
+      const utR5 = state.league.teams.find((t) => t.id === state.meta.userTeamId);
+      const exposed = window.BBGM_RULE5.exposedFor(state, utR5);
+      if (exposed.length) {
+        const names = exposed.slice(0, 6)
+          .map((p) => `${p.name} (${p.primaryPosition}, ${p.age})`);
+        window.BBGM_INBOX.push(state, {
+          from: 'Farm Director',
+          subject: `Rule 5 exposure: ${exposed.length} unprotected name${exposed.length === 1 ? '' : 's'}`,
+          body: `The December 10 draft is coming and our reserve list is full. Exposed as of ` +
+                `today: ${names.join('. ')}${exposed.length > 6 ? `. Plus ${exposed.length - 6} deeper names` : ''}. ` +
+                `Any club can take one for $100K — though a pick has to stick on their 26-man ` +
+                `ALL season or come back to us for half that. I can squeeze THREE more names ` +
+                `under protection. Tell me who.`,
+          action: { type: 'rule5protect' },
+        });
+      }
+      // Graduations: the picks that survived last season, both directions.
+      for (const s of summary.rule5Survivors || []) {
+        if (s.teamId === state.meta.userTeamId) {
+          window.BBGM_INBOX.push(state, {
+            from: 'Farm Director',
+            subject: `${s.name} made it — he's ours now`,
+            body: `A full season on the 26-man and the Rule 5 handcuffs come off: ${s.name} is ` +
+                  `our player outright now. Options, assignments, the lot. The $100K might be ` +
+                  `the best money we've spent.`,
+            about: s.playerId,
+            action: { type: 'viewPlayer', playerId: s.playerId },
+          });
+        } else if (s.fromTeamId === state.meta.userTeamId) {
+          const toTeam = state.league.teams.find((t) => t.id === s.teamId);
+          window.BBGM_INBOX.push(state, {
+            from: 'Farm Director',
+            subject: `${s.name} stuck all year — he's gone for good`,
+            body: `The one that got away: ${s.name} held ${toTeam ? `the ${toTeam.abbr}` : 'their'} ` +
+                  `26-man the entire season, so the Rule 5 claim is permanent now. That's the ` +
+                  `December tax on a deep system. The protection list matters.`,
+            about: s.playerId,
+          });
+        }
+      }
+    }
     // The clubhouse letter (v2.16.0, §25): each winter the manager
     // names a few of the characters he's lived with all season — the
     // org-level trait reveal. Public reveals (October, the signing
@@ -4433,6 +4687,7 @@ window.BBGM_MAIN = (function () {
   return {
     navigate, refresh, advanceDay, simToNextEvent, simToEndOfMonth, simToSeasonEnd,
     advanceFAPeriod, advanceFAToEvent, startSeasonFlow, validateCurrentSave,
+    openRule5: () => showRule5Modal(window.BBGM_STATE.get()), // v2.17.0 dashboard card
     showPendingDecisions,
     // 0.49.1: exposed for the rival-pitch regression tests (dice-free).
     sendRivalPitch,

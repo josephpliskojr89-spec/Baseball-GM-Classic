@@ -40,5 +40,10 @@ targets, invariant guards) is `node tools/season_harness.js <seed> <seasons>`.
   distribution and volatility-backed labels, October modifiers acting
   while hidden, negotiation behavior (asks, market testers,
   preferences), signing-wire discovery rules.
+- `rule5_test.js` — the Rule 5 draft (v2.17.0, §26): the 4/5-year
+  eligibility split, top-40-value + hand-shield protection, reverse
+  standings, the on-the-26-man obligation, every demotion door, the
+  AI conscience and the minors-leak self-heal, graduation.
 - `e2e_smoke.js` — browser walkthrough: boot, new game, team select,
-  sim, player card, trait visibility tiers, inbox, zero page errors.
+  sim, player card, trait visibility tiers, the Rule 5 draft room,
+  inbox, zero page errors.

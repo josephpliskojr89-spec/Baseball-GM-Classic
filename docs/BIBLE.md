@@ -341,7 +341,8 @@ Regenerated each offseason. Plausible-not-perfect is the goal.
 - **Mid November:** Retirements, free agency begins, manager/coach hiring opens
 - **Dec – Jan:** FA period, trade activity
 - **February:** Pitchers and catchers report (flavor)
-- **January 15:** International signing day (v2.15.0 — mid-free-agency, the winter's tentpole)
+- **December 10:** Rule 5 draft (v2.17.0 — the winter meetings' tentpole)
+- **January 15:** International signing day (v2.15.0 — mid-free-agency)
 - **Mid-March:** Spring training concludes
 - **Late March/Early April:** Opening Day
 - **Mid-July:** All-Star Game
@@ -5699,6 +5700,28 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > line. Soak 606/6: 31% traited, org 13 / public 53 reveals over six
 > winters, drift 7, all calibration bands green.
 
+> **Status note (v2.17.0):** SHIPPED — the Rule 5 draft (§26), the
+> December 10 tentpole (owner: "Let's tackle rule 5 now"). Real rule
+> compressed: 4/5-pro-year eligibility off the paper trail, top-40-by-
+> trade-value auto-protection standing in for the 40-man, the Farm
+> Director's exposure letter with a three-name hand-shield modal,
+> reverse-standings one-round draft in a single interactive room
+> (snipes possible), $100K/$50K as flavor. The stick rule is layered:
+> acceptsMinors + weakestDemotable + the user's send-down/release
+> flows all refuse a flagged pick (user gets the keep-or-return
+> choice), Part B spring compliance resolves rebuild bumps (AI → the
+> March return; the USER's pick re-promoted, never auto-lost), a
+> monthly AI conscience returns the overmatched, minors leaks
+> self-heal home, and survivors graduate at the rollover with letters
+> both directions. AI drafts through the fog (perceived = true ±4) —
+> that's where the realistic return rate comes from. Both FA advance
+> paths halt at Dec 10 ahead of Jan 15; Part B backstops the tentpole
+> unconditionally. Soak 1965/9: pools 0 for four winters (structural
+> — no service time exists yet), maturing to ~230 eligible, 13-15
+> picks/winter, ~⅓ returned, zero stale flags. rule5_test (31 checks),
+> e2e grew to 15 (room render + pending predicate), battery 5 suites
+> green, no migration needed.
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):
@@ -8411,4 +8434,80 @@ reveal ledger — traits act through the player's own behavior.
   save — ALL undiscovered, so the dynasty finds them out the same way
   a new league would — and the head scout announces the character
   notes in a letter.
+
+## 26. The Rule 5 Draft — the December tentpole (v2.17.0)
+
+Owner's brief: "Let's tackle rule 5 now." The league's tax on hoarding,
+faithfully compressed, landing December 10 — between the market's open
+and the January 15 signing day, so the winter now runs arbitration →
+FA opens → **Rule 5 (Dec 10)** → **international signing day (Jan 15)**
+→ wind-down → camps.
+
+### 26.1 Eligibility and protection
+
+- Eligible: a MINORS player (26-man and IL are safe outright) with a
+  paper trail — his draft class, international class, or org signing —
+  showing **4 professional seasons (5 if he signed at 18 or younger)**.
+  Genesis-era filler with no paper trail is never eligible.
+- Protected: the org's **top 40 players by trade value** — the trade
+  engine's valuation stands in for a managed 40-man reserve list, so
+  young upside is shielded automatically while the blocked 27-year-old
+  org soldier is exposed (which is exactly who the rule exists for).
+- The user's lever: the Farm Director's rollover letter lists the
+  club's exposed names and opens the protection modal — **hand-shield
+  up to THREE more** (`state.rule5Shield`, per winter).
+
+### 26.2 The draft
+
+One round, **reverse standings** of the just-archived season, one
+selection max per club, $100K fee (flavor). Pending from Dec 10 "until
+worked" (the same overdue-heal predicate as Jan 15); both FA advance
+paths halt with the draft-room modal, the dashboard carries the front
+door, and Part B guarantees the tentpole even for a user who jumps to
+spring from November — an unrun draft runs headless, always.
+
+The interactive room is one modal: the board (top 30 by value, with
+each name's org), your slot, the obligation spelled out. Tap to draft,
+or pass — the whole round resolves in one stroke and a recap plus
+letters report what December did. An earlier club can snipe your
+target; that's the month working as intended.
+
+**AI selection runs through the fog** (§23 grammar): another org's
+farmhand is the least-scouted player in baseball, so clubs draft on a
+perceived read (true overall ±4) against a stick bar of
+`max(40, weakest-on-roster − 4)`, ~45% pulling the trigger when a
+credible name exists. Mirages get picked — and found out.
+
+### 26.3 The stick rule
+
+A pick carries `p.rule5 = { fromTeamId, year }` and must spend that
+entire season on the 26-man (IL counts). Enforcement is layered:
+
+- Every demotion door refuses him: `acceptsMinors` (all AI swap
+  paths), `weakestDemotable` (trade trims, waiver claims, roster-room
+  cuts), and the user's send-down/release flows — which instead offer
+  the explicit choice: keep him, or **return him for $50K**.
+- **Spring compliance** (Part B): the spring rebuilds have no memory
+  of December, so any pick they bump to the farm is resolved — an AI
+  club's bumped pick goes home (the March return), the user's pick is
+  re-promoted with the weakest man down instead. The user never loses
+  a pick to automation.
+- **The May conscience** (monthly, shared via midSeasonMoves): an AI
+  club returns a pick sitting clearly below its weakest other man
+  (true OVR < weakest − 1), and any flagged pick found in the minors
+  self-heals home immediately.
+- At the rollover, survivors **graduate** — flags clear, letters go
+  out both directions (your pick is yours for good; your old farmhand
+  who stuck elsewhere is gone for good).
+
+### 26.4 Calibration (soak-tuned)
+
+Nine-season soak: the pool is EMPTY the first four winters of a new
+league (no farmhand has the service — structural, and correct; a deep
+save has a full pool immediately), then matures to ~200-230 eligible
+with **13-15 picks per winter and roughly a third of each class
+returned** — the real draft's shape. Harness prints each winter's
+picks/pool and last class's verdict, and hard-fails on a missing
+draft, stale flags after a rollover, or a flagged pick in the minors.
+No migration needed: old saves grow the ledger from their next winter.
 

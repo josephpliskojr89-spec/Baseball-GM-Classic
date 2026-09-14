@@ -138,6 +138,20 @@ window.BBGM_UI_DASHBOARD = (function () {
   function renderDraftCallout(state) {
     const DRAFT = window.BBGM_DRAFT;
     const today = state.meta.currentDate;
+    // Rule 5 day (v2.17.0, §26): the December tentpole halts the winter
+    // until the draft is run — the card is the front door.
+    if (window.BBGM_RULE5 && window.BBGM_RULE5.pending(state, today)) {
+      const card = U.el('div', { class: 'card' });
+      card.appendChild(U.el('div', { class: 'card-title' }, `📋 Rule 5 Draft — December ${window.BBGM_RULE5.winterYearFor(today)}`));
+      card.appendChild(U.el('p', { style: { 'font-size': '13px', 'margin-bottom': '8px' } },
+        'The winter meetings. Unprotected farmhands are on the board — yours included. ' +
+        'The market resumes once the draft is run.'));
+      card.appendChild(U.el('button', {
+        class: 'btn-primary btn-sm', style: { width: '100%' },
+        on: { click: () => window.BBGM_MAIN.openRule5() },
+      }, 'Open the Draft Room'));
+      return card;
+    }
     // International signing day outranks everything (Jan 15 calendar halt).
     if (window.BBGM_INTL.windowPending(state, today)) {
       const card = U.el('div', { class: 'card' });

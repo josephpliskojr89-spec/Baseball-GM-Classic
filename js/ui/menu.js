@@ -12,7 +12,7 @@ window.BBGM_UI_MENU = (function () {
     // Build constant is bumped with every release so the user can tell at a
     // glance which dashboard.js the browser actually loaded. Save version
     // is the save-schema version and changes only when the schema changes.
-    const BUILD = 'v2.16.0-character-1';
+    const BUILD = 'v2.17.0-rule5-1';
     card.appendChild(U.el('div', { class: 'inset-list', style: { 'border': 'none' } }, [
       insetRow('Team', userTeam.name),
       insetRow('Date', window.BBGM_DATES.format(state.meta.currentDate)),
@@ -187,6 +187,9 @@ window.BBGM_UI_MENU = (function () {
     ]],
     ['Character', [
       'Some players carry a personality trait — loyal, mercenary, a big-game player, an October shrinker, inconsistent, steady — and most carry none. Traits are hidden and always ACTING: a covert mercenary already negotiates like one. You discover them the way real front offices do — your manager\'s winter clubhouse notes name your own players\' characters, and the whole league learns from October performances and the signing wire. A discovered trait prints on the player card.',
+    ]],
+    ['The Rule 5 Draft', [
+      'Every December 10, farmhands with four professional seasons (five if they signed at 18 or younger) who aren\'t protected go on the board — any club can take one for $100K. Your best forty by value are shielded automatically, and the Farm Director\'s November letter lets you hand-shield three more. The catch is the whole game: a pick must spend the ENTIRE season on the drafting club\'s 26-man roster or be offered back to his old club for $50K. Deep systems pay the December tax; thin rosters go treasure hunting.',
     ]],
     ['The 20-80 Scale', [
       'Every rating uses baseball\'s scouting scale: 50 is a solid everyday big-leaguer, not an average person — a lineup full of 48-52s is a normal team. 55+ is a plus player, 60+ is All-Star territory, and 65+ is the handful of true stars. 20-40 grades belong to depth pieces and developing kids.',

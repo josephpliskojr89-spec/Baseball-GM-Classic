@@ -42,6 +42,7 @@ const files = [
   'js/engine/scouting.js',
   'js/engine/draft.js',
   'js/engine/intl.js',
+  'js/engine/rule5.js',
   'js/engine/awards.js',
   'js/engine/simulation.js',
   'js/engine/standings.js',
@@ -649,6 +650,22 @@ if (seasonsArg > 1) {
     if (iwin) {
       console.log(`  Jan 15, ${iwin.year} intl window: signed ${(iwin.signings || []).length}/100`);
     }
+    // Rule 5 (v2.17.0, §26): this winter's draft + last season's verdict.
+    {
+      const r5 = (state.rule5History || []).find((h) => h.year === summary.year);
+      const prev = (state.rule5History || []).find((h) => h.year === summary.year - 1);
+      if (r5) {
+        let line = `  Rule 5, Dec ${r5.year}: ${r5.picks.length} pick${r5.picks.length === 1 ? '' : 's'}` +
+          ` (pool ${r5.poolSize != null ? r5.poolSize : '?'})`;
+        if (prev) {
+          line += ` | last class: ${prev.returns.length} returned, ${prev.picks.length - prev.returns.length} stuck`;
+        }
+        console.log(line);
+      } else if (W.BBGM_RULE5) {
+        console.log(`✗ RULE 5 DRAFT MISSING for winter ${summary.year}`);
+        process.exit(1);
+      }
+    }
     if (state.intl && state.intl.phase !== 'complete' && state.intl.year <= summary.year + 1) {
       console.log(`✗ INTL WINDOW UNRESOLVED after ${summary.year} rollover (class ${state.intl.year}, phase ${state.intl.phase})`);
       process.exit(1);
@@ -892,6 +909,28 @@ if (seasonsArg > 1) {
       console.log(`✗ TRAIT SHARE OUT OF BAND: ${(share * 100).toFixed(1)}% (band 25-55%)`);
       process.exit(1);
     }
+  }
+  // Rule 5 stick ledger (v2.17.0, §26). Invariants: every flag from a
+  // COMPLETED season must be cleared (survive → graduated, fail → sent
+  // home); the only live flags belong to the upcoming season's fresh
+  // December picks. Flagged players must sit on a 26-man or IL.
+  {
+    const lastSeason = state.history.seasons[state.history.seasons.length - 1].year;
+    let stale = 0, upcoming = 0, misplaced = 0;
+    for (const id in state.players) {
+      const p = state.players[id];
+      if (!p || !p.rule5) continue;
+      if (p.rule5.year <= lastSeason) { stale++; console.log(`✗ STALE RULE 5 FLAG (${p.rule5.year}): ${p.name}`); }
+      else upcoming++;
+      if (p.status === 'minors') { misplaced++; console.log(`✗ RULE 5 PICK IN THE MINORS: ${p.name}`); }
+    }
+    const hist = state.rule5History || [];
+    const totalPicks = hist.reduce((s, h) => s + h.picks.length, 0);
+    const totalReturns = hist.reduce((s, h) => s + h.returns.length, 0);
+    console.log(`Rule 5: ${hist.length} drafts | ${totalPicks} picks, ${totalReturns} returned` +
+      (totalPicks ? ` (${Math.round((1 - totalReturns / totalPicks) * 100)}% stick)` : '') +
+      ` | live flags for next season: ${upcoming}`);
+    if (stale || misplaced) process.exit(1);
   }
   // Star scarcity (bible 4.3): ~60 stars league-wide, pyramid below.
   let n65 = 0, n60 = 0, n55 = 0;

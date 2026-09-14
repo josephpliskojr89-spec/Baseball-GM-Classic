@@ -13,7 +13,7 @@
 //     cached zero JS files, so "offline support" never actually worked),
 //     and FAILS if any asset can't be fetched — a half-populated cache
 //     must not activate and shadow the previous good one.
-const VERSION = '2.16.0';
+const VERSION = '2.17.0';
 const CACHE_NAME = `bbgm-classic-v${VERSION}`;
 
 const JS_FILES = [
@@ -44,6 +44,7 @@ const JS_FILES = [
   'js/engine/scouting.js',
   'js/engine/draft.js',
   'js/engine/intl.js',
+  'js/engine/rule5.js',
   'js/engine/awards.js',
   'js/engine/simulation.js',
   'js/engine/standings.js',

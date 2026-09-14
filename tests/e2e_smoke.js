@@ -137,7 +137,33 @@ const check = (ok, label) => { console.log((ok ? '✓ ' : '✗ ') + label); ok ?
   }, ids.mine);
   check(octMod === 3, 'hidden Big-Game player still gets his October +3 in the live page');
 
-  // 7. Inbox opens (the discovery organ).
+  // 7. Rule 5 (v2.17.0, §26): fabricate December 10 and open the room.
+  const r5pending = await page.evaluate(() => {
+    const s = window.BBGM_STATE.get();
+    s.meta.offseasonPhase = 'freeAgency';
+    s.meta.currentDate = { year: s.meta.currentDate.year, month: 12, day: 10 };
+    const rival = s.league.teams.find((t) => t.id !== s.meta.userTeamId);
+    const pid = rival.minors.find((id) => s.players[id] && s.players[id].status === 'minors');
+    s.players[pid].draft = { year: s.meta.currentDate.year - 5, round: 6, overall: 180, teamId: rival.id };
+    window.BBGM_STATE.set(s);
+    return window.BBGM_RULE5.pending(s, s.meta.currentDate);
+  });
+  check(r5pending, 'December 10 makes the Rule 5 draft pending');
+  await page.evaluate(() => window.BBGM_MAIN.openRule5());
+  await page.waitForSelector('.modal', { timeout: 10000 });
+  const r5modal = await page.textContent('.modal');
+  check(r5modal.includes('Rule 5 Draft') && r5modal.includes('26-man'),
+    'the draft room opens with the obligation spelled out');
+  await page.evaluate(() => {
+    window.BBGM_UI.closeModal();
+    const s = window.BBGM_STATE.get();
+    s.meta.offseasonPhase = null;
+    s.meta.currentDate = { year: s.meta.currentDate.year, month: 4, day: 2 };
+    window.BBGM_STATE.set(s);
+    window.BBGM_MAIN.refresh();
+  });
+
+  // 8. Inbox opens (the discovery organ).
   await page.click('.nav-btn[data-tab="home"]');
   await page.click('#btnInbox');
   await page.waitForSelector('.modal', { timeout: 10000 });

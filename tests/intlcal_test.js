@@ -20,7 +20,7 @@ const files = [
   'js/engine/fatigue.js', 'js/engine/roster.js', 'js/engine/progression.js',
   'js/engine/minors.js', 'js/engine/flavorleagues.js', 'js/engine/trades.js',
   'js/engine/freeagency.js', 'js/engine/waivers.js', 'js/engine/staff.js',
-  'js/engine/scouting.js', 'js/engine/draft.js', 'js/engine/intl.js',
+  'js/engine/scouting.js', 'js/engine/draft.js', 'js/engine/intl.js', 'js/engine/rule5.js',
   'js/engine/awards.js', 'js/engine/simulation.js', 'js/engine/standings.js',
   'js/engine/offseason.js',
 ];
