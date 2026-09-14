@@ -1366,6 +1366,46 @@ window.BBGM_MAIN = (function () {
       window.BBGM_STATE.set(state);
     }
 
+    // Migration (2.16.0, §25): personality traits arrive. Every living
+    // player — rostered, farmhand, free agent, and the draft/intl pool
+    // kids — rolls the same mint the generator uses (at most one trait,
+    // ~40% carry any). Everything starts UNDISCOVERED: the save's
+    // stories get to find these out the same way a new league would.
+    // A head-scout letter tells the owner the department started
+    // keeping character notes.
+    if (versionLt(saveVersion, '2.16.0') && window.BBGM_PLAYER_GEN.rollTrait) {
+      const mintFor = (p) => {
+        if (!p || p.retired || !p.hidden || !p.hidden.archetype) return 0;
+        if (p.hidden.trait !== undefined) return 0;
+        const t = window.BBGM_PLAYER_GEN.rollTrait(Math.random, p.hidden.archetype, !!p.isPitcher);
+        if (t) {
+          p.hidden.trait = t;
+          p.hidden.traitReveal = null;
+          return 1;
+        }
+        return 0;
+      };
+      let minted = 0;
+      for (const id in state.players) minted += mintFor(state.players[id]);
+      if (state.draft && state.draft.prospects) {
+        for (const id in state.draft.prospects) minted += mintFor(state.draft.prospects[id]);
+      }
+      if (state.intl && state.intl.prospects) {
+        for (const id in state.intl.prospects) minted += mintFor(state.intl.prospects[id]);
+      }
+      window.BBGM_INBOX.push(state, {
+        from: 'Head Scout',
+        subject: 'We\'ve started keeping character notes',
+        body: 'One more page in every file from now on: the person, not just the tools. ' +
+              'Who takes less to stay and who chases the last dollar, who rises in October ' +
+              'and who shrinks from it, who\'s the same player every day and who\'s a mystery ' +
+              'until June. We won\'t guess — the notes get written when the man shows us. ' +
+              'Watch the clubhouse letters, the October stories, and the signing wire.',
+      });
+      console.log(`2.16.0 migration: character notes open — ${minted} personality trait(s) minted, all undiscovered.`);
+      window.BBGM_STATE.set(state);
+    }
+
     // Stamp the save forward now that every migration has run. This is
     // what makes the versionLt gates above one-shot, and it makes the
     // Menu's "Save version" reflect the code the save actually runs under
@@ -2914,6 +2954,30 @@ window.BBGM_MAIN = (function () {
       }
     }
 
+    // The clubhouse letter (v2.16.0, §25): each winter the manager
+    // names a few of the characters he's lived with all season — the
+    // org-level trait reveal. Public reveals (October, the signing
+    // wire) go through the news; this one is house knowledge.
+    if (summary.traitReveals && summary.traitReveals.clubhouse.length) {
+      const VOICE = {
+        loyal: 'wears the uniform like it means something — my read is he\'d take less to stay here',
+        mercenary: 'a pro\'s pro, but let\'s not kid ourselves: when the money calls, he\'ll answer it',
+        big_game: 'lives for the big spot — when October comes, I want him on the field',
+        shrinker: 'I hate to write it, but when the moment gets big, he gets small',
+        inconsistent: 'which version of him shows up in April is anyone\'s guess, and he proves it every year',
+        steady: 'the same player every single day — you could set your watch by him',
+      };
+      const lines = summary.traitReveals.clubhouse
+        .map((r) => `${r.name}: ${VOICE[r.trait] || r.trait}`);
+      window.BBGM_INBOX.push(state, {
+        from: 'The Manager',
+        subject: 'Clubhouse notes from the season',
+        body: `A few things a year in the room has taught me about our guys — the kind of thing ` +
+              `that doesn't show on a scouting card. ${lines.join('. ')}. ` +
+              `File it away; it'll matter at a contract table or in October.`,
+        action: { type: 'navigate', tab: 'team' },
+      });
+    }
     // Farm director's washout list (v2.12.0): the hard 30-cap that
     // silently deleted the user's farmhands is dead. AI orgs release
     // their stalled players at rollover; for YOUR club nobody is

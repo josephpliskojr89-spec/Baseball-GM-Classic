@@ -282,6 +282,21 @@ window.BBGM_UI_PLAYER = (function () {
     }
     if (p.origin) bioRows.push(insetRow('From', p.origin));
     else if (p.school) bioRows.push(insetRow('School', p.school));
+    // Character (v2.16.0, §25): only what's been DISCOVERED prints —
+    // public knowledge, or your own clubhouse's read on your own man.
+    // An undiscovered trait acts in the sim and at the table either
+    // way; the card never confesses what nobody has seen yet.
+    {
+      const trait = p.hidden && p.hidden.trait;
+      const def = trait && C.TRAITS && C.TRAITS[trait];
+      if (def) {
+        const reveal = p.hidden.traitReveal;
+        const mine = p.teamId != null && p.teamId === state.meta.userTeamId;
+        if (reveal === 'public' || (reveal === 'org' && mine)) {
+          bioRows.push(insetRow('Character', def.card));
+        }
+      }
+    }
     if (p.draft) {
       const by = state.league.teams.find((t) => t.id === p.draft.teamId);
       bioRows.push(insetRow('Drafted', `${p.draft.year} R${p.draft.round} (#${p.draft.overall})${by ? ' by ' + by.abbr : ''}`));

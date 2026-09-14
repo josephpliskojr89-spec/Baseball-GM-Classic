@@ -5674,6 +5674,31 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > halt at the January window), 6-season soak: exactly one window per
 > winter, 6 archived, zero unresolved.
 
+> **Status note (v2.16.0):** SHIPPED — personality traits (§25),
+> hidden and discovered (owner: "loyal, mercenary, inconsistent, big
+> game player"; "big game player deserves a negative twin"). Six
+> traits, one max per player, ~31% of the league traited. The truth
+> acts while hidden: loyal/mercenary reshape extension asks, market
+> testing and FA preferences (AI faces identical numbers); big-game /
+> shrinker ride the existing makeup October dial at ±3 (stacking to
+> the ±5 folk-hero/nightmare extremes); Inconsistent/Steady are
+> volatility-backed labels, windows not physics. Discovery: winter
+> clubhouse letters (org tier, user's own players), October
+> performances and the signing wire (public tier, news). Card prints
+> only what's discovered. Migration 2.16.0 mints for live saves, all
+> undiscovered, head-scout announcement letter.
+>
+> PROCESS NOTE, read by future sessions: the September container
+> recycle destroyed the scratch-storage battery (48 suites) and the
+> 147-check e2e — they were never in the repo. Unrecoverable except
+> intlcal (transcript). The battery is REBORN IN-REPO at `tests/`
+> (module_load, intlcal, traits, e2e_smoke — 12 browser checks) and
+> the accretion rule now includes "suites live in the repo, no
+> exceptions." tools/season_harness.js (in-repo all along) gained the
+> trait census: distribution, discovery counts, label-drift watch
+> line. Soak 606/6: 31% traited, org 13 / public 53 reveals over six
+> winters, drift 7, all calibration bands green.
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):
@@ -8319,3 +8344,71 @@ Expectation set with the owner: the first CI Android build will
 take a few iterations to go green (Gradle/SDK levels); after that
 it stays boring. Device testing is the owner's hands — screenshots
 close the loop, as ever.
+
+## 25. Personality Traits — hidden and discovered (v2.16.0)
+
+Owner's brief: "light personality traits for players. Things like loyal,
+mercenary, inconsistent, big game player" — hidden and discovered, and
+the big-game player "deserves a negative twin."
+
+### 25.1 The six
+
+At most ONE trait per player; roughly a third of the league carries any
+(traits are seasoning, not a second ratings system). Two families:
+
+- **Behavioral** (new mechanics): **Loyal**, **Mercenary** (the
+  negotiating table), **Big-Game Player**, **October Shrinker** (the
+  stage).
+- **Labels** (windows into existing hidden values, no new physics):
+  **Inconsistent** and **Steady** mint only on archetypes whose yearly
+  volatility genuinely backs the label (≥0.28 / ≤0.08). A label the tape
+  can't cash would be a lie. Post-mint archetype re-mints (pen
+  conversions, aging reassignment) can drift a label off its backing —
+  personality doesn't flip with a role; the soak census counts the
+  drift as a watch item.
+
+Mint odds at generation (shared by the 2.16.0 migration): loyal 7%,
+mercenary 6%, big-game 5%, shrinker 4%; then the volatility-gated
+labels. Measured league share ~31-32%.
+
+### 25.2 The truth acts while hidden
+
+This is the §23 grammar applied to character: the hidden value is
+always live, and discovery only NAMES it.
+
+- **Loyal** — extension ask ×0.90 and accepts a lighter number against
+  fair (0.92 vs 0.97); never a market-tester; always carries the
+  `loyalty` FA preference, and it runs deeper (×1.22 utility for his
+  old club vs ×1.15 for the winter-sentiment version).
+- **Mercenary** — extension ask ×1.15; ALWAYS a market-tester in his
+  walk year (AI clubs face the same premium — no cheating); zero soft
+  FA preferences: the money is the preference, and the silence on his
+  market card is the tell for the observant.
+- **Big-Game / Shrinker** — ±3 on the character dial in postseason
+  games, stacking with the makeup October factor (0.61.0): the 9-makeup
+  big-game player is the full folk hero at +5, the 2-makeup shrinker
+  the whole nightmare at −5. Shades, never mode changes.
+- **Inconsistent / Steady** — no new physics; the archetype's
+  volatility already does the work.
+
+### 25.3 Discovery
+
+Reveal states: `null → 'org' → 'public'`, stored beside the trait in
+`hidden`. The card prints a Character line ONLY for public traits, or
+org-revealed traits on the user's own players. AI clubs never need a
+reveal ledger — traits act through the player's own behavior.
+
+- **The clubhouse letter** (org): each winter the manager names up to
+  three of the user org's undiscovered characters (30% per candidate),
+  one letter, in his own voice.
+- **October** (public): a Big-Game player or Shrinker who took real
+  postseason innings gets written about (~50% per October played) —
+  news, league-visible forever.
+- **The signing wire** (public): a loyal man re-signing at home on an
+  MLB deal, or a mercenary leaving his old club for real money
+  (AAV ≥ $3M), gets named by the beat writers at the table.
+- The 2.16.0 migration mints traits for every living player in an old
+  save — ALL undiscovered, so the dynasty finds them out the same way
+  a new league would — and the head scout announces the character
+  notes in a letter.
+

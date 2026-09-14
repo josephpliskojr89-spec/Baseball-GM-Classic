@@ -447,6 +447,14 @@ window.BBGM_PLAYER_GEN = (function () {
       // sturdy health is the rare "iron man" who plays every day (10.8).
       durability: rint(rng, 1, 10),
     };
+    // Personality trait (v2.16.0, §25): at most one, most players none.
+    // Hidden at mint like every other truth; traitReveal climbs
+    // null → 'org' (his clubhouse names it) → 'public' (the league does).
+    const trait = rollTrait(rng, archetype, isPitcher);
+    if (trait) {
+      hidden.trait = trait;
+      hidden.traitReveal = null;
+    }
 
     // Bio (profile card): height/weight by role, full birthdate.
     // 0.49.0 body rebuild: the old model (6'3"-base pitchers on a
@@ -1248,6 +1256,27 @@ window.BBGM_PLAYER_GEN = (function () {
   // Generate one new player into an existing save (offseason org backfill,
   // emergency roster fills). Caller supplies a collision-safe id via
   // state.meta.nextGenId bookkeeping.
+  // Personality trait mint (v2.16.0, §25). One roll, one trait, ~40% of
+  // players total. The behavioral four (loyal / mercenary / big-game /
+  // shrinker) roll free; Inconsistent and Steady only attach where the
+  // hidden archetype's volatility actually backs the label — they are
+  // windows into a value that already exists, and a label the tape
+  // can't cash would be a lie. Exported: the v2.16.0 migration mints
+  // traits for live saves with the same distribution.
+  function rollTrait(r, archKey, pitcher) {
+    const roll = r();
+    if (roll < 0.07) return 'loyal';
+    if (roll < 0.13) return 'mercenary';
+    if (roll < 0.18) return 'big_game';
+    if (roll < 0.22) return 'shrinker';
+    const defs = pitcher ? C.PITCHER_ARCHETYPES : C.HITTER_ARCHETYPES;
+    const arch = defs.find((a) => a.key === archKey);
+    const vol = arch ? (arch.volatility || 0.1) : 0.1;
+    if (vol >= 0.28 && r() < 0.6) return 'inconsistent';
+    if (vol <= 0.08 && r() < 0.35) return 'steady';
+    return null;
+  }
+
   function generateNewPlayer(rng, team, opts) {
     return makePlayer(rng, {
       slotPos: opts.slotPos,
@@ -1274,5 +1303,7 @@ window.BBGM_PLAYER_GEN = (function () {
     frameFor, youthDeficit, posFrameAdj,
     // 0.53.1: archetype ceiling cap re-clamp (draft/intl slot lifts).
     applyArchetypeCap,
+    // v2.16.0: personality trait mint (migration re-uses the mint odds).
+    rollTrait,
   };
 })();

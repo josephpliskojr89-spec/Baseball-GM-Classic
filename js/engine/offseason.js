@@ -784,6 +784,56 @@ window.BBGM_OFFSEASON = (function () {
     state.arb = { year, cases: arbCases };
     summary.arbCases = arbCases.length;
 
+    // 6.4b. Personality reveals (v2.16.0, §25) — the winter is when
+    // character gets named. Two discovery channels run here:
+    //  - October outs the stage traits publicly: a Big-Game player or a
+    //    Shrinker who actually took the stage (real postseason innings)
+    //    gets written about, ~half the time per October he plays.
+    //  - The user's own clubhouse slowly names what it lives with:
+    //    each winter a few of the org's undiscovered traits go
+    //    org-visible, delivered as the manager's clubhouse letter
+    //    (main.js renders it from summary.traitReveals).
+    // AI clubs need no reveal ledger — traits act through the player's
+    // own behavior (asks, testers, October), never through club fog.
+    {
+      const octoberOuted = [];
+      for (const id in players) {
+        const p = players[id];
+        const trait = p && p.hidden && p.hidden.trait;
+        if (!trait || p.retired || p.hidden.traitReveal === 'public') continue;
+        if (trait !== 'big_game' && trait !== 'shrinker') continue;
+        const ps = p.stats && p.stats[year] && p.stats[year].postseason;
+        const played = ps && ((ps.g || 0) >= 2 || (ps.pa || 0) >= 6 || (ps.ipOuts || 0) >= 9);
+        if (!played || rand() >= 0.5) continue;
+        p.hidden.traitReveal = 'public';
+        octoberOuted.push({ playerId: p.id, name: p.name, trait });
+        if (!state.news) state.news = [];
+        state.news.push({
+          date: { ...state.meta.currentDate },
+          body: trait === 'big_game'
+            ? `The October book is out on <strong>${p.name}</strong>: the moment finds him, ` +
+              `and he rises to it. A big-game player, the whole league agrees.`
+            : `The October book is out on <strong>${p.name}</strong>: the stage got big ` +
+              `and he got small. The label will follow him now.`,
+          go: { type: 'player', id: p.id },
+        });
+      }
+      const clubhouse = [];
+      const ut = teams.find((t) => t.id === state.meta.userTeamId);
+      if (ut) {
+        const cands = [...(ut.roster || []), ...(ut.minors || []), ...(ut.il || [])]
+          .map((id) => players[id])
+          .filter((p) => p && !p.retired && p.hidden && p.hidden.trait && !p.hidden.traitReveal);
+        for (const p of cands) {
+          if (clubhouse.length >= 3) break;
+          if (rand() >= 0.30) continue;
+          p.hidden.traitReveal = 'org';
+          clubhouse.push({ playerId: p.id, name: p.name, trait: p.hidden.trait });
+        }
+      }
+      summary.traitReveals = { october: octoberOuted, clubhouse };
+    }
+
     // 6.5. International (bible 14): special-event players (NPB postings,
     // Cuban defectors, KBO declarations) join the FA pool as headline
     // names BEFORE the market is built. Since v2.15.0 the January 15

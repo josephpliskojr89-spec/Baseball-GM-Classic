@@ -22,7 +22,7 @@ window.BBGM_SIM = (function () {
   // Convert 20-80 grade to a scaled multiplier centered at 1.0 for grade 50.
   function grade(r) { return (r - 50) / 25; } // -1.2 to 1.2 typical
 
-  // ---- The makeup layer (0.61.0) -------------------------------------------
+  // ---- The character layer (0.61.0 makeup; v2.16.0 traits) ----------------
   // Hidden makeupGrade is the ADVERSITY stat (work ethic owns long-run
   // development): how a player answers pressure and upheaval. Two sim
   // effects, both small and both invisible on the card:
@@ -30,6 +30,11 @@ window.BBGM_SIM = (function () {
   //   makeup plays a shade over his card, a 1-2 shrinks.
   //   Trade adjustment — a low-makeup player traded mid-season carries
   //   .adjusting for ~a month and plays under his card until he settles.
+  // v2.16.0 (§25): the stage traits stack on the same dial — a Big-Game
+  // player rises +3 in October, a Shrinker gives it back −3, hidden or
+  // not (the truth acts; discovery only names it). A 9-makeup big-game
+  // player is the full folk hero (+5); the 2-makeup shrinker is the
+  // whole nightmare (−5). Both remain shades, never mode changes.
   // gameCtx is stamped by simulateGame each game (synchronous sim; it is
   // simply overwritten by the next game, never read outside one).
   let gameCtx = null;
@@ -41,6 +46,8 @@ window.BBGM_SIM = (function () {
     if (c.postseason) {
       if (mk >= 9) mod += 2;
       else if (mk <= 2) mod -= 2;
+      if (pl.hidden.trait === 'big_game') mod += 3;
+      else if (pl.hidden.trait === 'shrinker') mod -= 3;
     }
     if (pl.adjusting) {
       const D = window.BBGM_DATES;

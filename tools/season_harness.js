@@ -851,6 +851,48 @@ if (seasonsArg > 1) {
   console.log('intl signees: active', intlActive, '| on 26-man', intlMLB,
     '| event players (postings/defectors/KBO) active:', intlEventPlayers,
     '| windows archived:', (state.intlHistory || []).length);
+  // Personality traits (v2.16.0, §25): distribution + discovery census.
+  // Invariants: every trait key is known; a reveal never exists without
+  // a trait; Inconsistent/Steady only sit on archetypes whose volatility
+  // backs the label. Traited share ~40% (alarm outside 25-55%).
+  {
+    const KNOWN = ['loyal', 'mercenary', 'big_game', 'shrinker', 'inconsistent', 'steady'];
+    const counts = {}, reveals = { org: 0, public: 0 };
+    let traited = 0, living = 0, bad = 0, labelDrift = 0;
+    for (const id in state.players) {
+      const p = state.players[id];
+      if (!p || p.retired || !p.hidden) continue;
+      living++;
+      const tr = p.hidden.trait;
+      if (p.hidden.traitReveal && !tr) { bad++; console.log(`✗ TRAIT REVEAL WITHOUT TRAIT: ${p.name}`); }
+      if (!tr) continue;
+      if (!KNOWN.includes(tr)) { bad++; console.log(`✗ UNKNOWN TRAIT '${tr}': ${p.name}`); continue; }
+      traited++;
+      counts[tr] = (counts[tr] || 0) + 1;
+      if (p.hidden.traitReveal) reveals[p.hidden.traitReveal] = (reveals[p.hidden.traitReveal] || 0) + 1;
+      if (tr === 'inconsistent' || tr === 'steady') {
+        // Labels are volatility-backed AT MINT (tests/traits_test.js
+        // proves 0 violations there). Later role conversions and aging
+        // RE-MINT archetypes — a Steady man who moves to the pen can
+        // land on a volatile arch. Personality doesn't flip with the
+        // role, so this is drift to WATCH, not an invariant to fail.
+        const defs = p.isPitcher ? W.BBGM_CONSTANTS.PITCHER_ARCHETYPES : W.BBGM_CONSTANTS.HITTER_ARCHETYPES;
+        const arch = defs.find((a) => a.key === p.hidden.archetype);
+        const vol = arch ? (arch.volatility || 0.1) : 0.1;
+        if ((tr === 'inconsistent' && vol < 0.28) || (tr === 'steady' && vol > 0.08)) labelDrift++;
+      }
+    }
+    const share = living ? traited / living : 0;
+    console.log('personality traits:', KNOWN.map((k) => `${k} ${counts[k] || 0}`).join(' | '),
+      `| traited ${(share * 100).toFixed(0)}% of ${living}`,
+      `| discovered: org ${reveals.org}, public ${reveals.public}`,
+      `| label drift (post-mint archetype changes): ${labelDrift}`);
+    if (bad) process.exit(1);
+    if (share < 0.25 || share > 0.55) {
+      console.log(`✗ TRAIT SHARE OUT OF BAND: ${(share * 100).toFixed(1)}% (band 25-55%)`);
+      process.exit(1);
+    }
+  }
   // Star scarcity (bible 4.3): ~60 stars league-wide, pyramid below.
   let n65 = 0, n60 = 0, n55 = 0;
   for (const t of state.league.teams) {

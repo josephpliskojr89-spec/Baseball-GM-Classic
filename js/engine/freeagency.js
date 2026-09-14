@@ -85,10 +85,16 @@ window.BBGM_FA = (function () {
   }
 
   // Player preferences (16.5) — one or two flavor flags per FA.
+  // v2.16.0 (§25): the permanent traits sit UNDER the per-winter rolls.
+  // A loyal man always carries the tie to his old club; a mercenary has
+  // no soft spots at all — the money IS the preference, and the silence
+  // on his market card is the tell for the observant.
   function rollPreferences(p) {
+    const trait = p.hidden && p.hidden.trait;
+    if (trait === 'mercenary') return [];
     const prefs = [];
     if (rand() < 0.25) prefs.push('ring');      // wants a contender
-    if (rand() < 0.20) prefs.push('loyalty');   // discount for former team
+    if (trait === 'loyal' || rand() < 0.20) prefs.push('loyalty'); // discount for former team
     if (rand() < 0.15) prefs.push(rand() < 0.5 ? 'bigMarket' : 'smallMarket');
     return prefs;
   }
@@ -110,7 +116,11 @@ window.BBGM_FA = (function () {
     for (const pref of entry.prefs || []) {
       if (pref === 'ring' && (team.competitiveWindow === 'contending' || team.competitiveWindow === 'win-now')) mul *= 1.12;
       if (pref === 'ring' && team.competitiveWindow === 'rebuilding') mul *= 0.85;
-      if (pref === 'loyalty' && team.id === entry.formerTeamId) mul *= 1.15;
+      if (pref === 'loyalty' && team.id === entry.formerTeamId) {
+        // Trait-loyal (v2.16.0) runs deeper than a winter sentiment.
+        const p = state.players[entry.playerId];
+        mul *= (p && p.hidden && p.hidden.trait === 'loyal') ? 1.22 : 1.15;
+      }
       if (pref === 'bigMarket' && team.market === 'large') mul *= 1.08;
       if (pref === 'smallMarket' && team.market === 'small') mul *= 1.08;
     }
@@ -380,6 +390,29 @@ window.BBGM_FA = (function () {
             `(${p.primaryPosition}) — ${years} yr / $${total}M.`,
       go: { type: 'player', id: p.id },
     });
+    // Public reveal (v2.16.0, §25): signings out character. A loyal man
+    // going home, or a mercenary walking on his old club for real money,
+    // is exactly the thing beat writers name — the trait goes public.
+    const trait = p.hidden && p.hidden.trait;
+    if (trait && p.hidden.traitReveal !== 'public' && p.formerTeamId != null) {
+      if (trait === 'loyal' && team.id === p.formerTeamId && isMLBDeal) {
+        p.hidden.traitReveal = 'public';
+        state.news.push({
+          date: { ...state.meta.currentDate },
+          body: `The book on <strong>${p.name}</strong> is out: loyal to the bone. ` +
+                `He never seriously entertained leaving ${team.abbr}.`,
+          go: { type: 'player', id: p.id },
+        });
+      } else if (trait === 'mercenary' && team.id !== p.formerTeamId && aav >= 3) {
+        p.hidden.traitReveal = 'public';
+        state.news.push({
+          date: { ...state.meta.currentDate },
+          body: `<strong>${p.name}</strong> followed the money to ${team.abbr}, and the ` +
+                `league quietly wrote it down: the man is a mercenary.`,
+          go: { type: 'player', id: p.id },
+        });
+      }
+    }
   }
 
   // User offer management. Returns an error string or null on success.
@@ -534,7 +567,13 @@ window.BBGM_FA = (function () {
     // Young extensions run long (the team buys FA years, the kid takes
     // the decade of certainty).
     const years = Math.min(8, base.years + (ctrl >= 2 && p.age <= 27 ? 1 : 0));
-    const aav = Math.max(0.74, Math.round(base.aav * discount * youth * 10) / 10);
+    // Character (v2.16.0, §25): a loyal man leaves real money on the
+    // table to stay; a mercenary charges his own club the market rate
+    // plus the trouble of skipping it. The number moves whether the
+    // trait is discovered or not — the ask IS the tell.
+    const trait = p.hidden && p.hidden.trait;
+    const character = trait === 'loyal' ? 0.90 : trait === 'mercenary' ? 1.15 : 1;
+    const aav = Math.max(0.74, Math.round(base.aav * discount * youth * character * 10) / 10);
     return { years, aav, total: Math.round(aav * years * 10) / 10 };
   }
 
@@ -548,7 +587,12 @@ window.BBGM_FA = (function () {
       const ovr = ROSTER().overall(p);
       // Market testers: a walk-year star with the leverage to bet on
       // himself often does. ~40% of them; deterministic per (player, year).
-      const wantsMarket = ctrl <= 1 && ovr >= 58 && (extHash(p, year) % 10) < 4;
+      // v2.16.0: character overrides the coin flip — a mercenary in his
+      // walk year ALWAYS wants to see the market; a loyal man never does.
+      const trait = p.hidden && p.hidden.trait;
+      const wantsMarket = trait === 'loyal' ? false
+        : trait === 'mercenary' ? ctrl <= 1
+          : ctrl <= 1 && ovr >= 58 && (extHash(p, year) % 10) < 4;
       p.extTalks = { year, askYears: ask.years, askAAV: ask.aav,
         askTotal: ask.total, insults: 0, closed: false,
         wantsMarket: wantsMarket || undefined };
@@ -563,9 +607,12 @@ window.BBGM_FA = (function () {
       return 'His camp has closed the book on extension talks this season — he\'ll listen again next year.';
     }
     // Shorter deals need richer per-year money; a market tester only
-    // signs for a number that makes November irrelevant.
+    // signs for a number that makes November irrelevant. A loyal man
+    // (v2.16.0) meets his club a little further down the road — his
+    // ask is already discounted AND he takes a lighter number against it.
     const fairTotal = talks.askAAV * years * (1 + 0.02 * Math.max(0, talks.askYears - years));
-    const need = talks.wantsMarket ? fairTotal * 1.12 : fairTotal * 0.97;
+    const loyal = p.hidden && p.hidden.trait === 'loyal';
+    const need = talks.wantsMarket ? fairTotal * 1.12 : fairTotal * (loyal ? 0.92 : 0.97);
     if (total >= need) {
       const aav = Math.round(total / years * 10) / 10;
       p.contract = { years, annualSalary: aav, totalValue: Math.round(total * 10) / 10, signedAt: 'extension' };
@@ -626,7 +673,11 @@ window.BBGM_FA = (function () {
         else if (win === 'win-now') prob *= 1.2;
         // His side of the table: a market tester makes even his own club
         // pay the blow-away premium, and usually walks anyway.
-        const tester = ovr >= 58 && (extHash(p, year) % 10) < 4;
+        // v2.16.0: same character override the user faces — no cheating.
+        const trAI = p.hidden && p.hidden.trait;
+        const tester = trAI === 'mercenary' ? true
+          : trAI === 'loyal' ? false
+            : ovr >= 58 && (extHash(p, year) % 10) < 4;
         if (tester) prob *= 0.35;
         if (rand() >= prob) continue;
         const ask = extensionAsk(state, p);
@@ -658,6 +709,7 @@ window.BBGM_FA = (function () {
   return {
     TOTAL_ROUNDS,
     computePayroll, askingPrice, neverPlayedMLB, prefsText, prefMultiplier,
+    rollPreferences, // exported as a test seam (v2.16.0 trait behavior)
     releaseToPool, buildMarket, addMarketEntry, resolveRound,
     makeUserOffer, withdrawUserOffer, signMidSeason, aiMidSeasonTick,
     extensionAsk, extensionTalks, offerExtension, aiWinterExtensions, signPlayer,

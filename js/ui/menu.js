@@ -12,7 +12,7 @@ window.BBGM_UI_MENU = (function () {
     // Build constant is bumped with every release so the user can tell at a
     // glance which dashboard.js the browser actually loaded. Save version
     // is the save-schema version and changes only when the schema changes.
-    const BUILD = 'v2.15.0-january15-1';
+    const BUILD = 'v2.16.0-character-1';
     card.appendChild(U.el('div', { class: 'inset-list', style: { 'border': 'none' } }, [
       insetRow('Team', userTeam.name),
       insetRow('Date', window.BBGM_DATES.format(state.meta.currentDate)),
@@ -184,6 +184,9 @@ window.BBGM_UI_MENU = (function () {
   const GUIDE = [
     ['Your Job', [
       'You are the general manager, not the manager. You build the organization — the roster, the farm, the staff, the budgets — and the manager runs the games with what you give him. Advance Day moves the world forward; everything that needs your signature will stop the calendar or land in your inbox.',
+    ]],
+    ['Character', [
+      'Some players carry a personality trait — loyal, mercenary, a big-game player, an October shrinker, inconsistent, steady — and most carry none. Traits are hidden and always ACTING: a covert mercenary already negotiates like one. You discover them the way real front offices do — your manager\'s winter clubhouse notes name your own players\' characters, and the whole league learns from October performances and the signing wire. A discovered trait prints on the player card.',
     ]],
     ['The 20-80 Scale', [
       'Every rating uses baseball\'s scouting scale: 50 is a solid everyday big-leaguer, not an average person — a lineup full of 48-52s is a normal team. 55+ is a plus player, 60+ is All-Star territory, and 65+ is the handful of true stars. 20-40 grades belong to depth pieces and developing kids.',

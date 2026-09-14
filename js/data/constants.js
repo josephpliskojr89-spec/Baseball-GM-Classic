@@ -3,7 +3,7 @@ window.BBGM_CONSTANTS = {
   // Single source of truth for the app/save version. main.js stamps this
   // into new saves; index.html's ?v= cache-busters and the service-worker
   // cache name must be bumped in lockstep (they can't read JS constants).
-  VERSION: '2.15.0',
+  VERSION: '2.16.0',
   START_YEAR: 2026,
   TEAMS_PER_LEAGUE: 15,
   // Two leagues, three divisions each. Internal values are lowercase for
@@ -96,6 +96,25 @@ window.BBGM_CONSTANTS = {
   // arrives. Scouting NEVER reads the archetype, so a bust's potential
   // band looks as seductive as anyone's; the only tell is watching the
   // attribute history not move, season after season.
+  // Personality traits (v2.16.0, §25 — owner: loyal, mercenary,
+  // inconsistent, big game player "and a negative twin", hidden and
+  // discovered). At most ONE per player, ~60% of the league carries
+  // none. The truth ACTS while hidden — a covert mercenary already
+  // negotiates like one — and discovery is the player's world finally
+  // naming it: clubhouse reports for your own men, October and the
+  // signing wire for everyone's. Inconsistent/Steady mint only on
+  // matching archetype volatility — they're a WINDOW into a hidden
+  // value, not new physics. `card` is the line the player card prints
+  // once the trait is known.
+  TRAITS: {
+    loyal:        { label: 'Loyal',            card: 'Loyal — takes less to stay' },
+    mercenary:    { label: 'Mercenary',        card: 'Mercenary — the money talks' },
+    big_game:     { label: 'Big-Game Player',  card: 'Big-game player — rises in October' },
+    shrinker:     { label: 'October Shrinker', card: 'Shrinks in October' },
+    inconsistent: { label: 'Inconsistent',     card: 'Inconsistent — a different player every year' },
+    steady:       { label: 'Steady',           card: 'Steady — the same player every day' },
+  },
+
   HITTER_ARCHETYPES: [
     { key: 'traditional', weight: 0.21, peakAge: [27, 29], riseRate: 0.25, declineRate: 0.15, plateauWidth: 3, volatility: 0.10 },
     // The pro's bat (0.59.0): the hitter mirror of the pitcher

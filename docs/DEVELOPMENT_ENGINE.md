@@ -98,9 +98,16 @@ the true production environment.
 ## 5. The verification battery: tests that accrete
 
 Every release adds a **standalone test suite** that guards its feature, and
-that suite runs in the battery forever (48 suites and counting). Suites are
-plain Node scripts that load the game's modules in a vm sandbox — no test
-framework, no build step, exit code is the verdict.
+that suite runs in the battery forever. Suites are plain Node scripts that
+load the game's modules in a vm sandbox — no test framework, no build step,
+exit code is the verdict.
+
+**The battery lives in the repository** (`tests/`), full stop. This rule
+was learned the hard way: the original battery grew to 48 suites in
+ephemeral scratch storage outside the repo, and a routine container
+recycle destroyed all of it plus the 147-check e2e — months of accreted
+verification, gone in a night. Anything that guards the product is part
+of the product and gets committed with it.
 
 Properties that matter:
 
