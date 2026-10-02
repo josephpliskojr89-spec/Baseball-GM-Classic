@@ -1,0 +1,12 @@
+[
+  {
+    "sev": "HIGH",
+    "title": "Injury-blind trade valuation: a player with a season-ending (400-day) injury trades at ~full value",
+    "detail": "Felix Weir: TV healthy 44.5 vs injured 44.5; AI gives Wyatt Irving (TV 53.8) for him. UI: IL players are listed in the trade builder (orgOf includes team.il) so this is reachable from the Front Office."
+  },
+  {
+    "sev": "LOW",
+    "title": "Called-up farmhands keep their sub-minimum minor-league salary on the 26-man",
+    "detail": "4 players on 26-man rosters at season end earn < $0.74M (e.g. $0.3M); the bible's league minimum is not applied on promotion"
+  }
+]

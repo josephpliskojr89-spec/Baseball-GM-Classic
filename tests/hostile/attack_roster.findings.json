@@ -1,0 +1,44 @@
+[
+  {
+    "sev": "HELD",
+    "title": "engine-level mass release is repaired / survives the next day sim"
+  },
+  {
+    "sev": "MEDIUM",
+    "title": "Mass DFA leaves roster unplayable",
+    "detail": "2026-3-30 bos@nye: simulateGame: cannot simulate BOS@NYE (g2026_21): home (NYE) has no starting pitcher | 2026-3-31 lag@nye: simulateGame: cannot simulate LAG@NYE (g2026_80): home (NYE) has no starting pitcher"
+  },
+  {
+    "sev": "HELD",
+    "title": "50x send-down/call-up ping-pong is harmless"
+  },
+  {
+    "sev": "MEDIUM",
+    "title": "Rule 5 draft with userChoice=own farmhand leaves invariant issues",
+    "detail": "validateLeagueReadiness: Team PHI (east Northeast) not ready: active roster size 23, expected 24-26"
+  },
+  {
+    "sev": "MEDIUM",
+    "title": "Rule 5 draft with userChoice=a 26-man player of a rival leaves invariant issues",
+    "detail": "validateLeagueReadiness: Team PHI (east Northeast) not ready: active roster size 23, expected 24-26"
+  },
+  {
+    "sev": "MEDIUM",
+    "title": "Rule 5 draft with userChoice=bogus id leaves invariant issues",
+    "detail": "validateLeagueReadiness: Team PHI (east Northeast) not ready: active roster size 23, expected 24-26"
+  },
+  {
+    "sev": "MEDIUM",
+    "title": "Rule 5 draft with userChoice=retired player leaves invariant issues",
+    "detail": "validateLeagueReadiness: Team PHI (east Northeast) not ready: active roster size 23, expected 24-26"
+  },
+  {
+    "sev": "HELD",
+    "title": "Rule 5 userChoice of own / rostered / bogus / retired players all degrade to sniped"
+  },
+  {
+    "sev": "MEDIUM",
+    "title": "Rule 5 runDraft has no once-per-winter guard: a second call drafts again and double-ledgers the winter",
+    "detail": "rule5History years: 2026:0,2026:1 (engine-level; UI pending() gate hides the button after the first run)"
+  }
+]

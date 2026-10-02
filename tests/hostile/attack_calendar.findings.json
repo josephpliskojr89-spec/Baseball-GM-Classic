@@ -1,0 +1,38 @@
+[
+  {
+    "sev": "MEDIUM",
+    "title": "runSeasonRolloverPartB is not idempotent: a second call re-runs spring (new org players generated again)",
+    "detail": "players 1946->1919; (engine-level; UI startSeasonFlow is gated by offseasonPhase)"
+  },
+  {
+    "sev": "HELD",
+    "title": "advanceFARound out of phase is a no-op"
+  },
+  {
+    "sev": "MEDIUM",
+    "title": "runSeasonRolloverPartA twice double-archives the season and double-ticks contracts",
+    "detail": "history years 2026,2026 (engine-level; UI confirmOffseason gated by postseason.phase)"
+  },
+  {
+    "sev": "HELD",
+    "title": "a second intl window run on a completed class is a no-op"
+  },
+  {
+    "sev": "MEDIUM",
+    "title": "advanceWindow has no date gate: a just-generated class can be resolved 11 months early",
+    "detail": "class 2028 resolved on {\"year\":2027,\"month\":1,\"day\":15} (engine-level; UI hub shows the button only when windowPending)"
+  },
+  {
+    "sev": "HELD",
+    "title": "Part B from Nov 15 backstops both the Rule 5 draft and the Jan 15 window"
+  },
+  {
+    "sev": "MEDIUM",
+    "title": "Part A archives the season under the CALENDAR year, not the schedule year",
+    "detail": "archived 2027 for a 2026 season"
+  },
+  {
+    "sev": "HELD",
+    "title": "rollover tolerates ghost decision/waiver/offer entries"
+  }
+]

@@ -1,0 +1,1130 @@
+// Headless full-season calibration harness (Node, no browser needed).
+//
+//   node tools/season_harness.js [seed] [seasons]
+//
+// Loads the browser modules under a fake `window`, generates a league,
+// sims full 2,430-game seasons replicating main.js's simOneDay loop, and
+// reports calibration metrics against the bible targets (7.2, 7.4.7, 10.7,
+// 10.8). With seasons > 1 it runs the postseason + offseason rollover
+// between years (progression, retirement, minors sim) and reports
+// franchise-level metrics. Run this after any engine/tuning change — the
+// per-game stat invariant validation inside simulateGame throws on
+// accounting bugs, so a clean run is itself a meaningful regression test.
+'use strict';
+const fs = require('fs');
+const path = require('path');
+const vm = require('vm');
+
+const ROOT = '/home/user/Baseball-GM-Classic';
+const files = [
+  'js/data/constants.js',
+  'js/data/name_pools.js',
+  'js/data/intl_name_pools.js',
+  'js/data/city_pools.js',
+  'js/data/teams.js',
+  'js/util/rng.js',
+  'js/util/dates.js',
+  'js/generation/ballparks.js',
+  'js/generation/league.js',
+  'js/generation/players.js',
+  'js/engine/schedule.js',
+  'js/engine/stats.js',
+  'js/engine/injuries.js',
+  'js/engine/fatigue.js',
+  'js/engine/roster.js',
+  'js/engine/progression.js',
+  'js/engine/minors.js',
+  'js/engine/flavorleagues.js',
+  'js/engine/trades.js',
+  'js/engine/freeagency.js',
+  'js/engine/waivers.js',
+  'js/engine/staff.js',
+  'js/engine/scouting.js',
+  'js/engine/draft.js',
+  'js/engine/intl.js',
+  'js/engine/rule5.js',
+  'js/engine/awards.js',
+  'js/engine/simulation.js',
+  'js/engine/standings.js',
+  'js/engine/offseason.js',
+];
+
+const sandbox = { window: {}, console, Math, JSON, Array, Object, Date };
+vm.createContext(sandbox);
+for (const f of files) {
+  vm.runInContext(fs.readFileSync(path.join(ROOT, f), 'utf8'), sandbox, { filename: f });
+}
+const W = sandbox.window;
+const D = W.BBGM_DATES, C = W.BBGM_CONSTANTS, S = W.BBGM_STATS, INJ = W.BBGM_INJURIES, FAT = W.BBGM_FATIGUE;
+// The cone (§23) soaks dark: BBGM_CONE=1 flips the flag for this run only.
+if (process.env.BBGM_CONE) { C.CONE.ENABLED = true; console.log('[cone] §23 development ENABLED for this soak'); }
+
+const seed = parseInt(process.argv[2] || '12345', 10);
+const rng = W.BBGM_RNG.makeRng(seed);
+const league = W.BBGM_LEAGUE_GEN.generate(rng);
+const players = W.BBGM_PLAYER_GEN.generate(rng, league);
+W.BBGM_PLAYER_GEN.validateLeagueReadiness(league, players);
+const schedule = W.BBGM_SCHEDULE.generate(rng, league, C.START_YEAR);
+
+const state = {
+  version: 'harness',
+  meta: { seed, currentDate: D.fromYMD(C.START_YEAR, 3, 28), userTeamId: league.teams[0].id, gamesPlayedByTeam: {} },
+  league: { teams: league.teams, schedule },
+  players,
+  news: [],
+};
+// Birthday-consistent genesis (0.66.2, mirrors main.js new-game).
+for (const id in players) W.BBGM_PROGRESSION.alignBirthdate(players[id], state.meta.currentDate);
+// Staff the league (Phase 10), assign scouting tiers (Phase 13), and let
+// each manager set his lineups.
+W.BBGM_STAFF.ensureStaff(state);
+W.BBGM_SCOUT.ensureTiers(state);
+for (const t of state.league.teams) W.BBGM_ROSTER.safeRebuild(state, t);
+
+// ---- Metrics collectors ----
+const YEAR = C.START_YEAR;
+let ties = 0, extraInnings = 0, longestGame = 9;
+let ilStints = 0, dtdStints = 0, tjCount = 0, careerAltering = 0;
+const ilPlayersP = new Set(), ilPlayersH = new Set();
+let simErrors = 0;
+const simErrorMessages = [];
+const peakFatigue = {};
+let homeWins = 0, totalGames = 0;
+const draftLines = [];
+const runsByLeague = { east: 0, west: 0 }, gamesByLeague = { east: 0, west: 0 };
+let relieverWins = 0;
+let fieldingErrors = 0;
+let consecDayViolations = 0; // reliever appearing on a 4th straight day
+// 0.38.0 in-season development + merit-move diagnostics.
+let devBase = null;          // May 1 pre-tick OVR/age snapshot
+let msSwaps = 0, msLevelMoves = 0;
+let msSwapsPrev = 0, msLevelPrev = 0;
+let lastIntlNamesYear = 0; // v2.15.0: name check keys on archived windows
+// 0.75.2 regression guard: weekly count of clubs that couldn't survive a
+// bad day — fewer than 9 healthy hitters on the 26-man. The composition
+// floors + repair should hold this at zero forever.
+let thinClubWeeks = 0;
+
+function applyCeilingDrop(p) {
+  const c = p.hidden.ceiling;
+  const key = p.isPitcher ? 'velocity' : 'speed';
+  if (c[key] != null) c[key] = Math.max(20, c[key] - 4);
+}
+
+const rotSeen = new Set();
+function rotationProbe(state, today) {
+  const INJm = W.BBGM_INJURIES;
+  for (const t of state.league.teams) {
+    const rot = t.rotation || [];
+    const pen = new Set(t.bullpen || []);
+    const problems = [];
+    for (const id of rot) {
+      const p = state.players[id];
+      if (!p) { problems.push(`MISSING ref ${id}`); continue; }
+      if (!t.roster.includes(id)) problems.push(`${p.name} in rotation but NOT on roster (status ${p.status}/${p.rosterStatus}, team ${p.teamId})`);
+      else if (!INJm.isAvailable(p)) problems.push(`${p.name} in rotation but unavailable (il=${!!p.ilStatus}, dtd=${p.dayToDayDaysRemaining||0})`);
+      if (pen.has(id)) problems.push(`${p.name} in rotation AND bullpen`);
+      if (t.closer === id) problems.push(`${p.name} is rotation AND closer`);
+    }
+    if (rot.length < 5) problems.push(`rotation length ${rot.length}`);
+    const dup = rot.length !== new Set(rot).size;
+    if (dup) problems.push('duplicate rotation ids');
+    for (const pr of problems) {
+      const key = `${t.id}|${pr.replace(/\(.*$/, '')}`;
+      if (rotSeen.has(key)) continue;
+      rotSeen.add(key);
+      console.log(`  ROTATION PROBE ${today.year}-${today.month}-${today.day} ${t.abbr}: ${pr}`);
+    }
+  }
+}
+
+function simOneDay(state) {
+  const today = state.meta.currentDate;
+  if (today.month >= 4 && today.month <= 9) rotationProbe(state, today);
+  // Birthday aging (0.66.2, pools included 0.68.0 — mirrors main.js).
+  W.BBGM_PROGRESSION.birthdayTickAll(state, today);
+  // Waiver wire (0.68.0 parity): main.js runs the daily tick — AI DFAs,
+  // claims, and clears feed the FA pool; soaks must exercise it too.
+  W.BBGM_WAIVERS.dailyTick(state, today);
+  const games = state.league.schedule.games.filter((g) => !g.played && D.eq(g.date, today));
+  for (const g of games) {
+    try {
+      W.BBGM_SIM.simulateGame(state, g);
+    } catch (e) {
+      simErrors++;
+      const msg = `${today.year}-${today.month}-${today.day} ${g.awayId}@${g.homeId}: ${e.message}`;
+      if (simErrorMessages.length < 5) simErrorMessages.push(msg);
+      // Dump the full context immediately — a rare mid-dynasty throw is
+      // unreproducible (game sim uses unseeded randomness), so this line
+      // is the only evidence we get.
+      console.log('SIM ERROR:', msg);
+      console.log((e.stack || '').split('\n').slice(0, 8).join('\n'));
+      g.played = true; g.result = null;
+      continue;
+    }
+    const r = g.result;
+    totalGames++;
+    if (r.homeRuns === r.awayRuns) ties++;
+    if (r.innings > 9) extraInnings++;
+    if (r.innings > longestGame) longestGame = r.innings;
+    if (r.homeRuns > r.awayRuns) homeWins++;
+    const home = state.league.teams.find(t => t.id === g.homeId);
+    const away = state.league.teams.find(t => t.id === g.awayId);
+    runsByLeague[home.league] += r.homeRuns; gamesByLeague[home.league]++;
+    runsByLeague[away.league] += r.awayRuns; gamesByLeague[away.league]++;
+    const winSide = r.homeRuns > r.awayRuns ? 'home' : 'away';
+    const wp = winSide === 'home' ? r.homeWP : r.awayWP;
+    const spid = winSide === 'home' ? r.homeSPid : r.awaySPid;
+    if (wp && wp !== spid) relieverWins++;
+    fieldingErrors += (r.homeErrors || 0) + (r.awayErrors || 0);
+  }
+  // Thin-club watch (0.75.2): weekly, any 26-man under 9 healthy hitters
+  // is one knock from an unfillable lineup — count it.
+  if (today.day % 7 === 0) {
+    for (const t of state.league.teams) {
+      let healthyHit = 0;
+      for (const pid of t.roster) {
+        const p = state.players[pid];
+        if (p && !p.isPitcher && INJ.isAvailable(p)) healthyHit++;
+      }
+      if (healthyHit < 9) thinClubWeeks++;
+    }
+  }
+  // Rest-rule audit: consecPitchDays is stamped at game end, so a value of
+  // 4+ on a pitcher who worked today means a 4th consecutive day of use.
+  for (const pid in state.players) {
+    const p = state.players[pid];
+    if ((p.consecPitchDays || 0) >= 4 && p.lastPitchedDate && D.eq(p.lastPitchedDate, today)) {
+      consecDayViolations++;
+    }
+  }
+  const R = W.BBGM_ROSTER;
+  for (const g of games) {
+    if (!g.played || !g.result || !g.result.injuries) continue;
+    for (const entry of g.result.injuries) {
+      const p = state.players[entry.playerId];
+      if (!p) continue;
+      if (!INJ.isAvailable(p)) continue;
+      INJ.placeOnIL(p, entry.injury, today);
+      if (entry.injury.careerAltering) { careerAltering++; applyCeilingDrop(p); }
+      if (entry.injury.ilType) {
+        ilStints++;
+        (p.isPitcher ? ilPlayersP : ilPlayersH).add(p.id);
+        if (entry.injury.type === 'UCL tear') tjCount++;
+        // Roster move: onto team IL, call-up cover (mirrors main.js).
+        const team = state.league.teams.find((t) => t.id === p.teamId);
+        if (team && team.roster.includes(p.id)) R.placeOnILWithMove(state, team, p);
+      } else dtdStints++;
+    }
+  }
+  for (const id in state.players) {
+    const p = state.players[id];
+    if (INJ.isAvailable(p)) continue;
+    const came = INJ.tickRecovery(p);
+    if (came) {
+      const team = state.league.teams.find((t) => t.id === p.teamId);
+      if (team && (team.il || []).includes(p.id)) R.activateFromIL(state, team, p);
+    }
+  }
+  // In-season development ticks (0.38.0, mirrors main.js): 1st of May–Sep,
+  // every unretired player steps along his archetype curve at ~7% of the
+  // annual rates. Drift diagnostic: mean |ΔOVR| May→Sep by age cohort.
+  if (today.day === 1 && today.month >= 5 && today.month <= 9) {
+    if (today.month === 5) {
+      devBase = {};
+      for (const id in state.players) {
+        const p = state.players[id];
+        if (!p || p.status === 'retired') continue;
+        devBase[id] = { ovr: R.overall(p), age: p.age };
+      }
+    }
+    // Flavor-league assignments + monthly stat lines (0.41.0, mirrors
+    // main.js): farmhands and flavor-league FAs post numbers on the 1st.
+    if (W.BBGM_FLAVOR) W.BBGM_FLAVOR.ensureAssignments(state, today.year);
+    for (const id in state.players) {
+      const p = state.players[id];
+      if (!p || p.status === 'retired') continue;
+      W.BBGM_PROGRESSION.inSeasonTick(p, today.year, 0.07);
+      if (p.status === 'minors') {
+        W.BBGM_MINORS.monthlyLine(p, today.year);
+      } else if (p.status === 'FA' && p.playsIn && W.BBGM_FLAVOR) {
+        W.BBGM_MINORS.monthlyLine(p, today.year, W.BBGM_FLAVOR.lineOpts(p) || {});
+      }
+    }
+    if (today.month === 9 && devBase) {
+      const young = [], old = [];
+      for (const id in devBase) {
+        const p = state.players[id];
+        if (!p || p.status === 'retired') continue;
+        const d = Math.abs(R.overall(p) - devBase[id].ovr);
+        if (devBase[id].age <= 26) young.push(d);
+        else if (devBase[id].age >= 30) old.push(d);
+      }
+      const mean = (a) => a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0;
+      draftLines.push(`  ${today.year} in-season |ΔOVR| May→Sep: age<=26 ${mean(young).toFixed(2)}` +
+        ` | age>=30 ${mean(old).toFixed(2)} (t ~0.5-3, nonzero)`);
+      // Flavor-league headcounts (0.41.0): where the unsigned are "playing".
+      const flavCounts = {};
+      let faTotal = 0;
+      for (const fid of state.freeAgents || []) {
+        const fp = state.players[fid];
+        if (!fp || fp.status !== 'FA' || fp.retired) continue;
+        faTotal++;
+        if (fp.playsIn) flavCounts[fp.playsIn] = (flavCounts[fp.playsIn] || 0) + 1;
+      }
+      draftLines.push(`  ${today.year} flavor leagues (${faTotal} FAs): ` +
+        (Object.keys(flavCounts).sort().map((k) => `${k} ${flavCounts[k]}`).join(' | ') || 'none'));
+      draftLines.push(`  ${today.year} mid-season moves: swaps ${msSwaps - msSwapsPrev} (t ~15-90)` +
+        ` | farm level moves ${msLevelMoves - msLevelPrev}`);
+      msSwapsPrev = msSwaps; msLevelPrev = msLevelMoves;
+    }
+  }
+  // Merit-based mid-season moves (0.38.0, mirrors main.js; every club is
+  // AI-run in the harness, so userAuto applies the user team too).
+  for (const ev of R.midSeasonMoves(state, today, { userAuto: true })) {
+    if (ev.type === 'swap') msSwaps++;
+    else if (ev.type === 'level') msLevelMoves++;
+  }
+  // AI trade activity (mirrors main.js).
+  W.BBGM_TRADES.aiTradeTick(state, today);
+  // AI mid-season FA sweep (0.50.0, mirrors main.js).
+  W.BBGM_FA.aiMidSeasonTick(state, today);
+  // Amateur draft: class on May 1, auto-drafted (AI picks every team,
+  // including the "user") on June 30 (mirrors main.js + Draft Hub).
+  W.BBGM_DRAFT.ensureClass(state, today);
+  if (W.BBGM_DRAFT.draftDayPending(state, today)) {
+    const recap = W.BBGM_DRAFT.autoRunDraft(state);
+    const first = recap.round1[0];
+    // Draft-day polish (0.17.0): teenagers arrive RAW — the most polished
+    // HS signee should sit in the high 30s / low 40s, not at 50.
+    let maxTeenOvr = 0;
+    for (const id in state.players) {
+      const p = state.players[id];
+      if (p.draft && p.draft.year === today.year && p.age <= 18) {
+        maxTeenOvr = Math.max(maxTeenOvr, W.BBGM_ROSTER.overall(p));
+      }
+    }
+    draftLines.push(`  ${today.year} draft: strength ${state.draftHistory[state.draftHistory.length - 1].strength}` +
+      ` | #1 ${first ? `${first.name} (${first.pos}) to ${first.teamId}` : '?'}` +
+      ` | signed ${recap.signedCount}/300 picks (class 350)` +
+      ` | best teen signee OVR ${maxTeenOvr.toFixed(0)} (t <=45)`);
+  }
+  // International class (v2.15.0): next January's class posts at season
+  // start via ensureClass; the window itself resolves inside the rollover
+  // (Part B auto-run). windowPending in-season is only the overdue heal —
+  // if it ever fires here, run it exactly as main.js would.
+  W.BBGM_INTL.ensureClass(state, today);
+  if (W.BBGM_INTL.windowPending(state, today)) {
+    const recap = W.BBGM_INTL.autoRunWindow(state);
+    const top = recap.top5[0];
+    draftLines.push(`  ${today.year} intl window (in-season HEAL — should not happen): signed ${recap.signedCount}/100` +
+      ` | #1 ${top ? `${top.name} (${top.pos}, ${top.country}) $${top.bonus}M to ${top.teamId}` : '?'}`);
+  }
+  // Intl name pools (0.17.1): every prospect from a pooled country must
+  // carry a name drawn from that country's pool, never the Anglo default.
+  // Keyed on the archived-window ledger (v2.15.0): state.intl itself is
+  // replaced by the NEXT class the day after a window resolves.
+  const ihist = state.intlHistory || [];
+  if (ihist.length && ihist[ihist.length - 1].year !== lastIntlNamesYear) {
+    lastIntlNamesYear = ihist[ihist.length - 1].year;
+    const IN = W.BBGM_INTL_NAMES;
+    let wrong = 0;
+    for (const id in state.players) {
+      const p = state.players[id];
+      if (!p.intl || p.intl.year !== lastIntlNamesYear) continue;
+      const key = IN.COUNTRY_POOL[p.origin];
+      if (!key) continue;
+      const pool = IN.POOLS[key];
+      const first = p.name.split(' ')[0];
+      if (!pool.first.includes(first)) {
+        wrong++;
+        if (wrong <= 3) console.log(`✗ INTL NAME MISMATCH: ${p.name} from ${p.origin}`);
+      }
+    }
+    if (wrong) { console.log(`✗ ${wrong} INTL NAME MISMATCHES in class ${lastIntlNamesYear}`); process.exit(1); }
+  }
+
+  // All-Star Game on the mid-July break (mirrors main.js).
+  if (W.BBGM_AWARDS.allStarPending(state, today)) {
+    const as = W.BBGM_AWARDS.runAllStar(state);
+    const n = ['east', 'west'].reduce((sum, lg) => {
+      const r = as.rosters[lg];
+      return sum + r.starters.length + r.pitchers.length + r.bench.length;
+    }, 0);
+    draftLines.push(`  ${today.year} All-Star Game: ${as.winner} wins ${Math.max(as.eastRuns, as.westRuns)}-` +
+      `${Math.min(as.eastRuns, as.westRuns)} | MVP ${as.mvp.name} | ${n} selections`);
+  }
+  const playedToday = new Set();
+  for (const g of games) {
+    if (!g.played || !g.result || !g.result.box) continue;
+    for (const side of ['home', 'away']) {
+      for (const row of g.result.box[side].batters) playedToday.add(row[0]);
+    }
+  }
+  for (const id in state.players) {
+    const p = state.players[id];
+    if (!p || p.isPitcher) continue;
+    if (playedToday.has(id)) FAT.partialRecover(p); else FAT.recover(p);
+    const f = p.fatigue || 0;
+    if (!(id in peakFatigue) || f > peakFatigue[id]) peakFatigue[id] = f;
+  }
+  // keep harness memory light (mirrors the effect of main.js pruning)
+  for (const g of games) { if (g.result) g.result.gameLog = null; }
+  state.meta.currentDate = D.addDays(today, 1);
+}
+
+const seasonsArg = Math.max(1, parseInt(process.argv[3] || '1', 10));
+
+// Observatory (re-founding phase 1, bible §22.6): capture the era line,
+// archetype census, and WAR-lite at each season's end — BEFORE rollover
+// prunes retiree stats — and print the drift report at process end.
+const OBS = require('/home/user/Baseball-GM-Classic/tools/observatory');
+const obsRows = [];
+// Prospect-outcome tracking (§23.9, cone phase 1): peak-OVR ledger for
+// every drafted/signed entrant, classified at maturity by entry rank.
+const outcomeStore = {};
+const harnessStartYear = state.meta.currentDate.year;
+
+function runSeason() {
+  let guard = 0;
+  while (D.compare(state.meta.currentDate, state.league.schedule.seasonEnd) <= 0 && guard++ < 250) {
+    simOneDay(state);
+  }
+  obsRows.push(OBS.observe(W, state, state.meta.currentDate.year));
+  OBS.trackPeaks(W, state, outcomeStore);
+}
+runSeason();
+while (draftLines.length) console.log(draftLines.shift());
+
+// ---- Aggregate ----
+const hitTot = S.emptyHitter(), pitTot = S.emptyPitcher(), pitcherBatTot = S.emptyHitter();
+const spLines = [], setupG = [], longG = [], closerSV = [], middleG = [], mopupG = [];
+let cgTotal = 0, shoTotal = 0;
+for (const t of league.teams) {
+  for (const id of t.roster.concat(t.minors || [])) {
+    const p = players[id];
+    if (!p) continue;
+    const s = p.stats[YEAR];
+    if (!s) continue;
+    if (p.isPitcher) {
+      S.addStat(pitTot, s);
+      cgTotal += s.cg || 0; shoTotal += s.sho || 0;
+      if (s.batting) S.addStat(pitcherBatTot, s.batting);
+    } else {
+      S.addStat(hitTot, s);
+    }
+  }
+  for (const id of t.rotation) {
+    const s = players[id].stats[YEAR];
+    if (s && s.gs > 0) spLines.push(s.ipOuts / 3 / s.gs);
+  }
+  const roles = t.bullpenRoles || {};
+  for (const id of roles.setup || []) { const s = players[id].stats[YEAR]; if (s) setupG.push(s.g || 0); }
+  for (const id of roles.long || []) { const s = players[id].stats[YEAR]; if (s) longG.push(s.g || 0); }
+  for (const id of roles.middle || []) { const s = players[id].stats[YEAR]; if (s) middleG.push(s.g || 0); }
+  for (const id of roles.mopup || []) { const s = players[id].stats[YEAR]; if (s) mopupG.push(s.g || 0); }
+  if (t.closer) { const s = players[t.closer].stats[YEAR]; if (s) closerSV.push({ sv: s.sv || 0, w: s.w || 0 }); }
+}
+// League-wide batting including pitcher hitting (how classic-era league
+// averages were actually computed for the no-DH league).
+const leagueBatTot = S.emptyHitter();
+S.addStat(leagueBatTot, hitTot);
+S.addStat(leagueBatTot, pitcherBatTot);
+// addStat also summed the nested-object-free fields; batting has no nesting.
+
+const avg = a => a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0;
+const median = a => { const s = a.slice().sort((x, y) => x - y); return s.length ? s[Math.floor(s.length / 2)] : 0; };
+const pct = x => (100 * x).toFixed(1) + '%';
+
+let rosterHitters = 0, rosterPitchers = 0;
+for (const t of league.teams) for (const id of t.roster) {
+  if (players[id].isPitcher) rosterPitchers++; else rosterHitters++;
+}
+
+console.log('=== SEASON RESULTS (seed ' + seed + ') ===');
+console.log('games:', totalGames, '| sim errors:', simErrors, simErrorMessages.length ? simErrorMessages : '',
+  '| TIES (must be 0):', ties, '| extras:', extraInnings, '| longest:', longestGame, 'inn');
+console.log('home win pct:', pct(homeWins / totalGames));
+console.log('R/G per team: EAST', (runsByLeague.east / gamesByLeague.east).toFixed(2),
+  'WEST', (runsByLeague.west / gamesByLeague.west).toFixed(2),
+  'ALL', ((runsByLeague.east + runsByLeague.west) / (gamesByLeague.east + gamesByLeague.west)).toFixed(2), '(emergent — see observatory)');
+console.log('--- League batting (position players | incl. pitcher hitting) ---');
+console.log('BA', S.avg(hitTot).toFixed(3), '|', S.avg(leagueBatTot).toFixed(3),
+  '| OBP', S.obp(hitTot).toFixed(3), '|', S.obp(leagueBatTot).toFixed(3),
+  '| SLG', S.slg(hitTot).toFixed(3), '|', S.slg(leagueBatTot).toFixed(3),);
+console.log('K%', pct(hitTot.k / hitTot.pa), '| BB%', pct(hitTot.bb / hitTot.pa), '| HR%', pct(hitTot.hr / hitTot.pa));
+// PA volume: league PA per team-game, ALL batters including pitchers
+// hitting. ~38 keeps season AB/PA extremes near real-record levels
+// (716 AB / 778 PA) — a record-book guard, not a league target.
+console.log('PA/team-game:', (leagueBatTot.pa / (30 * 162)).toFixed(1), '(t 38.3)');
+// Season-volume extremes: the real record book is 778 PA / 716 AB
+// (Rollins 2007). The occasional record-flirting iron-man leadoff year
+// is fine; routine 800-PA seasons are the calibration bug 0.26.0 fixed.
+{
+  let maxPa = 0, maxAb = 0, paName = '', abName = '';
+  for (const id in players) {
+    const s = players[id].stats && players[id].stats[YEAR];
+    if (!s) continue;
+    if ((s.pa || 0) > maxPa) { maxPa = s.pa; paName = players[id].name; }
+    if ((s.ab || 0) > maxAb) { maxAb = s.ab; abName = players[id].name; }
+  }
+  console.log(`season volume max: ${maxPa} PA (${paName}) | ${maxAb} AB (${abName}) (records 778/716)`);
+}
+const sbAtt = hitTot.sb + hitTot.cs;
+// Sac bunts split by league: west (pitchers bat + bunt) should far exceed east.
+const shByLeague = { east: 0, west: 0 };
+for (const t of league.teams) {
+  for (const id of t.roster.concat(t.minors || [])) {
+    const p = players[id];
+    if (!p || !p.stats[YEAR]) continue;
+    const s = p.stats[YEAR];
+    shByLeague[t.league] += (s.sh || 0) + ((s.batting && s.batting.sh) || 0);
+  }
+}
+console.log('SB att/team:', (sbAtt / 30).toFixed(0), '| SB%', pct(hitTot.sb / sbAtt), '(green-light era: emergent)',
+  '| SF/team', (hitTot.sf / 30).toFixed(0), '(t ~40) | GIDP/team', (hitTot.gidp / 30).toFixed(0));
+// Intentional walks (0.27.0): 2001 MLB averaged ~46 IBB/team (~0.28 per
+// team-game). Leaders: a generational monster should be able to pile up
+// 25-45+ (the Bonds room); ordinary stars land in the 10-20 band.
+{
+  let maxIbb = 0, ibbName = '—';
+  for (const id in players) {
+    const s = players[id].stats && players[id].stats[YEAR];
+    if (!s || players[id].isPitcher) continue;
+    if ((s.ibb || 0) > maxIbb) { maxIbb = s.ibb; ibbName = players[id].name; }
+  }
+  console.log('IBB/team:', ((hitTot.ibb || 0) / 30).toFixed(0), '(t ~46) | IBB leader:', ibbName, maxIbb);
+}
+console.log('SH/team: EAST', (shByLeague.east / 15).toFixed(0), '| WEST', (shByLeague.west / 15).toFixed(0),
+  '(t: west ~40-70 w/ pitcher bunts, east ~10-30)');
+console.log('--- Pitcher hitting (no-DH games) ---');
+console.log('PA', pitcherBatTot.pa, '| BA', S.avg(pitcherBatTot).toFixed(3), '(t ~.130)',
+  '| K%', pct(pitcherBatTot.k / (pitcherBatTot.pa || 1)), '(t ~35-40%)',
+  '| BB%', pct(pitcherBatTot.bb / (pitcherBatTot.pa || 1)), '(t ~4-5%)',
+  '| HR', pitcherBatTot.hr);
+console.log('--- League pitching / defense ---');
+console.log('ERA', S.era(pitTot).toFixed(2), '| WHIP', S.whip(pitTot).toFixed(2),
+  '| K/9', S.k9(pitTot).toFixed(1), '| BB/9', S.bb9(pitTot).toFixed(1), '| HR/9', S.hr9(pitTot).toFixed(2));
+const totalRuns = runsByLeague.east + runsByLeague.west;
+console.log('errors/team:', (fieldingErrors / 30).toFixed(0), '(t ~100-120) | unearned run share:',
+  pct((pitTot.r - pitTot.er) / (pitTot.r || 1)), '(MLB ~7-8%)');
+console.log('CG:', cgTotal, '| SHO:', shoTotal, '| reliever 4th-straight-day appearances (soft rule; depleted-pen fallback only):', consecDayViolations);
+console.log('thin-club weeks (26-man under 9 healthy hitters; t 0 — composition floors 0.75.2):', thinClubWeeks);
+console.log('--- Usage (7.4.7) ---');
+console.log('SP IP/start avg:', avg(spLines).toFixed(2), '(t 5.5-6.5) range', Math.min(...spLines).toFixed(2), '-', Math.max(...spLines).toFixed(2));
+console.log('setup G avg:', avg(setupG).toFixed(0), '(t 60-75) | middle:', avg(middleG).toFixed(0),
+  '| long:', avg(longG).toFixed(0), '(t 30-45) | mopup:', avg(mopupG).toFixed(0));
+console.log('closer SV avg:', avg(closerSV.map(c => c.sv)).toFixed(0), '(t 25-40) range',
+  Math.min(...closerSV.map(c => c.sv)), '-', Math.max(...closerSV.map(c => c.sv)),
+  '| closer W avg:', avg(closerSV.map(c => c.w)).toFixed(1));
+console.log('reliever wins:', relieverWins, '=', pct(relieverWins / totalGames), 'of games');
+console.log('--- Injuries (10.7) ---');
+console.log('IL stints:', ilStints, '(t 150-200) | DTD:', dtdStints, '| TJ:', tjCount, '(t 15-25) | career-altering:', careerAltering, '(t 3-8)');
+console.log('pitchers w/ IL stint:', pct(ilPlayersP.size / rosterPitchers), '(t ~20-35%) | hitters:', pct(ilPlayersH.size / rosterHitters), '(t ~15-20%)');
+console.log('--- Fatigue (10.8) ---');
+const catcherPeaks = [], regularPeaks = [], oldPeaks = [];
+for (const t of league.teams) {
+  for (const spot of (t.lineupRH || [])) {
+    const p = players[spot.playerId]; if (!p) continue;
+    const pk = peakFatigue[p.id] || 0;
+    if (spot.position === 'C') catcherPeaks.push(pk); else regularPeaks.push(pk);
+    if (p.age >= 33) oldPeaks.push(pk);
+  }
+}
+console.log('peak fatigue medians — catchers:', median(catcherPeaks).toFixed(0),
+  '| regulars:', median(regularPeaks).toFixed(0), '| 33+:', median(oldPeaks).toFixed(0));
+const paByLeague = { east: [], west: [] };
+for (const t of league.teams) for (const id of t.roster) {
+  const p = players[id]; if (p.isPitcher) continue;
+  const s = p.stats[YEAR]; if (s && s.pa > 400) paByLeague[t.league].push(s.pa);
+}
+console.log('avg PA of 400+ PA hitters: EAST', avg(paByLeague.east).toFixed(0), 'WEST', avg(paByLeague.west).toFixed(0));
+// Rest management (10.8): lineup regulars should NOT play 162 — managers
+// give scheduled days off. Catchers rest most.
+const gpC = [], gpReg = [];
+let gp160 = 0, ironTraitStarters = 0, ironTrait160 = 0;
+for (const t of league.teams) {
+  for (const spot of (t.lineupRH || [])) {
+    const p = players[spot.playerId];
+    if (!p || p.isPitcher) continue;
+    const g = (p.stats[YEAR] && p.stats[YEAR].g) || 0;
+    if (spot.position === 'C') gpC.push(g); else gpReg.push(g);
+    if (g >= 160) gp160++;
+    if (W.BBGM_FATIGUE.isIronMan(p)) {
+      ironTraitStarters++;
+      if (g >= 160) ironTrait160++;
+    }
+  }
+}
+console.log('GP of lineup regulars — median C:', median(gpC).toFixed(0), '(t ~120-140)',
+  '| median non-C:', median(gpReg).toFixed(0), '(t ~145-155)',
+  '| 160+ GP:', gp160, '(t: a handful, all iron-man types)');
+console.log('iron-man trait starters:', ironTraitStarters, '| of whom played 160+:', ironTrait160);
+// Starter workload (7.4): a 5-man turn tops out around 32-34 starts.
+// GS above 36 means rotation holes are funneling starts to whoever is
+// healthy (the 50-start-season bug fixed in 0.15.3).
+let maxGS = 0, gsOver36 = 0;
+const gsOffenders = [];
+for (const id in players) {
+  const s = players[id].stats && players[id].stats[YEAR];
+  const gs = (s && s.gs) || 0;
+  if (gs > maxGS) maxGS = gs;
+  if (gs > 36) { gsOver36++; gsOffenders.push(`${players[id].name} ${gs}`); }
+}
+console.log('starter workload — max GS:', maxGS, '(t <=35) | GS>36:', gsOver36,
+  gsOffenders.length ? '[' + gsOffenders.join(', ') + ']' : '');
+// Single-game feats logged this season (achievements ledger).
+const featCounts = {};
+for (const id in state.players) {
+  for (const f of ((state.players[id].achievements || {}).feats || [])) {
+    if (f.year !== YEAR) continue;
+    featCounts[f.type] = (featCounts[f.type] || 0) + 1;
+  }
+}
+console.log('feats:', Object.keys(featCounts).sort().map((k) => `${k} ${featCounts[k]}`).join(' | ') || 'none');
+
+// ---- Franchise mode: postseason + offseason rollover between seasons ----
+if (seasonsArg > 1) {
+  console.log('\n=== FRANCHISE MODE: ' + seasonsArg + ' seasons ===');
+  const retirementCounts = [];
+  let totalNewPlayers = 0;
+  let simErrorsTolerated = simErrors;
+  // ---- Dynasty instrumentation (0.53.1 audit soak) ----
+  // Career tracking survives retiree pruning: every player is recorded
+  // the first year he's seen, his max overall updates while active, and
+  // his retirement age is captured the winter it happens.
+  const careerTrack = {};
+  const yearlyHealth = [];
+  const trackYear = () => {
+    const R = W.BBGM_ROSTER;
+    let hof = 0, p65 = 0, p60 = 0, p55 = 0, payrollTot = 0, payrollMax = 0, active = 0;
+    for (const t of state.league.teams) {
+      let pr = 0;
+      for (const id of t.roster.concat(t.il || [])) {
+        const p = state.players[id];
+        if (p && p.contract) pr += p.contract.annualSalary || 0;
+        if (p && t.roster.includes(id)) {
+          const o = R.overall(p);
+          if (o >= 65) p65++; if (o >= 60) p60++; if (o >= 55) p55++;
+        }
+      }
+      payrollTot += pr;
+      payrollMax = Math.max(payrollMax, pr);
+    }
+    for (const id in state.players) {
+      const p = state.players[id];
+      if (p.hof) hof++;
+      if (!p.retired) active++;
+      if (!p.hidden || !p.hidden.archetype) continue;
+      let tr = careerTrack[id];
+      if (!tr) {
+        const defs = p.isPitcher ? W.BBGM_CONSTANTS.PITCHER_ARCHETYPES : W.BBGM_CONSTANTS.HITTER_ARCHETYPES;
+        const arch = defs.find((a) => a.key === p.hidden.archetype);
+        tr = careerTrack[id] = {
+          arch: p.hidden.archetype, isP: p.isPitcher,
+          peakLo: arch ? arch.peakAge[0] : 27,
+          prone: p.hidden.injuryProneness || 5,
+          maxOvr: 0, retiredAge: null, inj: 0,
+        };
+      }
+      if (!p.retired) {
+        tr.maxOvr = Math.max(tr.maxOvr, W.BBGM_ROSTER.overall(p));
+        tr.inj = Math.max(tr.inj, (p.injuryHistory || []).length);
+      } else if (tr.retiredAge == null) {
+        tr.retiredAge = p.retired.age;
+      }
+    }
+    yearlyHealth.push({
+      year: state.meta.currentDate.year, hof, p65, p60, p55,
+      payrollTot: Math.round(payrollTot), payrollMax: Math.round(payrollMax),
+      active, saveMB: Math.round(JSON.stringify(state).length / 1048576 * 100) / 100,
+    });
+  };
+  for (let si = 1; si <= seasonsArg; si++) {
+    const gamesBefore = totalGames, errBefore = simErrors, tiesBefore = ties;
+    const runsBefore = runsByLeague.east + runsByLeague.west;
+    const sgBefore = gamesByLeague.east + gamesByLeague.west;
+    const ilBefore = ilStints;
+
+    const tradesBefore = (state.history && state.history.trades ? state.history.trades.length : 0);
+    const summary = W.BBGM_OFFSEASON.runSeasonRollover(state);
+    // Regression guard: postseason games must not bleed into the archived
+    // regular-season records (every team's record sums to exactly 162).
+    const archived = state.history.seasons[state.history.seasons.length - 1].records;
+    const newErrs = simErrors - simErrorsTolerated;
+    for (const tid in archived) {
+      const r = archived[tid];
+      if (r.w + r.l !== 162) {
+        // A sim error skips exactly one game (harness-only tolerance) —
+        // a SHORT season with matching errors is the known symptom, and
+        // killing a 40-minute soak over it loses the dynasty report.
+        // Records summing OVER 162, or short with no error, is real
+        // pollution and still fails hard.
+        if (r.w + r.l < 162 && newErrs > 0) {
+          console.log(`⚠ SHORT SEASON (tolerated): ${tid} archived ${r.w}-${r.l} — ${newErrs} sim error(s) skipped game(s), see SIM ERROR above`);
+        } else {
+          console.log(`✗ RECORD POLLUTION: ${tid} archived ${r.w}-${r.l} (${r.w + r.l} games)`);
+          process.exit(1);
+        }
+      }
+    }
+    simErrorsTolerated = simErrors;
+    retirementCounts.push(summary.retirements.length);
+    totalNewPlayers += summary.newPlayers;
+    // January 15 window (v2.15.0): resolves inside the rollover now —
+    // report the winter's signings from the archived ledger, and fail
+    // loud if a rollover ever completes with the window still open.
+    const iwin = (state.intlHistory || [])[Math.max(0, (state.intlHistory || []).length - 1)];
+    if (iwin) {
+      console.log(`  Jan 15, ${iwin.year} intl window: signed ${(iwin.signings || []).length}/100`);
+    }
+    // Rule 5 (v2.17.0, §26): this winter's draft + last season's verdict.
+    {
+      const r5 = (state.rule5History || []).find((h) => h.year === summary.year);
+      const prev = (state.rule5History || []).find((h) => h.year === summary.year - 1);
+      if (r5) {
+        let line = `  Rule 5, Dec ${r5.year}: ${r5.picks.length} pick${r5.picks.length === 1 ? '' : 's'}` +
+          ` (pool ${r5.poolSize != null ? r5.poolSize : '?'})`;
+        if (prev) {
+          line += ` | last class: ${prev.returns.length} returned, ${prev.picks.length - prev.returns.length} stuck`;
+        }
+        console.log(line);
+      } else if (W.BBGM_RULE5) {
+        console.log(`✗ RULE 5 DRAFT MISSING for winter ${summary.year}`);
+        process.exit(1);
+      }
+    }
+    if (state.intl && state.intl.phase !== 'complete' && state.intl.year <= summary.year + 1) {
+      console.log(`✗ INTL WINDOW UNRESOLVED after ${summary.year} rollover (class ${state.intl.year}, phase ${state.intl.phase})`);
+      process.exit(1);
+    }
+    trackYear();
+    const faSigned = state.faMarket ? state.faMarket.entries.filter((e) => e.signedTeamId).length : 0;
+    const faUnsigned = state.faMarket ? state.faMarket.entries.length - faSigned : 0;
+    const champ = state.league.teams.find((t) => t.id === summary.postseason.champion.id);
+    const staffEv = summary.staffEvents || [];
+    console.log(`${summary.year}: 🏆 ${champ.abbr} (WS ${summary.postseason.worldSeries.score.join('-')})` +
+      ` | retired ${summary.retirements.length} | milestones ${summary.milestones.length}` +
+      ` | FA: ${summary.newFAs} out, ${faSigned} signed, ${faUnsigned} unsigned` +
+      ` | trades total ${(state.history.trades || []).length}` +
+      ` | staff: ${staffEv.filter((e) => e.kind === 'mgr-fired').length} fired,` +
+      ` ${staffEv.filter((e) => e.kind === 'coach-enters').length} retirees→coaching` +
+      ` | new org players ${summary.newPlayers}`);
+    // Awards sanity (19.1/19.2): both leagues fill the major hardware and
+    // the position awards; every winner id resolves to a real player.
+    const aw = summary.awards;
+    for (const lg of ['east', 'west']) {
+      const a = aw && aw[lg];
+      if (!a || !a.mvp || !a.cy || !a.roy || !a.reliever || !a.moy) {
+        console.log(`✗ AWARDS MISSING: ${lg} ${summary.year} — ` +
+          JSON.stringify({ mvp: !!(a && a.mvp), cy: !!(a && a.cy), roy: !!(a && a.roy),
+            reliever: !!(a && a.reliever), moy: !!(a && a.moy) }));
+        process.exit(1);
+      }
+      for (const key of ['mvp', 'cy', 'roy', 'reliever']) {
+        if (!state.players[a[key].winner.id]) {
+          console.log(`✗ AWARD WINNER MISSING FROM POOL: ${lg} ${key} ${a[key].winner.name}`);
+          process.exit(1);
+        }
+      }
+      const ggN = Object.keys(a.gg || {}).length, ssN = Object.keys(a.ss || {}).length;
+      if (ggN < 8 || ssN < 8) {
+        console.log(`✗ POSITION AWARDS THIN: ${lg} ${summary.year} — GG ${ggN}, SS ${ssN}`);
+        process.exit(1);
+      }
+    }
+    if (!state.history.allStar || !state.history.allStar[summary.year]) {
+      console.log(`✗ ALL-STAR GAME MISSING for ${summary.year}`);
+      process.exit(1);
+    }
+    const awLine = (lg) => `${aw[lg].mvp.winner.name}/${aw[lg].cy.winner.name}/${aw[lg].roy.winner.name}`;
+    const hofN = summary.hof ? summary.hof.inducted.length : 0;
+    console.log(`  awards E[MVP/Cy/RoY]: ${awLine('east')} | W: ${awLine('west')}` +
+      ` | HoF inducted: ${hofN}${hofN ? ' (' + summary.hof.inducted.map((i) => `${i.name} ${i.pct}%`).join(', ') + ')' : ''}` +
+      ` | ballot size: ${summary.hof ? summary.hof.ballot.length : 0}`);
+    // Youth ceiling (12.4 / 0.17.0): post-rollover, no minor leaguer sits
+    // above his age cap (AI reassignment honors it; only user moves can
+    // exceed it and the harness has no user).
+    const MINR = W.BBGM_MINORS;
+    let capViolations = 0;
+    const youngest = { AA: 99, AAA: 99 };
+    for (const id in state.players) {
+      const p = state.players[id];
+      if (p.retired || p.status !== 'minors') continue;
+      const idx = MINR.ORDER.indexOf(p.rosterStatus);
+      if (idx < 0) continue;
+      // allowedLevelIdx (0.67.0): the age cap PLUS the can't-be-denied
+      // bend — an 18yo phenom in AA is the design working, not a bug.
+      if (idx > MINR.allowedLevelIdx(p)) capViolations++;
+      if (p.rosterStatus === 'AA') youngest.AA = Math.min(youngest.AA, p.age);
+      if (p.rosterStatus === 'AAA') youngest.AAA = Math.min(youngest.AAA, p.age);
+    }
+    console.log(`  youth ceiling: violations ${capViolations} (must be 0)` +
+      ` | youngest AA ${youngest.AA} (t 19+, 18 = phenom door) | youngest AAA ${youngest.AAA} (t 21+, 19-20 = phenom door)`);
+    if (capViolations > 0) {
+      console.log('✗ YOUTH CEILING VIOLATED');
+      process.exit(1);
+    }
+    // Phase 16 running game: leaders should be true burners in the 40-60
+    // range; 30/30 seasons are rare (t 0-3); attempts in the classic band.
+    let sbAtt = 0, sb3030 = 0, sbTop = { sb: 0, name: '—' };
+    let ibbTot = 0, ibbTop = { ibb: 0, name: '—' };
+    const sbYr = summary.year;
+    for (const id in state.players) {
+      const s = state.players[id].stats && state.players[id].stats[sbYr];
+      if (!s || state.players[id].isPitcher) continue;
+      sbAtt += (s.sb || 0) + (s.cs || 0);
+      if ((s.sb || 0) >= 30 && (s.hr || 0) >= 30) sb3030++;
+      if ((s.sb || 0) > sbTop.sb) sbTop = { sb: s.sb, name: state.players[id].name };
+      ibbTot += s.ibb || 0;
+      if ((s.ibb || 0) > ibbTop.ibb) ibbTop = { ibb: s.ibb, name: state.players[id].name };
+    }
+    console.log(`  running game: SB att/team ${(sbAtt / 30).toFixed(0)} (emergent)` +
+      ` | 30/30 seasons ${sb3030} (t 0-3) | SB leader ${sbTop.name} ${sbTop.sb}`);
+    console.log(`  IBB/team ${(ibbTot / 30).toFixed(0)} (t ~46) | IBB leader ${ibbTop.name} ${ibbTop.ibb}`);
+
+    // Phase 15 offseason flow: AI non-tenders feed the market each
+    // December; the user's arb class queues; camp produces battles and
+    // a sprinkling of day-to-day knocks (t ~5-13 league-wide).
+    const camp = summary.springTraining || { battles: [], injuries: [], userLevelMoves: 0 };
+    const rc = summary.roleConversions || [];
+    console.log(`  offseason: non-tenders ${(summary.nonTenders || []).length} (t ~10-35)` +
+      ` | user arb cases ${summary.arbCases || 0}` +
+      ` | camp battles ${camp.battles.length} | camp injuries ${camp.injuries.length}` +
+      ` | ceiling breakouts ${(summary.breakouts || []).length} (t ~10-30)` +
+      ` | AI role conversions ${rc.length} (→RP ${rc.filter((c) => c.to === 'RP').length}` +
+      `, →SP ${rc.filter((c) => c.to === 'SP').length}, t ~10-30)`);
+    // 0.57.0 generational leaps: franchise-story rare (~1 per 2-4
+    // seasons league-wide). Print each one — a soak that shows a flood
+    // of these means the alignment gates broke.
+    for (const lp of summary.leaps || []) {
+      console.log(`  ⚡ GENERATIONAL LEAP: ${lp.name} (${lp.isPitcher ? 'P' : 'H'}, ` +
+        `team ${lp.teamId}) ceiling ${lp.before} → ${lp.after}`);
+    }
+    // 0.62.0 mound conversions: a handful a year league-wide is the
+    // target — a flood means the dead-bat/cannon gates got too loose.
+    const mcN = (summary.moundConversions || []).length;
+    if (mcN) console.log(`  🧤→⚾ mound conversions: ${mcN} (${(summary.moundConversions || []).map((m) => m.name).join(', ')})`);
+
+    if (si === seasonsArg) break;
+    runSeason();
+    while (draftLines.length) console.log(draftLines.shift());
+    const rg = (runsByLeague.east + runsByLeague.west - runsBefore) /
+               Math.max(1, gamesByLeague.east + gamesByLeague.west - sgBefore);
+    // Starter-workload guard every season (not just season 1): GS above 36
+    // means rotation IL holes are funneling starts again.
+    let seasonMaxGS = 0;
+    const yr = state.meta.currentDate.year;
+    for (const id in state.players) {
+      const s = state.players[id].stats && state.players[id].stats[yr];
+      if (s && (s.gs || 0) > seasonMaxGS) seasonMaxGS = s.gs;
+    }
+    console.log(`  ${state.meta.currentDate.year} season: ${totalGames - gamesBefore} games` +
+      ` | R/G ${rg.toFixed(2)} | IL stints ${ilStints - ilBefore}` +
+      ` | sim errors ${simErrors - errBefore} | ties ${ties - tiesBefore}` +
+      ` | max GS ${seasonMaxGS}` +
+      ` | FA pool ${(state.freeAgents || []).length}` +
+      ` | active ${Object.keys(state.players).filter((id) => !state.players[id].retired).length}`);
+    // Fail line at 38: the guard exists for the 0.15.3 bug class (a
+    // broken rotation slot handing one arm 51 starts), not for the
+    // once-a-generation 37-start workhorse year a club rides out of an
+    // injury-riddled rotation (real-baseball outlier range: Halladay
+    // 36, Hough 40). 37 observed once across ~30 soak-decades.
+    { // INSTRUMENTED (workload probe): any club whose top-4 starters carry 140+ starts
+      for (const t of state.league.teams) {
+        const gs = t.roster.concat(t.il || []).map((id) => state.players[id]).filter(Boolean)
+          .map((p) => ({ n: p.name, gs: (p.stats && p.stats[yr] && p.stats[yr].gs) || 0 }))
+          .filter((x) => x.gs > 0).sort((a, b) => b.gs - a.gs);
+        const top4 = gs.slice(0, 4).reduce((a, x) => a + x.gs, 0);
+        if (top4 >= 140 || (gs[0] && gs[0].gs >= 36)) {
+          console.log(`  WORKLOAD ${yr} ${t.abbr}: top starters ${gs.slice(0, 7).map((x) => `${x.n} ${x.gs}`).join(', ')}`);
+        }
+      }
+    }
+    { // INSTRUMENTED (deflation probe): 26-man talent by side + SP velocity + age
+      const R = W.BBGM_ROSTER;
+      let hs = 0, hn = 0, ps = 0, pn = 0, velo = 0, vn = 0, hage = 0, page = 0, defs = 0, dn = 0, pow = 0, pwn = 0;
+      for (const t of state.league.teams) for (const id of t.roster) {
+        const p = state.players[id]; if (!p) continue;
+        const o = R.overall(p);
+        if (p.isPitcher) { ps += o; pn++; page += p.age; if (p.primaryPosition === 'SP') { velo += p.ratings.velocity || 0; vn++; } }
+        else { hs += o; hn++; hage += p.age; defs += p.ratings.defense || 0; dn++; pow += ((p.ratings.powerVsR || 0) + (p.ratings.powerVsL || 0)) / 2; pwn++; }
+      }
+      console.log(`  PROBE ${yr}: 26-man OVR hitters ${(hs/hn).toFixed(1)} (age ${(hage/hn).toFixed(1)}, def ${(defs/dn).toFixed(1)}, pow ${(pow/pwn).toFixed(1)}) | pitchers ${(ps/pn).toFixed(1)} (age ${(page/pn).toFixed(1)}, SP velo ${(velo/vn).toFixed(1)})`);
+    }
+    if (seasonMaxGS > 35) {
+      // INSTRUMENTED (hunt): name the offender and his club's staff state.
+      for (const id in state.players) {
+        const p = state.players[id];
+        const s = p.stats && p.stats[yr];
+        if (!s || (s.gs || 0) !== seasonMaxGS) continue;
+        const t = state.league.teams.find((x) => x.id === p.teamId);
+        const rot = t ? (t.rotation || []).map((rid) => { const q = state.players[rid]; return q ? `${q.name}(${q.primaryPosition},${q.rule5 ? 'R5' : ''}${q.ilStatus ? 'IL' : ''})` : `MISSING:${rid}`; }) : [];
+        const arms = t ? t.roster.map((rid) => state.players[rid]).filter((q) => q && q.isPitcher) : [];
+        console.log(`  OVERWORK DUMP: ${p.name} (${p.primaryPosition}, age ${p.age}, rule5=${!!p.rule5}, ovr ${W.BBGM_ROSTER.overall(p).toFixed(0)}) GS ${s.gs} IP ${((s.ipOuts||0)/3).toFixed(0)} | team ${t ? t.abbr : '?'} roster ${t ? t.roster.length : '?'} pitchers ${arms.length} SP ${arms.filter((q) => q.primaryPosition === 'SP').length} | rotation(${rot.length}): ${rot.join(', ')} | closer ${t && state.players[t.closer] ? state.players[t.closer].name : '?'}`);
+      }
+    }
+    if (seasonMaxGS > 38) {
+      console.log(`✗ STARTER OVERWORK: a pitcher made ${seasonMaxGS} starts in ${yr}`);
+      process.exit(1);
+    }
+    if (seasonMaxGS > 35) {
+      console.log(`  ⚠ heavy workload: a pitcher made ${seasonMaxGS} starts in ${yr} (fail line 38)`);
+    }
+  }
+
+  // Franchise diagnostics.
+  console.log('--- Franchise diagnostics ---');
+  try {
+    W.BBGM_PLAYER_GEN.validateLeagueReadiness(state.league, state.players);
+    console.log('league readiness after ' + seasonsArg + ' seasons: OK');
+  } catch (e) {
+    console.log('league readiness FAILED:', e.message);
+  }
+  let retiredCount = 0, activeCount = 0, coachFlags = 0;
+  const ovrByAge = {};
+  for (const id in state.players) {
+    const p = state.players[id];
+    if (p.retired) {
+      retiredCount++;
+      if (p.retired.openToCoaching) coachFlags++;
+      continue;
+    }
+    activeCount++;
+    if (p.rosterStatus === '26-man') {
+      const bucket = p.age <= 25 ? '<=25' : p.age <= 29 ? '26-29' : p.age <= 33 ? '30-33' : '34+';
+      if (!ovrByAge[bucket]) ovrByAge[bucket] = [];
+      ovrByAge[bucket].push(W.BBGM_ROSTER.overall(p));
+    }
+  }
+  console.log('players: active', activeCount, '| retired', retiredCount,
+    '(open to coaching:', coachFlags + ')', '| retirements/yr', retirementCounts.join(', '));
+  const cohorts = ['<=25', '26-29', '30-33', '34+'].map((b) =>
+    `${b}: ${avg(ovrByAge[b] || []).toFixed(1)} (n=${(ovrByAge[b] || []).length})`);
+  console.log('26-man avg overall by age —', cohorts.join(' | '));
+  const champs = state.history.seasons.map((s) => s.championId);
+  console.log('champions:', champs.join(', '), '| distinct:', new Set(champs).size);
+  const minorsSizes = state.league.teams.map((t) => (t.minors || []).length);
+  console.log('minors sizes:', Math.min(...minorsSizes), '-', Math.max(...minorsSizes),
+    '| free agents pool:', (state.freeAgents || []).length);
+  // Draft pipeline health: signed draftees flowing into orgs and (after a
+  // few seasons of development) onto 26-man rosters.
+  let drafteesActive = 0, drafteesMLB = 0, drafteesRetired = 0;
+  for (const id in state.players) {
+    const p = state.players[id];
+    if (!p.draft) continue;
+    if (p.retired) { drafteesRetired++; continue; }
+    drafteesActive++;
+    if (p.rosterStatus === '26-man') drafteesMLB++;
+  }
+  console.log('draftees: active', drafteesActive, '| on 26-man rosters', drafteesMLB,
+    '| washed out', drafteesRetired, '| draft classes archived:', (state.draftHistory || []).length);
+  let intlActive = 0, intlMLB = 0, intlEventPlayers = 0;
+  for (const id in state.players) {
+    const p = state.players[id];
+    if (p.intlEvent && !p.retired) intlEventPlayers++;
+    if (!p.intl || p.retired) continue;
+    intlActive++;
+    if (p.rosterStatus === '26-man') intlMLB++;
+  }
+  console.log('intl signees: active', intlActive, '| on 26-man', intlMLB,
+    '| event players (postings/defectors/KBO) active:', intlEventPlayers,
+    '| windows archived:', (state.intlHistory || []).length);
+  // Personality traits (v2.16.0, §25): distribution + discovery census.
+  // Invariants: every trait key is known; a reveal never exists without
+  // a trait; Inconsistent/Steady only sit on archetypes whose volatility
+  // backs the label. Traited share ~40% (alarm outside 25-55%).
+  {
+    const KNOWN = ['loyal', 'mercenary', 'big_game', 'shrinker', 'inconsistent', 'steady'];
+    const counts = {}, reveals = { org: 0, public: 0 };
+    let traited = 0, living = 0, bad = 0, labelDrift = 0;
+    for (const id in state.players) {
+      const p = state.players[id];
+      if (!p || p.retired || !p.hidden) continue;
+      living++;
+      const tr = p.hidden.trait;
+      if (p.hidden.traitReveal && !tr) { bad++; console.log(`✗ TRAIT REVEAL WITHOUT TRAIT: ${p.name}`); }
+      if (!tr) continue;
+      if (!KNOWN.includes(tr)) { bad++; console.log(`✗ UNKNOWN TRAIT '${tr}': ${p.name}`); continue; }
+      traited++;
+      counts[tr] = (counts[tr] || 0) + 1;
+      if (p.hidden.traitReveal) reveals[p.hidden.traitReveal] = (reveals[p.hidden.traitReveal] || 0) + 1;
+      if (tr === 'inconsistent' || tr === 'steady') {
+        // Labels are volatility-backed AT MINT (tests/traits_test.js
+        // proves 0 violations there). Later role conversions and aging
+        // RE-MINT archetypes — a Steady man who moves to the pen can
+        // land on a volatile arch. Personality doesn't flip with the
+        // role, so this is drift to WATCH, not an invariant to fail.
+        const defs = p.isPitcher ? W.BBGM_CONSTANTS.PITCHER_ARCHETYPES : W.BBGM_CONSTANTS.HITTER_ARCHETYPES;
+        const arch = defs.find((a) => a.key === p.hidden.archetype);
+        const vol = arch ? (arch.volatility || 0.1) : 0.1;
+        if ((tr === 'inconsistent' && vol < 0.28) || (tr === 'steady' && vol > 0.08)) labelDrift++;
+      }
+    }
+    const share = living ? traited / living : 0;
+    console.log('personality traits:', KNOWN.map((k) => `${k} ${counts[k] || 0}`).join(' | '),
+      `| traited ${(share * 100).toFixed(0)}% of ${living}`,
+      `| discovered: org ${reveals.org}, public ${reveals.public}`,
+      `| label drift (post-mint archetype changes): ${labelDrift}`);
+    if (bad) process.exit(1);
+    if (share < 0.25 || share > 0.55) {
+      console.log(`✗ TRAIT SHARE OUT OF BAND: ${(share * 100).toFixed(1)}% (band 25-55%)`);
+      process.exit(1);
+    }
+  }
+  // Rule 5 stick ledger (v2.17.0, §26). Invariants: every flag from a
+  // COMPLETED season must be cleared (survive → graduated, fail → sent
+  // home); the only live flags belong to the upcoming season's fresh
+  // December picks. Flagged players must sit on a 26-man or IL.
+  {
+    const lastSeason = state.history.seasons[state.history.seasons.length - 1].year;
+    let stale = 0, upcoming = 0, misplaced = 0;
+    for (const id in state.players) {
+      const p = state.players[id];
+      if (!p || !p.rule5) continue;
+      if (p.rule5.year <= lastSeason) { stale++; console.log(`✗ STALE RULE 5 FLAG (${p.rule5.year}): ${p.name}`); }
+      else upcoming++;
+      if (p.status === 'minors') { misplaced++; console.log(`✗ RULE 5 PICK IN THE MINORS: ${p.name}`); }
+    }
+    const hist = state.rule5History || [];
+    const totalPicks = hist.reduce((s, h) => s + h.picks.length, 0);
+    const totalReturns = hist.reduce((s, h) => s + h.returns.length, 0);
+    console.log(`Rule 5: ${hist.length} drafts | ${totalPicks} picks, ${totalReturns} returned` +
+      (totalPicks ? ` (${Math.round((1 - totalReturns / totalPicks) * 100)}% stick)` : '') +
+      ` | live flags for next season: ${upcoming}`);
+    if (stale || misplaced) process.exit(1);
+  }
+  // Star scarcity (bible 4.3): ~60 stars league-wide, pyramid below.
+  let n65 = 0, n60 = 0, n55 = 0;
+  for (const t of state.league.teams) {
+    for (const id of t.roster) {
+      const ovr = W.BBGM_ROSTER.overall(state.players[id]);
+      if (ovr >= 65) n65++;
+      if (ovr >= 60) n60++;
+      if (ovr >= 55) n55++;
+    }
+  }
+  console.log(`26-man talent pyramid: 65+ ovr: ${n65} | 60+: ${n60} (t ~60 stars) | 55+: ${n55}`);
+  // Hall of Fame accumulation (19.9): target 2-4/yr long-run once careers
+  // complete inside the save (first ballots need retired-5yr candidates).
+  const hofMembers = Object.keys(state.players).filter((id) => state.players[id].hof);
+  const hofYears = Object.keys(state.history.hof || {}).length;
+  const asYears = Object.keys(state.history.allStar || {}).length;
+  console.log(`HoF: ${hofMembers.length} members over ${hofYears} votes` +
+    ` | All-Star Games played: ${asYears}` +
+    ` | awards years archived: ${Object.keys(state.history.awards || {}).length}`);
+  console.log('total trades logged:', (state.history.trades || []).length,
+    '| payroll range:', (() => {
+      const ps = state.league.teams.map((t) => W.BBGM_FA.computePayroll(t, state.players));
+      return `$${Math.min(...ps).toFixed(0)}M - $${Math.max(...ps).toFixed(0)}M`;
+    })());
+  console.log('save size:', (JSON.stringify(state).length / 1024 / 1024).toFixed(2), 'MB');
+
+  // ---- Dynasty report (0.53.1 audit soak) ----
+  console.log('\n--- Dynasty health by year ---');
+  console.log('year  HoF  65+/60+/55+   payroll(tot/max)  active  saveMB');
+  for (const y of yearlyHealth) {
+    console.log(`${y.year}  ${String(y.hof).padStart(3)}  ${String(y.p65).padStart(3)}/${String(y.p60).padStart(3)}/${String(y.p55).padStart(3)}` +
+      `   $${y.payrollTot}M/$${y.payrollMax}M   ${y.active}   ${y.saveMB}`);
+  }
+
+  console.log('\n--- Archetype survivorship (do slow developers live to bloom?) ---');
+  const byArch = {};
+  for (const id in careerTrack) {
+    const tr = careerTrack[id];
+    (byArch[tr.arch] = byArch[tr.arch] || []).push(tr);
+  }
+  console.log('arch              n     retired<peak   reached 50+   reached 55+');
+  for (const key of ['traditional', 'overachiever', 'early_peak', 'late_bloomer', 'slow_burn', 'late_reinvent', 'crafty_vet', 'workhorse', 'steady_decliner', 'bust', 'quad_a']) {
+    const list = byArch[key] || [];
+    if (!list.length) continue;
+    const done = list.filter((t) => t.retiredAge != null);
+    const beforePeak = done.filter((t) => t.retiredAge < t.peakLo).length;
+    const r50 = list.filter((t) => t.maxOvr >= 50).length;
+    const r55 = list.filter((t) => t.maxOvr >= 55).length;
+    console.log(`${key.padEnd(16)} ${String(list.length).padStart(5)}   ` +
+      `${(done.length ? (100 * beforePeak / done.length).toFixed(0) : '—').padStart(6)}%` +
+      `        ${(100 * r50 / list.length).toFixed(0).padStart(4)}%` +
+      `        ${(100 * r55 / list.length).toFixed(0).padStart(4)}%`);
+  }
+
+  // Optional final-state dump for offline size profiling:
+  //   BBGM_DUMP_STATE=/path/out.json node tools/season_harness.js SEED N
+  if (process.env.BBGM_DUMP_STATE) {
+    require('fs').writeFileSync(process.env.BBGM_DUMP_STATE, JSON.stringify(state));
+    console.log('state dumped to', process.env.BBGM_DUMP_STATE);
+  }
+
+  console.log('\n--- Injury layer (does proneness differentiate?) ---');
+  const buckets = { 'prone 1-3': [], 'prone 4-7': [], 'prone 8-10': [] };
+  for (const id in careerTrack) {
+    const tr = careerTrack[id];
+    if (tr.maxOvr < 40) continue; // careers too short to accumulate data
+    const b = tr.prone <= 3 ? 'prone 1-3' : tr.prone <= 7 ? 'prone 4-7' : 'prone 8-10';
+    buckets[b].push(tr.inj);
+  }
+  for (const b in buckets) {
+    console.log(`${b}: n=${buckets[b].length}, mean career injuries ${avg(buckets[b]).toFixed(2)}`);
+  }
+}
+
+OBS.printReport(obsRows);
+OBS.printOutcomes(OBS.outcomeCensus(state, outcomeStore, harnessStartYear, state.meta.currentDate.year));
+
+// §23.18 (the 80 wall): a true 80-grade tool is a two-hands count
+// league-wide — watch the scarcity forever.
+{
+  const TOOLS_OF = (p) => p.isPitcher
+    ? ['velocity', 'stuff', 'movement', 'control']
+    : ['contactVsR', 'contactVsL', 'powerVsR', 'powerVsL', 'discipline', 'defense', 'arm', 'speed'];
+  // "80-grade" is what the CARD says: grades snap to 5s, so a current
+  // of 77.5+ displays as 80 — that's the two-hands count the owner
+  // sees. The literal ≥79.5 count runs lower because developed tools
+  // asymptote toward their ceiling; only born tools sit exactly on it.
+  let card80 = 0, lit80 = 0, ceil80 = 0, over80 = 0;
+  const names80 = [], overNames = [];
+  for (const id in state.players) {
+    const p = state.players[id];
+    if (!p || p.retired) continue;
+    for (const k of TOOLS_OF(p)) {
+      const r = p.ratings[k];
+      const c = p.hidden && p.hidden.ceiling ? p.hidden.ceiling[k] : null;
+      // Name the offender: a wall breach is useless anonymous — dump
+      // who/what/how-high plus the flags that hint at the guilty path.
+      if (r != null && r > 80.01) {
+        over80++;
+        overNames.push(`${p.name} RATING ${k}=${r} age ${p.age} arch ${p.hidden && p.hidden.archetype} surge ${!!(p.hidden && p.hidden.surgeDone)} leap ${!!(p.hidden && p.hidden.leap)} conv ${!!p.conversion}`);
+      }
+      if (c != null && c > 80.01) {
+        over80++;
+        overNames.push(`${p.name} CEILING ${k}=${c} (cone ${p.hidden.cone && p.hidden.cone.hi ? p.hidden.cone.hi[k] : '—'}) age ${p.age} arch ${p.hidden && p.hidden.archetype} surge ${!!(p.hidden && p.hidden.surgeDone)} leap ${!!(p.hidden && p.hidden.leap)}`);
+      }
+      if (r != null && r >= 77.5) { card80++; if (names80.length < 10) names80.push(`${p.name} ${k} ${Math.round(r)}`); }
+      if (r != null && r >= 79.5) lit80++;
+      if (c != null && c >= 79.5) ceil80++;
+    }
+  }
+  // Farm-size census (v2.12.0): the hard 30-cap is dead; merit washouts
+  // must hold the league in equilibrium instead. Watch for bloat.
+  {
+    // AI orgs only for the alarm — the harness's "user" club never
+    // releases anyone (in real play the GM acts on the washout letter),
+    // so it grows by design and would poison the average.
+    const ai = state.league.teams.filter((t) => t.id !== state.meta.userTeamId);
+    const sizes = ai.map((t) => (t.minors || []).length);
+    const avg = sizes.reduce((s, x) => s + x, 0) / sizes.length;
+    const max = Math.max(...sizes);
+    const userSize = ((state.league.teams.find((t) => t.id === state.meta.userTeamId) || {}).minors || []).length;
+    console.log(`\n--- Observatory: farm sizes (no cap — merit washouts) ---`);
+    console.log(`AI avg ${avg.toFixed(1)} / max ${max} per org (floor 22; bloat alarm if avg > 45)${avg > 45 ? '  ⚠ FARM BLOAT' : ''} | user (never auto-cut): ${userSize}`);
+  }
+  console.log(`\n--- Observatory: the 80 wall (§23.18) ---`);
+  console.log(`80-GRADE tools on the card (cur >= 77.5): ${card80} (band ~4-18) | literal >=79.5: ${lit80} | 80-ceiling promises: ${ceil80} | ABOVE the wall (>80, must be 0): ${over80}`);
+  if (names80.length) console.log(`the two hands: ${names80.join(' | ')}`);
+  if (overNames.length) console.log(`WALL BREACH: ${overNames.join(' | ')}`);
+}
+if (process.env.DUMP) {
+  const out = process.env.DUMP;
+  fs.writeFileSync(out, JSON.stringify(state));
+  console.log('STATE DUMPED to', out, Math.round(fs.statSync(out).size / 1048576 * 100) / 100, 'MB');
+}

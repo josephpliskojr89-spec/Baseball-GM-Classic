@@ -1,0 +1,57 @@
+[
+  {
+    "sev": "LOW",
+    "title": "makeUserOffer(years 99) accepted and the player SIGNED",
+    "detail": "contract={\"years\":99,\"annualSalary\":5.1,\"totalValue\":504.9,\"signedAt\":\"FA\"} payroll=107.6 (engine-level: UI offers preset buttons; console-only)"
+  },
+  {
+    "sev": "LOW",
+    "title": "makeUserOffer(total 1e12 years 1e12) accepted and the player SIGNED",
+    "detail": "contract={\"years\":1000000000000,\"annualSalary\":1,\"totalValue\":1000000000000,\"signedAt\":\"FA\"} payroll=103.5 (engine-level: UI offers preset buttons; console-only)"
+  },
+  {
+    "sev": "HIGH",
+    "title": "Payroll cap bypass by stacking FA offers: each offer is checked alone against current payroll, so N standing offers can all win",
+    "detail": "payroll 102.5 -> 479.4M vs budget 209M (x2.29); 93 offers placed in one round through the normal UI buttons"
+  },
+  {
+    "sev": "MEDIUM",
+    "title": "offerExtension(years 0 total 1) signs",
+    "detail": "contract={\"years\":0,\"annualSalary\":null,\"totalValue\":1,\"signedAt\":\"extension\"} (engine-level: UI offers preset buttons; console-only)"
+  },
+  {
+    "sev": "LOW",
+    "title": "offerExtension(years 99 total 1e6) signs",
+    "detail": "contract={\"years\":99,\"annualSalary\":10101,\"totalValue\":1000000,\"signedAt\":\"extension\"} (engine-level: UI offers preset buttons; console-only)"
+  },
+  {
+    "sev": "MEDIUM",
+    "title": "offerExtension(years 1 total Infinity) signs",
+    "detail": "contract={\"years\":1,\"annualSalary\":null,\"totalValue\":null,\"signedAt\":\"extension\"} (engine-level: UI offers preset buttons; console-only)"
+  },
+  {
+    "sev": "MEDIUM",
+    "title": "offerExtension(years 2.5 total 50) signs",
+    "detail": "contract={\"years\":2.5,\"annualSalary\":20,\"totalValue\":50,\"signedAt\":\"extension\"} (engine-level: UI offers preset buttons; console-only)"
+  },
+  {
+    "sev": "MEDIUM",
+    "title": "userSign works during window step 1 (the bidding phase) — the #1 prospect can be taken at slot ask before any bidding",
+    "detail": "signed Franklin Rondon rank 1 for $4.1M ask (engine-level; the UI hides the Sign button until step 2)"
+  },
+  {
+    "sev": "HIGH",
+    "title": "userSign signs the SAME prospect twice: double bonus charged, duplicate roster entry",
+    "detail": "spent now 8.2; minors entries for him: 2; signings ledger count: 2"
+  },
+  {
+    "sev": "HIGH",
+    "title": "No pool budget check in userSign: the user can sign the ENTIRE international class (100 prospects) for a one-time 50% pool penalty",
+    "detail": "pool $6M, spent $73.88M (1231% of pool); every \"Sign for $X\" button in the hub works regardless of money; penalty: {\"pool\":6,\"spent\":73.88,\"penaltyMul\":0.5,\"restrictedYears\":2}"
+  },
+  {
+    "sev": "MEDIUM",
+    "title": "An injured (IL) player placed on waivers is claimed onto the claimant's 26-man while still injured",
+    "detail": "Miles Rogers ilStatus={\"type\":\"10-day\",\"daysRemaining\":2} on LAG 26-man (team.il=false)"
+  }
+]

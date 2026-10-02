@@ -1,0 +1,543 @@
+  2026 draft: strength 0.8 | #1 Kendall Talley (2B) to van | signed 265/300 picks (class 350) | best teen signee OVR 41 (t <=45)
+  2026 All-Star Game: east wins 7-2 | MVP Vic Prentice | 64 selections
+  2026 in-season |ΔOVR| May→Sep: age<=26 0.93 | age>=30 0.97 (t ~0.5-3, nonzero)
+  2026 flavor leagues (30 FAs): AMA 11 | ATL 5 | FRO 4 | MEX 4
+  2026 mid-season moves: swaps 149 (t ~15-90) | farm level moves 22
+=== SEASON RESULTS (seed 777) ===
+games: 2430 | sim errors: 0  | TIES (must be 0): 0 | extras: 239 | longest: 19 inn
+home win pct: 50.3%
+R/G per team: EAST 4.53 WEST 4.18 ALL 4.36 (emergent — see observatory)
+--- League batting (position players | incl. pitcher hitting) ---
+BA 0.263 | 0.254 | OBP 0.336 | 0.327 | SLG 0.427 | 0.412
+K% 19.0% | BB% 9.3% | HR% 3.0%
+PA/team-game: 38.3 (t 38.3)
+season volume max: 787 PA (Simon Hubbard) | 700 AB (Antonio Mesa) (records 778/716)
+SB att/team: 42 | SB% 71.8% (green-light era: emergent) | SF/team 30 (t ~40) | GIDP/team 142
+IBB/team: 40 (t ~46) | IBB leader: Domingo Lowery 36
+SH/team: EAST 13 | WEST 46 (t: west ~40-70 w/ pitcher bunts, east ~10-30)
+--- Pitcher hitting (no-DH games) ---
+PA 9054 | BA 0.093 (t ~.130) | K% 44.8% (t ~35-40%) | BB% 2.7% (t ~4-5%) | HR 17
+--- League pitching / defense ---
+ERA 4.11 | WHIP 1.38 | K/9 8.0 | BB/9 3.5 | HR/9 1.10
+errors/team: 97 (t ~100-120) | unearned run share: 5.5% (MLB ~7-8%)
+CG: 44 | SHO: 16 | reliever 4th-straight-day appearances (soft rule; depleted-pen fallback only): 111
+thin-club weeks (26-man under 9 healthy hitters; t 0 — composition floors 0.75.2): 0
+--- Usage (7.4.7) ---
+SP IP/start avg: 6.11 (t 5.5-6.5) range 2.72 - 44.00
+setup G avg: 62 (t 60-75) | middle: 50 | long: 42 (t 30-45) | mopup: 49
+closer SV avg: 28 (t 25-40) range 8 - 44 | closer W avg: 2.0
+reliever wins: 850 = 35.0% of games
+--- Injuries (10.7) ---
+IL stints: 163 (t 150-200) | DTD: 158 | TJ: 22 (t 15-25) | career-altering: 6 (t 3-8)
+pitchers w/ IL stint: 22.9% (t ~20-35%) | hitters: 15.9% (t ~15-20%)
+--- Fatigue (10.8) ---
+peak fatigue medians — catchers: 85 | regulars: 49 | 33+: 81
+avg PA of 400+ PA hitters: EAST 640 WEST 619
+GP of lineup regulars — median C: 145 (t ~120-140) | median non-C: 146 (t ~145-155) | 160+ GP: 5 (t: a handful, all iron-man types)
+iron-man trait starters: 14 | of whom played 160+: 5
+starter workload — max GS: 34 (t <=35) | GS>36: 0 
+feats: cycle 1 | hr3 15 | hr4 1 | k15 3 | walkoff 113 | walkoff_hr 74
+
+=== FRANCHISE MODE: 25 seasons ===
+  Jan 15, 2027 intl window: signed 100/100
+  Rule 5, Dec 2026: 0 picks (pool 0)
+2026: 🏆 TBR (WS 4-3) | retired 77 | milestones 0 | FA: 59 out, 66 signed, 20 unsigned | trades total 15 | staff: 3 fired, 0 retirees→coaching | new org players 5
+  awards E[MVP/Cy/RoY]: Seth Ward/Max Wenzel/Brady Roth | W: Eli Hooper/Shawn Boyle/Eli Hooper | HoF inducted: 0 | ballot size: 0
+  youth ceiling: violations 0 (must be 0) | youngest AA 19 (t 19+, 18 = phenom door) | youngest AAA 21 (t 21+, 19-20 = phenom door)
+  running game: SB att/team 44 (emergent) | 30/30 seasons 0 (t 0-3) | SB leader Cooper Prince 53
+  IBB/team 41 (t ~46) | IBB leader Domingo Lowery 36
+  offseason: non-tenders 12 (t ~10-35) | user arb cases 3 | camp battles 1 | camp injuries 12 | ceiling breakouts 0 (t ~10-30) | AI role conversions 23 (→RP 23, →SP 0, t ~10-30)
+  2027 draft: strength -0.4 | #1 Kyle Pitts (RF) to bos | signed 265/300 picks (class 350) | best teen signee OVR 33 (t <=45)
+  2027 All-Star Game: east wins 5-0 | MVP Maximo McDaniel | 64 selections
+  2027 in-season |ΔOVR| May→Sep: age<=26 0.80 | age>=30 0.77 (t ~0.5-3, nonzero)
+  2027 flavor leagues (220 FAs): AMA 66 | ATL 45 | FRO 44 | KBO 1 | MEX 44
+  2027 mid-season moves: swaps 60 (t ~15-90) | farm level moves 0
+  2027 season: 2430 games | R/G 4.53 | IL stints 130 | sim errors 0 | ties 0 | max GS 35 | FA pool 220 | active 2124
+  PROBE 2027: 26-man OVR hitters 47.7 (age 27.9, def 48.2, pow 47.2) | pitchers 47.8 (age 28.4, SP velo 43.2)
+  Jan 15, 2028 intl window: signed 100/100
+  Rule 5, Dec 2027: 0 picks (pool 0) | last class: 0 returned, 0 stuck
+2027: 🏆 STL (WS 4-2) | retired 161 | milestones 3 | FA: 123 out, 180 signed, 57 unsigned | trades total 25 | staff: 0 fired, 3 retirees→coaching | new org players 2
+  awards E[MVP/Cy/RoY]: Louis Black/Cole West/Matt Lucas | W: Isaiah Price/Colby Juarez/Wyatt Holden | HoF inducted: 0 | ballot size: 0
+  youth ceiling: violations 0 (must be 0) | youngest AA 19 (t 19+, 18 = phenom door) | youngest AAA 21 (t 21+, 19-20 = phenom door)
+  running game: SB att/team 55 (emergent) | 30/30 seasons 0 (t 0-3) | SB leader Brady Roth 62
+  IBB/team 45 (t ~46) | IBB leader Silas Wenzel 31
+  offseason: non-tenders 16 (t ~10-35) | user arb cases 4 | camp battles 1 | camp injuries 7 | ceiling breakouts 0 (t ~10-30) | AI role conversions 15 (→RP 15, →SP 0, t ~10-30)
+  2028 draft: strength 0.7 | #1 Curtis Bullock (SP) to bos | signed 261/300 picks (class 350) | best teen signee OVR 37 (t <=45)
+  2028 All-Star Game: east wins 4-3 | MVP Brady Roth | 64 selections
+  2028 in-season |ΔOVR| May→Sep: age<=26 0.71 | age>=30 0.71 (t ~0.5-3, nonzero)
+  2028 flavor leagues (204 FAs): AMA 56 | ATL 50 | FRO 36 | KBO 6 | MEX 38 | NPB 1
+  2028 mid-season moves: swaps 42 (t ~15-90) | farm level moves 0
+  2028 season: 2430 games | R/G 4.62 | IL stints 167 | sim errors 0 | ties 0 | max GS 34 | FA pool 205 | active 2242
+  PROBE 2028: 26-man OVR hitters 47.9 (age 28.0, def 47.9, pow 47.6) | pitchers 48.0 (age 28.0, SP velo 43.9)
+  Jan 15, 2029 intl window: signed 100/100
+  Rule 5, Dec 2028: 0 picks (pool 0) | last class: 0 returned, 0 stuck
+2028: 🏆 SEA (WS 4-0) | retired 142 | milestones 15 | FA: 125 out, 186 signed, 50 unsigned | trades total 39 | staff: 1 fired, 18 retirees→coaching | new org players 2
+  awards E[MVP/Cy/RoY]: Seth Ward/Elias Cole/Curt Douglas | W: Jackson Yates/Grayson Stafford/Grayson Stafford | HoF inducted: 0 | ballot size: 0
+  youth ceiling: violations 0 (must be 0) | youngest AA 19 (t 19+, 18 = phenom door) | youngest AAA 21 (t 21+, 19-20 = phenom door)
+  running game: SB att/team 54 (emergent) | 30/30 seasons 0 (t 0-3) | SB leader Cooper Prince 54
+  IBB/team 40 (t ~46) | IBB leader Dong-hyun Gu 30
+  offseason: non-tenders 28 (t ~10-35) | user arb cases 12 | camp battles 1 | camp injuries 6 | ceiling breakouts 0 (t ~10-30) | AI role conversions 13 (→RP 13, →SP 0, t ~10-30)
+  2029 draft: strength 0.8 | #1 Tony Rollins (SP) to phx | signed 272/300 picks (class 350) | best teen signee OVR 42 (t <=45)
+  2029 All-Star Game: east wins 2-1 | MVP Seth Ward | 64 selections
+  2029 in-season |ΔOVR| May→Sep: age<=26 0.65 | age>=30 0.67 (t ~0.5-3, nonzero)
+  2029 flavor leagues (179 FAs): AMA 53 | ATL 33 | FRO 21 | KBO 5 | MEX 47 | NPB 2
+  2029 mid-season moves: swaps 45 (t ~15-90) | farm level moves 0
+  2029 season: 2430 games | R/G 4.61 | IL stints 148 | sim errors 0 | ties 0 | max GS 34 | FA pool 179 | active 2358
+  PROBE 2029: 26-man OVR hitters 47.9 (age 28.0, def 47.8, pow 47.3) | pitchers 48.3 (age 27.6, SP velo 43.9)
+  Jan 15, 2030 intl window: signed 100/100
+  Rule 5, Dec 2029: 0 picks (pool 0) | last class: 0 returned, 0 stuck
+2029: 🏆 NYE (WS 4-2) | retired 131 | milestones 29 | FA: 163 out, 214 signed, 61 unsigned | trades total 50 | staff: 2 fired, 10 retirees→coaching | new org players 6
+  awards E[MVP/Cy/RoY]: Warren Hayes/Vincent Sosa/Bryce Schmidt | W: Eli Hooper/Trent Carrillo/Seth Santana | HoF inducted: 0 | ballot size: 0
+  youth ceiling: violations 0 (must be 0) | youngest AA 19 (t 19+, 18 = phenom door) | youngest AAA 21 (t 21+, 19-20 = phenom door)
+  running game: SB att/team 58 (emergent) | 30/30 seasons 0 (t 0-3) | SB leader Brady Roth 65
+  IBB/team 41 (t ~46) | IBB leader Ronald Dunn 31
+  offseason: non-tenders 41 (t ~10-35) | user arb cases 15 | camp battles 2 | camp injuries 9 | ceiling breakouts 0 (t ~10-30) | AI role conversions 14 (→RP 14, →SP 0, t ~10-30)
+  2030 draft: strength -0.7 | #1 Darren Harley (3B) to bos | signed 274/300 picks (class 350) | best teen signee OVR 37 (t <=45)
+  2030 All-Star Game: west wins 4-3 | MVP Tyson Sawyer | 64 selections
+  2030 in-season |ΔOVR| May→Sep: age<=26 0.61 | age>=30 0.67 (t ~0.5-3, nonzero)
+  2030 flavor leagues (192 FAs): AMA 43 | ATL 40 | FRO 36 | KBO 4 | MEX 48 | NPB 2
+  2030 mid-season moves: swaps 30 (t ~15-90) | farm level moves 0
+  2030 season: 2430 games | R/G 4.52 | IL stints 157 | sim errors 0 | ties 0 | max GS 33 | FA pool 192 | active 2460
+  PROBE 2030: 26-man OVR hitters 48.1 (age 28.0, def 48.0, pow 47.6) | pitchers 48.7 (age 27.3, SP velo 44.7)
+  Jan 15, 2031 intl window: signed 100/100
+  Rule 5, Dec 2030: 11 picks (pool 26) | last class: 0 returned, 0 stuck
+2030: 🏆 STL (WS 4-1) | retired 133 | milestones 42 | FA: 192 out, 226 signed, 84 unsigned | trades total 62 | staff: 5 fired, 14 retirees→coaching | new org players 2
+  awards E[MVP/Cy/RoY]: Robert Royal/Leonardo Lancaster/Clayton Goodman | W: Maximo McDaniel/Kevin Stephens/Miguel Barnes | HoF inducted: 0 | ballot size: 0
+  youth ceiling: violations 0 (must be 0) | youngest AA 19 (t 19+, 18 = phenom door) | youngest AAA 20 (t 21+, 19-20 = phenom door)
+  running game: SB att/team 64 (emergent) | 30/30 seasons 0 (t 0-3) | SB leader Brady Roth 59
+  IBB/team 39 (t ~46) | IBB leader Vic Prentice 25
+  offseason: non-tenders 60 (t ~10-35) | user arb cases 21 | camp battles 2 | camp injuries 8 | ceiling breakouts 0 (t ~10-30) | AI role conversions 11 (→RP 11, →SP 0, t ~10-30)
+  2031 draft: strength 0.5 | #1 Sunny Roach (3B) to mil | signed 274/300 picks (class 350) | best teen signee OVR 43 (t <=45)
+  2031 All-Star Game: east wins 8-4 | MVP Moises Way | 64 selections
+  2031 in-season |ΔOVR| May→Sep: age<=26 0.59 | age>=30 0.69 (t ~0.5-3, nonzero)
+  2031 flavor leagues (192 FAs): AMA 50 | ATL 42 | FRO 23 | KBO 7 | MEX 47 | NPB 2
+  2031 mid-season moves: swaps 26 (t ~15-90) | farm level moves 0
+  2031 season: 2430 games | R/G 4.54 | IL stints 143 | sim errors 0 | ties 0 | max GS 35 | FA pool 191 | active 2531
+  PROBE 2031: 26-man OVR hitters 47.8 (age 27.9, def 47.8, pow 47.5) | pitchers 49.1 (age 27.1, SP velo 45.3)
+  Jan 15, 2032 intl window: signed 100/100
+  Rule 5, Dec 2031: 10 picks (pool 76) | last class: 5 returned, 6 stuck
+2031: 🏆 NYE (WS 4-1) | retired 148 | milestones 66 | FA: 218 out, 187 signed, 142 unsigned | trades total 70 | staff: 7 fired, 27 retirees→coaching | new org players 2
+  awards E[MVP/Cy/RoY]: Estevan Tate/Gregory McMahon/Robert Lincoln | W: Xander Richards/Yamato Wada/Yamato Wada | HoF inducted: 0 | ballot size: 15
+  youth ceiling: violations 0 (must be 0) | youngest AA 19 (t 19+, 18 = phenom door) | youngest AAA 20 (t 21+, 19-20 = phenom door)
+  running game: SB att/team 54 (emergent) | 30/30 seasons 0 (t 0-3) | SB leader Martin Palacios 48
+  IBB/team 42 (t ~46) | IBB leader Xander Richards 37
+  offseason: non-tenders 30 (t ~10-35) | user arb cases 12 | camp battles 2 | camp injuries 11 | ceiling breakouts 0 (t ~10-30) | AI role conversions 18 (→RP 18, →SP 0, t ~10-30)
+  2032 draft: strength 0.8 | #1 Tyson Jennings (RP) to lou | signed 264/300 picks (class 350) | best teen signee OVR 38 (t <=45)
+  2032 All-Star Game: west wins 10-2 | MVP Curt Fleming | 64 selections
+  2032 in-season |ΔOVR| May→Sep: age<=26 0.59 | age>=30 0.66 (t ~0.5-3, nonzero)
+  2032 flavor leagues (227 FAs): AMA 45 | ATL 48 | FRO 47 | KBO 7 | MEX 58 | NPB 4
+  2032 mid-season moves: swaps 30 (t ~15-90) | farm level moves 0
+  2032 season: 2430 games | R/G 4.56 | IL stints 156 | sim errors 0 | ties 0 | max GS 34 | FA pool 228 | active 2575
+  PROBE 2032: 26-man OVR hitters 47.7 (age 27.9, def 47.5, pow 47.3) | pitchers 49.5 (age 26.5, SP velo 46.1)
+  Jan 15, 2033 intl window: signed 100/100
+  Rule 5, Dec 2032: 12 picks (pool 145) | last class: 1 returned, 9 stuck
+2032: 🏆 HOU (WS 4-1) | retired 149 | milestones 75 | FA: 184 out, 132 signed, 175 unsigned | trades total 82 | staff: 3 fired, 15 retirees→coaching | new org players 1
+  awards E[MVP/Cy/RoY]: Eli Hooper/Matt Lucas/Masato Takagi | W: Jonah Lombardi/Carter Graham/Franklin Del Rosario | HoF inducted: 1 (Dale Wooten 90.6%) | ballot size: 15
+  youth ceiling: violations 0 (must be 0) | youngest AA 19 (t 19+, 18 = phenom door) | youngest AAA 21 (t 21+, 19-20 = phenom door)
+  running game: SB att/team 58 (emergent) | 30/30 seasons 1 (t 0-3) | SB leader Will Charles 44
+  IBB/team 43 (t ~46) | IBB leader Bryce Schmidt 32
+  offseason: non-tenders 17 (t ~10-35) | user arb cases 9 | camp battles 2 | camp injuries 13 | ceiling breakouts 0 (t ~10-30) | AI role conversions 18 (→RP 18, →SP 0, t ~10-30)
+  2033 draft: strength 0.7 | #1 Andre Shepherd (RP) to okc | signed 255/300 picks (class 350) | best teen signee OVR 37 (t <=45)
+  2033 All-Star Game: east wins 5-1 | MVP Lee Knight | 64 selections
+  2033 in-season |ΔOVR| May→Sep: age<=26 0.59 | age>=30 0.61 (t ~0.5-3, nonzero)
+  2033 flavor leagues (251 FAs): AMA 52 | ATL 59 | FRO 47 | KBO 10 | MEX 52 | NPB 6
+  2033 mid-season moves: swaps 30 (t ~15-90) | farm level moves 0
+  2033 season: 2430 games | R/G 4.39 | IL stints 145 | sim errors 0 | ties 0 | max GS 34 | FA pool 251 | active 2595
+  PROBE 2033: 26-man OVR hitters 47.2 (age 27.7, def 47.1, pow 46.9) | pitchers 49.1 (age 26.3, SP velo 45.5)
+  Jan 15, 2034 intl window: signed 100/100
+  Rule 5, Dec 2033: 9 picks (pool 206) | last class: 7 returned, 5 stuck
+2033: 🏆 DAL (WS 4-2) | retired 116 | milestones 72 | FA: 205 out, 123 signed, 243 unsigned | trades total 91 | staff: 3 fired, 21 retirees→coaching | new org players 0
+  awards E[MVP/Cy/RoY]: Estevan Tate/Curtis Bullock/Carlos Figueroa | W: Jonah Lombardi/Emmanuel Aguilar/Jayden Frost | HoF inducted: 0 | ballot size: 15
+  youth ceiling: violations 0 (must be 0) | youngest AA 19 (t 19+, 18 = phenom door) | youngest AAA 21 (t 21+, 19-20 = phenom door)
+  running game: SB att/team 64 (emergent) | 30/30 seasons 2 (t 0-3) | SB leader Vance French 57
+  IBB/team 45 (t ~46) | IBB leader Jonah Lombardi 32
+  offseason: non-tenders 37 (t ~10-35) | user arb cases 7 | camp battles 1 | camp injuries 9 | ceiling breakouts 0 (t ~10-30) | AI role conversions 20 (→RP 20, →SP 0, t ~10-30)
+  2034 draft: strength -0.5 | #1 Adam McClure (SS) to lou | signed 257/300 picks (class 350) | best teen signee OVR 36 (t <=45)
+  2034 All-Star Game: east wins 6-4 | MVP Gerardo Ross | 64 selections
+  2034 in-season |ΔOVR| May→Sep: age<=26 0.60 | age>=30 0.60 (t ~0.5-3, nonzero)
+  2034 flavor leagues (306 FAs): AMA 63 | ATL 65 | FRO 54 | KBO 14 | MEX 72 | NPB 8
+  2034 mid-season moves: swaps 25 (t ~15-90) | farm level moves 0
+  2034 season: 2430 games | R/G 4.38 | IL stints 155 | sim errors 0 | ties 0 | max GS 34 | FA pool 306 | active 2654
+  PROBE 2034: 26-man OVR hitters 46.5 (age 27.5, def 46.0, pow 46.4) | pitchers 49.3 (age 26.5, SP velo 45.4)
+  Jan 15, 2035 intl window: signed 100/100
+  Rule 5, Dec 2034: 11 picks (pool 238) | last class: 3 returned, 6 stuck
+2034: 🏆 DAL (WS 4-2) | retired 177 | milestones 80 | FA: 156 out, 96 signed, 230 unsigned | trades total 99 | staff: 5 fired, 26 retirees→coaching | new org players 3
+  awards E[MVP/Cy/RoY]: Johnny Lake/Edinson Rivera/Walter Joyner | W: Jonah Lombardi/Yancy Wall/Dominic Glass | HoF inducted: 0 | ballot size: 15
+  youth ceiling: violations 0 (must be 0) | youngest AA 19 (t 19+, 18 = phenom door) | youngest AAA 21 (t 21+, 19-20 = phenom door)
+  running game: SB att/team 70 (emergent) | 30/30 seasons 0 (t 0-3) | SB leader Will Reese 62
+  IBB/team 48 (t ~46) | IBB leader Kendall Prentice 34
+  offseason: non-tenders 23 (t ~10-35) | user arb cases 12 | camp battles 0 | camp injuries 8 | ceiling breakouts 0 (t ~10-30) | AI role conversions 13 (→RP 13, →SP 0, t ~10-30)
+  2035 draft: strength -0.4 | #1 Jerry Cardenas (SP) to nye | signed 263/300 picks (class 350) | best teen signee OVR 41 (t <=45)
+  2035 All-Star Game: west wins 4-3 | MVP Demarco Kramer | 64 selections
+  2035 in-season |ΔOVR| May→Sep: age<=26 0.60 | age>=30 0.55 (t ~0.5-3, nonzero)
+  2035 flavor leagues (281 FAs): AMA 64 | ATL 62 | FRO 39 | KBO 16 | MEX 58 | NPB 13
+  2035 mid-season moves: swaps 26 (t ~15-90) | farm level moves 0
+  2035 season: 2430 games | R/G 4.33 | IL stints 129 | sim errors 0 | ties 0 | max GS 34 | FA pool 280 | active 2655
+  PROBE 2035: 26-man OVR hitters 46.3 (age 27.7, def 46.1, pow 46.3) | pitchers 49.5 (age 26.5, SP velo 45.6)
+  Jan 15, 2036 intl window: signed 100/100
+  Rule 5, Dec 2035: 16 picks (pool 267) | last class: 2 returned, 9 stuck
+2035: 🏆 BOS (WS 4-3) | retired 159 | milestones 76 | FA: 171 out, 111 signed, 212 unsigned | trades total 107 | staff: 6 fired, 16 retirees→coaching | new org players 1
+  awards E[MVP/Cy/RoY]: Warren Hayes/Eli Castillo/Travis Shea | W: Jonah Lombardi/Kade Wiggins/Jeff Russo | HoF inducted: 0 | ballot size: 15
+  youth ceiling: violations 0 (must be 0) | youngest AA 19 (t 19+, 18 = phenom door) | youngest AAA 21 (t 21+, 19-20 = phenom door)
+  running game: SB att/team 63 (emergent) | 30/30 seasons 0 (t 0-3) | SB leader Will Reese 63
+  IBB/team 46 (t ~46) | IBB leader Jonah Lombardi 38
+  offseason: non-tenders 25 (t ~10-35) | user arb cases 14 | camp battles 1 | camp injuries 9 | ceiling breakouts 0 (t ~10-30) | AI role conversions 15 (→RP 15, →SP 0, t ~10-30)
+  2036 draft: strength -0.6 | #1 Hank Foreman (RP) to phi | signed 262/300 picks (class 350) | best teen signee OVR 37 (t <=45)
+  2036 All-Star Game: east wins 5-3 | MVP Estevan Tate | 64 selections
+  2036 in-season |ΔOVR| May→Sep: age<=26 0.60 | age>=30 0.56 (t ~0.5-3, nonzero)
+  2036 flavor leagues (285 FAs): AMA 65 | ATL 51 | FRO 48 | KBO 15 | MEX 73 | NPB 6
+  2036 mid-season moves: swaps 22 (t ~15-90) | farm level moves 0
+  2036 season: 2430 games | R/G 4.25 | IL stints 144 | sim errors 0 | ties 0 | max GS 34 | FA pool 283 | active 2670
+  PROBE 2036: 26-man OVR hitters 45.7 (age 27.6, def 45.0, pow 45.4) | pitchers 49.4 (age 26.7, SP velo 45.8)
+  Jan 15, 2037 intl window: signed 100/100
+  Rule 5, Dec 2036: 14 picks (pool 267) | last class: 0 returned, 16 stuck
+2036: 🏆 CHI (WS 4-1) | retired 164 | milestones 81 | FA: 205 out, 147 signed, 207 unsigned | trades total 114 | staff: 6 fired, 14 retirees→coaching | new org players 4
+  awards E[MVP/Cy/RoY]: Kendall Prentice/Ryosuke Okada/Uri Aguilar | W: Jonah Lombardi/Leon Ramsey/Travis Walton | HoF inducted: 1 (Tito Delgado 91.9%) | ballot size: 15
+  youth ceiling: violations 0 (must be 0) | youngest AA 19 (t 19+, 18 = phenom door) | youngest AAA 21 (t 21+, 19-20 = phenom door)
+  running game: SB att/team 62 (emergent) | 30/30 seasons 0 (t 0-3) | SB leader Will Reese 68
+  IBB/team 47 (t ~46) | IBB leader Hector Colon 31
+  offseason: non-tenders 27 (t ~10-35) | user arb cases 15 | camp battles 3 | camp injuries 10 | ceiling breakouts 0 (t ~10-30) | AI role conversions 17 (→RP 17, →SP 0, t ~10-30)
+  2037 draft: strength -0.8 | #1 Simon Craig (2B) to van | signed 260/300 picks (class 350) | best teen signee OVR 35 (t <=45)
+  2037 All-Star Game: west wins 8-5 | MVP Cooper Beck | 64 selections
+  2037 in-season |ΔOVR| May→Sep: age<=26 0.58 | age>=30 0.58 (t ~0.5-3, nonzero)
+  2037 flavor leagues (277 FAs): AMA 68 | ATL 60 | FRO 37 | KBO 11 | MEX 70 | NPB 7
+  2037 mid-season moves: swaps 41 (t ~15-90) | farm level moves 1
+  2037 season: 2430 games | R/G 4.31 | IL stints 135 | sim errors 0 | ties 0 | max GS 34 | FA pool 276 | active 2697
+  PROBE 2037: 26-man OVR hitters 45.7 (age 27.4, def 45.1, pow 45.2) | pitchers 49.5 (age 26.7, SP velo 45.9)
+  Jan 15, 2038 intl window: signed 100/100
+  Rule 5, Dec 2037: 11 picks (pool 283) | last class: 2 returned, 12 stuck
+2037: 🏆 CHI (WS 4-3) | retired 167 | milestones 90 | FA: 161 out, 141 signed, 170 unsigned | trades total 121 | staff: 5 fired, 14 retirees→coaching | new org players 2
+  awards E[MVP/Cy/RoY]: Shawn Acosta/Edinson Rivera/Takeshi Arai | W: Clayton Goodman/Will Hopkins/Gilberto Caballero | HoF inducted: 3 (Maximo McDaniel 99.5%, Tyson Sawyer 86%, Kade Polk 77.1%) | ballot size: 15
+  youth ceiling: violations 0 (must be 0) | youngest AA 19 (t 19+, 18 = phenom door) | youngest AAA 20 (t 21+, 19-20 = phenom door)
+  running game: SB att/team 61 (emergent) | 30/30 seasons 0 (t 0-3) | SB leader Will Reese 77
+  IBB/team 50 (t ~46) | IBB leader Javier Zelaya 38
+  offseason: non-tenders 15 (t ~10-35) | user arb cases 13 | camp battles 2 | camp injuries 9 | ceiling breakouts 0 (t ~10-30) | AI role conversions 20 (→RP 20, →SP 0, t ~10-30)
+  2038 draft: strength 0.1 | #1 Simon Craig (2B) to cin | signed 262/300 picks (class 350) | best teen signee OVR 38 (t <=45)
+  2038 All-Star Game: west wins 3-2 | MVP John Gregory | 64 selections
+  2038 in-season |ΔOVR| May→Sep: age<=26 0.58 | age>=30 0.60 (t ~0.5-3, nonzero)
+  2038 flavor leagues (252 FAs): AMA 62 | ATL 56 | FRO 34 | KBO 11 | MEX 51 | NPB 12
+  2038 mid-season moves: swaps 42 (t ~15-90) | farm level moves 1
+  2038 season: 2430 games | R/G 4.24 | IL stints 155 | sim errors 0 | ties 0 | max GS 34 | FA pool 252 | active 2700
+  PROBE 2038: 26-man OVR hitters 45.6 (age 27.5, def 44.9, pow 45.1) | pitchers 49.4 (age 26.6, SP velo 45.7)
+  Jan 15, 2039 intl window: signed 100/100
+  Rule 5, Dec 2038: 16 picks (pool 289) | last class: 2 returned, 9 stuck
+2038: 🏆 MIA (WS 4-1) | retired 147 | milestones 95 | FA: 211 out, 152 signed, 210 unsigned | trades total 132 | staff: 7 fired, 31 retirees→coaching | new org players 0
+  awards E[MVP/Cy/RoY]: Caleb Conner/Bryce Leach/Jack Lyon | W: Enrique Tavarez/Kade Wiggins/Rob Kirby | HoF inducted: 3 (Walter Rasmussen 89.4%, Vic Prentice 88.6%, Cade Myers 79.3%) | ballot size: 15
+  youth ceiling: violations 0 (must be 0) | youngest AA 19 (t 19+, 18 = phenom door) | youngest AAA 22 (t 21+, 19-20 = phenom door)
+  running game: SB att/team 81 (emergent) | 30/30 seasons 2 (t 0-3) | SB leader Will Reese 66
+  IBB/team 49 (t ~46) | IBB leader Sylvester Reagan 33
+  offseason: non-tenders 35 (t ~10-35) | user arb cases 12 | camp battles 3 | camp injuries 12 | ceiling breakouts 0 (t ~10-30) | AI role conversions 19 (→RP 19, →SP 0, t ~10-30)
+  2039 draft: strength 1.8 | #1 Khalil Patrick (C) to van | signed 262/300 picks (class 350) | best teen signee OVR 42 (t <=45)
+  2039 All-Star Game: west wins 3-2 | MVP Marcelo Estevez | 64 selections
+  2039 in-season |ΔOVR| May→Sep: age<=26 0.57 | age>=30 0.61 (t ~0.5-3, nonzero)
+  2039 flavor leagues (289 FAs): AMA 65 | ATL 64 | FRO 38 | KBO 17 | MEX 62 | NPB 10
+  2039 mid-season moves: swaps 33 (t ~15-90) | farm level moves 0
+  2039 season: 2430 games | R/G 4.22 | IL stints 161 | sim errors 0 | ties 0 | max GS 35 | FA pool 289 | active 2683
+  PROBE 2039: 26-man OVR hitters 45.4 (age 27.7, def 44.7, pow 44.6) | pitchers 49.4 (age 26.6, SP velo 44.9)
+  Jan 15, 2040 intl window: signed 100/100
+  Rule 5, Dec 2039: 11 picks (pool 298) | last class: 4 returned, 12 stuck
+2039: 🏆 DAL (WS 4-3) | retired 163 | milestones 89 | FA: 198 out, 164 signed, 195 unsigned | trades total 138 | staff: 6 fired, 19 retirees→coaching | new org players 1
+  awards E[MVP/Cy/RoY]: Leonardo Hammond/Dan Wong/Rafael De La Rosa | W: Enrique Tavarez/Josh Kay/Marcellus Coronado | HoF inducted: 4 (Seth Ward 100%, Martin Palacios 96.9%, Chris Hatcher 77.4%, Rob Gable 76.6%) | ballot size: 15
+  youth ceiling: violations 0 (must be 0) | youngest AA 19 (t 19+, 18 = phenom door) | youngest AAA 21 (t 21+, 19-20 = phenom door)
+  running game: SB att/team 83 (emergent) | 30/30 seasons 0 (t 0-3) | SB leader Will Reese 55
+  IBB/team 50 (t ~46) | IBB leader Sylvester Reagan 30
+  offseason: non-tenders 33 (t ~10-35) | user arb cases 13 | camp battles 3 | camp injuries 10 | ceiling breakouts 0 (t ~10-30) | AI role conversions 16 (→RP 16, →SP 0, t ~10-30)
+  2040 draft: strength -0.3 | #1 Trevor Bush (SP) to van | signed 265/300 picks (class 350) | best teen signee OVR 45 (t <=45)
+  2040 All-Star Game: east wins 2-0 | MVP Joaquin Correa | 64 selections
+  2040 in-season |ΔOVR| May→Sep: age<=26 0.57 | age>=30 0.61 (t ~0.5-3, nonzero)
+  2040 flavor leagues (293 FAs): AMA 61 | ATL 58 | FRO 49 | KBO 18 | MEX 64 | NPB 10
+  2040 mid-season moves: swaps 25 (t ~15-90) | farm level moves 0
+  2040 season: 2430 games | R/G 4.17 | IL stints 147 | sim errors 0 | ties 0 | max GS 35 | FA pool 293 | active 2691
+  PROBE 2040: 26-man OVR hitters 45.0 (age 27.5, def 44.4, pow 44.1) | pitchers 49.4 (age 26.7, SP velo 44.4)
+  Jan 15, 2041 intl window: signed 100/100
+  Rule 5, Dec 2040: 11 picks (pool 304) | last class: 0 returned, 11 stuck
+2040: 🏆 ATL (WS 4-1) | retired 179 | milestones 67 | FA: 180 out, 166 signed, 181 unsigned | trades total 145 | staff: 4 fired, 28 retirees→coaching | new org players 2
+  awards E[MVP/Cy/RoY]: Raul Del Rosario/Raul Del Rosario/Toshiro Ishii | W: Enrique Tavarez/Bryce Leach/Jason Price | HoF inducted: 1 (Robert Royal 100%) | ballot size: 15
+  youth ceiling: violations 0 (must be 0) | youngest AA 19 (t 19+, 18 = phenom door) | youngest AAA 21 (t 21+, 19-20 = phenom door)
+  running game: SB att/team 78 (emergent) | 30/30 seasons 0 (t 0-3) | SB leader Cole Webb 55
+  IBB/team 50 (t ~46) | IBB leader Sylvester Reagan 38
+  offseason: non-tenders 32 (t ~10-35) | user arb cases 13 | camp battles 4 | camp injuries 12 | ceiling breakouts 0 (t ~10-30) | AI role conversions 22 (→RP 22, →SP 0, t ~10-30)
+  2041 draft: strength 0.2 | #1 Dale Kowalski (RP) to nye | signed 259/300 picks (class 350) | best teen signee OVR 35 (t <=45)
+  2041 All-Star Game: west wins 6-3 | MVP Joaquin Correa | 64 selections
+  2041 in-season |ΔOVR| May→Sep: age<=26 0.57 | age>=30 0.60 (t ~0.5-3, nonzero)
+  2041 flavor leagues (276 FAs): AMA 64 | ATL 52 | FRO 39 | KBO 10 | MEX 71 | NPB 10
+  2041 mid-season moves: swaps 35 (t ~15-90) | farm level moves 0
+  2041 season: 2430 games | R/G 4.13 | IL stints 139 | sim errors 0 | ties 0 | max GS 34 | FA pool 276 | active 2672
+  PROBE 2041: 26-man OVR hitters 45.0 (age 27.5, def 44.7, pow 43.9) | pitchers 49.3 (age 26.6, SP velo 44.4)
+  Jan 15, 2042 intl window: signed 100/100
+  Rule 5, Dec 2041: 10 picks (pool 287) | last class: 2 returned, 9 stuck
+2041: 🏆 DEN (WS 4-3) | retired 188 | milestones 89 | FA: 194 out, 173 signed, 167 unsigned | trades total 153 | staff: 3 fired, 27 retirees→coaching | new org players 1
+  awards E[MVP/Cy/RoY]: Enrique Tavarez/Tim Garrison/Yuki Kawasaki | W: Ricardo Rollins/Enrique Tavarez/Larry Hamilton | HoF inducted: 4 (Xander Richards 99.9%, Domingo Lowery 92.1%, Jackson Kirby 81.4%, Jordan Lane 79.6%) | ballot size: 15
+  youth ceiling: violations 0 (must be 0) | youngest AA 19 (t 19+, 18 = phenom door) | youngest AAA 21 (t 21+, 19-20 = phenom door)
+  running game: SB att/team 87 (emergent) | 30/30 seasons 0 (t 0-3) | SB leader Cole Webb 55
+  IBB/team 52 (t ~46) | IBB leader Sylvester Reagan 41
+  offseason: non-tenders 31 (t ~10-35) | user arb cases 14 | camp battles 4 | camp injuries 13 | ceiling breakouts 0 (t ~10-30) | AI role conversions 15 (→RP 15, →SP 0, t ~10-30)
+  2042 draft: strength 0.3 | #1 Leon Maddox (2B) to nye | signed 262/300 picks (class 350) | best teen signee OVR 34 (t <=45)
+  2042 All-Star Game: west wins 2-1 | MVP Devin Savage | 64 selections
+  2042 in-season |ΔOVR| May→Sep: age<=26 0.57 | age>=30 0.60 (t ~0.5-3, nonzero)
+  2042 flavor leagues (273 FAs): AMA 60 | ATL 68 | FRO 42 | KBO 12 | MEX 52 | NPB 6
+  2042 mid-season moves: swaps 27 (t ~15-90) | farm level moves 0
+  2042 season: 2430 games | R/G 4.26 | IL stints 163 | sim errors 0 | ties 0 | max GS 34 | FA pool 272 | active 2652
+  PROBE 2042: 26-man OVR hitters 44.9 (age 27.3, def 44.3, pow 43.9) | pitchers 50.0 (age 26.8, SP velo 44.9)
+  Jan 15, 2043 intl window: signed 100/100
+  Rule 5, Dec 2042: 15 picks (pool 322) | last class: 2 returned, 8 stuck
+2042: 🏆 DET (WS 4-1) | retired 164 | milestones 98 | FA: 201 out, 225 signed, 124 unsigned | trades total 171 | staff: 7 fired, 27 retirees→coaching | new org players 1
+  awards E[MVP/Cy/RoY]: Enrique Tavarez/Yuki Kawasaki/Kosuke Kimura | W: Jeff Little/Federico Mendez/Ian Osborne | HoF inducted: 0 | ballot size: 15
+  youth ceiling: violations 0 (must be 0) | youngest AA 20 (t 19+, 18 = phenom door) | youngest AAA 20 (t 21+, 19-20 = phenom door)
+  running game: SB att/team 86 (emergent) | 30/30 seasons 1 (t 0-3) | SB leader Oscar Cohen 43
+  IBB/team 50 (t ~46) | IBB leader Daisuke Fujita 34
+  offseason: non-tenders 33 (t ~10-35) | user arb cases 15 | camp battles 2 | camp injuries 11 | ceiling breakouts 0 (t ~10-30) | AI role conversions 20 (→RP 20, →SP 0, t ~10-30)
+  🧤→⚾ mound conversions: 1 (Jackson Chestnut)
+  2043 draft: strength -0.3 | #1 Xander Watson (SP) to cle | signed 266/300 picks (class 350) | best teen signee OVR 38 (t <=45)
+  2043 All-Star Game: west wins 1-0 | MVP Pedro Ortiz | 64 selections
+  2043 in-season |ΔOVR| May→Sep: age<=26 0.56 | age>=30 0.56 (t ~0.5-3, nonzero)
+  2043 flavor leagues (228 FAs): AMA 51 | ATL 53 | FRO 36 | KBO 13 | MEX 58 | NPB 4
+  2043 mid-season moves: swaps 25 (t ~15-90) | farm level moves 0
+  2043 season: 2430 games | R/G 4.07 | IL stints 145 | sim errors 0 | ties 0 | max GS 33 | FA pool 228 | active 2638
+  PROBE 2043: 26-man OVR hitters 45.0 (age 27.5, def 44.2, pow 44.0) | pitchers 49.7 (age 26.6, SP velo 44.6)
+  Jan 15, 2044 intl window: signed 100/100
+  Rule 5, Dec 2043: 10 picks (pool 302) | last class: 1 returned, 14 stuck
+2043: 🏆 DET (WS 4-1) | retired 150 | milestones 59 | FA: 184 out, 149 signed, 159 unsigned | trades total 177 | staff: 1 fired, 18 retirees→coaching | new org players 0
+  awards E[MVP/Cy/RoY]: Simon Craig/Tetsuya Sasaki/Leon Maddox | W: Yoel Younger/Wilmer Marcano/Kai Velez | HoF inducted: 1 (Bryan Pruitt 76.4%) | ballot size: 15
+  youth ceiling: violations 0 (must be 0) | youngest AA 19 (t 19+, 18 = phenom door) | youngest AAA 21 (t 21+, 19-20 = phenom door)
+  running game: SB att/team 78 (emergent) | 30/30 seasons 0 (t 0-3) | SB leader Oscar Cohen 53
+  IBB/team 48 (t ~46) | IBB leader Simon Craig 30
+  offseason: non-tenders 23 (t ~10-35) | user arb cases 14 | camp battles 1 | camp injuries 9 | ceiling breakouts 0 (t ~10-30) | AI role conversions 17 (→RP 17, →SP 0, t ~10-30)
+  2044 draft: strength -0.9 | #1 Doug Madison (SP) to okc | signed 268/300 picks (class 350) | best teen signee OVR 32 (t <=45)
+  2044 All-Star Game: east wins 5-4 | MVP Mariano Alcantara | 64 selections
+  2044 in-season |ΔOVR| May→Sep: age<=26 0.57 | age>=30 0.56 (t ~0.5-3, nonzero)
+  2044 flavor leagues (247 FAs): AMA 58 | ATL 55 | FRO 40 | KBO 9 | MEX 56 | NPB 4
+  2044 mid-season moves: swaps 28 (t ~15-90) | farm level moves 0
+  2044 season: 2430 games | R/G 4.12 | IL stints 123 | sim errors 0 | ties 0 | max GS 34 | FA pool 248 | active 2638
+  PROBE 2044: 26-man OVR hitters 45.0 (age 27.6, def 44.3, pow 44.3) | pitchers 49.9 (age 26.7, SP velo 45.6)
+  Jan 15, 2045 intl window: signed 100/100
+  Rule 5, Dec 2044: 7 picks (pool 298) | last class: 0 returned, 10 stuck
+2044: 🏆 LAG (WS 4-3) | retired 143 | milestones 72 | FA: 192 out, 137 signed, 195 unsigned | trades total 187 | staff: 4 fired, 20 retirees→coaching | new org players 1
+  awards E[MVP/Cy/RoY]: Enrique Tavarez/Bruce Caldwell/Henry Sosa | W: Hugo Chong/Jayden Beasley/Curtis Berry | HoF inducted: 3 (Colby Hill 97.8%, Warren Hayes 97.4%, Gerardo Ross 78.8%) | ballot size: 15
+  youth ceiling: violations 0 (must be 0) | youngest AA 18 (t 19+, 18 = phenom door) | youngest AAA 19 (t 21+, 19-20 = phenom door)
+  running game: SB att/team 61 (emergent) | 30/30 seasons 1 (t 0-3) | SB leader Oscar Cohen 39
+  IBB/team 48 (t ~46) | IBB leader Angel Sierra 34
+  offseason: non-tenders 29 (t ~10-35) | user arb cases 12 | camp battles 4 | camp injuries 9 | ceiling breakouts 0 (t ~10-30) | AI role conversions 17 (→RP 17, →SP 0, t ~10-30)
+  2045 draft: strength 1.4 | #1 Eddie Yates (SP) to okc | signed 259/300 picks (class 350) | best teen signee OVR 45 (t <=45)
+  2045 All-Star Game: east wins 5-0 | MVP Alejandro Casilla | 64 selections
+  2045 in-season |ΔOVR| May→Sep: age<=26 0.58 | age>=30 0.55 (t ~0.5-3, nonzero)
+  2045 flavor leagues (282 FAs): AMA 66 | ATL 52 | FRO 44 | KBO 16 | MEX 65 | NPB 5
+  2045 mid-season moves: swaps 29 (t ~15-90) | farm level moves 0
+  2045 season: 2430 games | R/G 4.06 | IL stints 148 | sim errors 0 | ties 0 | max GS 33 | FA pool 282 | active 2653
+  PROBE 2045: 26-man OVR hitters 44.9 (age 27.5, def 44.0, pow 44.0) | pitchers 49.6 (age 26.7, SP velo 45.4)
+  Jan 15, 2046 intl window: signed 100/100
+  Rule 5, Dec 2045: 11 picks (pool 297) | last class: 0 returned, 7 stuck
+2045: 🏆 DET (WS 4-2) | retired 159 | milestones 89 | FA: 195 out, 134 signed, 215 unsigned | trades total 193 | staff: 8 fired, 23 retirees→coaching | new org players 0
+  awards E[MVP/Cy/RoY]: Enrique Tavarez/Miles Hendrix/Blake Peters | W: Angel Sierra/Zoilo Ibanez/Felix Maldonado | HoF inducted: 3 (Jonah Lombardi 100%, Johnny Lake 99.7%, Josh Meyer 99.3%) | ballot size: 15
+  youth ceiling: violations 0 (must be 0) | youngest AA 19 (t 19+, 18 = phenom door) | youngest AAA 21 (t 21+, 19-20 = phenom door)
+  running game: SB att/team 72 (emergent) | 30/30 seasons 0 (t 0-3) | SB leader Ulises Acosta 56
+  IBB/team 50 (t ~46) | IBB leader Angel Sierra 37
+  offseason: non-tenders 25 (t ~10-35) | user arb cases 11 | camp battles 1 | camp injuries 11 | ceiling breakouts 0 (t ~10-30) | AI role conversions 20 (→RP 20, →SP 0, t ~10-30)
+  2046 draft: strength -1.4 | #1 Leo Lester (SP) to cle | signed 270/300 picks (class 350) | best teen signee OVR 39 (t <=45)
+  2046 All-Star Game: east wins 4-0 | MVP Scott Goss | 64 selections
+  2046 in-season |ΔOVR| May→Sep: age<=26 0.59 | age>=30 0.58 (t ~0.5-3, nonzero)
+  2046 flavor leagues (294 FAs): AMA 70 | ATL 68 | FRO 38 | KBO 17 | MEX 74 | NPB 5
+  2046 mid-season moves: swaps 33 (t ~15-90) | farm level moves 0
+  2046 season: 2430 games | R/G 4.05 | IL stints 138 | sim errors 0 | ties 0 | max GS 35 | FA pool 294 | active 2663
+  PROBE 2046: 26-man OVR hitters 44.6 (age 27.2, def 44.0, pow 43.6) | pitchers 49.9 (age 26.9, SP velo 45.4)
+  Jan 15, 2047 intl window: signed 100/100
+  Rule 5, Dec 2046: 13 picks (pool 305) | last class: 2 returned, 9 stuck
+2046: 🏆 DAL (WS 4-1) | retired 182 | milestones 75 | FA: 227 out, 222 signed, 167 unsigned | trades total 199 | staff: 3 fired, 16 retirees→coaching | new org players 3
+  awards E[MVP/Cy/RoY]: Ezequiel Rodriguez/Toshiro Ishii/Israel Rondon | W: Marcellus Coronado/Marcellus Coronado/Ryan Bennett | HoF inducted: 4 (Doug Bernal 99.3%, Curt Fleming 96.6%, Estevan Tate 91%, Daniel Buckley 89.9%) | ballot size: 15
+  youth ceiling: violations 0 (must be 0) | youngest AA 19 (t 19+, 18 = phenom door) | youngest AAA 22 (t 21+, 19-20 = phenom door)
+  running game: SB att/team 71 (emergent) | 30/30 seasons 0 (t 0-3) | SB leader Ulises Acosta 58
+  IBB/team 51 (t ~46) | IBB leader Ezequiel Rodriguez 30
+  offseason: non-tenders 35 (t ~10-35) | user arb cases 11 | camp battles 2 | camp injuries 7 | ceiling breakouts 0 (t ~10-30) | AI role conversions 19 (→RP 19, →SP 0, t ~10-30)
+  2047 draft: strength 2 | #1 Anthony Gardner (C) to okc | signed 265/300 picks (class 350) | best teen signee OVR 41 (t <=45)
+  2047 All-Star Game: west wins 6-5 | MVP Felix Maldonado | 64 selections
+  2047 in-season |ΔOVR| May→Sep: age<=26 0.58 | age>=30 0.60 (t ~0.5-3, nonzero)
+  2047 flavor leagues (267 FAs): AMA 61 | ATL 58 | FRO 43 | KBO 8 | MEX 61 | NPB 7
+  2047 mid-season moves: swaps 28 (t ~15-90) | farm level moves 0
+  2047 season: 2430 games | R/G 4.10 | IL stints 167 | sim errors 0 | ties 0 | max GS 34 | FA pool 267 | active 2631
+  PROBE 2047: 26-man OVR hitters 44.6 (age 27.1, def 44.1, pow 43.6) | pitchers 49.6 (age 26.7, SP velo 45.1)
+  Jan 15, 2048 intl window: signed 100/100
+  Rule 5, Dec 2047: 16 picks (pool 284) | last class: 1 returned, 12 stuck
+2047: 🏆 NSH (WS 4-1) | retired 157 | milestones 72 | FA: 176 out, 143 signed, 189 unsigned | trades total 208 | staff: 6 fired, 24 retirees→coaching | new org players 0
+  awards E[MVP/Cy/RoY]: Amado Amador/Federico Mendez/Tetsuya Mori | W: Chin-lung Huang/Marcellus Coronado/Shun Okamoto | HoF inducted: 4 (Shawn Acosta 96.5%, Kendall Talley 92%, Dylan Wolf 89.3%, Pablo Chong 86.8%) | ballot size: 15
+  youth ceiling: violations 0 (must be 0) | youngest AA 18 (t 19+, 18 = phenom door) | youngest AAA 21 (t 21+, 19-20 = phenom door)
+  running game: SB att/team 86 (emergent) | 30/30 seasons 0 (t 0-3) | SB leader Ulises Acosta 50
+  IBB/team 52 (t ~46) | IBB leader Salvador Marte 33
+  offseason: non-tenders 22 (t ~10-35) | user arb cases 14 | camp battles 3 | camp injuries 12 | ceiling breakouts 0 (t ~10-30) | AI role conversions 16 (→RP 16, →SP 0, t ~10-30)
+  2048 draft: strength 0.1 | #1 Max Turner (SP) to cle | signed 260/300 picks (class 350) | best teen signee OVR 38 (t <=45)
+  2048 All-Star Game: east wins 8-1 | MVP Israel Rondon | 64 selections
+  2048 in-season |ΔOVR| May→Sep: age<=26 0.59 | age>=30 0.63 (t ~0.5-3, nonzero)
+  2048 flavor leagues (281 FAs): AMA 57 | ATL 62 | FRO 35 | KBO 15 | MEX 71 | NPB 9
+  2048 mid-season moves: swaps 30 (t ~15-90) | farm level moves 0
+  2048 season: 2430 games | R/G 4.07 | IL stints 145 | sim errors 0 | ties 0 | max GS 34 | FA pool 282 | active 2653
+  PROBE 2048: 26-man OVR hitters 44.7 (age 27.0, def 44.3, pow 43.9) | pitchers 49.2 (age 26.7, SP velo 44.6)
+  Jan 15, 2049 intl window: signed 100/100
+  Rule 5, Dec 2048: 14 picks (pool 282) | last class: 2 returned, 14 stuck
+2048: 🏆 NOR (WS 4-0) | retired 168 | milestones 79 | FA: 185 out, 143 signed, 199 unsigned | trades total 219 | staff: 1 fired, 17 retirees→coaching | new org players 1
+  awards E[MVP/Cy/RoY]: Israel Rondon/Wilmer Marcano/Ryo Ueda | W: Chin-lung Huang/Shun Okamoto/Calvin Wallace | HoF inducted: 2 (Will Reese 88.9%, Dennis Tyson 83.2%) | ballot size: 15
+  youth ceiling: violations 0 (must be 0) | youngest AA 19 (t 19+, 18 = phenom door) | youngest AAA 21 (t 21+, 19-20 = phenom door)
+  running game: SB att/team 81 (emergent) | 30/30 seasons 0 (t 0-3) | SB leader Ulises Acosta 61
+  IBB/team 54 (t ~46) | IBB leader Hunter Goss 30
+  offseason: non-tenders 29 (t ~10-35) | user arb cases 15 | camp battles 1 | camp injuries 8 | ceiling breakouts 0 (t ~10-30) | AI role conversions 12 (→RP 12, →SP 0, t ~10-30)
+  2049 draft: strength 1.4 | #1 Oliver Dennis (RP) to okc | signed 256/300 picks (class 350) | best teen signee OVR 33 (t <=45)
+  2049 All-Star Game: east wins 13-5 | MVP Salvador Marte | 64 selections
+  2049 in-season |ΔOVR| May→Sep: age<=26 0.58 | age>=30 0.61 (t ~0.5-3, nonzero)
+  2049 flavor leagues (281 FAs): AMA 58 | ATL 61 | FRO 56 | KBO 14 | MEX 59 | NPB 2
+  2049 mid-season moves: swaps 37 (t ~15-90) | farm level moves 0
+  2049 season: 2430 games | R/G 4.11 | IL stints 161 | sim errors 0 | ties 0 | max GS 34 | FA pool 281 | active 2671
+  PROBE 2049: 26-man OVR hitters 45.0 (age 27.1, def 44.6, pow 44.1) | pitchers 49.2 (age 26.8, SP velo 44.3)
+  Jan 15, 2050 intl window: signed 100/100
+  Rule 5, Dec 2049: 16 picks (pool 322) | last class: 3 returned, 11 stuck
+2049: 🏆 HOU (WS 4-2) | retired 176 | milestones 84 | FA: 179 out, 203 signed, 132 unsigned | trades total 228 | staff: 6 fired, 19 retirees→coaching | new org players 3
+  awards E[MVP/Cy/RoY]: Israel Rondon/Reinaldo Soriano/Shinji Sugiyama | W: Brad Ingram/Wilfredo Campos/Tristan Rider | HoF inducted: 5 (Yancy Johns 88.2%, Edinson Rivera 87.5%, Javier Zelaya 83.7%, Ernesto Gallagher 75.5%, Eli McMahon 0%) | ballot size: 15
+  youth ceiling: violations 0 (must be 0) | youngest AA 20 (t 19+, 18 = phenom door) | youngest AAA 21 (t 21+, 19-20 = phenom door)
+  running game: SB att/team 71 (emergent) | 30/30 seasons 0 (t 0-3) | SB leader Mauricio Rivas 36
+  IBB/team 51 (t ~46) | IBB leader Israel Rondon 43
+  offseason: non-tenders 31 (t ~10-35) | user arb cases 12 | camp battles 1 | camp injuries 12 | ceiling breakouts 0 (t ~10-30) | AI role conversions 14 (→RP 14, →SP 0, t ~10-30)
+  2050 draft: strength 1 | #1 Andres Robbins (RP) to kcr | signed 266/300 picks (class 350) | best teen signee OVR 44 (t <=45)
+  2050 All-Star Game: west wins 6-5 | MVP Ulises Acosta | 64 selections
+  2050 in-season |ΔOVR| May→Sep: age<=26 0.58 | age>=30 0.63 (t ~0.5-3, nonzero)
+  2050 flavor leagues (241 FAs): AMA 47 | ATL 54 | FRO 36 | KBO 11 | MEX 58 | NPB 5
+  2050 mid-season moves: swaps 32 (t ~15-90) | farm level moves 0
+  2050 season: 2430 games | R/G 4.23 | IL stints 144 | sim errors 0 | ties 0 | max GS 34 | FA pool 241 | active 2649
+  PROBE 2050: 26-man OVR hitters 45.1 (age 27.2, def 44.3, pow 44.3) | pitchers 49.1 (age 26.9, SP velo 43.8)
+  Jan 15, 2051 intl window: signed 100/100
+  Rule 5, Dec 2050: 8 picks (pool 319) | last class: 0 returned, 16 stuck
+2050: 🏆 STL (WS 4-2) | retired 145 | milestones 93 | FA: 194 out, 167 signed, 169 unsigned | trades total 235 | staff: 3 fired, 22 retirees→coaching | new org players 1
+  awards E[MVP/Cy/RoY]: Israel Rondon/Juan Guzman/Ray Herring | W: Caleb Neal/Wilfredo Campos/Kazuya Matsui | HoF inducted: 4 (Clayton Goodman 100%, Colin Barrera 96.5%, Bryce Schmidt 91.1%, Kade Wiggins 89.2%) | ballot size: 15
+  youth ceiling: violations 0 (must be 0) | youngest AA 19 (t 19+, 18 = phenom door) | youngest AAA 21 (t 21+, 19-20 = phenom door)
+  running game: SB att/team 69 (emergent) | 30/30 seasons 0 (t 0-3) | SB leader Ulises Acosta 51
+  IBB/team 52 (t ~46) | IBB leader Chin-lung Huang 38
+  offseason: non-tenders 38 (t ~10-35) | user arb cases 14 | camp battles 1 | camp injuries 2 | ceiling breakouts 0 (t ~10-30) | AI role conversions 16 (→RP 16, →SP 0, t ~10-30)
+--- Franchise diagnostics ---
+league readiness after 25 seasons: OK
+players: active 2344 | retired 2324 (open to coaching: 337) | retirements/yr 77, 161, 142, 131, 133, 148, 149, 116, 177, 159, 164, 167, 147, 163, 179, 188, 164, 150, 143, 159, 182, 157, 168, 176, 145
+26-man avg overall by age — <=25: 45.2 (n=307) | 26-29: 47.1 (n=283) | 30-33: 49.3 (n=157) | 34+: 50.7 (n=33)
+champions: tbr, stl, sea, nye, stl, nye, hou, dal, dal, bos, chi, chi, mia, dal, atl, den, det, det, lag, det, dal, nsh, nor, hou, stl | distinct: 15
+minors sizes: 22 - 137 | free agents pool: 229
+draftees: active 1330 | on 26-man rosters 547 | washed out 1368 | draft classes archived: 10
+intl signees: active 894 | on 26-man 204 | event players (postings/defectors/KBO) active: 18 | windows archived: 11
+personality traits: loyal 164 | mercenary 152 | big_game 129 | shrinker 107 | inconsistent 101 | steady 113 | traited 33% of 2344 | discovered: org 14, public 51 | label drift (post-mint archetype changes): 18
+Rule 5: 25 drafts | 252 picks, 39 returned (85% stick) | live flags for next season: 8
+26-man talent pyramid: 65+ ovr: 12 | 60+: 47 (t ~60 stars) | 55+: 104
+HoF: 43 members over 25 votes | All-Star Games played: 25 | awards years archived: 25
+total trades logged: 235 | payroll range: $68M - $225M
+save size: 20.57 MB
+
+--- Dynasty health by year ---
+year  HoF  65+/60+/55+   payroll(tot/max)  active  saveMB
+2027    0    6/ 24/ 91   $3397M/$199M   1814   4.3
+2028    0    4/ 22/ 74   $3104M/$169M   1928   5.69
+2029    0    2/ 16/ 67   $3269M/$174M   2036   6.92
+2030    0    0/ 16/ 73   $3694M/$200M   2134   8.05
+2031    0    1/ 15/ 83   $3995M/$225M   2211   9.14
+2032    0    1/ 19/ 99   $4217M/$226M   2268   10.12
+2033    1    1/ 21/ 96   $4171M/$223M   2290   11.03
+2034    1    6/ 25/106   $4195M/$226M   2349   11.99
+2035    1    3/ 24/ 99   $4280M/$246M   2341   12.74
+2036    1    4/ 25/107   $4249M/$225M   2360   13.54
+2037    2    7/ 34/120   $4258M/$225M   2395   14.29
+2038    5    8/ 37/115   $4181M/$225M   2387   14.94
+2039    8    6/ 36/110   $4207M/$223M   2373   15.57
+2040   12    8/ 37/105   $4181M/$226M   2375   16.24
+2041   13   13/ 45/104   $4226M/$226M   2365   16.83
+2042   17   12/ 42/105   $4227M/$227M   2339   17.38
+2043   17   11/ 42/103   $4161M/$220M   2330   17.94
+2044   18   11/ 40/107   $4240M/$226M   2320   18.28
+2045   21   12/ 43/108   $4270M/$225M   2344   18.74
+2046   24   13/ 45/108   $4320M/$227M   2347   19.11
+2047   28   16/ 44/104   $4163M/$244M   2322   19.43
+2048   32   16/ 46/118   $4123M/$227M   2347   19.78
+2049   34   13/ 45/122   $4205M/$226M   2364   20.05
+2050   39   11/ 48/119   $4271M/$223M   2336   20.35
+2051   43   12/ 47/104   $4289M/$225M   2344   20.57
+
+--- Archetype survivorship (do slow developers live to bloom?) ---
+arch              n     retired<peak   reached 50+   reached 55+
+traditional       2038      100%          16%           7%
+overachiever       614      100%          13%           2%
+early_peak         588       12%           9%           3%
+late_bloomer       589      100%          13%           5%
+slow_burn          490      100%          10%           4%
+late_reinvent      481      100%          15%           7%
+crafty_vet         794      100%          18%           9%
+workhorse          508      100%          15%           8%
+steady_decliner    441        0%          11%           5%
+bust               894       24%           4%           1%
+quad_a             542       94%           3%           0%
+
+--- Injury layer (does proneness differentiate?) ---
+prone 1-3: n=1198, mean career injuries 0.93
+prone 4-7: n=1638, mean career injuries 1.74
+prone 8-10: n=1181, mean career injuries 2.98
+
+--- Observatory: era drift (the league line is an output, not a target) ---
+year   R/G    BA   OBP   SLG    K%   BB%  HR%  SB/tm  ERA   CG SHO
+2026  4.36  0.262 0.336 0.426  19.0 9.3  2.9    31  4.11   51  18
+2027  4.53  0.268 0.341 0.434  18.0 9.3  2.9    40  4.26   38   4
+2028  4.62  0.271 0.344 0.441  17.6 9.2  3.0    39  4.36   37   3
+2029  4.61  0.271 0.342 0.437  17.8 9.1  3.0    43  4.34   42   3
+2030  4.52  0.267 0.341 0.432  18.0 9.3  2.9    47  4.25   46   4
+2031  4.54  0.269 0.339 0.436  18.2 9.0  3.0    40  4.26   56  12
+2032  4.56  0.270 0.341 0.439  18.4 9.0  3.1    42  4.30   60   9
+2033  4.39  0.267 0.336 0.430  18.4 8.7  2.9    48  4.14   54  10
+2034  4.38  0.265 0.332 0.430  19.2 8.3  3.0    53  4.10   65  14
+2035  4.33  0.264 0.331 0.428  19.4 8.4  2.9    46  4.08   66  12
+2036  4.25  0.263 0.329 0.425  19.5 8.2  2.9    46  3.99   68  10
+2037  4.31  0.264 0.330 0.427  19.4 8.2  2.9    46  4.05   62  14
+2038  4.24  0.262 0.328 0.421  19.6 8.2  2.8    62  3.99   73  11
+2039  4.22  0.263 0.329 0.422  19.8 8.2  2.8    63  3.96   50   9
+2040  4.17  0.262 0.327 0.418  19.9 8.0  2.7    61  3.91   69  11
+2041  4.13  0.262 0.327 0.416  19.4 8.1  2.7    66  3.86   70  11
+2042  4.26  0.264 0.327 0.420  20.0 7.9  2.7    66  4.00   82  14
+2043  4.07  0.260 0.324 0.414  20.1 8.0  2.7    59  3.80  103  19
+2044  4.12  0.260 0.325 0.414  19.9 8.0  2.7    45  3.87   86  20
+2045  4.06  0.259 0.324 0.413  20.0 8.0  2.6    56  3.81   99  24
+2046  4.05  0.260 0.325 0.410  20.0 8.0  2.6    55  3.79   71  10
+2047  4.10  0.261 0.325 0.416  19.9 8.0  2.7    67  3.84   69  10
+2048  4.07  0.261 0.325 0.413  19.9 8.0  2.6    63  3.79   71   7
+2049  4.11  0.260 0.326 0.413  19.7 8.2  2.7    55  3.83   84  21
+2050  4.23  0.266 0.331 0.421  19.2 8.1  2.7    53  3.95   76  19
+
+--- Observatory: archetype census (seasons per year; [lo-hi] = alive-and-plausible band) ---
+TTO monster (35+ HR, 85+ BB, <=.255)                 avg  0.3/yr [0-3] ok — e.g. Shane Kincaid .247/40HR/86BB/0SB | Shane Kincaid .253/36HR/96BB/4SB
+40-homer season                                      avg  6.9/yr [2-10] ok — e.g. Ryker Hull .275/47HR/70BB/0SB | Alexis Vargas .327/44HR/69BB/5SB
+100-walk season                                      avg  7.7/yr [2-10] ok — e.g. Salvador Marte .291/24HR/104BB/2SB | Chin-lung Huang .289/28HR/124BB/7SB
+table setter (.300+, 35+ SB, <=12 HR)                avg  0.2/yr [0-3] ok — e.g. Silas Winters .300/12HR/93BB/41SB | Ulises Acosta .302/10HR/106BB/50SB
+45-steal season                                      avg  1.7/yr [0-3] ok — e.g. Silas Winters .254/14HR/89BB/49SB | Ulises Acosta .335/21HR/90BB/51SB
+.330 batting title chase                             avg  8.2/yr [1-6] ⚠ FLOOD — e.g. Angel Sierra .337/30HR/70BB/18SB | Gilberto Heredia .341/31HR/109BB/5SB
+solid regular (20-29 HR, .250-.279)                  avg 22.6/yr [6-30] ok — e.g. Wayne Walton .266/22HR/37BB/7SB | Akira Maeda .250/22HR/47BB/7SB
+glove-first regular (60+ glove, <=.660 OPS, 450+ PA) avg  1.8/yr [2-10] ⚠ EXTINCT/RARE — e.g. Mauricio Naranjo .225/7HR/34BB/4SB | Garrett Bender .220/6HR/36BB/5SB
+workhorse ace (200+ IP, era-relative dominant)       avg 10.6/yr [1-8] ⚠ FLOOD — e.g. Pedro Cabral 2.79 ERA, 203 IP, 7.1 K/9, 1 CG | Leonardo Waters 2.48 ERA, 222 IP, 9.1 K/9
+3+ complete games                                    avg  5.0/yr [0-4] ⚠ FLOOD — e.g. Jonah Lake 3.32 ERA, 220 IP, 7.9 K/9, 3 CG | Tim Munoz 3.89 ERA, 143 IP, 4.6 K/9, 4 CG
+strikeout monster (150+ IP, era-relative whiffs)     avg  9.2/yr [0-5] ⚠ FLOOD — e.g. Reinaldo Soriano 2.81 ERA, 198 IP, 11.0 K/9 | Walter Combs 3.60 ERA, 180 IP, 10.4 K/9
+wild flamethrower (5+ BB/9, 8.5+ K/9, 50+ IP)        avg  5.9/yr [0-4] ⚠ FLOOD — e.g. Yasmani Rhodes 4.86 ERA, 93 IP, 8.8 K/9 | Federico Tavarez 4.29 ERA, 57 IP, 10.2 K/9
+crafty vet (35+, 150+ IP, <=3.80, <=6 K/9)           avg  0.0/yr [0-3] ok
+lights-out closer (35+ SV, <=2.60)                   avg  3.4/yr [1-4] ok — e.g. Isaac Hanson 1.21 ERA, 75 IP, 10.5 K/9, 36 SV | Casey Maynard 2.56 ERA, 63 IP, 7.7 K/9, 42 SV
+fireman (relief, 50+ G, 35+ IR, 80%+ stranded, <=3.10) avg  2.4/yr [0-4] ok — e.g. Lance Curry 2.44 ERA, 92 IP, 10.4 K/9 | Ryota Hara 2.60 ERA, 55 IP, 9.6 K/9
+
+--- Observatory: WAR-lite, final season (defense observed via routed chances) ---
+4+ WAR players: 90 | 6+ WAR: 37
+top bats:   Israel Rondon (CF) 14.8 | Ulises Acosta (CF) 10.6 | Gilberto Heredia (CF) 10.5 | Caleb Neal (SS) 10.4 | Hector Perdomo (SS) 9.6 | Katsuya Takahashi (SS) 9.5 | Rob Cunningham (SS) 9.5 | Marco Goodwin (CF) 9.2
+top arms:   Tony Patton (SP) 7.7 | Eric Pope (SP) 7.0 | Keith Person (SP) 6.9 | Lorenzo Mosley (SP) 6.8 | Wilfredo Campos (SP) 6.6 | Leonardo Waters (SP) 5.6 | Juan Guzman (SP) 5.3 | Calvin Wallace (SP) 5.0
+
+--- Observatory: prospect-outcome census (§23.9 — matured entrants only, peak OVR) ---
+cohort            n   bust  fringe  regular  star   (bust <42 · fringe 42-48 · regular 48-58 · star 58+)
+top-10 board     350    17%    13%     40%    30%   peaks p50 53 p90 64 max 77
+ranks 11-30      727    50%    20%     26%     4%   peaks p50 42 p90 55 max 70
+deep pool (31+) 6314    82%    12%      6%     0%   peaks p50 35 p90 46 max 58
+rd-1 HS          116    30%    15%     35%    20%   peaks p50 49 p90 62 max 70
+rd-1 college     443    16%    25%     43%    17%   peaks p50 50 p90 60 max 72
+rd-2+ HS         960    75%    14%     11%     1%   peaks p50 36 p90 49 max 62
+rd-2+ college   4043    82%    13%      5%     0%   peaks p50 35 p90 45 max 57
+July 2 top-5      82    20%    12%     40%    28%   peaks p50 52 p90 66 max 77
+July 2 6-30      436    69%    13%     15%     4%   peaks p50 35 p90 52 max 69
+July 2 deep     1311    86%     8%      6%     0%   peaks p50 31 p90 45 max 58
+
+--- Observatory: farm sizes (no cap — merit washouts) ---
+AI avg 40.5 / max 65 per org (floor 22; bloat alarm if avg > 45) | user (never auto-cut): 137
+
+--- Observatory: the 80 wall (§23.18) ---
+80-GRADE tools on the card (cur >= 77.5): 8 (band ~4-18) | literal >=79.5: 2 | 80-ceiling promises: 43 | ABOVE the wall (>80, must be 0): 0
+the two hands: Jonah Lake movement 79 | Tyson Cunningham control 78 | Keith Person movement 78 | Israel Rondon contactVsR 78 | Israel Rondon powerVsL 80 | Israel Rondon discipline 79 | Israel Rondon defense 80 | Caleb Neal discipline 78
+STATE DUMPED to /tmp/claude-0/-home-user-Baseball-GM-Classic/511dcbc2-24cc-5120-bec3-c424e16b754d/scratchpad/soak/state_777.json 20.58 MB
+EXIT 0

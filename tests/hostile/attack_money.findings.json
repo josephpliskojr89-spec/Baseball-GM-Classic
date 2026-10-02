@@ -1,0 +1,16 @@
+[
+  {
+    "sev": "MEDIUM",
+    "title": "In-season trade cash received offsets payroll THROUGH free agency (ledger resets only at Part B), so cash farmed in July enlarges the winter FA budget",
+    "detail": "tradeCash={\"in\":80,\"out\":0} still on the books at {\"year\":2026,\"month\":11,\"day\":15}; computePayroll=8.7 vs budget 138; top-FA offer: ACCEPTED"
+  },
+  {
+    "sev": "HELD",
+    "title": "step-1 bidding honors signing restrictions"
+  },
+  {
+    "sev": "HIGH",
+    "title": "Step-1 bids are not limited by pool money: bid $99M on all ten top prospects with a $6M pool and win them",
+    "detail": "won 10 top-10 prospects, spent $990M vs pool $6M (UI offer buttons: check amt() caps)"
+  }
+]

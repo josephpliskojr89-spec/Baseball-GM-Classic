@@ -1,0 +1,42 @@
+[
+  {
+    "sev": "HELD",
+    "title": "junk-for-star many-for-one dumps are all rejected"
+  },
+  {
+    "sev": "HELD",
+    "title": "best 1-for-1 gain only +9.2 TV (MIL: Mitch Jacobs TV45.8 ovr59 age31 for Frank Hurst TV36.6 ovr37 age21)"
+  },
+  {
+    "sev": "MEDIUM",
+    "title": "Duplicate player in give[] is double-counted by evaluateProposal; executeTrade pushes him onto the partner roster twice",
+    "detail": "ratio single=1.02 doubled=2.05; post-trade audit: BOS.roster has duplicates: p3 | player p3 (Sheldon Ford) in BOS.roster AND BOS.roster; next-day sim errors: none (engine-level: UI toggle prevents this, reachable only via console)"
+  },
+  {
+    "sev": "HIGH",
+    "title": "evaluateProposal accepts a proposal giving a player the user does not own; executeTrade silently drops him but still hands over the AI player",
+    "detail": "got Garrett Simmons: true; Jesse Owen still on CLE: true; issues: 0. Engine-level (UI filters give[] to own org) but a stale draft between sim ticks relies on this filter."
+  },
+  {
+    "sev": "MEDIUM",
+    "title": "Cash parameter unvalidated: cashGive 1e9 accepted",
+    "detail": "AI gives David Upton (TV 39.6) for Mario Lincoln; user payroll 133.7 -> 1000000133.6; tradeCash={\"in\":0,\"out\":1000000000} (engine-level: UI steppers clamp 0..20)"
+  },
+  {
+    "sev": "MEDIUM",
+    "title": "Cash parameter unvalidated: cashGive Infinity accepted",
+    "detail": "AI gives David Upton (TV 39.6) for Mario Lincoln; user payroll 133.7 -> Infinity; tradeCash={\"in\":0,\"out\":null} (engine-level: UI steppers clamp 0..20)"
+  },
+  {
+    "sev": "HELD",
+    "title": "trades after July 31 rejected"
+  },
+  {
+    "sev": "HELD",
+    "title": "4 chained accepted trades (1-for-3 / 3-for-1) kept rosters legal and the next day simmed"
+  },
+  {
+    "sev": "HELD",
+    "title": "winter dump of 29 trades (26-man down to 26) is repaired by spring top-up; Opening Day sims"
+  }
+]
