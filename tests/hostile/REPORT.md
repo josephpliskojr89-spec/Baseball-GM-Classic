@@ -89,3 +89,15 @@ Monkey (`browser_monkey.js`, 3 min, viewport 390×844): **1022 random actions (n
 
     (Correction to the last line above: the IL call-up modal offers "Play Short-Handed" / "Let the AI Decide" — the probe's auto-clicker only pressed primary buttons, so this is NOT a soft-lock; moved to the HELD list.)
     (Probe "date past seasonEnd + postseason {phase:'ds', series:[], games:[]}": the harness crashed with `page.evaluate: TypeError: Cannot read properties of undefined (reading 'east')` — `BBGM_MAIN.refresh()` throws when `state.postseason` lacks `rounds`/series, i.e. the dashboard render has no guard for a malformed bracket. Console/corrupted-save only → LOW (#22). The 8 later probes (2 months past seasonEnd with no postseason, Dec 10 Rule 5 with empty pool, intl window with empty board, draft day with missing/empty class, 0 pitchers on the 26-man, every user player on the IL, ghost waiver claim, ghost trade offers) did not run before the time box; the script is in place to run them: `node browser_save.js`.)
+
+## Addendum from the agent's final hand-back
+
+| # | Sev | Reach | Finding | Repro |
+|---|-----|-------|---------|-------|
+| 22 | LOW | console | `BBGM_MAIN.refresh()` throws `reading 'east'` when `state.postseason` lacks `rounds`/series — the dashboard render has no guard for a malformed bracket. | `browser_save.js` probe (crashed the harness). |
+
+Not completed within the agent's time box — 8 in-session soft-lock probes in
+`browser_save.js` (the script is in place to run them): 2 months past
+seasonEnd with no postseason; Dec 10 Rule 5 with an empty pool; intl window
+with an empty board; draft day with a missing/empty class; 0 pitchers on the
+26-man; every user player on the IL; a ghost waiver claim; ghost trade offers.
