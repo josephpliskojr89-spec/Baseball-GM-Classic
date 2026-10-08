@@ -90,6 +90,11 @@ window.BBGM_DRAFT = (function () {
   // (the MVP tier measured nearly right); the squeeze is the 6-30 band
   // that fed the surplus. Soak-tuned: 14-year plateau lands 60-90 at
   // 55+ OVR.
+  // Hitter-only lift on non-carrying tools at the mint (v2.18.0) — see
+  // makeProspect. Soak-tuned so draft classes reach equal OVR at the
+  // ceiling by side (gate: tests/balance_test.js within ±1).
+  const HIT_LIFT = 5;
+
   function ceilingTargetFor(slot, strength) {
     // Re-founding pipeline re-center (§22.11): the slot lift anchors on
     // the BEST tool, and phase-2's wider within-player spread pushes the
@@ -207,7 +212,15 @@ window.BBGM_DRAFT = (function () {
           p.hidden.ceiling.speed + Math.max(0, delta) * 0.15, 25, 80) * 10) / 10;
         continue;
       }
-      const spread = k === bestKey ? 0 : rfloat(0, 7);
+      // Side balance (v2.18.0, 25-season soak): hitters mint with wider
+      // within-player tool spreads than pitchers, so anchoring the lift
+      // on the BEST tool left a draft hitter's OVR-at-ceiling ~3.5-5
+      // points under a draft pitcher's (genesis is balanced), and the
+      // league tilted to pitching as the founders retired (26-man
+      // hitters 47.9 → 44.6 over 20 years). HIT_LIFT raises the hitter's
+      // non-carrying tools so both sides reach the same OVR at the
+      // ceiling — the carrying tool and its weaknesses keep their shape.
+      const spread = k === bestKey ? 0 : rfloat(0, 7) - (p.isPitcher ? 0 : HIT_LIFT);
       p.hidden.ceiling[k] = Math.round(clamp(p.hidden.ceiling[k] + delta - spread, 25, 80) * 10) / 10;
     }
 
@@ -730,6 +743,8 @@ window.BBGM_DRAFT = (function () {
     if (!otc) return null;
     const p = draft.prospects[prospectId];
     if (!p) return null;
+    // Already taken (v2.18.0): a double-tap race could put one kid in two orgs.
+    if (draft.picks.some((k) => k.prospectId === prospectId)) return null;
     const pick = {
       round: otc.round, pick: otc.pickInRound, overall: otc.overall,
       teamId: otc.teamId, prospectId,

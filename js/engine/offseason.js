@@ -263,9 +263,24 @@ window.BBGM_OFFSEASON = (function () {
   }
 
   function runSeasonRolloverPartA(state) {
-    const year = state.meta.currentDate.year;
+    // v2.18.0 (hostile QA): the season is archived under the SCHEDULE's
+    // year, never the calendar's (a date drifted into February archived
+    // 2026 as 2027); and Part A refuses to run twice — a second call
+    // double-archived the season and double-ticked every contract.
+    if (state.meta.offseasonPhase === 'freeAgency') {
+      throw new Error('Season rollover already applied — the offseason is open.');
+    }
+    const sched = state.league.schedule;
+    const year = (sched && sched.seasonEnd && sched.seasonEnd.year) || state.meta.currentDate.year;
     const players = state.players;
     const teams = state.league.teams;
+    // Rule 5 graduations FIRST (§26, v2.18.0): every pick who stuck the
+    // season is his club's player before any winter release path (the
+    // non-tender door now returns flagged picks home) can see the flag.
+    const summaryRule5Survivors = window.BBGM_RULE5 ? window.BBGM_RULE5.clearFlags(state, year) : [];
+    // Trade-cash books close with the SEASON (v2.18.0): resetting them
+    // in Part B let July cash-in deals shrink the winter payroll check.
+    for (const t of teams) t.tradeCash = { in: 0, out: 0 };
     // Winter runs on real ages (0.68.0): catch up before the offseason's
     // age-gated decisions — retirement, arbitration, conversions — read
     // p.age. Every calendar jump below re-ticks the same way.
@@ -743,7 +758,9 @@ window.BBGM_OFFSEASON = (function () {
               salary = Math.max(0.74, TRADES().expectedAAV(ovr, p.age) * share,
                 priorSalary * 1.12);
             }
-            salary = Math.round(salary * 10) / 10;
+            // v2.18.0: round to cents and floor at the $0.74M minimum —
+            // one-decimal rounding stamped 300+ renewals a winter at $0.7M.
+            salary = Math.max(0.74, Math.round(salary * 100) / 100);
 
             // Non-tender decisions (18.7). AI clubs shed arb players whose
             // raise outruns their value — cheap owners most aggressively,
@@ -834,12 +851,9 @@ window.BBGM_OFFSEASON = (function () {
       summary.traitReveals = { october: octoberOuted, clubhouse };
     }
 
-    // 6.4c. Rule 5 graduations (v2.17.0, §26): the season is over —
-    // every pick who stuck the whole year is his club's player now,
-    // free and clear. main.js letters the user about his own gains
-    // and his old farmhands who made it elsewhere.
-    summary.rule5Survivors = window.BBGM_RULE5
-      ? window.BBGM_RULE5.clearFlags(state, year) : [];
+    // 6.4c. Rule 5 graduations (v2.17.0, §26) — cleared at the top of
+    // Part A since v2.18.0; surfaced here for main.js's letters.
+    summary.rule5Survivors = summaryRule5Survivors;
 
     // 6.5. International (bible 14): special-event players (NPB postings,
     // Cuban defectors, KBO declarations) join the FA pool as headline
@@ -868,6 +882,10 @@ window.BBGM_OFFSEASON = (function () {
   // offseason AI-AI trades fire alongside the market.
   function advanceFARound(state) {
     if (state.meta.offseasonPhase !== 'freeAgency') return { signings: [], done: true };
+    // Heal (v2.18.0, hostile QA): an open offseason with no market was a
+    // permanent soft-lock (every advance threw and restored the same
+    // backup). Rebuild the market and carry on.
+    if (!state.faMarket) FA().buildMarket(state);
     const signings = FA().resolveRound(state);
     state.meta.currentDate = D().addDays(state.meta.currentDate, 12);
     PROG().birthdayTickAll(state, state.meta.currentDate); // 0.68.0
@@ -879,6 +897,9 @@ window.BBGM_OFFSEASON = (function () {
   // ---- Offseason part B ---------------------------------------------------------
 
   function runSeasonRolloverPartB(state) {
+    if (state.meta.offseasonPhase !== 'freeAgency') {
+      throw new Error('Part B needs an open offseason — it has already run or Part A never did.');
+    }
     const players = state.players;
     const teams = state.league.teams;
     // Real ages before the farm-cut and top-up gates read them (0.68.0)
@@ -1161,6 +1182,10 @@ window.BBGM_OFFSEASON = (function () {
     if (window.BBGM_RULE5) {
       summary.rule5Spring = window.BBGM_RULE5.springCompliance(state);
     }
+
+    // League minimum on the active roster (v2.18.0): promotions carried
+    // minor-league pay onto the 26-man.
+    for (const t of teams) ROSTER().enforceMinimumPay(state, t);
 
     // Fail loud if any org came out of the offseason unplayable.
     GEN().validateLeagueReadiness(state.league, players);

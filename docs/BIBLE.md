@@ -5722,6 +5722,37 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > e2e grew to 15 (room render + pending predicate), battery 5 suites
 > green, no migration needed.
 
+> **Status note (v2.18.0):** SHIPPED TO TESTING — the hardening release
+> (owner: "Hardening release approved"), built from the pre-release
+> testing program (tests/hostile/: 25-season soaks + a hostile agent).
+> **Balance:** draft/intl hitters now mint to the same OVR-at-ceiling as
+> pitchers (HIT_LIFT 5 on non-carrying tools in draft.js, 3.5 in
+> intl.js) — the 25-year tilt to pitching (26-man hitters 47.9 → 44.6)
+> was a mint asymmetry the genesis population never had. Permanent
+> harness gate: 26-man side gap > 2.5 fails the soak. **Rotation:**
+> ensureRotation removes a padded arm from the bullpen (the overlap
+> that starved his rest clock and produced the 40-start season);
+> daily rotation-integrity probe is a permanent harness invariant.
+> **Money:** FA offers count standing offers as committed; intl
+> signings stop at 30% over the pool; step-1 bids are bounded by the
+> remaining pool at resolution and by uncommitted pool in the hub;
+> trade cash books close at the season (Part A), not after FA.
+> **Trades:** injury-discounted value (days remaining, career-altering);
+> ownership/uniqueness/cash validation in evaluateProposal and
+> executeTrade. **Doors:** Rule 5 flags can't leave through release or
+> waivers (returned home instead; graduations now clear at the top of
+> Part A); injured waiver claims join the IL; draft double-pick and
+> Rule 5 double-run guards; intl window date-gated (backstop forces);
+> Part A/B refuse to run twice; season archived under the schedule's
+> year; FA phase with no market heals. **Pay:** renewals round to
+> cents at the $0.74M floor; promotions enforce the minimum. **Saves:**
+> import is structurally validated BEFORE anything is written (the
+> data-loss finding); native saves gzip (~5x smaller; 25-year dynasty
+> 20.6 MB → ~4 MB, under Android's 25 MB backup cap), reading both
+> formats. New suites: balance (5), hardening (23); e2e 16; harness
+> gains side-balance, rotation and overwork probes plus DUMP=.
+> Ships to the testing lane first — it touches the save path.
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):

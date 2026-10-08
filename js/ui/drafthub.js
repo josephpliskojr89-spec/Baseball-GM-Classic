@@ -1393,6 +1393,16 @@ window.BBGM_UI_DRAFT = (function () {
           actions.push({
             label, kind,
             onClick: () => {
+              // v2.18.0: standing offers are committed money — the sum of
+              // every offer out can't exceed what's left in the pool.
+              const bud = intl.budgets[state.meta.userTeamId] || { pool: 0, spent: 0 };
+              let others = 0;
+              for (const pid in intl.userOffers || {}) if (pid !== p.id) others += intl.userOffers[pid];
+              const room = Math.round((bud.pool - bud.spent - others) * 100) / 100;
+              if (amt(mul) > room + 1e-9) {
+                U.showToast(`Only $${Math.max(0, room).toFixed(2)}M of pool money is uncommitted — withdraw an offer first.`, 'warning', 5000);
+                return true;
+              }
               intl.userOffers[p.id] = amt(mul);
               U.showToast(`Offer in: $${amt(mul)}M for ${p.name}.`, 'success');
               refreshAll();

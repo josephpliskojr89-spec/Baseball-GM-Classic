@@ -199,6 +199,10 @@ window.BBGM_RULE5 = (function () {
   // intended. `auto` runs the user's club as an AI (headless paths).
   function runDraft(state, opts = {}) {
     const wy = winterYearFor(state.meta.currentDate);
+    // Once per winter (v2.18.0): a second call used to draft again and
+    // double-ledger the year.
+    const done = historyFor(state, wy);
+    if (done) return { year: wy, picks: done.picks, userResult: { kind: 'done' }, userLost: [], already: true };
     const taken = new Set();
     let pool = buildPool(state, wy);
     const picks = [];

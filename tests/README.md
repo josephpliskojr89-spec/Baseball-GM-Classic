@@ -44,6 +44,14 @@ targets, invariant guards) is `node tools/season_harness.js <seed> <seasons>`.
   eligibility split, top-40-value + hand-shield protection, reverse
   standings, the on-the-26-man obligation, every demotion door, the
   AI conscience and the minors-leak self-heal, graduation.
+- `balance_test.js` — mint side balance (v2.18.0): draft and intl classes
+  reach equal OVR at the ceiling by side, nothing minted past the wall.
+- `hardening_test.js` — every hostile-QA / soak finding pinned as an
+  engine refusal or heal (v2.18.0): rotation∩bullpen, contract shape,
+  offer stacking, injury-aware trade value, proposal validation, intl
+  signing guards, draft double-pick, Rule 5 once-per-winter and doors,
+  injured claims, minimum pay, FA-phase heal, import validation, the
+  gzip save codec.
 - `e2e_smoke.js` — browser walkthrough: boot, new game, team select,
   sim, player card, trait visibility tiers, the Rule 5 draft room,
-  inbox, zero page errors.
+  broken-import refusal, gzip codec, inbox, zero page errors.

@@ -111,8 +111,34 @@ function applyCeilingDrop(p) {
   if (c[key] != null) c[key] = Math.max(20, c[key] - 4);
 }
 
+// Rotation integrity (v2.18.0, permanent): the structural states behind
+// the 40-start season. An arm in BOTH rotation and bullpen, a closer in
+// the rotation, duplicate or missing refs. Transient one-day overlaps
+// can appear between a roster move and the next ensureRotation; the
+// same arm overlapped on 3+ days is the real thing and fails the soak.
+const rotOverlapDays = {};
+let rotStructural = 0;
+function rotationProbe(state, today) {
+  for (const t of state.league.teams) {
+    const rot = t.rotation || [];
+    const pen = new Set(t.bullpen || []);
+    if (rot.length !== new Set(rot).size) { rotStructural++; console.log(`✗ ROTATION: duplicate ids ${t.abbr} ${today.year}-${today.month}-${today.day}`); }
+    for (const id of rot) {
+      const p = state.players[id];
+      if (!p) { rotStructural++; console.log(`✗ ROTATION: missing ref ${id} on ${t.abbr}`); continue; }
+      if (t.closer === id) { rotStructural++; console.log(`✗ ROTATION: closer ${p.name} in rotation (${t.abbr})`); }
+      if (pen.has(id)) {
+        const key = `${t.id}|${id}`;
+        rotOverlapDays[key] = (rotOverlapDays[key] || 0) + 1;
+        if (rotOverlapDays[key] === 3) { rotStructural++; console.log(`✗ ROTATION∩BULLPEN: ${p.name} (${t.abbr}) overlapped 3+ days`); }
+      }
+    }
+  }
+}
+
 function simOneDay(state) {
   const today = state.meta.currentDate;
+  if (today.month >= 4 && today.month <= 9) rotationProbe(state, today);
   // Birthday aging (0.66.2, pools included 0.68.0 — mirrors main.js).
   W.BBGM_PROGRESSION.birthdayTickAll(state, today);
   // Waiver wire (0.68.0 parity): main.js runs the daily tick — AI DFAs,
@@ -797,6 +823,38 @@ if (seasonsArg > 1) {
       ` | max GS ${seasonMaxGS}` +
       ` | FA pool ${(state.freeAgents || []).length}` +
       ` | active ${Object.keys(state.players).filter((id) => !state.players[id].retired).length}`);
+    { // Side balance (v2.18.0, 25-season soak): the pipeline must keep the
+      // 26-man balanced by side. Hitters eroded 47.9 → 44.6 while pitchers
+      // rose to 49.6 before the draft mint was equalized; the gap is now a
+      // hard gate — this is the single most important long-horizon number.
+      const R = W.BBGM_ROSTER;
+      let hs = 0, hn = 0, ps = 0, pn = 0, velo = 0, vn = 0;
+      for (const t of state.league.teams) for (const id of t.roster) {
+        const p = state.players[id]; if (!p) continue;
+        const o = R.overall(p);
+        if (p.isPitcher) { ps += o; pn++; if (p.primaryPosition === 'SP') { velo += p.ratings.velocity || 0; vn++; } }
+        else { hs += o; hn++; }
+      }
+      const h = hs / hn, pt = ps / pn;
+      console.log(`  ${yr} 26-man balance: hitters ${h.toFixed(1)} | pitchers ${pt.toFixed(1)} (gap ${(h - pt).toFixed(1)}, alarm |gap| > 2.5) | SP velo ${(velo / vn).toFixed(1)}`);
+      if (Math.abs(h - pt) > 2.5 && yr - C.START_YEAR >= 3) {
+        console.log(`✗ SIDE BALANCE: 26-man hitters ${h.toFixed(1)} vs pitchers ${pt.toFixed(1)} in ${yr}`);
+        process.exit(1);
+      }
+    }
+    if (seasonMaxGS > 35) {
+      // Name the offender and his staff state (v2.18.0): a 36+ season is
+      // either the once-a-generation workhorse or the rotation bug.
+      for (const id in state.players) {
+        const p = state.players[id];
+        const s = p.stats && p.stats[yr];
+        if (!s || (s.gs || 0) !== seasonMaxGS) continue;
+        const t = state.league.teams.find((x) => x.id === p.teamId);
+        const rot = t ? (t.rotation || []).map((rid) => { const q = state.players[rid]; return q ? `${q.name}${q.rule5 ? '(R5)' : ''}${q.ilStatus ? '(IL)' : ''}` : `MISSING:${rid}`; }) : [];
+        const arms = t ? t.roster.map((rid) => state.players[rid]).filter((q) => q && q.isPitcher) : [];
+        console.log(`  OVERWORK ${yr}: ${p.name} (${p.primaryPosition}, ${p.age}) GS ${s.gs} | ${t ? t.abbr : '?'} pitchers ${arms.length} SP ${arms.filter((q) => q.primaryPosition === 'SP').length} | rotation(${rot.length}): ${rot.join(', ')}`);
+      }
+    }
     // Fail line at 38: the guard exists for the 0.15.3 bug class (a
     // broken rotation slot handing one arm 51 starts), not for the
     // once-a-generation 37-start workhorse year a club rides out of an
@@ -804,6 +862,10 @@ if (seasonsArg > 1) {
     // 36, Hough 40). 37 observed once across ~30 soak-decades.
     if (seasonMaxGS > 38) {
       console.log(`✗ STARTER OVERWORK: a pitcher made ${seasonMaxGS} starts in ${yr}`);
+      process.exit(1);
+    }
+    if (rotStructural) {
+      console.log(`✗ ROTATION INTEGRITY: ${rotStructural} structural violation(s) this season`);
       process.exit(1);
     }
     if (seasonMaxGS > 35) {
@@ -1060,4 +1122,11 @@ OBS.printOutcomes(OBS.outcomeCensus(state, outcomeStore, harnessStartYear, state
   console.log(`80-GRADE tools on the card (cur >= 77.5): ${card80} (band ~4-18) | literal >=79.5: ${lit80} | 80-ceiling promises: ${ceil80} | ABOVE the wall (>80, must be 0): ${over80}`);
   if (names80.length) console.log(`the two hands: ${names80.join(' | ')}`);
   if (overNames.length) console.log(`WALL BREACH: ${overNames.join(' | ')}`);
+}
+
+// End-state dump (v2.18.0): DUMP=<path> writes the final state JSON for
+// offline analysis (tests/hostile/soak/analyze_state.js, cohort.js).
+if (process.env.DUMP) {
+  fs.writeFileSync(process.env.DUMP, JSON.stringify(state));
+  console.log('STATE DUMPED to', process.env.DUMP, Math.round(fs.statSync(process.env.DUMP).size / 1048576 * 100) / 100, 'MB');
 }

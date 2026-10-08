@@ -255,7 +255,8 @@ window.BBGM_ROSTER = (function () {
       const cover = players[team.rotation[slot]];
       team.rotation[slot] = p.id;
       delete cover.ilCallUpFor;
-      if (team.roster.includes(cover.id) && !team.bullpen.includes(cover.id)) {
+      if (team.roster.includes(cover.id) && !team.bullpen.includes(cover.id) &&
+          !(team.rotation || []).includes(cover.id)) {
         team.bullpen.push(cover.id);
         const roles = team.bullpenRoles || (team.bullpenRoles = { setup: [], middle: [], long: [], mopup: [] });
         if (!Object.values(roles).some((arr) => arr.includes(cover.id))) roles.middle.push(cover.id);
@@ -268,8 +269,10 @@ window.BBGM_ROSTER = (function () {
       safeRebuild(state, team);
       return;
     }
-    // A returning relief arm always has a pen chair.
-    if (!team.bullpen.includes(p.id)) team.bullpen.push(p.id);
+    // A returning relief arm always has a pen chair — unless he is a
+    // rotation arm (v2.18.0 soak catch: an activated starter listed in
+    // both starved his own rest clock → the 40-start season).
+    if (!team.bullpen.includes(p.id) && !(team.rotation || []).includes(p.id)) team.bullpen.push(p.id);
     const roles = team.bullpenRoles || (team.bullpenRoles = { setup: [], middle: [], long: [], mopup: [] });
     if (!Object.values(roles).some((arr) => arr.includes(p.id))) roles.middle.push(p.id);
   }
@@ -302,7 +305,7 @@ window.BBGM_ROSTER = (function () {
           if (cSlot >= 0) {
             team.rotation[cSlot] = player.id;
             // The cover stays up as pen depth.
-            if (!team.bullpen.includes(cover.id)) team.bullpen.push(cover.id);
+            if (!team.bullpen.includes(cover.id) && !(team.rotation || []).includes(cover.id)) team.bullpen.push(cover.id);
             const roles = team.bullpenRoles || (team.bullpenRoles = { setup: [], middle: [], long: [], mopup: [] });
             if (!Object.values(roles).some((arr) => arr.includes(cover.id))) roles.middle.push(cover.id);
           }
@@ -795,9 +798,27 @@ window.BBGM_ROSTER = (function () {
     return events;
   }
 
+  // League minimum on the active roster (v2.18.0, hostile QA): a farmhand
+  // called up on a minor-league deal kept his $0.3M on the 26-man.
+  function enforceMinimumPay(state, team) {
+    let fixed = 0;
+    for (const id of team.roster || []) {
+      const p = state.players[id];
+      if (!p || !p.contract) continue;
+      if ((p.contract.annualSalary || 0) < 0.74) {
+        const yrs = Math.max(1, p.contract.years || 1);
+        p.contract.annualSalary = 0.74;
+        p.contract.totalValue = Math.round(0.74 * yrs * 100) / 100;
+        fixed++;
+      }
+    }
+    return fixed;
+  }
+
   function midSeasonMoves(state, today, opts = {}) {
     const events = [];
     if (state.meta && state.meta.offseasonPhase) return events;
+    if (today.day === 1 || today.day === 15) for (const t of state.league.teams) enforceMinimumPay(state, t);
     const m = today.month, d = today.day;
     if (!((m === 4 && d >= 15) || (m >= 5 && m <= 8))) return events;
     const weekly = d === 1 || d === 8 || d === 15 || d === 22 || d === 29;
@@ -913,7 +934,7 @@ window.BBGM_ROSTER = (function () {
 
   return {
     placeOnILWithMove, activateFromIL, replaceRefs, bestCallUp, overall, demotionLevel,
-    weakestDemotable, acceptsMinors,
+    weakestDemotable, acceptsMinors, enforceMinimumPay,
     newPlayerId, safeRebuild, midSeasonMoves, msDayIndex: dayIndex,
     applyRoleShift, roleShiftPreview,
     callUpCandidates, callUpNeedFor, executeILCallUp, ensureStaffIntegration,

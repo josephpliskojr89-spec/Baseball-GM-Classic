@@ -128,8 +128,20 @@ window.BBGM_TRADES = (function () {
   const LEVEL_RISK = { AAA: 1.0, AA: 0.78, A: 0.5, Rookie: 0.34 };
 
   function tradeValue(p) {
-    if (p.status === 'minors') return prospectValue(p);
-    return mlbValue(p);
+    const base = p.status === 'minors' ? prospectValue(p) : mlbValue(p);
+    return base * injuryFactor(p);
+  }
+
+  // Injury discount (v2.18.0, hostile QA): valuation was injury-blind — a
+  // man on a 400-day IL stint traded at his healthy number. Days remaining
+  // and a career-altering flag price the risk; a two-week knock is noise.
+  function injuryFactor(p) {
+    const il = p.ilStatus;
+    if (!il) return 1;
+    const days = il.daysRemaining || 0;
+    let f = days > 150 ? 0.45 : days > 60 ? 0.7 : days > 20 ? 0.9 : 1;
+    if (p.currentInjury && p.currentInjury.careerAltering) f *= 0.75;
+    return f;
   }
 
   function mlbValue(p) {
@@ -538,6 +550,24 @@ window.BBGM_TRADES = (function () {
       return { verdict: 'reject', feedback: 'The trade deadline has passed — talk to us in November.' };
     }
     const userTeam = state.league.teams.find((t) => t.id === state.meta.userTeamId);
+    // Ownership, uniqueness, and money sanity (v2.18.0, hostile QA): the
+    // engine accepted a third club's star in `give`, a player listed
+    // twice (double-counted and pushed onto the partner twice), and cash
+    // of 1e9 / Infinity. The UI never did these; the engine now refuses.
+    const orgOf = (t) => new Set([...(t.roster || []), ...(t.minors || []), ...(t.il || []), ...(t.roster40 || [])]);
+    const mine = orgOf(userTeam), theirs = orgOf(aiTeam);
+    const ids = (arr) => arr.map((x) => (x && x.id) || x);
+    const gIds = ids(give), tIds = ids(get);
+    if (new Set(gIds).size !== gIds.length || new Set(tIds).size !== tIds.length) {
+      return { verdict: 'reject', feedback: 'A player is listed twice in that proposal.' };
+    }
+    if (gIds.some((id) => !mine.has(id))) return { verdict: 'reject', feedback: 'You can only trade players in your own organization.' };
+    if (tIds.some((id) => !theirs.has(id))) return { verdict: 'reject', feedback: 'That player isn\'t in their organization.' };
+    for (const c of [cashGive, cashGet]) {
+      if (c != null && (!Number.isFinite(c) || c < 0 || c > 20)) {
+        return { verdict: 'reject', feedback: 'Cash in a trade runs $0-20M.' };
+      }
+    }
     const shapeIssue = validateTradeShape(state, userTeam, give, aiTeam, get);
     if (shapeIssue) return { verdict: 'reject', feedback: `Can't make that work: ${shapeIssue}.` };
     const poolIssue = poolTradeBlocker(state, userTeam.id, aiTeam.id, poolGive || 0) ||
@@ -610,6 +640,11 @@ window.BBGM_TRADES = (function () {
   function executeTrade(state, teamA, playersA, teamB, playersB, cashA, cashB, poolA, poolB) {
     const players = state.players;
     const year = state.meta.currentDate.year;
+    // v2.18.0: no duplicates, finite bounded cash — regardless of caller.
+    const uniq = (arr) => (arr || []).filter((p, i, a) => p && a.findIndex((q) => q && q.id === p.id) === i);
+    playersA = uniq(playersA); playersB = uniq(playersB);
+    const clampCash = (c) => (Number.isFinite(c) ? Math.max(0, Math.min(20, c)) : 0);
+    cashA = clampCash(cashA); cashB = clampCash(cashB);
 
     // Cash considerations are PAYROLL money (0.36.0): what a club sends
     // adds to its effective payroll this season, what it receives

@@ -101,13 +101,52 @@ window.BBGM_STATE = (function () {
     return (cap.Plugins && cap.Plugins.Filesystem) || null;
   }
 
+  // Native saves are gzip-compressed (v2.18.0): a 25-year dynasty's JSON
+  // reached 20.6 MB against Android Auto Backup's 25 MB cap; gzip runs
+  // ~4-5x smaller. The file is written as base64 of the gzip bytes and
+  // read back by sniffing: gzip magic → inflate, otherwise plain JSON
+  // (every pre-2.18.0 save). Any compression failure falls back to
+  // plain JSON — the save is never lost to a missing API.
+  function gzipText(text) {
+    if (typeof CompressionStream === 'undefined') return Promise.resolve(null);
+    try {
+      const cs = new CompressionStream('gzip');
+      const writer = cs.writable.getWriter();
+      writer.write(new TextEncoder().encode(text));
+      writer.close();
+      return new Response(cs.readable).arrayBuffer().then((buf) => {
+        const bytes = new Uint8Array(buf);
+        let bin = '';
+        for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+        return btoa(bin);
+      }).catch(() => null);
+    } catch (e) { return Promise.resolve(null); }
+  }
+
+  function gunzipBase64(b64) {
+    const bin = atob(b64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    const ds = new DecompressionStream('gzip');
+    const writer = ds.writable.getWriter();
+    writer.write(bytes);
+    writer.close();
+    return new Response(ds.readable).text();
+  }
+
+  function isGzipBase64(s) {
+    // 'H4sI' is the base64 of the gzip magic bytes 1f 8b 08.
+    return typeof s === 'string' && s.startsWith('H4sI');
+  }
+
   function storePut(value) {
     const fs = nativeFS();
     if (!fs) return idbPut(value);
-    return fs.writeFile({
+    const json = JSON.stringify(value);
+    return gzipText(json).then((b64) => fs.writeFile({
       path: SAVE_FILE, directory: 'DATA', encoding: 'utf8',
-      data: JSON.stringify(value),
-    });
+      data: b64 || json,
+    }));
   }
 
   function storeGet() {
@@ -115,8 +154,14 @@ window.BBGM_STATE = (function () {
     if (!fs) return idbGet();
     return fs.readFile({ path: SAVE_FILE, directory: 'DATA', encoding: 'utf8' })
       .then((res) => {
-        try { return res && res.data ? JSON.parse(res.data) : null; }
-        catch (e) { throw new Error('Native save file is corrupted: ' + e.message); }
+        const raw = res && res.data;
+        if (!raw) return null;
+        const parse = (text) => {
+          try { return JSON.parse(text); }
+          catch (e) { throw new Error('Native save file is corrupted: ' + e.message); }
+        };
+        if (isGzipBase64(raw)) return gunzipBase64(raw).then(parse);
+        return parse(raw);
       })
       .catch((e) => {
         // A missing file is "no save yet", not an error.
@@ -266,6 +311,31 @@ window.BBGM_STATE = (function () {
     URL.revokeObjectURL(url);
   }
 
+  // Pure structural check used by import (v2.18.0). Returns a message or
+  // null. Deliberately strict about the things that make startGame or the
+  // first simmed day throw; permissive about everything the migration
+  // chain and the in-game heals already tolerate.
+  function structuralSaveError(obj) {
+    const d = obj && obj.meta && obj.meta.currentDate;
+    const isInt = (x) => Number.isInteger(x);
+    if (!d || !isInt(d.year) || !isInt(d.month) || !isInt(d.day) || d.month < 1 || d.month > 12 || d.day < 1 || d.day > 31) {
+      return 'Save file has an unreadable calendar date';
+    }
+    const teams = obj.league && obj.league.teams;
+    if (!Array.isArray(teams) || teams.length < 2 || teams.some((t) => !t || !t.id)) return 'Save file has no usable league';
+    if (!obj.players || typeof obj.players !== 'object' || !Object.keys(obj.players).length) return 'Save file has no players';
+    if (obj.meta.userTeamId != null && !teams.some((t) => t.id === obj.meta.userTeamId)) return 'Save file names a team that does not exist';
+    const sched = obj.league.schedule;
+    if (!sched || !Array.isArray(sched.games)) return 'Save file has no schedule';
+    for (const t of teams) {
+      if (!Array.isArray(t.roster)) return `Team ${t.abbr || t.id} has no roster`;
+      const missing = t.roster.filter((id) => !obj.players[id]).length;
+      if (missing > 0 && missing === t.roster.length) return `Team ${t.abbr || t.id}'s roster references players that are not in the file`;
+      if (t.id === obj.meta.userTeamId && t.roster.length < 9) return 'Your club\'s roster is too short to field a lineup';
+    }
+    return null;
+  }
+
   function importFromFile(file) {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -300,6 +370,15 @@ window.BBGM_STATE = (function () {
           if (v[0] > app[0] || (v[0] === app[0] && v[1] > app[1]) ||
               (v[0] === app[0] && v[1] === app[1] && (v[2] || 0) > (app[2] || 0))) {
             reject(new Error(`This save is from a newer version (v${obj.version}) than the app (v${window.BBGM_CONSTANTS.VERSION}) — update the app first, then import.`));
+            return;
+          }
+          // Structural validation (v2.18.0, hostile QA): a file that parses
+          // but can't be played used to be persisted and THEN blow up in
+          // startGame — the good save was gone and the toast said "Import
+          // failed". Nothing is written until the object can stand up.
+          const structural = structuralSaveError(obj);
+          if (structural) {
+            reject(new Error(`${structural} — import aborted, your current save is untouched.`));
             return;
           }
           // Persist FIRST, swap the live state only on success (0.46.0):
@@ -367,5 +446,7 @@ window.BBGM_STATE = (function () {
     exportToFile, importFromFile, setSaveBlocked, onSaveError,
     getPlayer, getTeam, userTeam,
     simStops, setSimStop,
+    // v2.18.0 test seams: import structural check + native save codec.
+    structuralSaveError, gzipText, gunzipBase64, isGzipBase64,
   };
 })();

@@ -163,7 +163,31 @@ const check = (ok, label) => { console.log((ok ? '✓ ' : '✗ ') + label); ok ?
     window.BBGM_MAIN.refresh();
   });
 
-  // 8. Inbox opens (the discovery organ).
+  // 8. Hardening (v2.18.0): a broken import never touches the good save.
+  const importGuard = await page.evaluate(async () => {
+    const ST = window.BBGM_STATE;
+    const before = JSON.stringify(ST.get().meta.currentDate);
+    const had = await ST.hasSave();
+    const bad = JSON.stringify({ version: window.BBGM_CONSTANTS.VERSION, meta: { currentDate: { year: 'x', month: 99, day: -1 }, userTeamId: 'nope' },
+      league: { teams: [{ id: 'a', roster: [] }, { id: 'b', roster: [] }], schedule: { games: [] } }, players: { p1: {} } });
+    let msg = null;
+    try { await ST.importFromFile(new File([bad], 'bad.json', { type: 'application/json' })); }
+    catch (e) { msg = String(e.message || e); }
+    const after = JSON.stringify(ST.get().meta.currentDate);
+    return { msg, same: before === after, had, has: await ST.hasSave() };
+  });
+  check(importGuard.msg && /untouched/.test(importGuard.msg) && importGuard.same && importGuard.has === importGuard.had,
+    `a broken import is refused and the live save is untouched (${importGuard.msg && importGuard.msg.slice(0, 48)}…)`);
+  const codec = await page.evaluate(async () => {
+    const ST = window.BBGM_STATE;
+    const json = JSON.stringify(ST.get());
+    const b64 = await ST.gzipText(json);
+    const back = b64 && await ST.gunzipBase64(b64);
+    return { ok: !!b64 && back === json, ratio: b64 ? b64.length / json.length : 1 };
+  });
+  check(codec.ok && codec.ratio < 0.5, `the gzip save codec round-trips in the browser (${(codec.ratio * 100).toFixed(0)}% of plain size)`);
+
+  // 9. Inbox opens (the discovery organ).
   await page.click('.nav-btn[data-tab="home"]');
   await page.click('#btnInbox');
   await page.waitForSelector('.modal', { timeout: 10000 });

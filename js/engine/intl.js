@@ -216,6 +216,8 @@ window.BBGM_INTL = (function () {
       : ['contactVsR', 'contactVsL', 'powerVsR', 'powerVsL', 'discipline', 'speed', 'defense', 'arm'];
   }
 
+  const INTL_HIT_LIFT = 3.5; // v2.18.0 side balance, see draft.js HIT_LIFT
+
   function makeProspect(state, year, rank) {
     const age = rollAge();
     const p = GEN().generateNewPlayer(rand, { id: null }, {
@@ -251,7 +253,9 @@ window.BBGM_INTL = (function () {
           p.hidden.ceiling.speed + Math.max(0, delta) * 0.15, 25, 80) * 10) / 10;
         continue;
       }
-      const spread = k === bestKey ? 0 : rfloat(0, 8);
+      // Side balance (v2.18.0): same hitter-only lift as draft.js, smaller
+      // — the intl mint's side gap measured ~1.6 vs the draft's ~3.5-5.
+      const spread = k === bestKey ? 0 : rfloat(0, 8) - (p.isPitcher ? 0 : INTL_HIT_LIFT);
       p.hidden.ceiling[k] = Math.round(clamp(p.hidden.ceiling[k] + delta - spread, 25, 80) * 10) / 10;
     }
     // The rank lift never overrides the archetype cap (0.53.1): a
@@ -561,7 +565,16 @@ window.BBGM_INTL = (function () {
     return today.month > 1 || (today.month === 1 && today.day >= 15);
   }
 
-  function openWindow(state) {
+  // opts.force (v2.18.0): the rollover backstop opens the window from
+  // whatever date the user jumped to spring from; every other caller
+  // only gets in on or after signing day (hostile QA: advanceWindow
+  // could resolve a fresh class eleven months early).
+  function openWindow(state, opts = {}) {
+    if (!state.intl || state.intl.phase === 'complete') return state.intl;
+    if (state.intl.phase === 'scouting' && !opts.force &&
+        !windowPending(state, state.meta.currentDate)) {
+      return state.intl;
+    }
     if (state.intl.phase === 'scouting') {
       state.intl.phase = 'window';
       state.intl.windowStep = 1;
@@ -709,7 +722,11 @@ window.BBGM_INTL = (function () {
       const bids = [];
       const userOffer = intl.userOffers[pid];
       if (userOffer && !intl.budgets[state.meta.userTeamId].restricted) {
-        bids.push({ teamId: state.meta.userTeamId, amount: userOffer, user: true });
+        // v2.18.0: the user's bid is bounded by his remaining pool exactly
+        // as every AI bid is (hostile QA: "blow him away" on all ten top
+        // names with a $6M pool won them all).
+        const userRemaining = remainingFor(intl, state.meta.userTeamId);
+        bids.push({ teamId: state.meta.userTeamId, amount: Math.min(userOffer, Math.max(0, userRemaining)), user: true });
       }
       for (const t of state.league.teams) {
         if (t.id === state.meta.userTeamId) continue;
@@ -794,6 +811,8 @@ window.BBGM_INTL = (function () {
 
   function advanceWindow(state) {
     const intl = openWindow(state);
+    // Date-gated (v2.18.0): a class whose window isn't open never resolves.
+    if (!intl || intl.phase !== 'window') return { step: 0, results: [], blocked: true };
     if (intl.windowStep === 1) return { step: 1, results: resolveTopTier(state) };
     if (intl.windowStep === 2) {
       const results = resolveAiTier(state, 50);
@@ -810,11 +829,22 @@ window.BBGM_INTL = (function () {
     const intl = state.intl;
     const p = intl.prospects[prospectId];
     if (!p || intl.phase !== 'window') return { error: 'window closed' };
+    // v2.18.0 (hostile QA): the engine used to trust the hub's buttons.
+    if (intl.windowStep < 2) return { error: 'Top-tier names go through the bidding phase first.' };
+    if ((intl.signings || []).some((x) => x.prospectId === prospectId)) return { error: 'He has already signed.' };
     const userTeamId = state.meta.userTeamId;
     if (intl.budgets[userTeamId].restricted && p.ask > 0.3) {
       return { error: 'Signing restrictions: nothing over $300K this year.' };
     }
+    // Overspending the pool is allowed (6.10.4 penalties exist for it) but
+    // not without limit: past 30% over, the league office blocks the deal.
+    // Before this, the whole 100-man class could be signed on a $6M pool
+    // for a one-time penalty.
+    const b = intl.budgets[userTeamId];
     const bonus = Math.round(p.ask * 100) / 100;
+    if (b && b.spent + bonus > b.pool * 1.30 + 1e-9) {
+      return { error: `The league office blocks it — $${(b.spent + bonus).toFixed(2)}M would run more than 30% over your $${b.pool.toFixed(1)}M pool.` };
+    }
     return { signing: signProspect(state, prospectId, userTeamId, bonus) };
   }
 
@@ -906,7 +936,8 @@ window.BBGM_INTL = (function () {
   // One-shot: AI works the whole window, including the user's team (auto
   // and harness path). The user's team behaves like a mid-appetite AI.
   function autoRunWindow(state) {
-    const intl = openWindow(state);
+    const intl = openWindow(state, { force: true });
+    if (!intl || intl.phase !== 'window') return intl && intl.recap;
     // Let the user's team compete in the AI passes.
     const userTeamId = state.meta.userTeamId;
     const realUser = userTeamId;

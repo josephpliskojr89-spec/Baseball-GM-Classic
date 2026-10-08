@@ -24,6 +24,12 @@ window.BBGM_WAIVERS = (function () {
 
   // Place a 26-man player on waivers (designated for assignment).
   function place(state, team, p) {
+    // Rule 5 door (v2.18.0, §26): a flagged pick isn't waived — he goes
+    // home to the club he was taken from.
+    if (p.rule5 && window.BBGM_RULE5) {
+      window.BBGM_RULE5.returnPick(state, p);
+      return;
+    }
     for (const arr of [team.roster, team.roster40, team.il]) {
       if (!arr) continue;
       const i = arr.indexOf(p.id);
@@ -82,9 +88,16 @@ window.BBGM_WAIVERS = (function () {
     const players = state.players;
     p.teamId = team.id;
     p.status = 'active';
-    p.rosterStatus = '26-man';
     p.acquiredVia = { type: 'waiver', year: state.meta.currentDate.year, fromTeamId: p.formerTeamId };
     ROSTER().logTx(state, p, `Claimed off waivers by ${team.abbr}`);
+    // An injured claim (v2.18.0) joins the claimant's IL, not its 26-man.
+    if (p.ilStatus) {
+      if (!team.il) team.il = [];
+      team.il.push(p.id);
+      p.rosterStatus = 'IL';
+      return null;
+    }
+    p.rosterStatus = '26-man';
     team.roster.push(p.id);
     let demoted = null;
     if (team.roster.length > 26) {

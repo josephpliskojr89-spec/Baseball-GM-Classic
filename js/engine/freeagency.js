@@ -131,6 +131,14 @@ window.BBGM_FA = (function () {
 
   // Move a player out of his team into the FA pool. Caller handles news.
   function releaseToPool(state, p, reason) {
+    // Rule 5 door (v2.18.0, §26): a flagged pick can't be released into
+    // the pool with his obligation attached — off the roster means back
+    // to the club he was taken from. (Survivors' flags clear at the top
+    // of the rollover, before any winter release path runs.)
+    if (p.rule5 && window.BBGM_RULE5) {
+      window.BBGM_RULE5.returnPick(state, p);
+      return;
+    }
     const team = state.league.teams.find((t) => t.id === p.teamId);
     if (team) {
       ROSTER().logTx(state, p,
@@ -421,17 +429,37 @@ window.BBGM_FA = (function () {
     if (!market) return 'Free agency is not open.';
     const entry = market.entries.find((e) => e.playerId === playerId);
     if (!entry || entry.signedTeamId) return 'That player is no longer available.';
+    const shape = contractShapeError(years, total);
+    if (shape) return shape;
     const userTeam = state.league.teams.find((t) => t.id === state.meta.userTeamId);
     const payroll = computePayroll(userTeam, state.players);
     const aav = total / years;
     // 0.51.0: scouting/staff bill against opsBase now — the payroll
     // budget is all player money.
+    // v2.18.0 (hostile QA): standing offers count as committed money —
+    // checking each offer alone against today's payroll let a player
+    // stack "Meet ask" on the whole market and sign everyone (2.3× cap).
+    const standing = market.userOffers
+      .filter((o) => o.playerId !== playerId)
+      .reduce((sum, o) => sum + o.total / Math.max(1, o.years), 0);
     const cap = userTeam.payrollBase;
-    if (payroll + aav > cap * 1.05) {
-      return `That offer would blow the payroll budget ($${payroll.toFixed(1)}M committed of $${cap.toFixed(0)}M).`;
+    if (payroll + standing + aav > cap * 1.05) {
+      return `That offer would blow the payroll budget ($${payroll.toFixed(1)}M on the books` +
+        (standing ? ` + $${standing.toFixed(1)}M in standing offers` : '') +
+        ` of $${cap.toFixed(0)}M).`;
     }
     market.userOffers = market.userOffers.filter((o) => o.playerId !== playerId);
     market.userOffers.push({ playerId, years, total: Math.round(total * 10) / 10 });
+    return null;
+  }
+
+  // Contract shape guard (v2.18.0, hostile QA): the engine used to trust
+  // the UI's buttons — years 0/99/2.5 and totals of Infinity all "signed".
+  function contractShapeError(years, total) {
+    if (!Number.isInteger(years) || years < 1 || years > 10) return 'Contract years must be a whole number from 1 to 10.';
+    if (!Number.isFinite(total) || total <= 0) return 'That isn\'t a real dollar figure.';
+    if (total / years < 0.74 - 1e-9) return 'No NABL contract pays below the $0.74M minimum.';
+    if (total > 2000) return 'Nobody has that kind of money.';
     return null;
   }
 
@@ -602,6 +630,8 @@ window.BBGM_FA = (function () {
 
   // Returns an error/feedback string, or null when the player signs.
   function offerExtension(state, p, years, total) {
+    const shape = contractShapeError(years, total);
+    if (shape) return shape;
     const talks = extensionTalks(state, p);
     if (talks.closed) {
       return 'His camp has closed the book on extension talks this season — he\'ll listen again next year.';

@@ -1674,6 +1674,14 @@ window.BBGM_SIM = (function () {
     const inj = INJ();
     if (!team.rotation) team.rotation = [];
     team.rotation = team.rotation.filter((id) => team.roster.includes(id));
+    // Dedupe BEFORE the early return (v2.18.0 soak catch): an overlap
+    // created elsewhere (an IL activation re-listing a rotation arm in
+    // the pen) must be cleared even when the rotation is already full.
+    if (team.bullpen && team.bullpen.length) {
+      const before = team.bullpen.length;
+      team.bullpen = team.bullpen.filter((id) => !team.rotation.includes(id));
+      if (team.bullpen.length !== before) team.bullpenRoles = null;
+    }
     if (team.rotation.length >= 5) return;
     const adds = team.roster
       .map((id) => players[id])
@@ -1686,7 +1694,14 @@ window.BBGM_SIM = (function () {
         return (b.ratings.stamina || 0) - (a.ratings.stamina || 0);
       });
     while (team.rotation.length < 5 && adds.length) {
-      team.rotation.push(adds.shift().id);
+      const id = adds.shift().id;
+      team.rotation.push(id);
+      // v2.18.0 (25-season soak): an arm padded in from the pen MUST leave
+      // the pen. Left in both, his relief outings kept resetting his rest
+      // clock, his rotation turn always skipped, and the other four carried
+      // 162/4 ≈ 40 starts (the seed-31337 overwork failure).
+      const bi = (team.bullpen || []).indexOf(id);
+      if (bi >= 0) { team.bullpen.splice(bi, 1); team.bullpenRoles = null; }
     }
   }
 
