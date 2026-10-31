@@ -281,7 +281,7 @@ window.BBGM_UI_DASHBOARD = (function () {
 
     const calRow = (mark, label, detail, onClick) => {
       const row = U.el(onClick ? 'button' : 'div', {
-        class: 'inset-row', style: { width: '100%', 'text-align': 'left' },
+        class: 'inset-row cal', style: { width: '100%', 'text-align': 'left' },
         ...(onClick ? { on: { click: onClick } } : {}),
       });
       row.appendChild(U.el('span', { class: 'label' }, `${mark} ${label}`));

@@ -1580,7 +1580,7 @@ window.BBGM_MAIN = (function () {
       info.appendChild(U.el('div', { class: 'wire-subject' }, m.subject));
       const meta = U.el('div', { class: 'wire-meta' });
       meta.appendChild(U.el('span', { class: 'src' }, m.from));
-      meta.appendChild(document.createTextNode(` • ${D.format(m.date)}`));
+      meta.appendChild(U.el('span', { class: 'when' }, `• ${D.format(m.date)}`));
       info.appendChild(meta);
       row.appendChild(info);
       list.appendChild(row);

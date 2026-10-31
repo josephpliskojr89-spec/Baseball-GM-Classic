@@ -313,6 +313,18 @@
   background: var(--bg-card-hover);
 }
 
+/* UX pass (2.18.1): the tools strip (OVR/CON/POW/SPD/DEF + POT) gets
+   the full row width under the name and the stat column, instead of
+   wrapping raggedly beside it. */
+.roster-row {
+  row-gap: 0;
+}
+
+.roster-row .player-row-strip {
+  grid-column: 2 / -1;
+  margin-top: 3px;
+}
+
 .roster-row:last-child {
   border-bottom: none;
 }
@@ -410,6 +422,15 @@
   background: var(--bg-card);
   color: var(--text-primary);
   box-shadow: inset 0 -2px 0 var(--chrome-primary, var(--accent));
+}
+
+/* UX pass (2.18.1): five-tab bars (Front Office, Draft Hub) ran the
+   labels into each other at 390px — tighten the type so every label
+   keeps its own air. */
+.tabs:has(> .tab:nth-child(5)) .tab {
+  padding: 8px 3px;
+  font-size: var(--fs-xs);
+  letter-spacing: 0.02em;
 }
 
 /* Stat grid */
@@ -564,11 +585,11 @@
 /* Jersey-number watermark, broadcast style. */
 .player-profile-header .jersey-mark {
   position: absolute;
-  right: 10px;
-  bottom: -8px;
+  right: 84px; /* UX pass (2.18.1): clear of the OVR plate */
+  bottom: -10px;
   font-family: var(--font-display);
   font-weight: 700;
-  font-size: 64px;
+  font-size: 52px;
   opacity: 0.12;
   pointer-events: none;
 }
@@ -661,7 +682,7 @@
 
 .stats-table th,
 .stats-table td {
-  padding: 8px 10px;
+  padding: 8px 8px;
   text-align: right;
   white-space: nowrap;
   border-bottom: 1px solid var(--border-subtle);
@@ -681,6 +702,16 @@
   position: sticky;
   left: 0;
   background: inherit;
+}
+
+/* UX pass (2.18.1): the name column reads in the body face — the mono
+   column was eating a third of the phone before the first number. */
+.stats-table td:first-child {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: var(--fs-sm);
+  max-width: 44vw;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .stats-table tbody tr:last-child td {
@@ -924,6 +955,19 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* UX pass (2.18.1): offseason calendar rows keep the phase name on one
+   line and let the detail wrap on the right. */
+.inset-row.cal .label {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  margin-right: 12px;
+}
+
+.inset-row.cal .value {
+  text-align: right;
+  min-width: 0;
+}
+
 /* Scorebug stat plate (0.42.0): a mono value over a caps label — the
    broadcast graphic for a single number (rank, streak, pool $). */
 .stat-plate {
@@ -1090,18 +1134,28 @@
 }
 
 .wire-meta {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
   font-family: var(--font-mono);
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--text-muted);
   white-space: nowrap;
+}
+
+/* UX pass (2.18.1): a long source slug truncates; the dateline never
+   does. */
+.wire-meta .src {
+  color: var(--amber, #ffb52e);
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.wire-meta .src {
-  color: var(--amber, #ffb52e);
+.wire-meta .when {
+  flex: 0 0 auto;
 }
 
 .wire-row.read .wire-meta .src {

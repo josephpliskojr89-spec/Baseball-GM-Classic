@@ -284,7 +284,7 @@ window.BBGM_UI_PLAYERS = (function () {
     wrap.appendChild(table);
     container.appendChild(wrap);
     container.appendChild(U.el('p', { class: 'muted', style: { 'font-size': '11px', 'margin-top': '8px' } },
-      'Tap a column to sort, a row for the player card. Advanced stats are coming later.'));
+      'Tap a column to sort, a row for the player card.'));
   }
 
   // ------- Leaders: league-wide top-10 boards -------

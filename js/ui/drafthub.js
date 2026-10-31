@@ -370,6 +370,18 @@ window.BBGM_UI_DRAFT = (function () {
     card.appendChild(U.el('p', { style: { 'font-size': '13px' } },
       `Class rankings release May 1. Draft day is June 30 — ten rounds, 300 picks from a 350-man class, ` +
       `worst record picks first. The scouting department is already building its board.`));
+    // UX pass (2.18.1): a live countdown so the empty hub says when it
+    // fills instead of just that it will.
+    const D = window.BBGM_DATES;
+    const toRank = D.diffDays(today, { year: classYear, month: 5, day: 1 });
+    const toDraft = D.diffDays(today, { year: classYear, month: 6, day: 30 });
+    if (toRank > 0 || toDraft > 0) {
+      const bits = [];
+      if (toRank > 0) bits.push(`Rankings in ${toRank} day${toRank === 1 ? '' : 's'}`);
+      if (toDraft > 0) bits.push(`Draft day in ${toDraft} day${toDraft === 1 ? '' : 's'}`);
+      card.appendChild(U.el('p', { class: 'muted', style: { 'font-size': '12px', 'margin-top': '8px' } },
+        bits.join(' • ')));
+    }
     container.appendChild(card);
   }
 

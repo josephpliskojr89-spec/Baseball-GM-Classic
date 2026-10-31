@@ -25,7 +25,7 @@ function findChrome() {
   const base = process.env.PLAYWRIGHT_BROWSERS_PATH || '/opt/pw-browsers';
   for (const d of fs.readdirSync(base)) {
     if (!d.startsWith('chromium')) continue;
-    for (const cand of [path.join(base, d, 'chrome-linux', 'chrome'), path.join(base, d, 'chrome')]) {
+    for (const cand of [path.join(base, d, 'chrome-linux', 'chrome'), path.join(base, d, 'chrome-linux64', 'chrome'), path.join(base, d, 'chrome')]) {
       if (fs.existsSync(cand)) return cand;
     }
   }

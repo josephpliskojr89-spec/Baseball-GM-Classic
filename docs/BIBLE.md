@@ -5753,6 +5753,30 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > gains side-balance, rotation and overwork probes plus DUMP=.
 > Ships to the testing lane first — it touches the save path.
 
+> **Status note (v2.18.1):** SHIPPED — the UI/UX pass (owner: "one more
+> UI/UX pass before we do anything else"), built from a 62-screen
+> phone-size screenshot tour (390×844) of v2.18.0 covering new game →
+> season → draft day → postseason → offseason → Rule 5 day → the
+> January 15 window. Fixes, all cosmetic, no engine or save-path
+> change: **header** — the date never truncates ("DEC 10, 20…" →
+> "DEC 10, 2026"; tighter tracking, the advance plate gives first);
+> **five-tab bars** (Front Office, Draft Hub) ran labels together at
+> 390px — a `:has()` rule tightens the type on any five-tab bar;
+> **roster/minors rows** — the tools strip (OVR/CON/POW/SPD/DEF + POT)
+> now spans the full row under the name and stat column instead of
+> wrapping raggedly beside it (`.player-row-strip`, row-gap 0);
+> **inbox** — a long source slug truncates, the dateline never does;
+> **player card** — the jersey watermark moved clear of the OVR plate;
+> **offseason calendar** — phase names stay on one line, details wrap
+> right (`.inset-row.cal`); **stats table** — the name column reads in
+> the body face at a capped width so four more columns fit before the
+> scroll; **draft hub** — the pre-May overview carries a live countdown
+> ("Rankings in 20 days • Draft day in 80 days"); stale "advanced
+> stats are coming later" footer dropped; team-select sticky footer
+> fades harder over the list. Toasts were tried at the bottom and
+> reverted: bottom sheets put modal buttons exactly there. Also carries
+> the e2e chrome-linux64 finder patch. Ships to all three lanes.
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):

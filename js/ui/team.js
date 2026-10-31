@@ -964,6 +964,7 @@ window.BBGM_UI_TEAM = (function () {
     info.appendChild(U.el('div', { class: 'player-row-meta' }, meta));
     // Key tools inline (0.25.2) — exact-mode only (your own farm); banded
     // rival views keep the OVR band alone.
+    let minorsStrip = null;
     if (window.BBGM_SCOUT.modeFor(state, p) === 'exact') {
       const r = p.ratings;
       const strip = p.isPitcher
@@ -972,7 +973,8 @@ window.BBGM_UI_TEAM = (function () {
             ['POW', (r.powerVsR + r.powerVsL) / 2], ['SPD', r.speed], ['DEF', r.defense || 50]]);
       const pc = potChip(state, p);
       if (pc) strip.appendChild(pc);
-      info.appendChild(strip);
+      strip.classList.add('player-row-strip');
+      minorsStrip = strip;
     }
     row.appendChild(info);
     const stats = U.el('div', { class: 'player-row-stats' });
@@ -994,6 +996,7 @@ window.BBGM_UI_TEAM = (function () {
       stats.appendChild(U.el('span', { class: 'key' }, 'OVR'));
     }
     row.appendChild(stats);
+    if (minorsStrip) row.appendChild(minorsStrip);
     return row;
   }
 
@@ -1260,7 +1263,7 @@ window.BBGM_UI_TEAM = (function () {
         ]);
     const pc = potChip(state, p);
     if (pc) strip.appendChild(pc);
-    info.appendChild(strip);
+    strip.classList.add('player-row-strip');
     row.appendChild(info);
     const stats = U.el('div', { class: 'player-row-stats' });
     if (p.isPitcher) {
@@ -1279,6 +1282,7 @@ window.BBGM_UI_TEAM = (function () {
       }
     }
     row.appendChild(stats);
+    row.appendChild(strip);
     return row;
   }
 
