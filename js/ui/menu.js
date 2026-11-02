@@ -12,7 +12,7 @@ window.BBGM_UI_MENU = (function () {
     // Build constant is bumped with every release so the user can tell at a
     // glance which dashboard.js the browser actually loaded. Save version
     // is the save-schema version and changes only when the schema changes.
-    const BUILD = 'v2.18.2-contrast-1';
+    const BUILD = 'v2.18.3-contrast-2';
     card.appendChild(U.el('div', { class: 'inset-list', style: { 'border': 'none' } }, [
       insetRow('Team', userTeam.name),
       insetRow('Date', window.BBGM_DATES.format(state.meta.currentDate)),
@@ -154,7 +154,7 @@ window.BBGM_UI_MENU = (function () {
         class: 'value',
         style: {
           'font-weight': '700', 'margin-left': '10px', 'white-space': 'nowrap',
-          color: on ? 'var(--success, #3fb950)' : 'var(--text-muted, #8c97aa)',
+          color: on ? 'var(--success, #3fb950)' : 'var(--text-muted, #a3adbf)',
         },
       }, on ? 'STOPS ●' : 'AI ○'));
       toggles.appendChild(row);

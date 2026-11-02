@@ -5787,6 +5787,11 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > the five hard-coded fallback grays were aligned to the new muted.
 > No layout change. Ships to all three lanes.
 
+> **Status note (v2.18.3):** SHIPPED — contrast, one more step (owner:
+> "One more step"). `--text-secondary` #b4bfce → #c9d2de (card 10.4:1)
+> and `--text-muted` #8c97aa → #a3adbf (card 7.0:1); fallbacks aligned.
+> Hierarchy kept: primary #e6edf3 stays the brightest voice.
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):
