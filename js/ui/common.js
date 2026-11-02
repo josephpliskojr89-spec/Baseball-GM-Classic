@@ -106,14 +106,43 @@ window.BBGM_UI = (function () {
     setTimeout(() => t.remove(), timeout);
   }
 
+  // ---- Body scroll lock (2.18.4) ------------------------------------------
+  // A fixed overlay on a phone does not stop the page under it from
+  // scrolling: a drag on the player card scrolled the roster behind it,
+  // and the sheet's own overscroll chained into the body. The body is
+  // pinned (position: fixed at its current offset) while any overlay is
+  // up and restored to the exact spot when the last one closes. Two
+  // holders — the modal root and the progress veil — share the lock.
+  const scrollLock = { holders: new Set(), y: 0 };
+
+  function lockScroll(holder) {
+    const was = scrollLock.holders.size;
+    scrollLock.holders.add(holder);
+    if (was) return;
+    scrollLock.y = window.scrollY || document.documentElement.scrollTop || 0;
+    document.body.style.top = `-${scrollLock.y}px`;
+    document.body.classList.add('scroll-locked');
+  }
+
+  function unlockScroll(holder) {
+    scrollLock.holders.delete(holder);
+    if (scrollLock.holders.size) return;
+    if (!document.body.classList.contains('scroll-locked')) return;
+    document.body.classList.remove('scroll-locked');
+    document.body.style.top = '';
+    window.scrollTo(0, scrollLock.y);
+  }
+
   function showProgress(text) {
     const root = document.getElementById('progressRoot');
     document.getElementById('progressText').textContent = text || 'Working…';
     root.classList.remove('hidden');
+    lockScroll('progress');
   }
 
   function hideProgress() {
     document.getElementById('progressRoot').classList.add('hidden');
+    unlockScroll('progress');
   }
 
   // fullScreen (0.46.1): the tall card views (player profile, prospect
@@ -149,6 +178,7 @@ window.BBGM_UI = (function () {
     }
     root.appendChild(modal);
     root.classList.remove('hidden');
+    lockScroll('modal');
   }
 
   function closeModal() {
@@ -156,6 +186,7 @@ window.BBGM_UI = (function () {
     root.classList.add('hidden');
     root.classList.remove('full');
     clearChildren(root);
+    unlockScroll('modal');
   }
 
   function ratingDisplay(value) {
@@ -286,7 +317,7 @@ window.BBGM_UI = (function () {
 
   return {
     el, clearChildren, teamCap, posBadge, gradeFor, gradeClass,
-    fmtMoney, showToast, showModal, closeModal, ratingDisplay,
+    fmtMoney, showToast, showModal, closeModal, lockScroll, unlockScroll, ratingDisplay,
     showProgress, hideProgress, teamColorVars, gameLabel,
     leagueName, divisionLabel, compareTeamsByDivision,
     readableTextColor, parseHex,

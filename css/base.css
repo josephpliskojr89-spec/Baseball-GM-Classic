@@ -121,6 +121,17 @@ body {
   overscroll-behavior-y: none;
 }
 
+/* Scroll lock (2.18.4): pinned at its offset while an overlay is up —
+   see lockScroll() in common.js. width 100% keeps the layout from
+   reflowing when the page scrollbar goes away. */
+body.scroll-locked {
+  position: fixed;
+  left: 0;
+  right: 0;
+  width: 100%;
+  overflow: hidden;
+}
+
 h1 {
   font-size: var(--fs-3xl);
   font-weight: 700;

@@ -5792,6 +5792,22 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > and `--text-muted` #8c97aa → #a3adbf (card 7.0:1); fallbacks aligned.
 > Hierarchy kept: primary #e6edf3 stays the brightest voice.
 
+> **Status note (v2.18.4):** SHIPPED — scroll lock (owner, from play:
+> "when I open a player card, I'm scrolling the roster page behind
+> it"). A fixed overlay on a phone never stopped the page beneath it:
+> `lockScroll()`/`unlockScroll()` in common.js pin the body (position:
+> fixed at its current offset, `body.scroll-locked`) while the modal
+> root or the progress veil is up — two holders share one lock — and
+> restore the exact scroll offset when the last one closes. Sheets and
+> the full-screen card body carry `overscroll-behavior: contain` so
+> their own overscroll never chains into the page. Also fixed: a real
+> bottom-nav tab switch now starts at the top (the old
+> `main.scrollTop = 0` was a no-op — the window scrolls, not
+> `#mainView` — so a new tab opened wherever the last one sat).
+> Browser-verified: offset 700 → card open, page pinned → close,
+> offset 700 restored; tab switch → 0; progress veil closing under an
+> open card leaves the lock held.
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):

@@ -1502,9 +1502,14 @@ window.BBGM_MAIN = (function () {
     if (tab === 'team' && ['staff', 'trades', 'freeagents'].includes(options.tab)) {
       tab = 'gm';
     }
+    // 2.18.4: a real tab switch starts at the top. (The old
+    // main.scrollTop = 0 in refresh() was a no-op — the window scrolls,
+    // not #mainView — so the new tab opened wherever the last one sat.)
+    const switched = tab !== currentTab;
     currentTab = tab;
     viewOptions = options;
     refresh();
+    if (switched) window.scrollTo(0, 0);
     // Update nav buttons (+ the header menu button, which acts as the
     // Menu tab's nav entry).
     document.querySelectorAll('.nav-btn').forEach((b) => {
@@ -1531,8 +1536,6 @@ window.BBGM_MAIN = (function () {
       case 'menu': window.BBGM_UI_MENU.render(main, state); break;
       default: window.BBGM_UI_DASHBOARD.render(main, state);
     }
-    // Scroll to top on tab switch
-    main.scrollTop = 0;
   }
 
   function updateHeader(state) {

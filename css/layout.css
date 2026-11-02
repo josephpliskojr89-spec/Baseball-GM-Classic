@@ -364,6 +364,11 @@
   padding: var(--sp-5);
   max-height: 80vh;
   overflow-y: auto;
+  overscroll-behavior: contain; /* 2.18.4: a sheet's overscroll never chains to the page */
+}
+
+.modal-root {
+  overscroll-behavior: contain;
 }
 
 /* Full-screen card modal (0.46.1): player/prospect cards fill the
@@ -391,6 +396,7 @@
   min-height: 0;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
   margin-bottom: var(--sp-3);
 }
 
