@@ -5777,6 +5777,16 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > reverted: bottom sheets put modal buttons exactly there. Also carries
 > the e2e chrome-linux64 finder patch. Ships to all three lanes.
 
+> **Status note (v2.18.2):** SHIPPED — text contrast (owner: "brighten up
+> the text a bit… people might want to play this in a bright area").
+> Two palette tokens only: `--text-secondary` #97a3b6 → #b4bfce (card
+> contrast 6.2:1 → 8.4:1) and `--text-muted` #6b7589 → #8c97aa (card
+> contrast 3.4:1, which failed WCAG AA, → 5.3:1, which passes). Every
+> secondary line in the app — settings descriptions, the Ledger body,
+> row metas, stat labels, modal copy — picks it up through the tokens;
+> the five hard-coded fallback grays were aligned to the new muted.
+> No layout change. Ships to all three lanes.
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):

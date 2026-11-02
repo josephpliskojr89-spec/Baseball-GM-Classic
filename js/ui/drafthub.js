@@ -261,7 +261,7 @@ window.BBGM_UI_DRAFT = (function () {
       const band = SCOUT.potentialBand(state, p);
       const stats = U.el('div', { class: 'player-row-stats' });
       stats.appendChild(U.el('span', {
-        style: { 'font-weight': '700', color: band ? 'var(--success, #3fb950)' : 'var(--text-muted, #8b949e)' },
+        style: { 'font-weight': '700', color: band ? 'var(--success, #3fb950)' : 'var(--text-muted, #8c97aa)' },
       }, band ? `${band[0]}–${band[1]}` : '—'));
       stats.appendChild(U.el('span', { class: 'key' }, 'POT'));
       row.appendChild(stats);

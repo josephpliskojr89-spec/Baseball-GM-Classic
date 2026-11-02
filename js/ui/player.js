@@ -784,7 +784,7 @@ window.BBGM_UI_PLAYER = (function () {
     // telestrator touch. CSS vars resolve fine in DOM-injected SVG.
     const LINE = 'var(--chrome-primary, #58a6ff)';
     const PEAK = 'var(--field-bright, #3fb950)';
-    const INK = 'var(--text-muted, #8b949e)';
+    const INK = 'var(--text-muted, #8c97aa)';
     const MONO = 'font-family="ui-monospace, Consolas, monospace"';
     let svg = `<svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block">`;
     for (const g of [20, 40, 60, 80]) {

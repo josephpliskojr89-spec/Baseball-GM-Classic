@@ -2154,7 +2154,7 @@ window.BBGM_MAIN = (function () {
       const paint = () => {
         const on = shield.ids.includes(p.id);
         mark.textContent = on ? 'SHIELDED ●' : 'exposed ○';
-        mark.style.color = on ? 'var(--success, #3fb950)' : 'var(--muted, #8b949e)';
+        mark.style.color = on ? 'var(--success, #3fb950)' : 'var(--text-muted, #8c97aa)';
       };
       paint();
       const row = U.el('button', { class: 'roster-row', style: { width: '100%', 'text-align': 'left' },

@@ -1189,7 +1189,7 @@
 .flat-title {
   display: flex; justify-content: space-between; align-items: baseline;
   font-size: 12px; font-weight: 700; letter-spacing: 0.08em;
-  text-transform: uppercase; color: var(--text-muted, #8b949e);
+  text-transform: uppercase; color: var(--text-muted, #8c97aa);
   margin: 20px 0 2px;
 }
 .flat-row {
@@ -1198,11 +1198,11 @@
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   background: none; border-top: none; border-left: none; border-right: none;
 }
-.flat-row .label { color: var(--text-muted, #8b949e); font-size: 14px; }
+.flat-row .label { color: var(--text-muted, #8c97aa); font-size: 14px; }
 .flat-row .value { font-weight: 700; font-size: 15px; font-variant-numeric: tabular-nums; }
 .flat-cols { display: grid; grid-template-columns: 1fr 1fr; column-gap: 28px; }
 .stat-strip { display: flex; margin: 8px 0 0; }
 .stat-strip > div { flex: 1 1 0; text-align: center; padding: 8px 2px; }
 .stat-strip > div + div { border-left: 1px solid rgba(255, 255, 255, 0.10); }
 .stat-strip .v { font-weight: 700; font-size: 17px; font-variant-numeric: tabular-nums; }
-.stat-strip .k { font-size: 10px; color: var(--text-muted, #8b949e); margin-top: 2px; letter-spacing: 0.05em; }
+.stat-strip .k { font-size: 10px; color: var(--text-muted, #8c97aa); margin-top: 2px; letter-spacing: 0.05em; }
