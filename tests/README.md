@@ -51,7 +51,14 @@ targets, invariant guards) is `node tools/season_harness.js <seed> <seasons>`.
   offer stacking, injury-aware trade value, proposal validation, intl
   signing guards, draft double-pick, Rule 5 once-per-winter and doors,
   injured claims, minimum pay, FA-phase heal, import validation, the
-  gzip save codec.
+  gzip save codec. v2.18.5 adds the offer → extension → resolve
+  regression (a stale FA offer is withdrawn, never signed over budget).
+- `import_safety_test.js` — the real importFromFile / restoreBackup path
+  against a mocked Android Filesystem with a sentinel good save on disk
+  (v2.18.5): thirteen broken candidates each refused with the sentinel
+  byte-identical; a valid import copies the replaced save to the backup
+  slot; restoreBackup() puts it back; a failed backup write aborts the
+  import.
 - `e2e_smoke.js` — browser walkthrough: boot, new game, team select,
   sim, player card, trait visibility tiers, the Rule 5 draft room,
   broken-import refusal, gzip codec, inbox, zero page errors.

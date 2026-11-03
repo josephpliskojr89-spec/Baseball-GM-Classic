@@ -886,12 +886,14 @@ window.BBGM_OFFSEASON = (function () {
     // permanent soft-lock (every advance threw and restored the same
     // backup). Rebuild the market and carry on.
     if (!state.faMarket) FA().buildMarket(state);
+    const before = (state.faMarket.withdrawn || []).length;
     const signings = FA().resolveRound(state);
     state.meta.currentDate = D().addDays(state.meta.currentDate, 12);
     PROG().birthdayTickAll(state, state.meta.currentDate); // 0.68.0
     TRADES().aiTradeTick(state, state.meta.currentDate);
     const market = state.faMarket;
-    return { signings, round: market.round, done: market.round >= market.totalRounds };
+    const withdrawn = (market.withdrawn || []).slice(before);
+    return { signings, withdrawn, round: market.round, done: market.round >= market.totalRounds };
   }
 
   // ---- Offseason part B ---------------------------------------------------------

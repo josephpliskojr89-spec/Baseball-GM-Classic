@@ -5808,6 +5808,28 @@ The UI is the entire experience for the user. The simulation can be brilliant bu
 > offset 700 restored; tab switch → 0; progress veil closing under an
 > open card leaves the lock held.
 
+> **Status note (v2.18.5):** SHIPPED — import safety + stale-offer
+> payroll (owner's second-opinion agent review of v2.18.4; both
+> blockers closed, lower-priority leftovers recorded in
+> tests/hostile/REPORT.md round 2). **Import:** `structuralSaveError`
+> now rejects malformed player records (null/shapeless/no ratings),
+> malformed team lists, in-season rosters the sim cannot field (no
+> pitcher, fewer than nine men), malformed postseason/series, inbox/
+> news/history/faMarket shapes. Behind validation, the guarantee: the
+> save an import replaces is copied to a **backup slot** first (native
+> `bbgm-classic-save.backup.json` / IndexedDB key `backup`); a failed
+> backup write aborts the import; the Save Update Failed dialog and the
+> Menu offer *Restore Previous Save* (`hasBackup`/`restoreBackup`).
+> New suite `tests/import_safety_test.js` (13) runs the real import
+> path against mocked native storage with a sentinel. **FA:**
+> `resolveRound` re-checks affordability against today's payroll
+> before the user's bid competes; an offer that stopped fitting (an
+> extension ate the room) is withdrawn, rivals' bids stand, toast +
+> payroll letter, fast-forward stops (`stop.kind 'withdrawn'`).
+> Regression in hardening §2 (offer → extension → resolve). Battery:
+> 142 engine assertions + e2e 16 + scroll-lock check. Ships to all
+> three lanes.
+
 ### 20.2 Global Navigation
 
 A bottom navigation bar is present on every screen (mobile-standard pattern). Six tabs, in display order (0.43.0):

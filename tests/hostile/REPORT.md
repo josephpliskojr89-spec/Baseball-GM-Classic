@@ -101,3 +101,46 @@ Not completed within the agent's time box — 8 in-session soft-lock probes in
 seasonEnd with no postseason; Dec 10 Rule 5 with an empty pool; intl window
 with an empty board; draft day with a missing/empty class; 0 pitchers on the
 26-man; every user player on the IL; a ghost waiver claim; ghost trade offers.
+
+
+## Round 2 (owner's second-opinion agent, v2.18.4 → fixed in v2.18.5)
+
+A second agent re-reviewed v2.18.4 against this report. Verdict: most
+hardening fixes verified (F2 rotation, #2 direct stacking, #3-4/#12 intl,
+#6/#9-10 trades, #5/#13-15/#17 doors, #7-8 money, F3 codec); two blockers
+remained and are now closed:
+
+1. **Import could still destroy the good save** (original #1, partially
+   open). A `null` player entry, a shapeless record, a pitcherless
+   in-season roster and a malformed postseason all passed
+   `structuralSaveError`; the import wrote the file, then startup died in
+   the migration chain reading `rosterStatus` — "Save Update Failed" with
+   the good save already gone.
+   Fix (v2.18.5): validation now checks every player record (object,
+   name, ratings, pitcher flag), every team list shape, in-season
+   simmability (a pitcher and nine men), postseason/series shape, inbox/
+   news/history/faMarket shapes. Behind validation sits the guarantee:
+   the save an import replaces is copied to a **backup slot** first
+   (native file or IndexedDB key); the startup failure dialog and the
+   Menu offer *Restore Previous Save*. A failed backup write aborts the
+   import. `tests/import_safety_test.js` runs the real import path
+   against mocked native storage with a sentinel save and checks it is
+   byte-identical after each of 13 refusals, then exercises backup and
+   restore.
+2. **Stale FA offer signed over budget.** An offer cleared against the
+   payroll of the day it was placed; an extension signed afterwards ate
+   the room; resolution never re-checked. Fix: `resolveRound` re-checks
+   the same rule as `makeUserOffer` against today's books before the
+   user's bid competes; an offer that no longer fits is withdrawn
+   (`faMarket.withdrawn`), the rivals' bids stand, and the GM gets a
+   toast plus a payroll-desk letter. The FA fast-forward stops on a
+   withdrawal. Regression in `hardening_test.js` §2.
+
+Still open from round 2, lower priority, not claimed closed: promotion
+minimum pay is swept (days 1/15 and Part B) rather than enforced at the
+promotion; repeated `returnPick` on an already-returned pick throws
+instead of no-op'ing; an engine-only mass DFA can leave a roster the sim
+cannot field (no UI path reaches it). Device-side: Android Auto Backup
+restore of a gzip save is untested on hardware. Pipeline balance holds
+inside the 2.5 guard (worst observed 2.0–2.4) but not the original ±1
+aim.

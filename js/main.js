@@ -1439,12 +1439,26 @@ window.BBGM_MAIN = (function () {
       // a reload retries the whole chain from clean state.
       console.error('Migration chain failed:', e);
       document.getElementById('splash').classList.remove('hidden');
-      U.showModal({
-        title: 'Save Update Failed',
-        body: 'The game hit an error while updating your save to this version. ' +
-              'Your save on disk was NOT changed. Reload to try again — if this ' +
-              'keeps happening, export your save from a previous version.',
-        actions: [{ label: 'Reload', kind: 'primary', onClick: () => { location.reload(); return false; } }],
+      // v2.18.5: if this save arrived by import, the one it replaced is
+      // in the backup slot — offer it back right here.
+      window.BBGM_STATE.hasBackup().then((hasBackup) => {
+        const actions = [{ label: 'Reload', kind: 'primary', onClick: () => { location.reload(); return false; } }];
+        if (hasBackup) {
+          actions.unshift({ label: 'Restore Previous Save', kind: 'secondary', onClick: () => {
+            window.BBGM_STATE.restoreBackup()
+              .then(() => location.reload())
+              .catch((err) => U.showToast('Restore failed: ' + err.message, 'danger'));
+            return false;
+          }});
+        }
+        U.showModal({
+          title: 'Save Update Failed',
+          body: 'The game hit an error while updating your save to this version. ' +
+                'Your save on disk was NOT changed. Reload to try again — if this ' +
+                'keeps happening, export your save from a previous version.' +
+                (hasBackup ? ' The save this one replaced at import is still stored and can be restored.' : ''),
+          actions,
+        });
       });
       return;
     }
@@ -2308,6 +2322,29 @@ window.BBGM_MAIN = (function () {
   // objects across many steps; if it throws partway, the ONLY safe state
   // to persist is the one from before it started. State is plain JSON
   // (it round-trips through export/import), so both clone paths are exact.
+  // v2.18.5: a standing FA offer that stopped fitting the books (an
+  // extension signed since it was placed ate the room) is withdrawn at
+  // resolution — the GM hears it from the payroll desk, not from silence.
+  function notifyWithdrawnOffers(state, withdrawn) {
+    if (!withdrawn || !withdrawn.length) return;
+    const names = withdrawn.map((w) => (state.players[w.playerId] || {}).name || 'a free agent');
+    U.showToast(`Offer withdrawn — no payroll room for ${names.join(', ')}.`, 'warning', 6000);
+    for (const w of withdrawn) {
+      const p = state.players[w.playerId];
+      if (!p) continue;
+      window.BBGM_INBOX.push(state, {
+        from: 'Front Office (Payroll)',
+        subject: `Our offer to ${p.name} had to come off the table`,
+        body: `When we tendered ${p.name} ${w.years} yr / $${w.total}M, it fit. Since then the books moved — ` +
+              `we're at $${w.payroll}M against a $${w.cap}M budget, and the $${(w.total / Math.max(1, w.years)).toFixed(1)}M ` +
+              `a year he'd cost no longer clears it. The offer was withdrawn before the period resolved; ` +
+              `his agent took the other calls. Clear money and we can go back to him if he's still on the market.`,
+      });
+    }
+    window.BBGM_STATE.set(state);
+    updateHeader(state);
+  }
+
   function snapshotState(state) {
     try {
       if (typeof structuredClone === 'function') return structuredClone(state);
@@ -2410,6 +2447,7 @@ window.BBGM_MAIN = (function () {
     }
     window.BBGM_STATE.set(state);
     refresh();
+    notifyWithdrawnOffers(state, result.withdrawn);
     const userSignings = result.signings.filter((s) => s.isUser);
     if (userSignings.length) {
       const names = userSignings.map((s) => state.players[s.entry.playerId].name).join(', ');
@@ -2501,6 +2539,11 @@ window.BBGM_MAIN = (function () {
         const offersBefore = (state.faMarket.userOffers || []).map((o) => o.playerId);
         result = window.BBGM_OFFSEASON.advanceFARound(state);
         skipped.push(...result.signings);
+        if (result.withdrawn && result.withdrawn.length) {
+          notifyWithdrawnOffers(state, result.withdrawn);
+          stop = { kind: 'withdrawn', name: state.players[result.withdrawn[0].playerId].name };
+          break;
+        }
         const teamAbbrOf = (t) => (t && t.abbr) || '?';
         const userSig = result.signings.find((s) => s.isUser);
         if (userSig) {
@@ -2561,6 +2604,7 @@ window.BBGM_MAIN = (function () {
     if (!stop) stop = { kind: 'idle' };
     if (stop.kind === 'signed') U.showToast(`Signed: ${stop.name}!`, 'success', 5000);
     else if (stop.kind === 'outbid') U.showToast(`Outbid — ${stop.name} signed with ${stop.teamAbbr}.`, 'warning', 6000);
+    else if (stop.kind === 'withdrawn') { /* toast + letter already sent by notifyWithdrawnOffers */ }
     else if (stop.kind === 'star') U.showToast(`Big name off the board: ${stop.name} → ${stop.teamAbbr}.`, 'info', 6000);
     else if (stop.kind === 'decision') showPendingDecisions(state);
     else if (stop.kind === 'rule5') { showRule5Modal(state); return; }

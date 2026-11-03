@@ -77,6 +77,36 @@ const user = league.teams[0], rival = league.teams[1];
   const ext = players[user.roster[0]];
   const extBad = [[0, 1], [99, 1e6], [1, Infinity], [2.5, 50]].filter(([y, t]) => FA.offerExtension(state, ext, y, t) !== null).length;
   check(extBad === 4, 'garbage extension offers refused (years 0/99/2.5, Infinity)');
+
+  // v2.18.5 (hostile QA round 2): offer -> extension -> resolve. The
+  // offer fit when placed; the extension signed afterwards ate the room;
+  // resolution must withdraw the stale offer instead of signing the club
+  // over budget.
+  state.faMarket.userOffers = [];
+  const target = pool.find((p) => state.faMarket.entries.some((e) => e.playerId === p.id && !e.signedTeamId));
+  const payrollNow = FA.computePayroll(user, players);
+  user.payrollBase = Math.round((payrollNow + 6) / 1.05 * 10) / 10;       // exactly $6M of room
+  const offerErr = FA.makeUserOffer(state, target.id, 1, 5);               // $5M AAV fits today
+  const extP = user.roster.map((id) => players[id]).find((p) => p.contract && !FA.extensionTalks(state, p).closed);
+  const talks = FA.extensionTalks(state, extP);
+  const extErr = FA.offerExtension(state, extP, talks.askYears, Math.round(talks.askTotal * 3 * 10) / 10); // blow-away: accepted
+  const payrollAfterExt = FA.computePayroll(user, players);
+  const roomLeft = user.payrollBase * 1.05 - payrollAfterExt;
+  let withdrawn = null, guard = 0;
+  while (!withdrawn && guard++ < 8) {
+    FA.resolveRound(state);
+    withdrawn = (state.faMarket.withdrawn || []).find((w) => w.playerId === target.id);
+    const entry = state.faMarket.entries.find((e) => e.playerId === target.id);
+    if (entry.signedTeamId) break;
+  }
+  const entry = state.faMarket.entries.find((e) => e.playerId === target.id);
+  const payrollEnd = FA.computePayroll(user, players);
+  check(offerErr === null && extErr === null && roomLeft < 5,
+    `fixture: offer placed ($5M into $6M room), extension accepted, room now $${roomLeft.toFixed(1)}M`);
+  check(!!withdrawn && entry.signedTeamId !== user.id && !state.faMarket.userOffers.some((o) => o.playerId === target.id),
+    `a standing offer that no longer fits is withdrawn at resolution, not signed (${withdrawn ? 'withdrawn round ' + withdrawn.round : 'NOT withdrawn'}; signed by ${entry.signedTeamId || 'nobody'})`);
+  check(payrollEnd <= user.payrollBase * 1.05 + 1e-9, `payroll stays inside the budget ($${payrollEnd.toFixed(1)}M of $${user.payrollBase}M ×1.05)`);
+  state.faMarket.userOffers = [];
   state.meta.offseasonPhase = null;
 }
 
@@ -200,13 +230,17 @@ const user = league.teams[0], rival = league.teams[1];
 {
   const ST = W.BBGM_STATE;
   const good = JSON.parse(JSON.stringify({ version: '2.18.0', meta: state.meta, league: state.league, players: state.players }));
-  check(ST.structuralSaveError(good) === null, 'a healthy save passes structural validation');
+  check(ST.structuralSaveError(good) === null, 'a healthy save passes structural validation (' + ST.structuralSaveError(good) + ')');
   const bad = [
     [{ ...good, meta: { ...good.meta, currentDate: { year: 'x', month: 99, day: -1 } } }, 'bad date'],
     [{ ...good, meta: { ...good.meta, userTeamId: 'nope' } }, 'bogus user team'],
     [{ ...good, players: {} }, 'no players'],
     [{ ...good, league: { ...good.league, teams: good.league.teams.map((t, i) => i ? t : { ...t, roster: [] }) } }, 'empty user roster'],
     [{ ...good, league: { ...good.league, schedule: null } }, 'no schedule'],
+    [{ ...good, players: { ...good.players, ghost: null } }, 'null player'],
+    [{ ...good, players: { ...good.players, blob: { name: 'Blob' } } }, 'shapeless player'],
+    [{ ...good, postseason: { phase: 'active', series: 'x' } }, 'malformed postseason'],
+    [{ ...good, inbox: {} }, 'inbox not a list'],
   ];
   const caught = bad.filter(([obj]) => ST.structuralSaveError(obj) !== null).length;
   check(caught === bad.length, `broken saves are refused before anything is written (${caught}/${bad.length}: ${bad.map((b) => b[1]).join(', ')})`);

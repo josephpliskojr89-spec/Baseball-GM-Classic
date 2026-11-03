@@ -317,17 +317,32 @@ window.BBGM_FA = (function () {
         if (u > bestUtility) { bestUtility = u; best = bid; }
       }
       if (userOffer) {
-        const u = userOffer.total * prefMultiplier(state, entry, userTeam);
-        if (u > bestUtility) {
-          bestUtility = u;
-          best = { team: userTeam, years: userOffer.years, total: userOffer.total, isUser: true };
+        // Affordability is rechecked at resolution (v2.18.5, hostile QA
+        // round 2): an offer was cleared against the payroll of the day
+        // it was placed, but an extension signed since then can eat that
+        // room — the stale offer then signed the club over budget. The
+        // same rule as makeUserOffer, against today's books; an offer
+        // that no longer fits is withdrawn and the rivals' bids stand.
+        const payrollNow = computePayroll(userTeam, players);
+        const aavNow = userOffer.total / Math.max(1, userOffer.years);
+        if (payrollNow + aavNow > userTeam.payrollBase * 1.05) {
+          market.userOffers = market.userOffers.filter((o) => o.playerId !== userOffer.playerId);
+          if (!market.withdrawn) market.withdrawn = [];
+          market.withdrawn.push({ playerId: entry.playerId, round: market.round, years: userOffer.years,
+            total: userOffer.total, payroll: Math.round(payrollNow * 10) / 10, cap: userTeam.payrollBase });
+        } else {
+          const u = userOffer.total * prefMultiplier(state, entry, userTeam);
+          if (u > bestUtility) {
+            bestUtility = u;
+            best = { team: userTeam, years: userOffer.years, total: userOffer.total, isUser: true };
+          }
         }
       }
 
       // Bid visibility signal for the UI (16.6) — fuzzed top rival bid.
       const topRival = bids.length ? Math.max(...bids.map((b) => b.total)) : null;
       entry.lastTopBid = topRival ? Math.round(topRival * (0.95 + rand() * 0.1)) : entry.lastTopBid;
-      entry.offersThisRound = bids.length + (userOffer ? 1 : 0);
+      entry.offersThisRound = bids.length + (userOffer && market.userOffers.includes(userOffer) ? 1 : 0);
 
       if (!best) continue;
       // Accept when the winning offer clears the (eroding) ask — late

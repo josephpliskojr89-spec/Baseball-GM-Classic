@@ -16,6 +16,8 @@ window.BBGM_STATE = (function () {
   const DB_VERSION = 1;
   const STORE = 'saves';
   const SAVE_KEY = 'main';
+  // Pre-import backup slot (v2.18.5): the save an import replaced.
+  const BACKUP_KEY = 'backup';
   // Pre-0.6.0 localStorage key. Read once for migration, then removed.
   const LEGACY_STORAGE_KEY = 'bbgm-classic-save-v1';
 
@@ -49,38 +51,38 @@ window.BBGM_STATE = (function () {
     return dbPromise;
   }
 
-  function idbPut(value) {
+  function idbPut(value, key = SAVE_KEY) {
     return openDB().then((db) => new Promise((resolve, reject) => {
       const tx = db.transaction(STORE, 'readwrite');
-      tx.objectStore(STORE).put(value, SAVE_KEY);
+      tx.objectStore(STORE).put(value, key);
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error || new Error('IndexedDB write failed'));
       tx.onabort = () => reject(tx.error || new Error('IndexedDB write aborted'));
     }));
   }
 
-  function idbGet() {
+  function idbGet(key = SAVE_KEY) {
     return openDB().then((db) => new Promise((resolve, reject) => {
       const tx = db.transaction(STORE, 'readonly');
-      const req = tx.objectStore(STORE).get(SAVE_KEY);
+      const req = tx.objectStore(STORE).get(key);
       req.onsuccess = () => resolve(req.result || null);
       req.onerror = () => reject(req.error || new Error('IndexedDB read failed'));
     }));
   }
 
-  function idbHasKey() {
+  function idbHasKey(key = SAVE_KEY) {
     return openDB().then((db) => new Promise((resolve, reject) => {
       const tx = db.transaction(STORE, 'readonly');
-      const req = tx.objectStore(STORE).getKey(SAVE_KEY);
+      const req = tx.objectStore(STORE).getKey(key);
       req.onsuccess = () => resolve(req.result !== undefined);
       req.onerror = () => reject(req.error || new Error('IndexedDB read failed'));
     }));
   }
 
-  function idbDelete() {
+  function idbDelete(key = SAVE_KEY) {
     return openDB().then((db) => new Promise((resolve, reject) => {
       const tx = db.transaction(STORE, 'readwrite');
-      tx.objectStore(STORE).delete(SAVE_KEY);
+      tx.objectStore(STORE).delete(key);
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error || new Error('IndexedDB delete failed'));
       tx.onabort = () => reject(tx.error || new Error('IndexedDB delete aborted'));
@@ -95,6 +97,7 @@ window.BBGM_STATE = (function () {
   // below dispatch on the runtime; in any browser this whole branch is
   // dead code and persistence is byte-identical to before.
   const SAVE_FILE = 'bbgm-classic-save.json';
+  const BACKUP_FILE = 'bbgm-classic-save.backup.json';
   function nativeFS() {
     const cap = window.Capacitor;
     if (!cap || !cap.isNativePlatform || !cap.isNativePlatform()) return null;
@@ -139,20 +142,20 @@ window.BBGM_STATE = (function () {
     return typeof s === 'string' && s.startsWith('H4sI');
   }
 
-  function storePut(value) {
+  function storePut(value, slot = 'main') {
     const fs = nativeFS();
-    if (!fs) return idbPut(value);
+    if (!fs) return idbPut(value, slot === 'backup' ? BACKUP_KEY : SAVE_KEY);
     const json = JSON.stringify(value);
     return gzipText(json).then((b64) => fs.writeFile({
-      path: SAVE_FILE, directory: 'DATA', encoding: 'utf8',
+      path: slot === 'backup' ? BACKUP_FILE : SAVE_FILE, directory: 'DATA', encoding: 'utf8',
       data: b64 || json,
     }));
   }
 
-  function storeGet() {
+  function storeGet(slot = 'main') {
     const fs = nativeFS();
-    if (!fs) return idbGet();
-    return fs.readFile({ path: SAVE_FILE, directory: 'DATA', encoding: 'utf8' })
+    if (!fs) return idbGet(slot === 'backup' ? BACKUP_KEY : SAVE_KEY);
+    return fs.readFile({ path: slot === 'backup' ? BACKUP_FILE : SAVE_FILE, directory: 'DATA', encoding: 'utf8' })
       .then((res) => {
         const raw = res && res.data;
         if (!raw) return null;
@@ -171,19 +174,42 @@ window.BBGM_STATE = (function () {
       });
   }
 
-  function storeHasKey() {
+  function storeHasKey(slot = 'main') {
     const fs = nativeFS();
-    if (!fs) return idbHasKey();
-    return fs.stat({ path: SAVE_FILE, directory: 'DATA' })
+    if (!fs) return idbHasKey(slot === 'backup' ? BACKUP_KEY : SAVE_KEY);
+    return fs.stat({ path: slot === 'backup' ? BACKUP_FILE : SAVE_FILE, directory: 'DATA' })
       .then(() => true)
       .catch(() => false);
   }
 
-  function storeDelete() {
+  function storeDelete(slot = 'main') {
     const fs = nativeFS();
-    if (!fs) return idbDelete();
-    return fs.deleteFile({ path: SAVE_FILE, directory: 'DATA' })
+    if (!fs) return idbDelete(slot === 'backup' ? BACKUP_KEY : SAVE_KEY);
+    return fs.deleteFile({ path: slot === 'backup' ? BACKUP_FILE : SAVE_FILE, directory: 'DATA' })
       .catch(() => {}); // deleting a save that isn't there is a no-op
+  }
+
+  // ---- Pre-import backup slot (v2.18.5, hostile QA round 2) --------------
+  // Validation can only refuse what it knows to look for. The slot is
+  // the guarantee behind it: the save an import replaces is copied here
+  // first, so a candidate that passes every check and still fails at
+  // startup (or a week later) can be put back from the failure dialog
+  // or the Menu. One slot — the next import overwrites it.
+  function hasBackup() {
+    return storeHasKey('backup').catch(() => false);
+  }
+
+  function restoreBackup() {
+    return storeGet('backup').then((saved) => {
+      if (!saved) throw new Error('No pre-import backup is stored.');
+      const structural = structuralSaveError(saved);
+      if (structural) throw new Error(`The backup itself is unreadable (${structural}).`);
+      return storePut(saved).then(() => {
+        state = saved;
+        notify();
+        return saved;
+      });
+    });
   }
 
   function readLegacySave() {
@@ -327,12 +353,48 @@ window.BBGM_STATE = (function () {
     if (obj.meta.userTeamId != null && !teams.some((t) => t.id === obj.meta.userTeamId)) return 'Save file names a team that does not exist';
     const sched = obj.league.schedule;
     if (!sched || !Array.isArray(sched.games)) return 'Save file has no schedule';
+    // Player records (v2.18.5, hostile QA round 2): a null or shapeless
+    // entry in the players map passed the v2.18.0 check and then blew up
+    // the migration chain at startup — after the import had already
+    // replaced the good save. Every record the game will touch has to be
+    // a real player: an object with a name, a ratings block and a
+    // pitcher flag.
+    const isRecord = (p) => p && typeof p === 'object' && typeof p.name === 'string' &&
+      p.ratings && typeof p.ratings === 'object' && typeof p.isPitcher === 'boolean';
+    for (const [id, p] of Object.entries(obj.players)) {
+      if (!isRecord(p)) return `Player record ${id} is malformed`;
+    }
+    const inSeason = !obj.meta.offseasonPhase;
     for (const t of teams) {
       if (!Array.isArray(t.roster)) return `Team ${t.abbr || t.id} has no roster`;
-      const missing = t.roster.filter((id) => !obj.players[id]).length;
-      if (missing > 0 && missing === t.roster.length) return `Team ${t.abbr || t.id}'s roster references players that are not in the file`;
-      if (t.id === obj.meta.userTeamId && t.roster.length < 9) return 'Your club\'s roster is too short to field a lineup';
+      for (const key of ['minors', 'il', 'rotation', 'bullpen']) {
+        if (t[key] != null && !Array.isArray(t[key])) return `Team ${t.abbr || t.id}'s ${key} list is malformed`;
+      }
+      const live = t.roster.map((id) => obj.players[id]).filter(Boolean);
+      if (t.roster.length && !live.length) return `Team ${t.abbr || t.id}'s roster references players that are not in the file`;
+      if (t.id === obj.meta.userTeamId && live.length < 9) return 'Your club\'s roster is too short to field a lineup';
+      // An in-season roster has to be simmable: a starter to hand the
+      // ball to and nine men to write on a card. Offseason rosters are
+      // legitimately thin and get rebuilt before Opening Day.
+      if (inSeason && t.roster.length) {
+        const arms = live.filter((p) => p.isPitcher).length;
+        if (!arms) return `Team ${t.abbr || t.id} has no pitcher on its roster`;
+        if (live.length < 9) return `Team ${t.abbr || t.id} cannot field nine men`;
+      }
     }
+    if (obj.postseason != null) {
+      const ps = obj.postseason;
+      if (typeof ps !== 'object' || typeof ps.phase !== 'string' || !Array.isArray(ps.series) ||
+          (ps.games != null && !Array.isArray(ps.games))) return 'Save file has a malformed postseason';
+      if (ps.series.some((s) => !s || typeof s !== 'object')) return 'Save file has a malformed postseason series';
+    }
+    for (const key of ['inbox', 'news', 'pendingDecisions']) {
+      if (obj[key] != null && !Array.isArray(obj[key])) return `Save file's ${key} is malformed`;
+    }
+    if (obj.history != null && (typeof obj.history !== 'object' || Array.isArray(obj.history) ||
+        (obj.history.seasons != null && !Array.isArray(obj.history.seasons)))) return 'Save file has a malformed history';
+    if (obj.faMarket != null && (typeof obj.faMarket !== 'object' || !Array.isArray(obj.faMarket.entries) ||
+        !Array.isArray(obj.faMarket.userOffers))) return 'Save file has a malformed free-agent market';
     return null;
   }
 
@@ -386,11 +448,18 @@ window.BBGM_STATE = (function () {
           // unsaved import while disk still held the old save — a crash
           // silently reverted the player hours back. Persist-before-resolve
           // also beats menu.js's success reload racing the debounced save.
-          storePut(obj).then(() => {
-            state = obj;
-            notify();
-            resolve(obj);
-          }).catch(reject);
+          // v2.18.5: the save being replaced is copied to the backup slot
+          // first; if that copy fails the import is refused outright.
+          storeGet().catch(() => null)
+            .then((current) => (current ? storePut(current, 'backup').catch((e) => {
+              throw new Error(`Could not back up your current save (${e && e.message}) — import aborted, your current save is untouched.`);
+            }) : null))
+            .then(() => storePut(obj))
+            .then(() => {
+              state = obj;
+              notify();
+              resolve(obj);
+            }).catch(reject);
         } catch (e) { reject(e); }
       };
       reader.onerror = () => reject(reader.error);
@@ -444,6 +513,7 @@ window.BBGM_STATE = (function () {
   return {
     get, set, reset, subscribe, saveNow, load, hasSave,
     exportToFile, importFromFile, setSaveBlocked, onSaveError,
+    hasBackup, restoreBackup,
     getPlayer, getTeam, userTeam,
     simStops, setSimStop,
     // v2.18.0 test seams: import structural check + native save codec.

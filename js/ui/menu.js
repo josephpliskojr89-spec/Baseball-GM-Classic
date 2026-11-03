@@ -12,7 +12,7 @@ window.BBGM_UI_MENU = (function () {
     // Build constant is bumped with every release so the user can tell at a
     // glance which dashboard.js the browser actually loaded. Save version
     // is the save-schema version and changes only when the schema changes.
-    const BUILD = 'v2.18.4-scrolllock-1';
+    const BUILD = 'v2.18.5-importsafety-1';
     card.appendChild(U.el('div', { class: 'inset-list', style: { 'border': 'none' } }, [
       insetRow('Team', userTeam.name),
       insetRow('Date', window.BBGM_DATES.format(state.meta.currentDate)),
@@ -51,6 +51,28 @@ window.BBGM_UI_MENU = (function () {
         input.click();
       }}
     }, 'Import Save (.json)'));
+
+    // v2.18.5: the save the last import replaced, one tap away.
+    const restoreBtn = U.el('button', {
+      class: 'btn-secondary', style: { display: 'none' },
+      on: { click: () => {
+        U.showModal({
+          title: 'Restore Previous Save?',
+          body: 'This puts back the save that your last import replaced. The current save is overwritten — export it first if you want to keep it.',
+          actions: [
+            { label: 'Cancel', kind: 'secondary', onClick: () => true },
+            { label: 'Restore', kind: 'danger', onClick: () => {
+              window.BBGM_STATE.restoreBackup()
+                .then(() => location.reload())
+                .catch((err) => U.showToast('Restore failed: ' + err.message, 'danger'));
+              return false;
+            }},
+          ],
+        });
+      }},
+    }, 'Restore Pre-Import Save');
+    actions.appendChild(restoreBtn);
+    window.BBGM_STATE.hasBackup().then((has) => { if (has) restoreBtn.style.display = ''; });
 
     actions.appendChild(U.el('button', {
       class: 'btn-secondary',
